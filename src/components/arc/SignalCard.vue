@@ -7,10 +7,11 @@ defineProps<{ signal: Signal }>();
 <template>
   <article class="rounded-md border border-surface0 bg-mantle p-4">
     <header class="mb-2 flex items-center justify-between text-xs text-subtext0">
-      <span>{{ signal.from }}</span>
+      <span>{{ signal.from.name ? `${signal.from.name} <${signal.from.address}>` : signal.from.address }}</span>
       <time>{{ signal.receivedAt }}</time>
     </header>
     <h3 class="mb-2 text-sm font-medium text-text">{{ signal.subject }}</h3>
-    <pre class="whitespace-pre-wrap text-sm text-text">{{ signal.bodyText }}</pre>
+    <p class="text-sm text-subtext1">{{ signal.summary }}</p>
+    <pre v-if="signal.textBody" class="mt-2 whitespace-pre-wrap text-sm text-text">{{ signal.textBody }}</pre>
   </article>
 </template>

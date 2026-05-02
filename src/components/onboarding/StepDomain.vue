@@ -1,46 +1,66 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { onBeforeUnmount, ref } from 'vue';
 import { api } from '@/api/client';
+import { useAccountStore } from '@/stores/account';
 import { useOnboardingStore } from '@/stores/onboarding';
 import Button from '@/components/ui/Button.vue';
-import type { DnsRecord, DnsTier } from '@/types/server';
+import DnsRecordTable from './DnsRecordTable.vue';
 
+const POLL_MS = 10_000; // per spec: poll DNS every 10 seconds
+
+const account = useAccountStore();
 const store = useOnboardingStore();
 const domain = ref(store.domain);
-const loading = ref(false);
+const submitting = ref(false);
 const error = ref<string | null>(null);
+let timer: ReturnType<typeof setTimeout> | null = null;
 
-const groupedRecords = computed(() => {
-  const apex: DnsRecord[] = [];
-  const sub: DnsRecord[] = [];
-  for (const r of store.dnsRecords) (r.tier === 'apex' ? apex : sub).push(r);
-  return { apex, sub };
-});
+function stopPolling() {
+  if (timer) { clearTimeout(timer); timer = null; }
+}
 
-async function verify() {
-  if (!domain.value) return;
-  loading.value = true;
-  error.value = null;
+async function pollRecords() {
+  if (!account.accountId || !store.domainId) return;
   try {
-    const reg = await api.onboarding.registerDomain(domain.value);
-    store.setDomain(reg.domain, reg.records);
+    const records = await api.domains.records(account.accountId, store.domainId);
+    store.setDnsRecords(records);
+    // Auto-advance once Tier 1 (MX) is verified, per spec.
+    if (store.receivingVerified && store.step === 1) store.next();
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to register domain';
+    error.value = err instanceof Error ? err.message : 'DNS check failed';
   } finally {
-    loading.value = false;
+    timer = setTimeout(pollRecords, POLL_MS);
   }
 }
 
-function tierLabel(t: DnsTier) {
-  return t === 'apex' ? 'Apex records' : 'Subdomain records';
+async function register() {
+  if (!domain.value || !account.accountId) return;
+  submitting.value = true;
+  error.value = null;
+  try {
+    const created = await api.domains.create(account.accountId, domain.value);
+    store.setDomain(created.domain, created.id);
+    const records = await api.domains.records(account.accountId, created.id);
+    store.setDnsRecords(records);
+    timer = setTimeout(pollRecords, POLL_MS);
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to register domain';
+  } finally {
+    submitting.value = false;
+  }
 }
+
+onBeforeUnmount(stopPolling);
 </script>
 
 <template>
   <section class="flex flex-col gap-4">
     <header>
-      <h2 class="text-xl font-semibold text-text">Add your sending domain</h2>
-      <p class="text-sm text-subtext0">We’ll generate the DNS records you need to publish.</p>
+      <h2 class="text-xl font-semibold text-text">Register your domain</h2>
+      <p class="text-sm text-subtext0">
+        We’ll generate all 4 DNS records up front. The MX is required to receive
+        email; the other three (DKIM, SPF, DMARC) enable replies and forwarding.
+      </p>
     </header>
 
     <label class="flex flex-col gap-1 text-sm">
@@ -49,40 +69,22 @@ function tierLabel(t: DnsTier) {
         v-model="domain"
         type="text"
         placeholder="example.com"
-        class="rounded-md border border-surface0 bg-base px-3 py-2 text-text"
+        :disabled="!!store.domainId"
+        class="rounded-md border border-surface0 bg-base px-3 py-2 text-text disabled:opacity-50"
       />
     </label>
 
-    <div class="flex items-center gap-2">
-      <Button :disabled="loading" @click="verify">
-        {{ loading ? 'Verifying…' : 'Generate DNS records' }}
+    <div v-if="!store.domainId" class="flex items-center gap-2">
+      <Button :disabled="submitting || !domain" @click="register">
+        {{ submitting ? 'Registering…' : 'Generate DNS records' }}
       </Button>
       <span v-if="error" class="text-sm text-red">{{ error }}</span>
     </div>
 
-    <div v-if="store.dnsRecords.length" class="flex flex-col gap-3" data-testid="dns-records">
-      <div
-        v-for="tier in (['apex', 'sub'] as const)"
-        :key="tier"
-        class="rounded-md border border-surface0 bg-mantle p-3"
-      >
-        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-subtext0">
-          {{ tierLabel(tier) }}
-        </h3>
-        <table class="w-full text-left text-sm">
-          <thead class="text-xs uppercase text-subtext0">
-            <tr><th class="py-1">Type</th><th>Name</th><th>Value</th><th>Purpose</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="r in groupedRecords[tier]" :key="`${r.type}-${r.name}-${r.value}`">
-              <td class="py-1 pr-2 font-mono text-mauve">{{ r.type }}</td>
-              <td class="pr-2 font-mono">{{ r.name }}</td>
-              <td class="truncate pr-2 font-mono">{{ r.value }}</td>
-              <td class="text-subtext0">{{ r.purpose }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <DnsRecordTable
+      v-if="store.dnsRecords.length"
+      :records="store.dnsRecords"
+      title="DNS records (MX = required, others = recommended)"
+    />
   </section>
 </template>

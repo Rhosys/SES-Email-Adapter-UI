@@ -14,10 +14,14 @@ defineProps<{ arc: Arc }>();
     <WorkflowIcon :workflow="arc.workflow" />
     <div class="min-w-0 flex-1">
       <div class="flex items-center gap-2">
-        <span class="truncate text-sm font-medium text-text">{{ arc.subject }}</span>
-        <UrgencyBadge :urgency="arc.urgency" />
+        <span class="truncate text-sm text-text">{{ arc.summary }}</span>
+        <UrgencyBadge v-if="arc.urgency" :urgency="arc.urgency" />
       </div>
-      <p class="truncate text-xs text-subtext0">{{ arc.preview }}</p>
+      <p v-if="arc.labels.length" class="mt-1 truncate text-xs text-subtext0">
+        <!-- Labels are stored as IDs on the arc; the inbox will resolve them to
+             names + colors against the labels store in phase 6. -->
+        <span v-for="id in arc.labels" :key="id" class="mr-1">#{{ id }}</span>
+      </p>
     </div>
     <time class="shrink-0 text-xs text-subtext0">{{ arc.lastSignalAt }}</time>
   </RouterLink>

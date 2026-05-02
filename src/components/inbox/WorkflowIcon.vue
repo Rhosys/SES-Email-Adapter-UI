@@ -3,14 +3,23 @@ import type { Workflow } from '@/types/server';
 
 defineProps<{ workflow: Workflow }>();
 
+// One distinct glyph per workflow. Icons are placeholder unicode; phase 3 will
+// swap these for proper SVGs.
 const GLYPHS: Record<Workflow, string> = {
-  support: '✉',
-  sales: '★',
-  billing: '¤',
-  quote: '§',
-  invoice: '▤',
-  shipping: '▣',
-  other: '○'
+  auth: '🔑',
+  conversation: '💬',
+  crm: '🤝',
+  package: '📦',
+  travel: '✈',
+  scheduling: '📅',
+  payments: '💳',
+  alert: '⚠',
+  content: '📰',
+  status: '📋',
+  healthcare: '⚕',
+  job: '💼',
+  support: '🛠',
+  test: '🧪'
 };
 </script>
 
