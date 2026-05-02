@@ -28,11 +28,7 @@ function statusLabel(status: DnsRecord['status']): string {
         <tr><th class="py-1">Type</th><th>Name</th><th>Value</th><th>Status</th></tr>
       </thead>
       <tbody>
-        <tr
-          v-for="r in records"
-          :key="`${r.type}-${r.name}`"
-          :data-testid="`record-${r.type}\` + ${r.name}`"
-        >
+        <tr v-for="r in records" :key="r.name + ':' + r.type">
           <td class="py-1 pr-2 font-mono text-mauve">{{ r.type }}</td>
           <td class="truncate pr-2 font-mono">{{ r.name }}</td>
           <td class="truncate pr-2 font-mono">{{ r.value }}</td>
