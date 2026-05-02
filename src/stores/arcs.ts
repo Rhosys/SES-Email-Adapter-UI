@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
-import type { Arc } from '@/types/server';
+import type { Arc, ArcStatus, Workflow } from '@/types/server';
 import { api } from '@/api/client';
+import { useAccountStore } from './account';
 
 interface ArcsState {
   items: Arc[];
@@ -8,6 +9,7 @@ interface ArcsState {
   loading: boolean;
   error: string | null;
   exhausted: boolean;
+  filter: { status?: ArcStatus; workflow?: Workflow; label?: string };
 }
 
 export const useArcsStore = defineStore('arcs', {
@@ -16,7 +18,8 @@ export const useArcsStore = defineStore('arcs', {
     cursor: null,
     loading: false,
     error: null,
-    exhausted: false
+    exhausted: false,
+    filter: {}
   }),
   getters: {
     byId: (s) => (id: string) => s.items.find((a) => a.id === id) ?? null
@@ -24,18 +27,30 @@ export const useArcsStore = defineStore('arcs', {
   actions: {
     async loadNextPage(): Promise<void> {
       if (this.loading || this.exhausted) return;
+      const { accountId } = useAccountStore();
+      if (!accountId) {
+        this.error = 'No account selected';
+        return;
+      }
       this.loading = true;
       this.error = null;
       try {
-        const page = await api.arcs.list({ cursor: this.cursor });
+        const page = await api.arcs.list(accountId, {
+          ...(this.cursor !== null ? { cursor: this.cursor } : {}),
+          ...this.filter
+        });
         this.items.push(...page.items);
-        this.cursor = page.cursor;
-        this.exhausted = page.cursor === null;
+        this.cursor = page.nextCursor ?? null;
+        this.exhausted = !page.nextCursor;
       } catch (err) {
         this.error = err instanceof Error ? err.message : 'Failed to load arcs';
       } finally {
         this.loading = false;
       }
+    },
+    setFilter(filter: ArcsState['filter']): void {
+      this.filter = filter;
+      this.reset();
     },
     reset(): void {
       this.items = [];

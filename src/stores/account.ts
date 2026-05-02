@@ -14,39 +14,46 @@ async function getLoginClient() {
   return loginClient;
 }
 
+const ACCOUNT_ID_KEY = 'ses-ui.account-id';
+
 interface AccountState {
+  accountId: string | null;
   account: Account | null;
   token: string | null;
   loading: boolean;
 }
 
 export const useAccountStore = defineStore('account', {
-  state: (): AccountState => ({ account: null, token: null, loading: false }),
+  state: (): AccountState => ({ accountId: null, account: null, token: null, loading: false }),
   getters: {
-    isAuthenticated: (s) => !!s.token
+    isAuthenticated: (s) => !!s.token,
+    hasAccount: (s) => !!s.accountId
   },
   actions: {
-    async hydrate(): Promise<void> {
-      if (typeof window === 'undefined') return;
-      try {
-        const client = await getLoginClient();
-        const session = await client.userSessionExists();
-        if (session) {
-          this.token = await client.getToken();
-        }
-      } catch {
-        // Surface auth errors via the API layer; hydration must never throw.
+    hydrate(): void {
+      if (typeof localStorage !== 'undefined') {
+        this.accountId = localStorage.getItem(ACCOUNT_ID_KEY);
+      }
+      // Token hydration is async — callers that need it must await login().
+    },
+    setAccountId(accountId: string): void {
+      this.accountId = accountId;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(ACCOUNT_ID_KEY, accountId);
       }
     },
     async login(): Promise<void> {
       const client = await getLoginClient();
       await client.authenticate({ connectionId: 'default' });
+      this.token = await client.getToken();
     },
     async logout(): Promise<void> {
       const client = await getLoginClient();
       await client.logout();
       this.token = null;
       this.account = null;
+      this.accountId = null;
+      if (typeof localStorage !== 'undefined') localStorage.removeItem(ACCOUNT_ID_KEY);
     },
     setAccount(account: Account): void {
       this.account = account;

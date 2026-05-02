@@ -1,6 +1,8 @@
 import type {
-  Arc, Page, Signal, Pong, Label, Rule, Account,
-  DomainRegistration, FilterMode, TestEmail, TestEmailStatus
+  Account, Arc, Domain, DnsRecord, Label, Page, PageParams,
+  Rule, RuleAction, Signal, View, ArcStatus, Workflow,
+  EmailAddressConfig, SenderFilterMode, AccountFilteringConfig,
+  VerifiedForwardingAddress
 } from '@/types/server';
 import { useAccountStore } from '@/stores/account';
 
@@ -47,53 +49,121 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   return (await res.json()) as T;
 }
 
+function acct(accountId: string): string {
+  return `accounts/${encodeURIComponent(accountId)}`;
+}
+
+interface ListArcsParams extends PageParams {
+  workflow?: Workflow;
+  label?: string;
+  status?: ArcStatus;
+}
+
 export const api = {
   account: {
-    me: () => request<Account>('account')
+    get: (accountId: string) =>
+      request<Account>(acct(accountId)),
+    update: (accountId: string, body: Partial<Pick<Account, 'name' | 'deletionRetentionDays' | 'notifications' | 'filtering'>>) =>
+      request<{ ok: true }>(acct(accountId), { method: 'PATCH', body }),
+    setFilterMode: (accountId: string, mode: SenderFilterMode, extra: Partial<AccountFilteringConfig> = {}) =>
+      request<{ ok: true }>(acct(accountId), {
+        method: 'PATCH',
+        body: { filtering: { defaultFilterMode: mode, newAddressHandling: 'auto_allow', ...extra } }
+      })
   },
+
   arcs: {
-    list: (params: { cursor?: string | null; status?: string } = {}) =>
-      request<Page<Arc>>('arcs', { query: { cursor: params.cursor ?? null, status: params.status } }),
-    get: (id: string) => request<Arc>(`arcs/${encodeURIComponent(id)}`),
-    archive: (id: string) => request<void>(`arcs/${encodeURIComponent(id)}/archive`, { method: 'POST' })
+    list: (accountId: string, params: ListArcsParams = {}) =>
+      request<Page<Arc>>(`${acct(accountId)}/arcs`, {
+        query: {
+          workflow: params.workflow,
+          label: params.label,
+          status: params.status,
+          cursor: params.cursor,
+          limit: params.limit
+        }
+      }),
+    get: (accountId: string, id: string) =>
+      request<Arc>(`${acct(accountId)}/arcs/${encodeURIComponent(id)}`),
+    update: (accountId: string, id: string, body: { status?: ArcStatus; labels?: string[] }) =>
+      request<{ ok: true }>(`${acct(accountId)}/arcs/${encodeURIComponent(id)}`, { method: 'PATCH', body }),
+    createFromBlocked: (accountId: string, body: { signalId: string; approveSender?: boolean; updateFilterMode?: SenderFilterMode }) =>
+      request<Arc>(`${acct(accountId)}/arcs`, { method: 'POST', body })
   },
+
   signals: {
-    listByArc: (arcId: string) => request<Page<Signal>>(`arcs/${encodeURIComponent(arcId)}/signals`),
-    quarantined: (cursor?: string | null) =>
-      request<Page<Signal>>('quarantine', { query: { cursor: cursor ?? null } }),
-    allow: (id: string) => request<void>(`signals/${encodeURIComponent(id)}/allow`, { method: 'POST' }),
-    dismiss: (id: string) => request<void>(`signals/${encodeURIComponent(id)}/dismiss`, { method: 'POST' })
+    listByArc: (accountId: string, arcId: string, params: PageParams = {}) =>
+      request<Page<Signal>>(`${acct(accountId)}/arcs/${encodeURIComponent(arcId)}/signals`, {
+        query: { cursor: params.cursor, limit: params.limit }
+      }),
+    get: (accountId: string, id: string) =>
+      request<Signal>(`${acct(accountId)}/signals/${encodeURIComponent(id)}`)
   },
-  pongs: {
-    create: (arcId: string, body: Pick<Pong, 'bodyMarkdown'>) =>
-      request<Pong>(`arcs/${encodeURIComponent(arcId)}/pongs`, { method: 'POST', body }),
-    send: (id: string) => request<Pong>(`pongs/${encodeURIComponent(id)}/send`, { method: 'POST' })
+
+  views: {
+    list: (accountId: string) => request<View[]>(`${acct(accountId)}/views`),
+    create: (accountId: string, body: { name: string; workflow?: Workflow; labels?: string[]; sortField?: View['sortField']; sortDirection?: View['sortDirection']; icon?: string; color?: string; position?: number }) =>
+      request<View>(`${acct(accountId)}/views`, { method: 'POST', body }),
+    update: (accountId: string, id: string, body: Partial<{ name: string; workflow?: Workflow; labels?: string[]; sortField: View['sortField']; sortDirection: View['sortDirection']; icon?: string; color?: string; position?: number }>) =>
+      request<{ ok: true }>(`${acct(accountId)}/views/${encodeURIComponent(id)}`, { method: 'PATCH', body }),
+    remove: (accountId: string, id: string) =>
+      request<void>(`${acct(accountId)}/views/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    reorder: (accountId: string, orderedIds: string[]) =>
+      request<{ ok: true }>(`${acct(accountId)}/views/reorder`, { method: 'POST', body: { orderedIds } })
   },
+
   labels: {
-    list: () => request<Label[]>('labels'),
-    create: (label: Omit<Label, 'id'>) => request<Label>('labels', { method: 'POST', body: label }),
-    remove: (id: string) => request<void>(`labels/${encodeURIComponent(id)}`, { method: 'DELETE' })
+    list: (accountId: string) => request<Label[]>(`${acct(accountId)}/labels`),
+    create: (accountId: string, body: { name: string; color?: string; icon?: string }) =>
+      request<Label>(`${acct(accountId)}/labels`, { method: 'POST', body }),
+    update: (accountId: string, id: string, body: Partial<{ name: string; color?: string; icon?: string }>) =>
+      request<{ ok: true }>(`${acct(accountId)}/labels/${encodeURIComponent(id)}`, { method: 'PATCH', body }),
+    remove: (accountId: string, id: string) =>
+      request<void>(`${acct(accountId)}/labels/${encodeURIComponent(id)}`, { method: 'DELETE' })
   },
+
   rules: {
-    list: () => request<Rule[]>('rules'),
-    upsert: (rule: Rule) => request<Rule>(`rules/${encodeURIComponent(rule.id)}`, { method: 'PUT', body: rule })
+    list: (accountId: string) => request<Rule[]>(`${acct(accountId)}/rules`),
+    create: (accountId: string, body: { name: string; condition: string; actions: RuleAction[]; position?: number }) =>
+      request<Rule>(`${acct(accountId)}/rules`, { method: 'POST', body }),
+    update: (accountId: string, id: string, body: Partial<{ name: string; condition: string; actions: RuleAction[]; position?: number }>) =>
+      request<{ ok: true }>(`${acct(accountId)}/rules/${encodeURIComponent(id)}`, { method: 'PATCH', body }),
+    remove: (accountId: string, id: string) =>
+      request<void>(`${acct(accountId)}/rules/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    reorder: (accountId: string, orderedIds: string[]) =>
+      request<{ ok: true }>(`${acct(accountId)}/rules/reorder`, { method: 'POST', body: { orderedIds } })
   },
-  search: {
-    query: (q: string, cursor?: string | null) =>
-      request<Page<Arc>>('search', { query: { q, cursor: cursor ?? null } })
+
+  domains: {
+    list: (accountId: string) =>
+      request<Domain[]>(`${acct(accountId)}/domains`),
+    create: (accountId: string, domain: string) =>
+      request<Domain>(`${acct(accountId)}/domains`, { method: 'POST', body: { domain } }),
+    records: (accountId: string, id: string) =>
+      request<DnsRecord[]>(`${acct(accountId)}/domains/${encodeURIComponent(id)}/records`),
+    remove: (accountId: string, id: string) =>
+      request<void>(`${acct(accountId)}/domains/${encodeURIComponent(id)}`, { method: 'DELETE' })
   },
-  onboarding: {
-    registerDomain: (domain: string) =>
-      request<DomainRegistration>('onboarding/domain', { method: 'POST', body: { domain } }),
-    sendTestEmail: () =>
-      request<TestEmail>('onboarding/test-email', { method: 'POST' }),
-    testEmailStatus: (testId: string) =>
-      request<TestEmailStatus>(`onboarding/test-email/${encodeURIComponent(testId)}/status`),
-    setSender: (sender: string, displayName: string) =>
-      request<void>('onboarding/sender', { method: 'POST', body: { sender, displayName } }),
-    setFilterMode: (mode: FilterMode) =>
-      request<void>('onboarding/filter-mode', { method: 'POST', body: { mode } }),
-    complete: () =>
-      request<void>('onboarding/complete', { method: 'POST' })
+
+  emailConfigs: {
+    list: (accountId: string) =>
+      request<Record<string, EmailAddressConfig>>(`${acct(accountId)}/email-configs`),
+    get: (accountId: string, address: string) =>
+      request<EmailAddressConfig>(`${acct(accountId)}/email-configs/${encodeURIComponent(address)}`),
+    upsert: (accountId: string, address: string, body: Partial<Omit<EmailAddressConfig, 'id' | 'accountId' | 'address' | 'createdAt' | 'updatedAt'>>) =>
+      request<EmailAddressConfig>(`${acct(accountId)}/email-configs/${encodeURIComponent(address)}`, { method: 'PUT', body }),
+    remove: (accountId: string, address: string) =>
+      request<void>(`${acct(accountId)}/email-configs/${encodeURIComponent(address)}`, { method: 'DELETE' })
+  },
+
+  forwardingAddresses: {
+    list: (accountId: string) =>
+      request<VerifiedForwardingAddress[]>(`${acct(accountId)}/forwarding-addresses`),
+    create: (accountId: string, address: string) =>
+      request<VerifiedForwardingAddress>(`${acct(accountId)}/forwarding-addresses`, { method: 'POST', body: { address } }),
+    verify: (accountId: string, address: string, token: string) =>
+      request<{ ok: true }>(`${acct(accountId)}/forwarding-addresses/${encodeURIComponent(address)}/verify`, { method: 'POST', body: { token } }),
+    remove: (accountId: string, address: string) =>
+      request<void>(`${acct(accountId)}/forwarding-addresses/${encodeURIComponent(address)}`, { method: 'DELETE' })
   }
 };
