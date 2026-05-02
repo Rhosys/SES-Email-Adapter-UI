@@ -6,7 +6,12 @@ const routes: RouteRecordRaw[] = [
   { path: '/quarantine', name: 'quarantine', component: () => import('@/views/QuarantineView.vue') },
   { path: '/search', name: 'search', component: () => import('@/views/SearchView.vue') },
   { path: '/settings', name: 'settings', component: () => import('@/views/SettingsView.vue') },
-  { path: '/onboarding', name: 'onboarding', component: () => import('@/views/OnboardingView.vue') },
+  {
+    path: '/onboarding',
+    name: 'onboarding',
+    component: () => import('@/views/OnboardingView.vue'),
+    meta: { layout: 'minimal' }
+  },
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ];
 

@@ -81,3 +81,37 @@ export interface Rule {
   actions: Array<{ type: string; params: Record<string, unknown> }>;
   enabled: boolean;
 }
+
+// --- Onboarding -----------------------------------------------------------
+
+export type DnsTier = 'apex' | 'sub';
+export type DnsRecordType = 'CNAME' | 'MX' | 'TXT';
+export type DnsPurpose = 'verification' | 'MX' | 'SPF' | 'DKIM' | 'DMARC';
+
+export interface DnsRecord {
+  tier: DnsTier;
+  type: DnsRecordType;
+  name: string;
+  value: string;
+  purpose: DnsPurpose;
+  ttl?: number;
+}
+
+export interface DomainRegistration {
+  domain: string;
+  records: DnsRecord[];
+  verified: boolean;
+}
+
+export type FilterMode = 'strict' | 'balanced' | 'permissive';
+
+export interface TestEmail {
+  testId: string;
+  to: string;
+}
+
+export interface TestEmailStatus {
+  received: boolean;
+  signalId?: string;
+  receivedAt?: string;
+}

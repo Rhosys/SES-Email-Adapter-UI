@@ -1,4 +1,7 @@
-import type { Arc, Page, Signal, Pong, Label, Rule, Account } from '@/types/server';
+import type {
+  Arc, Page, Signal, Pong, Label, Rule, Account,
+  DomainRegistration, FilterMode, TestEmail, TestEmailStatus
+} from '@/types/server';
 import { useAccountStore } from '@/stores/account';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -78,5 +81,19 @@ export const api = {
   search: {
     query: (q: string, cursor?: string | null) =>
       request<Page<Arc>>('search', { query: { q, cursor: cursor ?? null } })
+  },
+  onboarding: {
+    registerDomain: (domain: string) =>
+      request<DomainRegistration>('onboarding/domain', { method: 'POST', body: { domain } }),
+    sendTestEmail: () =>
+      request<TestEmail>('onboarding/test-email', { method: 'POST' }),
+    testEmailStatus: (testId: string) =>
+      request<TestEmailStatus>(`onboarding/test-email/${encodeURIComponent(testId)}/status`),
+    setSender: (sender: string, displayName: string) =>
+      request<void>('onboarding/sender', { method: 'POST', body: { sender, displayName } }),
+    setFilterMode: (mode: FilterMode) =>
+      request<void>('onboarding/filter-mode', { method: 'POST', body: { mode } }),
+    complete: () =>
+      request<void>('onboarding/complete', { method: 'POST' })
   }
 };
