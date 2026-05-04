@@ -1,6 +1,6 @@
 import { ok, err, type Result } from 'neverthrow'
 import { loginClient } from './auth'
-import type { Account, Arc, ArcStatus, Page } from '@/types/server'
+import type { Account, Arc, ArcStatus, Page, Signal } from '@/types/server'
 
 export class ApiError {
   constructor(
@@ -69,5 +69,19 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(body),
     })
+  },
+
+  listSignals(
+    accountId: string,
+    arcId: string,
+    params: { cursor?: string; limit?: number } = {},
+  ): Promise<Result<Page<Signal>, ApiError>> {
+    const qs = new URLSearchParams()
+    if (params.cursor) qs.set('cursor', params.cursor)
+    if (params.limit) qs.set('limit', String(params.limit))
+    const query = qs.toString()
+    return request<Page<Signal>>(
+      `/accounts/${accountId}/arcs/${arcId}/signals${query ? `?${query}` : ''}`,
+    )
   },
 }

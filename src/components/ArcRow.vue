@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { inject, computed } from 'vue'
+import { RouterLink } from 'vue-router'
 import type { Arc } from '@/types/server'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { urgencyStripeColor } from '@/composables/useUrgencyStyle'
@@ -47,15 +48,15 @@ const timestamp = computed(() => (now ? formatRelativeTime(props.arc.lastSignalA
     <!-- Workflow icon -->
     <WorkflowIcon :workflow="arc.workflow" />
 
-    <!-- Center content -->
-    <div class="min-w-0 flex-1">
+    <!-- Center content — clickable link to detail -->
+    <RouterLink :to="{ name: 'arc-detail', params: { id: arc.id } }" class="min-w-0 flex-1">
       <p class="truncate text-sm text-ctp-text" :class="{ 'font-semibold': isUnread }">
         {{ arc.summary }}
       </p>
       <div class="mt-0.5 flex flex-wrap items-center gap-1">
         <LabelChip v-for="label in arc.labels" :key="label" :label="label" />
       </div>
-    </div>
+    </RouterLink>
 
     <!-- Right side: timestamp + urgency badge -->
     <div class="flex shrink-0 flex-col items-end gap-1">

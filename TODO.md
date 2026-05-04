@@ -5,6 +5,63 @@
 - [ ] Write marketing homepage copy (value prop, screenshots, CTA)
 - [ ] Set up favicon and Open Graph meta tags
 - [ ] Implement all phases below (Phases 2, 4–10)
+- [ ] **Update `src/api/client.ts` for API modernization** — see "API breaking changes" section below
+
+---
+
+## API Breaking Changes — `src/api/client.ts` must be updated
+
+The backend API was fully modernized. Every endpoint the site calls has changed. The full reference is in `../backend/TODO.md` under "API Breaking Changes". Summary of changes that affect the site:
+
+### Collection envelope
+
+All list calls now return named collections, not raw arrays or `{ items, total }`:
+
+```ts
+// Before
+const arcs = await api.get<Arc[]>('/arcs')
+
+// After
+const { arcs, pagination } = await api.get<{ arcs: Arc[]; pagination: { cursor: string | null } }>(
+  '/arcs',
+)
+```
+
+**Affected endpoints:** `GET /arcs`, `GET /arcs/:id/signals`, `GET /views`, `GET /labels`, `GET /rules`, `GET /domains`, `GET /aliases`, `GET /users`, `GET /forwarding-addresses`, `GET /search`.
+
+**Cursor pagination:** `nextCursor` is gone. Use `pagination.cursor` — it is always present (`null` means no more pages). `total` is also gone.
+
+### Error shape
+
+```ts
+// Before
+const err = (await res.json()) as { error: string }
+
+// After
+const err = (await res.json()) as { title: string; errorCode?: string; details?: unknown }
+```
+
+### Mutations return full resource
+
+All PATCH and POST calls now return the created/updated resource. Use the response body directly instead of re-fetching after a mutation.
+
+### Aliases: PUT → PATCH, new POST
+
+```
+POST  /aliases          → create (409 if duplicate)
+PATCH /aliases/:address → partial update / upsert (was PUT)
+DELETE /aliases/:address → 204 No Content (was 200)
+```
+
+### New signal draft endpoints
+
+```
+PATCH  /signals/:id       → update draft fields
+POST   /signals/:id/send  → send draft
+DELETE /signals/:id       → discard draft
+```
+
+---
 
 ---
 

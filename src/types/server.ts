@@ -95,3 +95,282 @@ export interface Label {
   icon?: string
   createdAt: string
 }
+
+// ─── Signal ───────────────────────────────────────────────────────────────────
+
+export type SignalStatus = 'received' | 'processed' | 'failed'
+export type SignalSource = 'ses' | 'api' | 'system'
+
+export interface EmailAddress {
+  address: string
+  name?: string
+}
+
+export interface Attachment {
+  filename: string
+  contentType: string
+  size: number
+  url?: string
+}
+
+export interface Signal {
+  id: string
+  arcId: string
+  accountId: string
+  status: SignalStatus
+  source: SignalSource
+  from: EmailAddress
+  to: EmailAddress[]
+  cc?: EmailAddress[]
+  subject: string
+  textBody?: string
+  htmlBody?: string
+  spamScore?: number
+  receivedAt: string
+  createdAt: string
+  workflowData?: WorkflowData
+  attachments?: Attachment[]
+}
+
+// ─── WorkflowData union ───────────────────────────────────────────────────────
+
+export interface AuthData {
+  workflow: 'auth'
+  authType: 'otp' | 'password_reset' | 'magic_link' | 'verification' | 'two_factor' | 'other'
+  code?: string
+  expiresInMinutes?: number
+  service: string
+  actionUrl?: string
+}
+
+export interface ConversationData {
+  workflow: 'conversation'
+  senderName?: string
+  isReply: boolean
+  threadLength?: number
+  sentiment: 'positive' | 'neutral' | 'negative' | 'urgent'
+  requiresReply: boolean
+}
+
+export interface CrmData {
+  workflow: 'crm'
+  crmType: 'sales_outreach' | 'follow_up' | 'client_message' | 'proposal' | 'contract' | 'support'
+  senderCompany?: string
+  senderRole?: string
+  dealValue?: number
+  currency?: string
+  urgency: 'low' | 'medium' | 'high'
+  requiresReply: boolean
+}
+
+export interface PackageData {
+  workflow: 'package'
+  packageType:
+    | 'confirmation'
+    | 'shipping'
+    | 'out_for_delivery'
+    | 'delivered'
+    | 'return'
+    | 'refund'
+    | 'cancellation'
+  retailer: string
+  orderNumber?: string
+  trackingNumber?: string
+  trackingUrl?: string
+  estimatedDelivery?: string
+  items?: Array<{ name: string; quantity: number; price?: number }>
+  totalAmount?: number
+  currency?: string
+}
+
+export interface TravelData {
+  workflow: 'travel'
+  travelType:
+    | 'flight'
+    | 'hotel'
+    | 'car_rental'
+    | 'train'
+    | 'cruise'
+    | 'activity'
+    | 'itinerary'
+    | 'check_in_reminder'
+    | 'boarding_pass'
+  provider: string
+  confirmationNumber?: string
+  departureDate?: string
+  returnDate?: string
+  origin?: string
+  destination?: string
+  passengerName?: string
+  totalAmount?: number
+  currency?: string
+}
+
+export interface SchedulingData {
+  workflow: 'scheduling'
+  eventType:
+    | 'meeting_invite'
+    | 'appointment'
+    | 'reminder'
+    | 'cancellation'
+    | 'reschedule'
+    | 'confirmation'
+  title: string
+  startTime?: string
+  endTime?: string
+  location?: string
+  organizer?: string
+  attendees?: string[]
+  calendarUrl?: string
+  requiresResponse: boolean
+}
+
+export interface PaymentsData {
+  workflow: 'payments'
+  paymentType:
+    | 'invoice'
+    | 'receipt'
+    | 'subscription_renewal'
+    | 'payment_failed'
+    | 'plan_changed'
+    | 'tax'
+    | 'wire_transfer'
+    | 'refund'
+    | 'statement'
+    | 'other'
+  vendor: string
+  amount?: number
+  currency?: string
+  dueDate?: string
+  invoiceNumber?: string
+  accountLastFour?: string
+  downloadUrl?: string
+  managementUrl?: string
+}
+
+export interface AlertData {
+  workflow: 'alert'
+  alertType:
+    | 'suspicious_login'
+    | 'new_device'
+    | 'password_changed'
+    | 'breach_notice'
+    | 'api_key_exposed'
+    | 'account_locked'
+    | 'fraud_alert'
+    | 'ci_failure'
+    | 'deployment_failed'
+    | 'error_spike'
+    | 'domain_expiry'
+    | 'cert_expiry'
+    | 'security_scan'
+    | 'other'
+  service: string
+  severity?: 'info' | 'warning' | 'critical'
+  requiresAction: boolean
+  actionUrl?: string
+  ipAddress?: string
+  location?: string
+  deviceName?: string
+  repository?: string
+  errorMessage?: string
+}
+
+export interface ContentData {
+  workflow: 'content'
+  contentType: 'newsletter' | 'promotion' | 'social_digest' | 'product_update' | 'announcement'
+  publisher: string
+  topics?: string[]
+  discountCode?: string
+  discountAmount?: string
+  expiryDate?: string
+  unsubscribeUrl?: string
+}
+
+export interface StatusData {
+  workflow: 'status'
+  statusType:
+    | 'terms_update'
+    | 'privacy_policy'
+    | 'service_notice'
+    | 'welcome'
+    | 'government'
+    | 'account_notification'
+    | 'other'
+  provider: string
+  effectiveDate?: string
+  referenceNumber?: string
+  documentUrl?: string
+}
+
+export interface HealthcareData {
+  workflow: 'healthcare'
+  eventType:
+    | 'appointment_reminder'
+    | 'appointment_confirmation'
+    | 'test_results'
+    | 'prescription'
+    | 'insurance_update'
+    | 'billing'
+    | 'referral'
+  provider?: string
+  appointmentDate?: string
+  location?: string
+  requiresAction: boolean
+  portalUrl?: string
+}
+
+export interface JobData {
+  workflow: 'job'
+  jobType:
+    | 'application_status'
+    | 'recruiter_outreach'
+    | 'interview_request'
+    | 'offer'
+    | 'rejection'
+    | 'job_posting'
+  company?: string
+  role?: string
+  location?: string
+  salary?: string
+  interviewDate?: string
+  applicationStatus?: 'submitted' | 'reviewing' | 'interview' | 'offer' | 'rejected'
+  actionUrl?: string
+}
+
+export interface SupportData {
+  workflow: 'support'
+  eventType:
+    | 'ticket_opened'
+    | 'ticket_updated'
+    | 'ticket_resolved'
+    | 'ticket_closed'
+    | 'awaiting_response'
+    | 'status_update'
+  ticketId?: string
+  service: string
+  priority?: 'low' | 'normal' | 'high' | 'urgent'
+  agentName?: string
+  responseUrl?: string
+}
+
+export interface TestData {
+  workflow: 'test'
+  triggeredBy: 'user' | 'system'
+}
+
+export type WorkflowData =
+  | AuthData
+  | ConversationData
+  | CrmData
+  | PackageData
+  | TravelData
+  | SchedulingData
+  | PaymentsData
+  | AlertData
+  | ContentData
+  | StatusData
+  | HealthcareData
+  | JobData
+  | SupportData
+  | TestData

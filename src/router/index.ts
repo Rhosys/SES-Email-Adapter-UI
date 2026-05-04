@@ -11,6 +11,12 @@ export const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/arcs/:id',
+      name: 'arc-detail',
+      component: () => import('@/views/ArcDetailView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),

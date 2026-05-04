@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { ref } from 'vue'
-import { mount } from '@vue/test-utils'
+import { mount, RouterLinkStub } from '@vue/test-utils'
 import ArcRow from '@/components/ArcRow.vue'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import type { Arc } from '@/types/server'
@@ -23,7 +23,10 @@ const baseArc: Arc = {
 function mountArc(arc: Arc, selected = false) {
   return mount(ArcRow, {
     props: { arc, selected },
-    global: { provide: nowProvide },
+    global: {
+      provide: nowProvide,
+      stubs: { RouterLink: RouterLinkStub },
+    },
   })
 }
 
