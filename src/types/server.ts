@@ -1,83 +1,97 @@
-// Synced from rhosys/ses-email-adapter:src/types/index.ts
-// (branch: claude/build-ai-app-ECGgR)
-//
-// This session does not have cross-repo read access, so the full type module
-// must be synced manually by a maintainer who can read the server repo.
-//
-// Until then, the types below are a minimal subset that lets the UI compile
-// and the API client be typed end-to-end. Replace this file wholesale with
-// the contents of the server's `src/types/index.ts` once available.
-
-export type Urgency = 'low' | 'normal' | 'high' | 'critical';
+// Synced from rhosys/ses-email-adapter backend src/types/index.ts
+// Replace this file wholesale when a maintainer syncs from the server repo.
 
 export type Workflow =
+  | 'auth'
+  | 'conversation'
+  | 'crm'
+  | 'package'
+  | 'travel'
+  | 'scheduling'
+  | 'payments'
+  | 'alert'
+  | 'content'
+  | 'status'
+  | 'healthcare'
+  | 'job'
   | 'support'
-  | 'sales'
-  | 'billing'
-  | 'quote'
-  | 'invoice'
-  | 'shipping'
-  | 'other';
+  | 'test'
 
-export type ArcStatus = 'open' | 'snoozed' | 'done' | 'quarantined';
+export type ArcStatus = 'active' | 'archived' | 'deleted'
 
-export interface Label {
-  id: string;
-  name: string;
-  color: string;
-  icon?: string;
-}
-
-export interface Signal {
-  id: string;
-  arcId: string;
-  from: string;
-  to: string[];
-  subject: string;
-  bodyText: string;
-  bodyHtml?: string;
-  receivedAt: string;
-  workflow: Workflow;
-  urgency: Urgency;
-}
+export type ArcUrgency = 'critical' | 'high' | 'normal' | 'low' | 'silent'
 
 export interface Arc {
-  id: string;
-  subject: string;
-  preview: string;
-  workflow: Workflow;
-  urgency: Urgency;
-  status: ArcStatus;
-  labels: Label[];
-  lastSignalAt: string;
-  signalCount: number;
-}
-
-export interface Pong {
-  id: string;
-  arcId: string;
-  bodyMarkdown: string;
-  sentAt: string | null;
-  draft: boolean;
+  id: string
+  accountId: string
+  groupingKey?: string
+  workflow: Workflow
+  labels: string[]
+  status: ArcStatus
+  summary: string
+  lastSignalAt: string
+  lastUserConfirmedAt?: string
+  deletedAt?: string
+  createdAt: string
+  updatedAt: string
+  ttl?: number
+  sentMessageIds?: string[]
+  urgency?: ArcUrgency
 }
 
 export interface Page<T> {
-  items: T[];
-  cursor: string | null;
+  items: T[]
+  nextCursor?: string
+  total: number
+}
+
+export interface EmailNotificationSettings {
+  enabled: boolean
+  address: string
+  frequency: 'instant' | 'hourly' | 'daily'
+}
+
+export interface PushNotificationSettings {
+  enabled: boolean
+}
+
+export interface NotificationSettings {
+  email?: EmailNotificationSettings
+  push?: PushNotificationSettings
+}
+
+export type SenderFilterMode = 'strict' | 'sender_match' | 'notify_new' | 'allow_all'
+
+export interface AccountFilteringConfig {
+  defaultFilterMode: SenderFilterMode
+}
+
+export interface EmailAddressConfig {
+  id: string
+  accountId: string
+  address: string
+  filterMode: SenderFilterMode
+  approvedSenders: string[]
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Account {
-  id: string;
-  email: string;
-  displayName: string;
-  domains: string[];
-  onboardingComplete: boolean;
+  id: string
+  name: string
+  deletionRetentionDays: number
+  notifications?: NotificationSettings
+  filtering?: AccountFilteringConfig
+  emailConfigs?: Record<string, EmailAddressConfig>
+  createdAt: string
+  updatedAt: string
 }
 
-export interface Rule {
-  id: string;
-  name: string;
-  conditions: unknown; // JSONLogic
-  actions: Array<{ type: string; params: Record<string, unknown> }>;
-  enabled: boolean;
+export interface Label {
+  id: string
+  accountId: string
+  name: string
+  color?: string
+  icon?: string
+  createdAt: string
 }

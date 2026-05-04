@@ -1,5 +1,13 @@
 # SES Email Adapter UI — Build Plan
 
+## Open tasks
+
+- [ ] Write marketing homepage copy (value prop, screenshots, CTA)
+- [ ] Set up favicon and Open Graph meta tags
+- [ ] Implement all phases below (Phases 2, 4–10)
+
+---
+
 This document is the working specification for the Vue 3 frontend that talks to
 the `ses-email-adapter` API. It is the canonical source for what's in scope and
 the order in which features land.
@@ -48,14 +56,15 @@ Five-step wizard at `/onboarding`:
 4. **Filter mode** — choose strict / balanced / permissive default rule mode
 5. **Done** — recap card, link into the inbox
 
-## Phase 3 — Core inbox
+## Phase 3 — Core inbox ✓ DONE
 
 - Arc list (cursor-paginated) at `/`
-- Per-row: urgency color stripe, workflow icon, subject, preview, last-signal
-  age, label chips
-- Status tabs: Inbox / Snoozed / Done / All
-- Bulk select + bulk actions (archive, label, snooze)
+- Per-row: urgency color stripe, workflow icon, summary, last-signal age, label chips
+- Auth+critical arcs pinned to top of Inbox view
+- Status tabs: Inbox (active) / Archived / All
+- Bulk select + bulk archive + bulk label
 - Empty / loading / error states
+- `npm run check` gate: typecheck + ESLint (flat config) + Prettier + 39 unit/component tests
 
 ## Phase 4 — Arc detail
 
