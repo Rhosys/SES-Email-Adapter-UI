@@ -63,8 +63,6 @@ DELETE /signals/:id       → discard draft
 
 ---
 
----
-
 This document is the working specification for the Vue 3 frontend that talks to
 the `ses-email-adapter` API. It is the canonical source for what's in scope and
 the order in which features land.
