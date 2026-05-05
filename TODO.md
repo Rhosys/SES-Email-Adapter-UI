@@ -2,64 +2,16 @@
 
 ## Open tasks
 
+- [ ] Reconcile API client against backend breaking changes (see "API Breaking Changes" below)
+- [ ] Implement Phase 5 — Quarantine view
+- [ ] Implement Phase 6 — Labels & views
+- [ ] Implement Phase 7 — Rules engine
+- [ ] Implement Phase 8 — Search
+- [ ] Implement Phase 9 — Settings
+- [ ] Implement Phase 10 — Secondary screens
+- [ ] Implement Phase 2 — Onboarding flow (deferred to end by design)
 - [ ] Write marketing homepage copy (value prop, screenshots, CTA)
 - [ ] Set up favicon and Open Graph meta tags
-- [ ] Implement all phases below (Phases 2, 4–10)
-- [ ] **Update `src/api/client.ts` for API modernization** — see "API breaking changes" section below
-
----
-
-## API Breaking Changes — `src/api/client.ts` must be updated
-
-The backend API was fully modernized. Every endpoint the site calls has changed. The full reference is in `../backend/TODO.md` under "API Breaking Changes". Summary of changes that affect the site:
-
-### Collection envelope
-
-All list calls now return named collections, not raw arrays or `{ items, total }`:
-
-```ts
-// Before
-const arcs = await api.get<Arc[]>('/arcs')
-
-// After
-const { arcs, pagination } = await api.get<{ arcs: Arc[]; pagination: { cursor: string | null } }>(
-  '/arcs',
-)
-```
-
-**Affected endpoints:** `GET /arcs`, `GET /arcs/:id/signals`, `GET /views`, `GET /labels`, `GET /rules`, `GET /domains`, `GET /aliases`, `GET /users`, `GET /forwarding-addresses`, `GET /search`.
-
-**Cursor pagination:** `nextCursor` is gone. Use `pagination.cursor` — it is always present (`null` means no more pages). `total` is also gone.
-
-### Error shape
-
-```ts
-// Before
-const err = (await res.json()) as { error: string }
-
-// After
-const err = (await res.json()) as { title: string; errorCode?: string; details?: unknown }
-```
-
-### Mutations return full resource
-
-All PATCH and POST calls now return the created/updated resource. Use the response body directly instead of re-fetching after a mutation.
-
-### Aliases: PUT → PATCH, new POST
-
-```
-POST  /aliases          → create (409 if duplicate)
-PATCH /aliases/:address → partial update / upsert (was PUT)
-DELETE /aliases/:address → 204 No Content (was 200)
-```
-
-### New signal draft endpoints
-
-```
-PATCH  /signals/:id       → update draft fields
-POST   /signals/:id/send  → send draft
-DELETE /signals/:id       → discard draft
-```
 
 ---
 
@@ -71,6 +23,67 @@ The authoritative product spec lives in `rhosys/ses-email-adapter` on branch
 `claude/build-ai-app-ECGgR` (`TODO.md`). When that document changes, sync the
 UI section into this file and re-export `src/types/server.ts` from the server's
 `src/types/index.ts`.
+
+---
+
+## API Breaking Changes — must reconcile before shipping
+
+The backend API was modernized after the UI scaffolding was written. The current
+`src/lib/api.ts` uses the old shapes. Full reference is in `../backend/TODO.md`
+under "API Breaking Changes". Summary of what affects the site:
+
+### Collection envelope
+
+All list calls now return named collections, not `{ items, total }`:
+
+```ts
+// Current (wrong)
+const { items, nextCursor, total } = await api.listArcs(...)
+
+// Correct
+const { arcs, pagination } = await api.get<{ arcs: Arc[]; pagination: { cursor: string | null } }>('/arcs')
+```
+
+Affected endpoints: `GET /arcs`, `GET /arcs/:id/signals`, and all future list
+endpoints (`/views`, `/labels`, `/rules`, `/domains`, `/aliases`, `/users`,
+`/forwarding-addresses`, `/search`).
+
+Cursor pagination: `nextCursor` is gone. Use `pagination.cursor` (always
+present, `null` means end of list). `total` is also gone.
+
+### Error shape
+
+```ts
+// Current (wrong)
+{ error: string }
+
+// Correct
+{ title: string; errorCode?: string; details?: unknown }
+```
+
+### Mutations return full resource
+
+All PATCH and POST calls return the created/updated resource. The site already
+does this correctly (stores use the response body directly).
+
+### Aliases: PUT → PATCH, new POST
+
+```
+POST  /aliases          → create (409 if duplicate)
+PATCH /aliases/:address → partial update / upsert (was PUT)
+DELETE /aliases/:address → 204 No Content (was 200)
+```
+
+### New signal draft endpoints (needed for Phase 4 reply composer)
+
+```
+PATCH  /signals/:id       → update draft fields
+POST   /signals/:id/send  → send draft
+DELETE /signals/:id       → discard draft
+```
+
+The reply composer in `ReplyComposer.vue` is currently disabled pending these
+endpoints being available.
 
 ---
 
@@ -88,28 +101,18 @@ UI section into this file and re-export `src/types/server.ts` from the server's
 
 ---
 
-## Phase 1 — Project bootstrap (this commit)
+## Phase 1 — Project bootstrap ✓ DONE
 
 - Vite + Vue + TS scaffold, path alias `@ → src`
 - Vue Router with placeholder routes
 - Pinia stores: `account`, `arcs`, `theme`
 - `@authress/login` wired into the account store (login redirect on 401)
-- Typed fetch-based API client (`src/api/client.ts`)
+- Typed fetch-based API client (`src/lib/api.ts`) with neverthrow Result types
 - App shell: top bar, sidebar, main outlet
 - Catppuccin theme system: 4 flavors as CSS custom properties, persisted via
   the theme store, applied to `<html data-theme="…">`
 - Vitest + Playwright configs and seed tests (component + e2e + style/color)
-
-## Phase 2 — Onboarding flow
-
-Five-step wizard at `/onboarding`:
-
-1. **Domain** — capture sending domain, show DNS records (two-tier display)
-2. **Send test email** — render a real-time signal-arrival indicator (SSE or
-   polling) so the user sees ingestion working end-to-end
-3. **Sender setup** — pick a default sender address, set display name
-4. **Filter mode** — choose strict / balanced / permissive default rule mode
-5. **Done** — recap card, link into the inbox
+- ESLint 10 flat config + Prettier
 
 ## Phase 3 — Core inbox ✓ DONE
 
@@ -121,14 +124,20 @@ Five-step wizard at `/onboarding`:
 - Empty / loading / error states
 - `npm run check` gate: typecheck + ESLint (flat config) + Prettier + 39 unit/component tests
 
-## Phase 4 — Arc detail
+## Phase 4 — Arc detail ✓ DONE
 
-- Route `/arcs/:id`
-- Threaded signal list, newest first
-- Workflow-specific data panels (e.g. quote, invoice, support ticket)
-- Reply composer with markdown preview
-- Pong reply card (the structured reply the adapter generates)
-- Inline label, snooze, assign actions
+- Route `/arcs/:id` with back navigation from arc rows
+- Signals store: fetches arc + signals in parallel, newest-first display, cursor pagination
+- Threaded signal list in `SignalCard.vue` (collapsible, sandboxed iframe, spam warning)
+- Workflow-specific data panels for all 14 workflows (`src/components/panels/`)
+  — auth, conversation, crm, package, travel, scheduling, payments, alert,
+    content, status, healthcare, job, support, test
+- `WorkflowPanel.vue` dispatcher (discriminated union narrowing via `workflow` field)
+- `useCountdown.ts` composable (1s interval, urgency levels: safe/warning/critical/expired)
+- `useClipboard.ts` composable (2s reset, silent failure)
+- Reply composer (`ReplyComposer.vue`) — UI present, send disabled pending draft API
+- Archive action on arc detail
+- `npm run check` gate: all 56 tests pass
 
 ## Phase 5 — Quarantine view
 
@@ -169,6 +178,17 @@ Five-step wizard at `/onboarding`:
 - Legal pages (terms, privacy)
 - Notification preferences
 
+## Phase 2 — Onboarding flow (deferred — build last)
+
+Five-step wizard at `/onboarding`:
+
+1. **Domain** — capture sending domain, show DNS records (two-tier display)
+2. **Send test email** — render a real-time signal-arrival indicator (SSE or
+   polling) so the user sees ingestion working end-to-end
+3. **Sender setup** — pick a default sender address, set display name
+4. **Filter mode** — choose strict / balanced / permissive default rule mode
+5. **Done** — recap card, link into the inbox
+
 ---
 
 ## Testing strategy
@@ -188,6 +208,8 @@ Five-step wizard at `/onboarding`:
 
 - All views in `src/views/*View.vue`, all reusable pieces in `src/components/`
 - Stores own the network calls; views read state and dispatch actions
-- The API client is the only place `fetch` is called
+- `src/lib/api.ts` is the only place `fetch` is called
+- All API calls return `Result<T, ApiError>` via neverthrow — stores branch on
+  `.isOk()/.isErr()`, no try/catch at the store layer
 - New colors and tokens go through the Catppuccin palette — never hard-code
   hex values in components
