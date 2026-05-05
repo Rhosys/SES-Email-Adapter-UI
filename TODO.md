@@ -12,6 +12,7 @@
 - [ ] Implement Phase 2 — Onboarding flow (deferred to end by design)
 - [ ] Write marketing homepage copy (value prop, screenshots, CTA)
 - [ ] Set up favicon and Open Graph meta tags
+- [ ] Add a top of page search bar
 
 ---
 
@@ -160,11 +161,14 @@ endpoints being available.
 
 ## Phase 8 — Search
 
-- Global full-text search at `/search`
+- do full-text by calling the resource specific search endpoints passing in the same query
 - Filter chips (workflow, label, urgency, date range, sender)
 - Cursor-paginated results sharing the inbox row component
+- which will search arcs, signals, sender emails, aliases, and rules as all separate searches, and then display those things in separate sections in the search results. After searching allow the user checkboxes to uncheck which of those things should not be displayed. Don't just use default checkbox display use good UX for managing those.
 
 ## Phase 9 — Settings
+
+Tabs:
 
 - Account profile
 - Email addresses (sender + reply-to)
@@ -176,7 +180,7 @@ endpoints being available.
 
 - Profile, billing, audit log, support panel
 - Legal pages (terms, privacy)
-- Notification preferences
+- Notification preferences goes on the setting screen
 
 ## Phase 2 — Onboarding flow (deferred — build last)
 
