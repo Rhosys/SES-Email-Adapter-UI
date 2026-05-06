@@ -1,62 +1,29 @@
-import { defineStore } from 'pinia';
-import type { Account } from '@/types/server';
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { api } from '@/lib/api'
+import { loginClient } from '@/lib/auth'
+import type { Account } from '@/types/server'
 
-// @authress/login is loaded lazily so this store can hydrate in environments
-// (tests, SSR-style prerender) where window may not be set up yet.
-let loginClient: any = null;
-async function getLoginClient() {
-  if (loginClient) return loginClient;
-  const { LoginClient } = await import('@authress/login');
-  loginClient = new LoginClient({
-    authressLoginHostUrl: import.meta.env.VITE_AUTHRESS_LOGIN_URL,
-    applicationId: import.meta.env.VITE_AUTHRESS_APPLICATION_ID
-  });
-  return loginClient;
-}
+export const useAccountStore = defineStore('account', () => {
+  const account = ref<Account | null>(null)
+  const loading = ref(false)
+  const error = ref<string | null>(null)
 
-const ACCOUNT_ID_KEY = 'ses-ui.account-id';
+  const accountId = computed(() => account.value?.id ?? null)
 
-interface AccountState {
-  accountId: string | null;
-  account: Account | null;
-  token: string | null;
-  loading: boolean;
-}
-
-export const useAccountStore = defineStore('account', {
-  state: (): AccountState => ({ accountId: null, account: null, token: null, loading: false }),
-  getters: {
-    isAuthenticated: (s) => !!s.token,
-    hasAccount: (s) => !!s.accountId
-  },
-  actions: {
-    hydrate(): void {
-      if (typeof localStorage !== 'undefined') {
-        this.accountId = localStorage.getItem(ACCOUNT_ID_KEY);
-      }
-      // Token hydration is async — callers that need it must await login().
-    },
-    setAccountId(accountId: string): void {
-      this.accountId = accountId;
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(ACCOUNT_ID_KEY, accountId);
-      }
-    },
-    async login(): Promise<void> {
-      const client = await getLoginClient();
-      await client.authenticate({ connectionId: 'default' });
-      this.token = await client.getToken();
-    },
-    async logout(): Promise<void> {
-      const client = await getLoginClient();
-      await client.logout();
-      this.token = null;
-      this.account = null;
-      this.accountId = null;
-      if (typeof localStorage !== 'undefined') localStorage.removeItem(ACCOUNT_ID_KEY);
-    },
-    setAccount(account: Account): void {
-      this.account = account;
+  async function fetchAccount() {
+    const identity = loginClient.getUserIdentity()
+    const sub = (identity as Record<string, unknown>)['sub'] as string
+    loading.value = true
+    error.value = null
+    const result = await api.getAccount(sub)
+    loading.value = false
+    if (result.isErr()) {
+      error.value = result.error.message
+      return
     }
+    account.value = result.value
   }
-});
+
+  return { account, loading, error, accountId, fetchAccount }
+})

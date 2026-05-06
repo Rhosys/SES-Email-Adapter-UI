@@ -1,21 +1,32 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
-
-const routes: RouteRecordRaw[] = [
-  { path: '/', name: 'inbox', component: () => import('@/views/InboxView.vue') },
-  { path: '/arcs/:id', name: 'arc-detail', component: () => import('@/views/ArcDetailView.vue'), props: true },
-  { path: '/quarantine', name: 'quarantine', component: () => import('@/views/QuarantineView.vue') },
-  { path: '/search', name: 'search', component: () => import('@/views/SearchView.vue') },
-  { path: '/settings', name: 'settings', component: () => import('@/views/SettingsView.vue') },
-  {
-    path: '/onboarding',
-    name: 'onboarding',
-    component: () => import('@/views/OnboardingView.vue'),
-    meta: { layout: 'minimal' }
-  },
-  { path: '/:pathMatch(.*)*', redirect: '/' }
-];
+import { createRouter, createWebHistory } from 'vue-router'
+import { loginClient } from '@/lib/auth'
 
 export const router = createRouter({
   history: createWebHistory(),
-  routes
-});
+  routes: [
+    {
+      path: '/',
+      name: 'inbox',
+      component: () => import('@/views/InboxView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/arcs/:id',
+      name: 'arc-detail',
+      component: () => import('@/views/ArcDetailView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/LoginView.vue'),
+    },
+  ],
+})
+
+router.beforeEach(async (to) => {
+  if (!to.meta.requiresAuth) return true
+  const authenticated = await loginClient.userSessionExists()
+  if (!authenticated) return { name: 'login' }
+  return true
+})

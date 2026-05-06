@@ -2,5 +2,5 @@
 // This file exists for editor IntelliSense and to scope content discovery.
 export default {
   content: ['./index.html', './src/**/*.{vue,ts}'],
-  theme: { extend: {} }
-};
+  theme: { extend: {} },
+}

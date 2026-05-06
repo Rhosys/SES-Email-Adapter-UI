@@ -1,47 +1,165 @@
-@import "tailwindcss";
-@import "./themes.css";
+@import 'tailwindcss';
+@import '@catppuccin/palette/css/catppuccin.css';
 
-/* Map Catppuccin CSS vars to Tailwind 4 color tokens so utilities like
-   `bg-base`, `text-mauve`, `border-surface0` resolve correctly. */
+/*
+ * Semantic color aliases — map active flavor to generic token names.
+ * Components always use var(--color-*), never var(--ctp-mocha-*) directly.
+ * The data-theme attribute on <html> selects the active flavor.
+ */
+
+:root,
+[data-theme='mocha'] {
+  --color-base: var(--ctp-mocha-base);
+  --color-mantle: var(--ctp-mocha-mantle);
+  --color-crust: var(--ctp-mocha-crust);
+  --color-surface0: var(--ctp-mocha-surface0);
+  --color-surface1: var(--ctp-mocha-surface1);
+  --color-surface2: var(--ctp-mocha-surface2);
+  --color-overlay0: var(--ctp-mocha-overlay0);
+  --color-overlay1: var(--ctp-mocha-overlay1);
+  --color-overlay2: var(--ctp-mocha-overlay2);
+  --color-text: var(--ctp-mocha-text);
+  --color-subtext0: var(--ctp-mocha-subtext0);
+  --color-subtext1: var(--ctp-mocha-subtext1);
+  --color-red: var(--ctp-mocha-red);
+  --color-maroon: var(--ctp-mocha-maroon);
+  --color-peach: var(--ctp-mocha-peach);
+  --color-yellow: var(--ctp-mocha-yellow);
+  --color-green: var(--ctp-mocha-green);
+  --color-teal: var(--ctp-mocha-teal);
+  --color-sky: var(--ctp-mocha-sky);
+  --color-sapphire: var(--ctp-mocha-sapphire);
+  --color-blue: var(--ctp-mocha-blue);
+  --color-lavender: var(--ctp-mocha-lavender);
+  --color-mauve: var(--ctp-mocha-mauve);
+  --color-pink: var(--ctp-mocha-pink);
+  --color-flamingo: var(--ctp-mocha-flamingo);
+  --color-rosewater: var(--ctp-mocha-rosewater);
+}
+
+[data-theme='latte'] {
+  --color-base: var(--ctp-latte-base);
+  --color-mantle: var(--ctp-latte-mantle);
+  --color-crust: var(--ctp-latte-crust);
+  --color-surface0: var(--ctp-latte-surface0);
+  --color-surface1: var(--ctp-latte-surface1);
+  --color-surface2: var(--ctp-latte-surface2);
+  --color-overlay0: var(--ctp-latte-overlay0);
+  --color-overlay1: var(--ctp-latte-overlay1);
+  --color-overlay2: var(--ctp-latte-overlay2);
+  --color-text: var(--ctp-latte-text);
+  --color-subtext0: var(--ctp-latte-subtext0);
+  --color-subtext1: var(--ctp-latte-subtext1);
+  --color-red: var(--ctp-latte-red);
+  --color-maroon: var(--ctp-latte-maroon);
+  --color-peach: var(--ctp-latte-peach);
+  --color-yellow: var(--ctp-latte-yellow);
+  --color-green: var(--ctp-latte-green);
+  --color-teal: var(--ctp-latte-teal);
+  --color-sky: var(--ctp-latte-sky);
+  --color-sapphire: var(--ctp-latte-sapphire);
+  --color-blue: var(--ctp-latte-blue);
+  --color-lavender: var(--ctp-latte-lavender);
+  --color-mauve: var(--ctp-latte-mauve);
+  --color-pink: var(--ctp-latte-pink);
+  --color-flamingo: var(--ctp-latte-flamingo);
+  --color-rosewater: var(--ctp-latte-rosewater);
+}
+
+[data-theme='frappe'] {
+  --color-base: var(--ctp-frappe-base);
+  --color-mantle: var(--ctp-frappe-mantle);
+  --color-crust: var(--ctp-frappe-crust);
+  --color-surface0: var(--ctp-frappe-surface0);
+  --color-surface1: var(--ctp-frappe-surface1);
+  --color-surface2: var(--ctp-frappe-surface2);
+  --color-overlay0: var(--ctp-frappe-overlay0);
+  --color-overlay1: var(--ctp-frappe-overlay1);
+  --color-overlay2: var(--ctp-frappe-overlay2);
+  --color-text: var(--ctp-frappe-text);
+  --color-subtext0: var(--ctp-frappe-subtext0);
+  --color-subtext1: var(--ctp-frappe-subtext1);
+  --color-red: var(--ctp-frappe-red);
+  --color-maroon: var(--ctp-frappe-maroon);
+  --color-peach: var(--ctp-frappe-peach);
+  --color-yellow: var(--ctp-frappe-yellow);
+  --color-green: var(--ctp-frappe-green);
+  --color-teal: var(--ctp-frappe-teal);
+  --color-sky: var(--ctp-frappe-sky);
+  --color-sapphire: var(--ctp-frappe-sapphire);
+  --color-blue: var(--ctp-frappe-blue);
+  --color-lavender: var(--ctp-frappe-lavender);
+  --color-mauve: var(--ctp-frappe-mauve);
+  --color-pink: var(--ctp-frappe-pink);
+  --color-flamingo: var(--ctp-frappe-flamingo);
+  --color-rosewater: var(--ctp-frappe-rosewater);
+}
+
+[data-theme='macchiato'] {
+  --color-base: var(--ctp-macchiato-base);
+  --color-mantle: var(--ctp-macchiato-mantle);
+  --color-crust: var(--ctp-macchiato-crust);
+  --color-surface0: var(--ctp-macchiato-surface0);
+  --color-surface1: var(--ctp-macchiato-surface1);
+  --color-surface2: var(--ctp-macchiato-surface2);
+  --color-overlay0: var(--ctp-macchiato-overlay0);
+  --color-overlay1: var(--ctp-macchiato-overlay1);
+  --color-overlay2: var(--ctp-macchiato-overlay2);
+  --color-text: var(--ctp-macchiato-text);
+  --color-subtext0: var(--ctp-macchiato-subtext0);
+  --color-subtext1: var(--ctp-macchiato-subtext1);
+  --color-red: var(--ctp-macchiato-red);
+  --color-maroon: var(--ctp-macchiato-maroon);
+  --color-peach: var(--ctp-macchiato-peach);
+  --color-yellow: var(--ctp-macchiato-yellow);
+  --color-green: var(--ctp-macchiato-green);
+  --color-teal: var(--ctp-macchiato-teal);
+  --color-sky: var(--ctp-macchiato-sky);
+  --color-sapphire: var(--ctp-macchiato-sapphire);
+  --color-blue: var(--ctp-macchiato-blue);
+  --color-lavender: var(--ctp-macchiato-lavender);
+  --color-mauve: var(--ctp-macchiato-mauve);
+  --color-pink: var(--ctp-macchiato-pink);
+  --color-flamingo: var(--ctp-macchiato-flamingo);
+  --color-rosewater: var(--ctp-macchiato-rosewater);
+}
+
+/*
+ * Expose semantic tokens to Tailwind's utility generator via @theme.
+ * Generates classes: bg-ctp-base, text-ctp-text, border-ctp-red, etc.
+ */
 @theme {
-  --color-base: var(--ctp-base);
-  --color-mantle: var(--ctp-mantle);
-  --color-crust: var(--ctp-crust);
-  --color-surface0: var(--ctp-surface0);
-  --color-surface1: var(--ctp-surface1);
-  --color-surface2: var(--ctp-surface2);
-  --color-text: var(--ctp-text);
-  --color-subtext0: var(--ctp-subtext0);
-  --color-subtext1: var(--ctp-subtext1);
-  --color-overlay0: var(--ctp-overlay0);
-  --color-rosewater: var(--ctp-rosewater);
-  --color-flamingo: var(--ctp-flamingo);
-  --color-pink: var(--ctp-pink);
-  --color-mauve: var(--ctp-mauve);
-  --color-red: var(--ctp-red);
-  --color-maroon: var(--ctp-maroon);
-  --color-peach: var(--ctp-peach);
-  --color-yellow: var(--ctp-yellow);
-  --color-green: var(--ctp-green);
-  --color-teal: var(--ctp-teal);
-  --color-sky: var(--ctp-sky);
-  --color-sapphire: var(--ctp-sapphire);
-  --color-blue: var(--ctp-blue);
-  --color-lavender: var(--ctp-lavender);
+  --color-ctp-base: var(--color-base);
+  --color-ctp-mantle: var(--color-mantle);
+  --color-ctp-crust: var(--color-crust);
+  --color-ctp-surface0: var(--color-surface0);
+  --color-ctp-surface1: var(--color-surface1);
+  --color-ctp-surface2: var(--color-surface2);
+  --color-ctp-overlay0: var(--color-overlay0);
+  --color-ctp-overlay1: var(--color-overlay1);
+  --color-ctp-overlay2: var(--color-overlay2);
+  --color-ctp-text: var(--color-text);
+  --color-ctp-subtext0: var(--color-subtext0);
+  --color-ctp-subtext1: var(--color-subtext1);
+  --color-ctp-red: var(--color-red);
+  --color-ctp-maroon: var(--color-maroon);
+  --color-ctp-peach: var(--color-peach);
+  --color-ctp-yellow: var(--color-yellow);
+  --color-ctp-green: var(--color-green);
+  --color-ctp-teal: var(--color-teal);
+  --color-ctp-sky: var(--color-sky);
+  --color-ctp-sapphire: var(--color-sapphire);
+  --color-ctp-blue: var(--color-blue);
+  --color-ctp-lavender: var(--color-lavender);
+  --color-ctp-mauve: var(--color-mauve);
+  --color-ctp-pink: var(--color-pink);
+  --color-ctp-flamingo: var(--color-flamingo);
+  --color-ctp-rosewater: var(--color-rosewater);
 }
 
-html,
-body,
-#app {
-  height: 100%;
-  margin: 0;
-}
-
-body {
-  background-color: var(--ctp-base);
-  color: var(--ctp-text);
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, "Helvetica Neue", Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
+@supports (-moz-appearance: none) {
+  html {
+    scrollbar-width: auto;
+    scrollbar-color: var(--color-overlay0) var(--color-base);
+  }
 }
