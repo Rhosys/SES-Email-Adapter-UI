@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type { ArcListParams } from '@/lib/api'
-import type { Arc } from '@/types/server'
+import type { Arc, CreateRuleBody } from '@/types/server'
 import { useAccountStore } from '@/stores/account'
 
 export interface QuarantineFilters {
@@ -116,6 +116,18 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     return true
   }
 
+  async function createRuleForArc(accountId: string, arcId: string, body: CreateRuleBody) {
+    actionPending.value.add(arcId)
+    const result = await api.createRule(accountId, body)
+    actionPending.value.delete(arcId)
+    if (result.isErr()) {
+      error.value = result.error.message
+      return false
+    }
+    items.value = items.value.filter((a) => a.id !== arcId)
+    return true
+  }
+
   function setFilters(next: Partial<QuarantineFilters>) {
     filters.value = { ...filters.value, ...next }
   }
@@ -136,6 +148,7 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     fetchMore,
     allowSender,
     blockSender,
+    createRuleForArc,
     setFilters,
     clearError,
   }

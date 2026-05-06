@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, inject } from 'vue'
-import type { Arc } from '@/types/server'
+import { computed, inject, ref } from 'vue'
+import type { Arc, CreateRuleBody, RuleAction, RuleConditionField } from '@/types/server'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
 
@@ -12,6 +12,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'allowSender', arcId: string): void
   (e: 'blockSender', arcId: string): void
+  (e: 'createRule', arcId: string, body: CreateRuleBody): void
 }>()
 
 const now = inject(NOW_KEY)
@@ -19,100 +20,235 @@ const timestamp = computed(() => (now ? formatRelativeTime(props.arc.lastSignalA
 
 const isUntrustedSender = computed(() => props.arc.labels.includes('system:sender:untrusted'))
 const matchedRules = computed(() => props.arc.matchedRules ?? [])
+
+// ── inline rule form ─────────────────────────────────────────────────────────
+
+const ruleFormOpen = ref(false)
+const ruleAction = ref<RuleAction>('allow')
+const conditionField = ref<RuleConditionField>('from.address')
+const conditionValue = ref('')
+const ruleName = ref('')
+
+const conditionFieldOptions: { value: RuleConditionField; label: string }[] = [
+  { value: 'from.address', label: 'Sender email' },
+  { value: 'from.domain', label: 'Sender domain' },
+  { value: 'subject', label: 'Subject' },
+]
+
+function deriveConditionValue(field: RuleConditionField): string {
+  if (field === 'from.address') return props.arc.senderAddress ?? ''
+  if (field === 'from.domain') {
+    const addr = props.arc.senderAddress ?? ''
+    return addr.includes('@') ? addr.split('@')[1] : ''
+  }
+  return ''
+}
+
+function deriveRuleName(field: RuleConditionField, action: RuleAction, val: string): string {
+  const verb = action === 'allow' ? 'Allow' : 'Block'
+  if (field === 'from.address') return `${verb} ${val}`
+  if (field === 'from.domain') return `${verb} @${val}`
+  if (field === 'subject') return `${verb} — subject contains "${val}"`
+  return `${verb} rule`
+}
+
+function openRuleForm(action: RuleAction) {
+  ruleAction.value = action
+  conditionField.value = 'from.address'
+  conditionValue.value = deriveConditionValue('from.address')
+  ruleName.value = deriveRuleName('from.address', action, conditionValue.value)
+  ruleFormOpen.value = true
+}
+
+function onConditionFieldChange() {
+  conditionValue.value = deriveConditionValue(conditionField.value)
+  ruleName.value = deriveRuleName(conditionField.value, ruleAction.value, conditionValue.value)
+}
+
+function onConditionValueInput() {
+  ruleName.value = deriveRuleName(conditionField.value, ruleAction.value, conditionValue.value)
+}
+
+function submitRule() {
+  if (!conditionValue.value.trim() || !ruleName.value.trim()) return
+  const operator = conditionField.value === 'subject' ? 'contains' : 'equals'
+  emit('createRule', props.arc.id, {
+    name: ruleName.value.trim(),
+    conditions: [{ field: conditionField.value, operator, value: conditionValue.value.trim() }],
+    action: ruleAction.value,
+  })
+  ruleFormOpen.value = false
+}
+
+function cancelRule() {
+  ruleFormOpen.value = false
+}
 </script>
 
 <template>
   <div
-    class="flex items-start gap-3 border-b border-ctp-surface0 px-4 py-3 transition-colors hover:bg-ctp-surface0"
+    class="border-b border-ctp-surface0 transition-colors hover:bg-ctp-surface0"
     :class="{ 'opacity-50': pending }"
     role="listitem"
   >
-    <!-- Quarantine reason badge -->
-    <div class="mt-0.5 shrink-0">
-      <span
-        v-if="isUntrustedSender"
-        class="inline-block rounded-full bg-ctp-peach/15 px-2 py-0.5 text-xs font-medium text-ctp-peach"
-      >
-        Untrusted sender
-      </span>
-      <span
-        v-else-if="matchedRules.length"
-        class="inline-block rounded-full bg-ctp-mauve/15 px-2 py-0.5 text-xs font-medium text-ctp-mauve"
-      >
-        Rule matched
-      </span>
-      <span
-        v-else
-        class="inline-block rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0"
-      >
-        Quarantined
-      </span>
-    </div>
-
-    <!-- Content -->
-    <div class="min-w-0 flex-1">
-      <div class="flex items-center justify-between gap-2">
-        <p class="truncate text-sm font-medium text-ctp-text">
-          {{ arc.senderAddress ?? arc.summary }}
-        </p>
-        <span class="shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
-      </div>
-
-      <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ arc.summary }}</p>
-
-      <!-- Matched rule IDs -->
-      <div v-if="matchedRules.length" class="mt-1 flex flex-wrap gap-1">
+    <div class="flex items-start gap-3 px-4 py-3">
+      <!-- Quarantine reason badge -->
+      <div class="mt-0.5 shrink-0">
         <span
-          v-for="rule in matchedRules"
-          :key="rule.ruleId"
-          class="inline-block rounded bg-ctp-surface1 px-1.5 py-0.5 font-mono text-xs text-ctp-subtext0"
+          v-if="isUntrustedSender"
+          class="inline-block rounded-full bg-ctp-peach/15 px-2 py-0.5 text-xs font-medium text-ctp-peach"
         >
-          {{ rule.ruleId }}
+          Untrusted sender
+        </span>
+        <span
+          v-else-if="matchedRules.length"
+          class="inline-block rounded-full bg-ctp-mauve/15 px-2 py-0.5 text-xs font-medium text-ctp-mauve"
+        >
+          Rule matched
+        </span>
+        <span
+          v-else
+          class="inline-block rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0"
+        >
+          Quarantined
         </span>
       </div>
 
-      <!-- Branch A: untrusted sender actions -->
-      <div v-if="isUntrustedSender" class="mt-2 flex items-center gap-2">
-        <button
-          class="rounded bg-ctp-green/15 px-3 py-1 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/25 disabled:opacity-50"
-          :disabled="pending"
-          @click="emit('allowSender', arc.id)"
+      <!-- Content -->
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center justify-between gap-2">
+          <p class="truncate text-sm font-medium text-ctp-text">
+            {{ arc.senderAddress ?? arc.summary }}
+          </p>
+          <span class="shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
+        </div>
+
+        <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ arc.summary }}</p>
+
+        <!-- Matched rule IDs -->
+        <div v-if="matchedRules.length" class="mt-1 flex flex-wrap gap-1">
+          <span
+            v-for="rule in matchedRules"
+            :key="rule.ruleId"
+            class="inline-block rounded bg-ctp-surface1 px-1.5 py-0.5 font-mono text-xs text-ctp-subtext0"
+          >
+            {{ rule.ruleId }}
+          </span>
+        </div>
+
+        <!-- Branch A: untrusted sender actions -->
+        <div v-if="isUntrustedSender" class="mt-2 flex items-center gap-2">
+          <button
+            class="rounded bg-ctp-green/15 px-3 py-1 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/25 disabled:opacity-50"
+            :disabled="pending"
+            @click="emit('allowSender', arc.id)"
+          >
+            Allow sender
+          </button>
+          <button
+            class="rounded bg-ctp-red/15 px-3 py-1 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25 disabled:opacity-50"
+            :disabled="pending"
+            @click="emit('blockSender', arc.id)"
+          >
+            Block sender
+          </button>
+        </div>
+
+        <!-- Branch B: rule-matched actions -->
+        <div v-else-if="matchedRules.length" class="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            class="rounded bg-ctp-green/15 px-3 py-1 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/25 disabled:opacity-50"
+            :disabled="pending || ruleFormOpen"
+            @click="openRuleForm('allow')"
+          >
+            Create rule to allow
+          </button>
+          <button
+            class="rounded bg-ctp-red/15 px-3 py-1 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25 disabled:opacity-50"
+            :disabled="pending || ruleFormOpen"
+            @click="openRuleForm('block')"
+          >
+            Create rule to block
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inline rule creation form -->
+    <div
+      v-if="ruleFormOpen"
+      class="mx-4 mb-3 rounded-lg border border-ctp-surface1 bg-ctp-mantle p-3"
+    >
+      <p class="mb-3 text-xs font-medium text-ctp-subtext0">
+        New rule — {{ ruleAction === 'allow' ? 'allow matching emails' : 'block matching emails' }}
+      </p>
+
+      <!-- Condition row -->
+      <div class="mb-2 flex items-center gap-2">
+        <span class="shrink-0 text-xs text-ctp-subtext0">When</span>
+        <select
+          v-model="conditionField"
+          class="rounded border border-ctp-surface1 bg-ctp-surface0 px-2 py-1 text-xs text-ctp-text focus:border-ctp-blue focus:outline-none"
+          @change="onConditionFieldChange"
         >
-          Allow sender
-        </button>
-        <button
-          class="rounded bg-ctp-red/15 px-3 py-1 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25 disabled:opacity-50"
-          :disabled="pending"
-          @click="emit('blockSender', arc.id)"
-        >
-          Block sender
-        </button>
+          <option v-for="opt in conditionFieldOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </option>
+        </select>
+        <span class="shrink-0 text-xs text-ctp-subtext0">
+          {{ conditionField === 'subject' ? 'contains' : 'is' }}
+        </span>
+        <input
+          v-model="conditionValue"
+          type="text"
+          class="min-w-0 flex-1 rounded border border-ctp-surface1 bg-ctp-surface0 px-2 py-1 text-xs text-ctp-text focus:border-ctp-blue focus:outline-none"
+          @input="onConditionValueInput"
+        />
       </div>
 
-      <!-- Branch B: matched rules actions -->
-      <div v-else-if="matchedRules.length" class="mt-2 flex flex-wrap items-center gap-2">
-        <router-link
-          to="/rules/new?action=allow"
-          class="rounded bg-ctp-green/15 px-3 py-1 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/25"
+      <!-- Action toggle -->
+      <div class="mb-3 flex items-center gap-3">
+        <span class="text-xs text-ctp-subtext0">Action</span>
+        <label class="flex cursor-pointer items-center gap-1.5 text-xs">
+          <input v-model="ruleAction" type="radio" value="allow" class="accent-ctp-green" />
+          <span class="text-ctp-green">Allow</span>
+        </label>
+        <label class="flex cursor-pointer items-center gap-1.5 text-xs">
+          <input v-model="ruleAction" type="radio" value="block" class="accent-ctp-red" />
+          <span class="text-ctp-red">Block</span>
+        </label>
+      </div>
+
+      <!-- Rule name -->
+      <div class="mb-3">
+        <label class="mb-1 block text-xs text-ctp-subtext0">Rule name</label>
+        <input
+          v-model="ruleName"
+          type="text"
+          class="w-full rounded border border-ctp-surface1 bg-ctp-surface0 px-2 py-1 text-xs text-ctp-text focus:border-ctp-blue focus:outline-none"
+        />
+      </div>
+
+      <!-- Buttons -->
+      <div class="flex justify-end gap-2">
+        <button
+          class="rounded border border-ctp-surface1 px-3 py-1 text-xs text-ctp-subtext0 hover:text-ctp-text"
+          @click="cancelRule"
         >
-          Create rule to allow
-        </router-link>
-        <router-link
-          to="/rules/new?action=block"
-          class="rounded bg-ctp-red/15 px-3 py-1 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25"
+          Cancel
+        </button>
+        <button
+          class="rounded px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50"
+          :class="
+            ruleAction === 'allow'
+              ? 'bg-ctp-green/15 text-ctp-green hover:bg-ctp-green/25'
+              : 'bg-ctp-red/15 text-ctp-red hover:bg-ctp-red/25'
+          "
+          :disabled="!conditionValue.trim() || !ruleName.trim() || pending"
+          @click="submitRule"
         >
-          Create rule to block
-        </router-link>
-        <router-link
-          v-if="matchedRules[0]"
-          :to="`/rules/${matchedRules[0].ruleId}`"
-          class="rounded border border-ctp-surface1 px-3 py-1 text-xs text-ctp-subtext0 transition-colors hover:text-ctp-text"
-        >
-          Edit rule
-        </router-link>
-        <router-link to="/rules" class="text-xs text-ctp-blue hover:underline">
-          View all rules
-        </router-link>
+          Save rule
+        </button>
       </div>
     </div>
   </div>

@@ -1,6 +1,15 @@
 import { ok, err, type Result } from 'neverthrow'
 import { loginClient } from './auth'
-import type { Account, Arc, ArcStatus, EmailAddressConfig, Page, Signal } from '@/types/server'
+import type {
+  Account,
+  Arc,
+  ArcStatus,
+  CreateRuleBody,
+  EmailAddressConfig,
+  Page,
+  Rule,
+  Signal,
+} from '@/types/server'
 
 export class ApiError {
   constructor(
@@ -126,6 +135,14 @@ export const api = {
       `/accounts/${accountId}/aliases/${encodeURIComponent(recipientAddress)}`,
       { method: 'PATCH', body: JSON.stringify({ approvedSenders }) },
     )
+  },
+
+  // TODO(backend): POST /accounts/:id/rules — rules engine (Phase 7)
+  createRule(accountId: string, body: CreateRuleBody): Promise<Result<Rule, ApiError>> {
+    return request<Rule>(`/accounts/${accountId}/rules`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
   },
 
   // TODO(backend): blockedSenders field on EmailAddressConfig and PATCH support required

@@ -107,6 +107,35 @@ export interface Label {
   createdAt: string
 }
 
+// ─── Rules (Phase 7) ──────────────────────────────────────────────────────────
+// TODO(backend): rules engine endpoints — POST/GET/PATCH/DELETE /accounts/:id/rules
+
+export type RuleAction = 'allow' | 'block' | 'label' | 'quarantine'
+export type RuleConditionField = 'from.address' | 'from.domain' | 'subject'
+export type RuleConditionOperator = 'equals' | 'contains' | 'starts_with' | 'ends_with'
+
+export interface RuleCondition {
+  field: RuleConditionField
+  operator: RuleConditionOperator
+  value: string
+}
+
+export interface Rule {
+  id: string
+  accountId: string
+  name: string
+  conditions: RuleCondition[]
+  action: RuleAction
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateRuleBody {
+  name: string
+  conditions: RuleCondition[]
+  action: RuleAction
+}
+
 // ─── Signal ───────────────────────────────────────────────────────────────────
 
 export type SignalStatus = 'received' | 'processed' | 'failed'
