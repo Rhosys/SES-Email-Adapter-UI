@@ -1,7 +1,7 @@
 <script setup lang="ts">
 type TabKey = 'active' | 'archived' | 'all'
 
-defineProps<{ activeTab: TabKey; total: number }>()
+defineProps<{ activeTab: TabKey }>()
 const emit = defineEmits<{ (e: 'change', tab: TabKey): void }>()
 
 const tabs: { key: TabKey; label: string }[] = [
@@ -27,11 +27,6 @@ const tabs: { key: TabKey; label: string }[] = [
       @click="emit('change', tab.key)"
     >
       {{ tab.label }}
-      <span
-        v-if="tab.key === activeTab && total > 0"
-        class="ml-1.5 rounded-full bg-ctp-surface1 px-1.5 py-0.5 text-xs text-ctp-subtext0"
-        >{{ total }}</span
-      >
     </button>
   </div>
 </template>

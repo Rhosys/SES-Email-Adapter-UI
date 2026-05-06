@@ -50,7 +50,7 @@ function mockSignal(overrides: Partial<Signal> = {}): Signal {
 }
 
 function mockPage<T>(items: T[], overrides: Partial<Page<T>> = {}): Page<T> {
-  return { items, total: items.length, ...overrides }
+  return { items, ...overrides }
 }
 
 describe('signalsStore', () => {

@@ -21,6 +21,17 @@ export interface PatchArcBody {
   labels?: string[]
 }
 
+// Wire shapes returned by the backend list endpoints.
+interface ArcListWire {
+  arcs: Arc[]
+  pagination: { cursor: string | null }
+}
+
+interface SignalListWire {
+  signals: Signal[]
+  pagination: { cursor: string | null }
+}
+
 const BASE = import.meta.env.VITE_API_BASE_URL as string
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<Result<T, ApiError>> {
@@ -35,7 +46,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<Result<
       },
     })
     if (!res.ok) {
-      return err(new ApiError(res.status, `${init.method ?? 'GET'} ${path} → ${res.status}`))
+      let message = `${init.method ?? 'GET'} ${path} → ${res.status}`
+      const body = (await res.json().catch(() => null)) as { title?: string } | null
+      if (body?.title) message = body.title
+      return err(new ApiError(res.status, message))
     }
     const data = (await res.json()) as T
     return ok(data)
@@ -50,14 +64,20 @@ export const api = {
     return request<Account>(`/accounts/${accountId}`)
   },
 
-  listArcs(accountId: string, params: ArcListParams): Promise<Result<Page<Arc>, ApiError>> {
+  async listArcs(accountId: string, params: ArcListParams): Promise<Result<Page<Arc>, ApiError>> {
     const qs = new URLSearchParams()
     if (params.workflow) qs.set('workflow', params.workflow)
     if (params.status) qs.set('status', params.status)
     if (params.cursor) qs.set('cursor', params.cursor)
     if (params.limit) qs.set('limit', String(params.limit))
     const query = qs.toString()
-    return request<Page<Arc>>(`/accounts/${accountId}/arcs${query ? `?${query}` : ''}`)
+    const result = await request<ArcListWire>(
+      `/accounts/${accountId}/arcs${query ? `?${query}` : ''}`,
+    )
+    return result.map(({ arcs, pagination }) => ({
+      items: arcs,
+      nextCursor: pagination.cursor ?? undefined,
+    }))
   },
 
   getArc(accountId: string, arcId: string): Promise<Result<Arc, ApiError>> {
@@ -71,7 +91,7 @@ export const api = {
     })
   },
 
-  listSignals(
+  async listSignals(
     accountId: string,
     arcId: string,
     params: { cursor?: string; limit?: number } = {},
@@ -80,8 +100,12 @@ export const api = {
     if (params.cursor) qs.set('cursor', params.cursor)
     if (params.limit) qs.set('limit', String(params.limit))
     const query = qs.toString()
-    return request<Page<Signal>>(
+    const result = await request<SignalListWire>(
       `/accounts/${accountId}/arcs/${arcId}/signals${query ? `?${query}` : ''}`,
     )
+    return result.map(({ signals, pagination }) => ({
+      items: signals,
+      nextCursor: pagination.cursor ?? undefined,
+    }))
   },
 }

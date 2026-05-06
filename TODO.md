@@ -132,7 +132,7 @@ endpoints being available.
 - Threaded signal list in `SignalCard.vue` (collapsible, sandboxed iframe, spam warning)
 - Workflow-specific data panels for all 14 workflows (`src/components/panels/`)
   — auth, conversation, crm, package, travel, scheduling, payments, alert,
-    content, status, healthcare, job, support, test
+  content, status, healthcare, job, support, test
 - `WorkflowPanel.vue` dispatcher (discriminated union narrowing via `workflow` field)
 - `useCountdown.ts` composable (1s interval, urgency levels: safe/warning/critical/expired)
 - `useClipboard.ts` composable (2s reset, silent failure)

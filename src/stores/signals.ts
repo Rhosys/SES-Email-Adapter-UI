@@ -7,7 +7,6 @@ export const useSignalsStore = defineStore('signals', () => {
   const items = ref<Signal[]>([])
   const arc = ref<Arc | null>(null)
   const nextCursor = ref<string | undefined>(undefined)
-  const total = ref(0)
   const loading = ref(false)
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
@@ -40,7 +39,6 @@ export const useSignalsStore = defineStore('signals', () => {
     // Newest first
     items.value = [...signalsResult.value.items].reverse()
     nextCursor.value = signalsResult.value.nextCursor
-    total.value = signalsResult.value.total
     loading.value = false
   }
 
@@ -91,7 +89,6 @@ export const useSignalsStore = defineStore('signals', () => {
     items.value = []
     arc.value = null
     nextCursor.value = undefined
-    total.value = 0
     loading.value = false
     loadingMore.value = false
     error.value = null
@@ -101,7 +98,6 @@ export const useSignalsStore = defineStore('signals', () => {
     items,
     arc,
     nextCursor,
-    total,
     loading,
     loadingMore,
     error,

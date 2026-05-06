@@ -47,11 +47,7 @@ function handleBulkLabel(label: string) {
     <main class="mx-auto max-w-4xl px-4 py-4">
       <InboxError v-if="arcsStore.error" :message="arcsStore.error" />
 
-      <StatusTabs
-        :active-tab="arcsStore.activeTab"
-        :total="arcsStore.total"
-        @change="handleTabChange"
-      />
+      <StatusTabs :active-tab="arcsStore.activeTab" @change="handleTabChange" />
 
       <BulkActionBar
         v-if="arcsStore.selectedIds.size > 0"

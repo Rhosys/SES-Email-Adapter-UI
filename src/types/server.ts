@@ -42,7 +42,6 @@ export interface Arc {
 export interface Page<T> {
   items: T[]
   nextCursor?: string
-  total: number
 }
 
 export interface EmailNotificationSettings {

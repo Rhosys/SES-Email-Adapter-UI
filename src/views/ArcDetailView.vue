@@ -105,11 +105,7 @@ async function loadMore() {
           :disabled="signalsStore.loadingMore"
           @click="loadMore"
         >
-          {{
-            signalsStore.loadingMore
-              ? 'Loading…'
-              : `Load earlier messages (${signalsStore.total - signalsStore.items.length} more)`
-          }}
+          {{ signalsStore.loadingMore ? 'Loading…' : 'Load earlier messages' }}
         </button>
       </div>
 
