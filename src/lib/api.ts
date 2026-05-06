@@ -1,15 +1,6 @@
 import { ok, err, type Result } from 'neverthrow'
 import { loginClient } from './auth'
-import type {
-  Account,
-  Arc,
-  ArcStatus,
-  CreateRuleBody,
-  EmailAddressConfig,
-  Page,
-  Rule,
-  Signal,
-} from '@/types/server'
+import type { Account, Arc, ArcStatus, CreateRuleBody, Page, Rule, Signal } from '@/types/server'
 
 export class ApiError {
   constructor(
@@ -31,6 +22,14 @@ export interface ArcListParams {
 export interface PatchArcBody {
   status?: ArcStatus
   labels?: string[]
+}
+
+export interface QuarantineSignalListParams {
+  sender?: string
+  after?: string
+  before?: string
+  cursor?: string
+  limit?: number
 }
 
 // Wire shapes returned by the backend list endpoints.
@@ -124,17 +123,33 @@ export const api = {
     }))
   },
 
-  allowSender(
+  async listQuarantinedSignals(
     accountId: string,
-    recipientAddress: string,
-    senderAddress: string,
-    currentApprovedSenders: string[],
-  ): Promise<Result<EmailAddressConfig, ApiError>> {
-    const approvedSenders = [...new Set([...currentApprovedSenders, senderAddress])]
-    return request<EmailAddressConfig>(
-      `/accounts/${accountId}/aliases/${encodeURIComponent(recipientAddress)}`,
-      { method: 'PATCH', body: JSON.stringify({ approvedSenders }) },
-    )
+    params: QuarantineSignalListParams = {},
+  ): Promise<Result<Page<Signal>, ApiError>> {
+    const qs = new URLSearchParams()
+    qs.set('status', 'quarantined')
+    if (params.sender) qs.set('sender', params.sender)
+    if (params.after) qs.set('after', params.after)
+    if (params.before) qs.set('before', params.before)
+    if (params.cursor) qs.set('cursor', params.cursor)
+    if (params.limit) qs.set('limit', String(params.limit))
+    const result = await request<SignalListWire>(`/accounts/${accountId}/signals?${qs.toString()}`)
+    return result.map(({ signals, pagination }) => ({
+      items: signals,
+      nextCursor: pagination.cursor ?? undefined,
+    }))
+  },
+
+  quarantineResponse(
+    accountId: string,
+    signalId: string,
+    status: 'active' | 'blocked',
+  ): Promise<Result<Signal, ApiError>> {
+    return request<Signal>(`/accounts/${accountId}/signals/${signalId}/quarantineResponse`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    })
   },
 
   // TODO(backend): POST /accounts/:id/rules — rules engine (Phase 7)
@@ -143,19 +158,5 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     })
-  },
-
-  // TODO(backend): blockedSenders field on EmailAddressConfig and PATCH support required
-  blockSender(
-    accountId: string,
-    recipientAddress: string,
-    senderAddress: string,
-    currentBlockedSenders: string[],
-  ): Promise<Result<EmailAddressConfig, ApiError>> {
-    const blockedSenders = [...new Set([...currentBlockedSenders, senderAddress])]
-    return request<EmailAddressConfig>(
-      `/accounts/${accountId}/aliases/${encodeURIComponent(recipientAddress)}`,
-      { method: 'PATCH', body: JSON.stringify({ blockedSenders }) },
-    )
   },
 }

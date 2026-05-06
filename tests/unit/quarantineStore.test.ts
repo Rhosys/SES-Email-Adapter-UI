@@ -2,44 +2,41 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { ok, err } from 'neverthrow'
 import { useQuarantineStore } from '@/stores/quarantine'
-import type { Arc } from '@/types/server'
+import type { Signal } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
   return {
     ...actual,
     api: {
-      listArcs: vi.fn(),
-      allowSender: vi.fn(),
-      blockSender: vi.fn(),
+      listQuarantinedSignals: vi.fn(),
+      quarantineResponse: vi.fn(),
+      createRule: vi.fn(),
     },
   }
 })
 
-vi.mock('@/stores/account', () => ({
-  useAccountStore: () => ({
-    account: { emailConfigs: {} },
-    accountId: 'acc_1',
-  }),
-}))
-
 import { api, ApiError } from '@/lib/api'
 
-function mockArc(overrides: Partial<Arc> = {}): Arc {
+function mockSignal(overrides: Partial<Signal> = {}): Signal {
   return {
-    id: 'arc_1',
+    id: 'sig_1',
+    arcId: 'arc_1',
     accountId: 'acc_1',
-    workflow: 'conversation',
-    labels: ['system:sender:untrusted'],
     status: 'quarantined',
-    summary: 'Untrusted sender email',
-    lastSignalAt: '2025-01-01T12:00:00Z',
+    source: 'ses',
+    from: { address: 'sender@example.com', name: 'Sender' },
+    to: [{ address: 'inbox@example.com' }],
+    subject: 'Test subject',
+    receivedAt: '2025-01-01T12:00:00Z',
     createdAt: '2025-01-01T12:00:00Z',
-    updatedAt: '2025-01-01T12:00:00Z',
-    senderAddress: 'sender@example.com',
-    recipientAddress: 'inbox@example.com',
+    matchedRules: [{ ruleId: 'rule_1', labels: ['system:sender:untrusted'], status: 'matched' }],
     ...overrides,
   }
+}
+
+function mockUpdatedSignal(status: 'active' | 'blocked' = 'active'): Signal {
+  return mockSignal({ status })
 }
 
 describe('quarantineStore', () => {
@@ -48,133 +45,160 @@ describe('quarantineStore', () => {
     vi.clearAllMocks()
   })
 
-  it('fetchArcs populates items', async () => {
-    vi.mocked(api.listArcs).mockResolvedValue(ok({ items: [mockArc()] }))
+  it('fetchSignals populates items', async () => {
+    vi.mocked(api.listQuarantinedSignals).mockResolvedValue(ok({ items: [mockSignal()] }))
     const store = useQuarantineStore()
-    await store.fetchArcs('acc_1', true)
+    await store.fetchSignals('acc_1', true)
     expect(store.items).toHaveLength(1)
     expect(store.loading).toBe(false)
     expect(store.error).toBeNull()
   })
 
-  it('fetchArcs sets error on failure', async () => {
-    vi.mocked(api.listArcs).mockResolvedValue(err(new ApiError(500, 'Server error')))
+  it('fetchSignals sets error on failure', async () => {
+    vi.mocked(api.listQuarantinedSignals).mockResolvedValue(err(new ApiError(500, 'Server error')))
     const store = useQuarantineStore()
-    await store.fetchArcs('acc_1', true)
+    await store.fetchSignals('acc_1', true)
     expect(store.items).toHaveLength(0)
     expect(store.error).toBe('Server error')
   })
 
-  it('fetchArcs resets items when reset=true', async () => {
-    vi.mocked(api.listArcs).mockResolvedValue(ok({ items: [] }))
+  it('fetchSignals resets items when reset=true', async () => {
+    vi.mocked(api.listQuarantinedSignals).mockResolvedValue(ok({ items: [] }))
     const store = useQuarantineStore()
-    store.items = [mockArc()]
-    await store.fetchArcs('acc_1', true)
+    store.items = [mockSignal()]
+    await store.fetchSignals('acc_1', true)
     expect(store.items).toHaveLength(0)
   })
 
-  it('fetchArcs passes status=quarantined in params', async () => {
-    vi.mocked(api.listArcs).mockResolvedValue(ok({ items: [] }))
+  it('allow removes signal from list on success', async () => {
+    vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockUpdatedSignal('active')))
     const store = useQuarantineStore()
-    await store.fetchArcs('acc_1', true)
-    expect(vi.mocked(api.listArcs)).toHaveBeenCalledWith(
+    store.items = [mockSignal({ id: 'sig_1' }), mockSignal({ id: 'sig_2' })]
+    const result = await store.allow('acc_1', 'sig_1')
+    expect(result).toBe(true)
+    expect(store.items.map((s) => s.id)).toEqual(['sig_2'])
+    expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'active')
+  })
+
+  it('allow sets error and returns false on failure', async () => {
+    vi.mocked(api.quarantineResponse).mockResolvedValue(err(new ApiError(500, 'Failed')))
+    const store = useQuarantineStore()
+    store.items = [mockSignal()]
+    const result = await store.allow('acc_1', 'sig_1')
+    expect(result).toBe(false)
+    expect(store.error).toBe('Failed')
+    expect(store.items).toHaveLength(1)
+  })
+
+  it('block removes signal from list on success', async () => {
+    vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockUpdatedSignal('blocked')))
+    const store = useQuarantineStore()
+    store.items = [mockSignal({ id: 'sig_1' })]
+    const result = await store.block('acc_1', 'sig_1')
+    expect(result).toBe(true)
+    expect(store.items).toHaveLength(0)
+    expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'blocked')
+  })
+
+  it('block sets error and returns false on failure', async () => {
+    vi.mocked(api.quarantineResponse).mockResolvedValue(err(new ApiError(500, 'Failed')))
+    const store = useQuarantineStore()
+    store.items = [mockSignal()]
+    const result = await store.block('acc_1', 'sig_1')
+    expect(result).toBe(false)
+    expect(store.error).toBe('Failed')
+    expect(store.items).toHaveLength(1)
+  })
+
+  it('createRuleForSignal creates rule then resolves signal as active', async () => {
+    vi.mocked(api.createRule).mockResolvedValue(
+      ok({
+        id: 'rule_1',
+        accountId: 'acc_1',
+        name: 'Allow sender',
+        conditions: [{ field: 'from.address', operator: 'equals', value: 'sender@example.com' }],
+        action: 'allow',
+        createdAt: '2025-01-01T00:00:00Z',
+        updatedAt: '2025-01-01T00:00:00Z',
+      }),
+    )
+    vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockUpdatedSignal('active')))
+    const store = useQuarantineStore()
+    store.items = [mockSignal()]
+    const result = await store.createRuleForSignal(
       'acc_1',
-      expect.objectContaining({ status: 'quarantined' }),
+      'sig_1',
+      {
+        name: 'Allow sender',
+        conditions: [{ field: 'from.address', operator: 'equals', value: 'sender@example.com' }],
+        action: 'allow',
+      },
+      'allow',
     )
-  })
-
-  it('allowSender removes arc from list on success', async () => {
-    vi.mocked(api.allowSender).mockResolvedValue(
-      ok({
-        id: 'alias_1',
-        accountId: 'acc_1',
-        address: 'inbox@example.com',
-        filterMode: 'strict',
-        approvedSenders: ['sender@example.com'],
-        createdAt: '2025-01-01T00:00:00Z',
-        updatedAt: '2025-01-01T00:00:00Z',
-      }),
-    )
-    const store = useQuarantineStore()
-    store.items = [mockArc({ id: 'arc_1' }), mockArc({ id: 'arc_2' })]
-    const result = await store.allowSender('acc_1', 'arc_1')
-    expect(result).toBe(true)
-    expect(store.items.map((a) => a.id)).toEqual(['arc_2'])
-  })
-
-  it('allowSender sets error and returns false on failure', async () => {
-    vi.mocked(api.allowSender).mockResolvedValue(err(new ApiError(500, 'Failed')))
-    const store = useQuarantineStore()
-    store.items = [mockArc()]
-    const result = await store.allowSender('acc_1', 'arc_1')
-    expect(result).toBe(false)
-    expect(store.error).toBe('Failed')
-    expect(store.items).toHaveLength(1)
-  })
-
-  it('allowSender returns false if arc is missing address fields', async () => {
-    const store = useQuarantineStore()
-    store.items = [mockArc({ senderAddress: undefined, recipientAddress: undefined })]
-    const result = await store.allowSender('acc_1', 'arc_1')
-    expect(result).toBe(false)
-    expect(store.error).toBeTruthy()
-  })
-
-  it('blockSender removes arc from list on success', async () => {
-    vi.mocked(api.blockSender).mockResolvedValue(
-      ok({
-        id: 'alias_1',
-        accountId: 'acc_1',
-        address: 'inbox@example.com',
-        filterMode: 'strict',
-        approvedSenders: [],
-        blockedSenders: ['sender@example.com'],
-        createdAt: '2025-01-01T00:00:00Z',
-        updatedAt: '2025-01-01T00:00:00Z',
-      }),
-    )
-    const store = useQuarantineStore()
-    store.items = [mockArc({ id: 'arc_1' })]
-    const result = await store.blockSender('acc_1', 'arc_1')
     expect(result).toBe(true)
     expect(store.items).toHaveLength(0)
+    expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'active')
   })
 
-  it('blockSender sets error and returns false on failure', async () => {
-    vi.mocked(api.blockSender).mockResolvedValue(err(new ApiError(500, 'Failed')))
+  it('createRuleForSignal resolves signal as blocked when action is block', async () => {
+    vi.mocked(api.createRule).mockResolvedValue(
+      ok({
+        id: 'rule_1',
+        accountId: 'acc_1',
+        name: 'Block sender',
+        conditions: [{ field: 'from.address', operator: 'equals', value: 'sender@example.com' }],
+        action: 'block',
+        createdAt: '2025-01-01T00:00:00Z',
+        updatedAt: '2025-01-01T00:00:00Z',
+      }),
+    )
+    vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockUpdatedSignal('blocked')))
     const store = useQuarantineStore()
-    store.items = [mockArc()]
-    const result = await store.blockSender('acc_1', 'arc_1')
+    store.items = [mockSignal()]
+    const result = await store.createRuleForSignal(
+      'acc_1',
+      'sig_1',
+      {
+        name: 'Block sender',
+        conditions: [{ field: 'from.address', operator: 'equals', value: 'sender@example.com' }],
+        action: 'block',
+      },
+      'block',
+    )
+    expect(result).toBe(true)
+    expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'blocked')
+  })
+
+  it('createRuleForSignal sets error and returns false if rule creation fails', async () => {
+    vi.mocked(api.createRule).mockResolvedValue(err(new ApiError(500, 'Rule failed')))
+    const store = useQuarantineStore()
+    store.items = [mockSignal()]
+    const result = await store.createRuleForSignal(
+      'acc_1',
+      'sig_1',
+      { name: 'Test', conditions: [], action: 'allow' },
+      'allow',
+    )
     expect(result).toBe(false)
-    expect(store.error).toBe('Failed')
+    expect(store.error).toBe('Rule failed')
+    expect(vi.mocked(api.quarantineResponse)).not.toHaveBeenCalled()
     expect(store.items).toHaveLength(1)
   })
 
-  it('actionPending tracks in-flight arc ids', async () => {
+  it('actionPending tracks in-flight signal ids', async () => {
     let resolve!: () => void
-    vi.mocked(api.allowSender).mockReturnValue(
+    vi.mocked(api.quarantineResponse).mockReturnValue(
       new Promise((res) => {
-        resolve = () =>
-          res(
-            ok({
-              id: 'alias_1',
-              accountId: 'acc_1',
-              address: 'inbox@example.com',
-              filterMode: 'strict',
-              approvedSenders: ['sender@example.com'],
-              createdAt: '2025-01-01T00:00:00Z',
-              updatedAt: '2025-01-01T00:00:00Z',
-            }),
-          )
+        resolve = () => res(ok(mockUpdatedSignal('active')))
       }),
     )
     const store = useQuarantineStore()
-    store.items = [mockArc()]
-    const p = store.allowSender('acc_1', 'arc_1')
-    expect(store.actionPending.has('arc_1')).toBe(true)
+    store.items = [mockSignal()]
+    const p = store.allow('acc_1', 'sig_1')
+    expect(store.actionPending.has('sig_1')).toBe(true)
     resolve()
     await p
-    expect(store.actionPending.has('arc_1')).toBe(false)
+    expect(store.actionPending.has('sig_1')).toBe(false)
   })
 
   it('setFilters merges filter fields', () => {
@@ -193,9 +217,11 @@ describe('quarantineStore', () => {
   })
 
   it('nextCursor reflects pagination', async () => {
-    vi.mocked(api.listArcs).mockResolvedValue(ok({ items: [mockArc()], nextCursor: 'cursor_xyz' }))
+    vi.mocked(api.listQuarantinedSignals).mockResolvedValue(
+      ok({ items: [mockSignal()], nextCursor: 'cursor_xyz' }),
+    )
     const store = useQuarantineStore()
-    await store.fetchArcs('acc_1', true)
+    await store.fetchSignals('acc_1', true)
     expect(store.nextCursor).toBe('cursor_xyz')
   })
 })

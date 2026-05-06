@@ -1,25 +1,30 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue'
-import type { Arc, CreateRuleBody, RuleAction, RuleConditionField } from '@/types/server'
+import type { CreateRuleBody, RuleAction, RuleConditionField, Signal } from '@/types/server'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
 
 const props = defineProps<{
-  arc: Arc
+  signal: Signal
   pending: boolean
 }>()
 
 const emit = defineEmits<{
-  (e: 'allowSender', arcId: string): void
-  (e: 'blockSender', arcId: string): void
-  (e: 'createRule', arcId: string, body: CreateRuleBody): void
+  (e: 'allow', signalId: string): void
+  (e: 'block', signalId: string): void
+  (e: 'createRule', signalId: string, body: CreateRuleBody, action: 'allow' | 'block'): void
 }>()
 
 const now = inject(NOW_KEY)
-const timestamp = computed(() => (now ? formatRelativeTime(props.arc.lastSignalAt, now.value) : ''))
+const timestamp = computed(() =>
+  now ? formatRelativeTime(props.signal.receivedAt, now.value) : '',
+)
 
-const isUntrustedSender = computed(() => props.arc.labels.includes('system:sender:untrusted'))
-const matchedRules = computed(() => props.arc.matchedRules ?? [])
+const isUntrustedSender = computed(
+  () =>
+    props.signal.matchedRules?.some((r) => r.labels.includes('system:sender:untrusted')) ?? false,
+)
+const matchedRules = computed(() => props.signal.matchedRules ?? [])
 
 // ── inline rule form ─────────────────────────────────────────────────────────
 
@@ -36,12 +41,12 @@ const conditionFieldOptions: { value: RuleConditionField; label: string }[] = [
 ]
 
 function deriveConditionValue(field: RuleConditionField): string {
-  if (field === 'from.address') return props.arc.senderAddress ?? ''
+  if (field === 'from.address') return props.signal.from.address
   if (field === 'from.domain') {
-    const addr = props.arc.senderAddress ?? ''
+    const addr = props.signal.from.address
     return addr.includes('@') ? addr.split('@')[1] : ''
   }
-  return ''
+  return props.signal.subject
 }
 
 function deriveRuleName(field: RuleConditionField, action: RuleAction, val: string): string {
@@ -72,11 +77,16 @@ function onConditionValueInput() {
 function submitRule() {
   if (!conditionValue.value.trim() || !ruleName.value.trim()) return
   const operator = conditionField.value === 'subject' ? 'contains' : 'equals'
-  emit('createRule', props.arc.id, {
-    name: ruleName.value.trim(),
-    conditions: [{ field: conditionField.value, operator, value: conditionValue.value.trim() }],
-    action: ruleAction.value,
-  })
+  emit(
+    'createRule',
+    props.signal.id,
+    {
+      name: ruleName.value.trim(),
+      conditions: [{ field: conditionField.value, operator, value: conditionValue.value.trim() }],
+      action: ruleAction.value,
+    },
+    ruleAction.value as 'allow' | 'block',
+  )
   ruleFormOpen.value = false
 }
 
@@ -118,12 +128,13 @@ function cancelRule() {
       <div class="min-w-0 flex-1">
         <div class="flex items-center justify-between gap-2">
           <p class="truncate text-sm font-medium text-ctp-text">
-            {{ arc.senderAddress ?? arc.summary }}
+            {{ signal.from.name || signal.from.address }}
+            <span class="font-normal text-ctp-subtext0">&lt;{{ signal.from.address }}&gt;</span>
           </p>
           <span class="shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
         </div>
 
-        <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ arc.summary }}</p>
+        <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ signal.subject }}</p>
 
         <!-- Matched rule IDs -->
         <div v-if="matchedRules.length" class="mt-1 flex flex-wrap gap-1">
@@ -141,16 +152,16 @@ function cancelRule() {
           <button
             class="rounded bg-ctp-green/15 px-3 py-1 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/25 disabled:opacity-50"
             :disabled="pending"
-            @click="emit('allowSender', arc.id)"
+            @click="emit('allow', signal.id)"
           >
-            Allow sender
+            Allow
           </button>
           <button
             class="rounded bg-ctp-red/15 px-3 py-1 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25 disabled:opacity-50"
             :disabled="pending"
-            @click="emit('blockSender', arc.id)"
+            @click="emit('block', signal.id)"
           >
-            Block sender
+            Block
           </button>
         </div>
 

@@ -17,7 +17,7 @@ const hasMore = computed(() => !!store.nextCursor)
 onMounted(async () => {
   await accountStore.fetchAccount()
   if (accountStore.accountId) {
-    await store.fetchArcs(accountStore.accountId, true)
+    await store.fetchSignals(accountStore.accountId, true)
   }
 })
 
@@ -25,7 +25,7 @@ watch(
   () => ({ ...store.filters }),
   async () => {
     if (accountStore.accountId) {
-      await store.fetchArcs(accountStore.accountId, true)
+      await store.fetchSignals(accountStore.accountId, true)
     }
   },
   { deep: true },
@@ -35,21 +35,21 @@ function onUpdateFilters(next: Partial<Filters>) {
   store.setFilters(next)
 }
 
-async function onAllowSender(arcId: string) {
+async function onAllow(signalId: string) {
   if (accountStore.accountId) {
-    await store.allowSender(accountStore.accountId, arcId)
+    await store.allow(accountStore.accountId, signalId)
   }
 }
 
-async function onBlockSender(arcId: string) {
+async function onBlock(signalId: string) {
   if (accountStore.accountId) {
-    await store.blockSender(accountStore.accountId, arcId)
+    await store.block(accountStore.accountId, signalId)
   }
 }
 
-async function onCreateRule(arcId: string, body: CreateRuleBody) {
+async function onCreateRule(signalId: string, body: CreateRuleBody, action: 'allow' | 'block') {
   if (accountStore.accountId) {
-    await store.createRuleForArc(accountStore.accountId, arcId, body)
+    await store.createRuleForSignal(accountStore.accountId, signalId, body, action)
   }
 }
 
@@ -96,12 +96,12 @@ async function loadMore() {
       <!-- List -->
       <div v-else role="list" aria-label="Quarantined emails">
         <QuarantineRow
-          v-for="arc in store.items"
-          :key="arc.id"
-          :arc="arc"
-          :pending="store.actionPending.has(arc.id)"
-          @allow-sender="onAllowSender"
-          @block-sender="onBlockSender"
+          v-for="signal in store.items"
+          :key="signal.id"
+          :signal="signal"
+          :pending="store.actionPending.has(signal.id)"
+          @allow="onAllow"
+          @block="onBlock"
           @create-rule="onCreateRule"
         />
       </div>

@@ -17,11 +17,10 @@ export type Workflow =
   | 'support'
   | 'test'
 
-export type ArcStatus = 'active' | 'archived' | 'deleted' | 'quarantined'
+export type ArcStatus = 'active' | 'archived' | 'deleted'
 
 export type ArcUrgency = 'critical' | 'high' | 'normal' | 'low' | 'silent'
 
-// TODO(backend): add matchedRules, recipientAddress, senderAddress fields to quarantined arcs
 export interface RuleExecution {
   ruleId: string
   labels: string[]
@@ -44,9 +43,6 @@ export interface Arc {
   ttl?: number
   sentMessageIds?: string[]
   urgency?: ArcUrgency
-  matchedRules?: RuleExecution[]
-  recipientAddress?: string
-  senderAddress?: string
 }
 
 export interface Page<T> {
@@ -138,7 +134,13 @@ export interface CreateRuleBody {
 
 // ─── Signal ───────────────────────────────────────────────────────────────────
 
-export type SignalStatus = 'received' | 'processed' | 'failed'
+export type SignalStatus =
+  | 'received'
+  | 'processed'
+  | 'failed'
+  | 'quarantined'
+  | 'blocked'
+  | 'active'
 export type SignalSource = 'ses' | 'api' | 'system'
 
 export interface EmailAddress {
@@ -170,6 +172,7 @@ export interface Signal {
   createdAt: string
   workflowData?: WorkflowData
   attachments?: Attachment[]
+  matchedRules?: RuleExecution[]
 }
 
 // ─── WorkflowData union ───────────────────────────────────────────────────────

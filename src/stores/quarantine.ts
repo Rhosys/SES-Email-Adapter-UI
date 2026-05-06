@@ -1,9 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
-import type { ArcListParams } from '@/lib/api'
-import type { Arc, CreateRuleBody } from '@/types/server'
-import { useAccountStore } from '@/stores/account'
+import type { QuarantineSignalListParams } from '@/lib/api'
+import type { CreateRuleBody, Signal } from '@/types/server'
 
 export interface QuarantineFilters {
   sender: string
@@ -12,7 +11,7 @@ export interface QuarantineFilters {
 }
 
 export const useQuarantineStore = defineStore('quarantine', () => {
-  const items = ref<Arc[]>([])
+  const items = ref<Signal[]>([])
   const nextCursor = ref<string | undefined>()
   const loading = ref(false)
   const loadingMore = ref(false)
@@ -25,8 +24,8 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     before: '',
   })
 
-  function buildParams(cursor?: string): ArcListParams {
-    const p: ArcListParams = { status: 'quarantined', limit: 50 }
+  function buildParams(cursor?: string): QuarantineSignalListParams {
+    const p: QuarantineSignalListParams = { limit: 50 }
     if (filters.value.sender) p.sender = filters.value.sender
     if (filters.value.after) p.after = filters.value.after
     if (filters.value.before) p.before = filters.value.before
@@ -34,14 +33,14 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     return p
   }
 
-  async function fetchArcs(accountId: string, reset = false) {
+  async function fetchSignals(accountId: string, reset = false) {
     if (reset) {
       items.value = []
       nextCursor.value = undefined
     }
     loading.value = true
     error.value = null
-    const result = await api.listArcs(accountId, buildParams())
+    const result = await api.listQuarantinedSignals(accountId, buildParams())
     loading.value = false
     if (result.isErr()) {
       error.value = result.error.message
@@ -54,7 +53,7 @@ export const useQuarantineStore = defineStore('quarantine', () => {
   async function fetchMore(accountId: string) {
     if (!nextCursor.value || loadingMore.value) return
     loadingMore.value = true
-    const result = await api.listArcs(accountId, buildParams(nextCursor.value))
+    const result = await api.listQuarantinedSignals(accountId, buildParams(nextCursor.value))
     loadingMore.value = false
     if (result.isErr()) {
       error.value = result.error.message
@@ -64,67 +63,51 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     nextCursor.value = result.value.nextCursor
   }
 
-  async function allowSender(accountId: string, arcId: string) {
-    const arc = items.value.find((a) => a.id === arcId)
-    if (!arc?.senderAddress || !arc?.recipientAddress) {
-      error.value = 'Missing sender or recipient address on arc'
-      return false
-    }
-    const accountStore = useAccountStore()
-    const aliasConfig = accountStore.account?.emailConfigs?.[arc.recipientAddress]
-    const currentApproved = aliasConfig?.approvedSenders ?? []
-
-    actionPending.value.add(arcId)
-    const result = await api.allowSender(
-      accountId,
-      arc.recipientAddress,
-      arc.senderAddress,
-      currentApproved,
-    )
-    actionPending.value.delete(arcId)
+  async function allow(accountId: string, signalId: string) {
+    actionPending.value.add(signalId)
+    const result = await api.quarantineResponse(accountId, signalId, 'active')
+    actionPending.value.delete(signalId)
     if (result.isErr()) {
       error.value = result.error.message
       return false
     }
-    items.value = items.value.filter((a) => a.id !== arcId)
+    items.value = items.value.filter((s) => s.id !== signalId)
     return true
   }
 
-  async function blockSender(accountId: string, arcId: string) {
-    const arc = items.value.find((a) => a.id === arcId)
-    if (!arc?.senderAddress || !arc?.recipientAddress) {
-      error.value = 'Missing sender or recipient address on arc'
-      return false
-    }
-    const accountStore = useAccountStore()
-    const aliasConfig = accountStore.account?.emailConfigs?.[arc.recipientAddress]
-    const currentBlocked = aliasConfig?.blockedSenders ?? []
-
-    actionPending.value.add(arcId)
-    const result = await api.blockSender(
-      accountId,
-      arc.recipientAddress,
-      arc.senderAddress,
-      currentBlocked,
-    )
-    actionPending.value.delete(arcId)
+  async function block(accountId: string, signalId: string) {
+    actionPending.value.add(signalId)
+    const result = await api.quarantineResponse(accountId, signalId, 'blocked')
+    actionPending.value.delete(signalId)
     if (result.isErr()) {
       error.value = result.error.message
       return false
     }
-    items.value = items.value.filter((a) => a.id !== arcId)
+    items.value = items.value.filter((s) => s.id !== signalId)
     return true
   }
 
-  async function createRuleForArc(accountId: string, arcId: string, body: CreateRuleBody) {
-    actionPending.value.add(arcId)
-    const result = await api.createRule(accountId, body)
-    actionPending.value.delete(arcId)
-    if (result.isErr()) {
-      error.value = result.error.message
+  async function createRuleForSignal(
+    accountId: string,
+    signalId: string,
+    body: CreateRuleBody,
+    action: 'allow' | 'block',
+  ) {
+    actionPending.value.add(signalId)
+    const ruleResult = await api.createRule(accountId, body)
+    if (ruleResult.isErr()) {
+      actionPending.value.delete(signalId)
+      error.value = ruleResult.error.message
       return false
     }
-    items.value = items.value.filter((a) => a.id !== arcId)
+    const responseStatus = action === 'allow' ? 'active' : 'blocked'
+    const responseResult = await api.quarantineResponse(accountId, signalId, responseStatus)
+    actionPending.value.delete(signalId)
+    if (responseResult.isErr()) {
+      error.value = responseResult.error.message
+      return false
+    }
+    items.value = items.value.filter((s) => s.id !== signalId)
     return true
   }
 
@@ -144,11 +127,11 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     error,
     actionPending,
     filters,
-    fetchArcs,
+    fetchSignals,
     fetchMore,
-    allowSender,
-    blockSender,
-    createRuleForArc,
+    allow,
+    block,
+    createRuleForSignal,
     setFilters,
     clearError,
   }
