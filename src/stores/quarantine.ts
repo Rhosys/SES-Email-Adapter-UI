@@ -1,17 +1,18 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { api, type QuarantineListParams } from '@/lib/api'
-import type { BlockReason, DismissReason, Signal } from '@/types/server'
+import { api } from '@/lib/api'
+import type { ArcListParams } from '@/lib/api'
+import type { Arc } from '@/types/server'
+import { useAccountStore } from '@/stores/account'
 
 export interface QuarantineFilters {
   sender: string
-  blockReason: BlockReason | ''
   after: string
   before: string
 }
 
 export const useQuarantineStore = defineStore('quarantine', () => {
-  const items = ref<Signal[]>([])
+  const items = ref<Arc[]>([])
   const nextCursor = ref<string | undefined>()
   const loading = ref(false)
   const loadingMore = ref(false)
@@ -20,29 +21,27 @@ export const useQuarantineStore = defineStore('quarantine', () => {
 
   const filters = ref<QuarantineFilters>({
     sender: '',
-    blockReason: '',
     after: '',
     before: '',
   })
 
-  function buildParams(cursor?: string): QuarantineListParams {
-    const p: QuarantineListParams = { limit: 50 }
+  function buildParams(cursor?: string): ArcListParams {
+    const p: ArcListParams = { status: 'quarantined', limit: 50 }
     if (filters.value.sender) p.sender = filters.value.sender
-    if (filters.value.blockReason) p.blockReason = filters.value.blockReason
     if (filters.value.after) p.after = filters.value.after
     if (filters.value.before) p.before = filters.value.before
     if (cursor) p.cursor = cursor
     return p
   }
 
-  async function fetchSignals(accountId: string, reset = false) {
+  async function fetchArcs(accountId: string, reset = false) {
     if (reset) {
       items.value = []
       nextCursor.value = undefined
     }
     loading.value = true
     error.value = null
-    const result = await api.listQuarantined(accountId, buildParams())
+    const result = await api.listArcs(accountId, buildParams())
     loading.value = false
     if (result.isErr()) {
       error.value = result.error.message
@@ -55,7 +54,7 @@ export const useQuarantineStore = defineStore('quarantine', () => {
   async function fetchMore(accountId: string) {
     if (!nextCursor.value || loadingMore.value) return
     loadingMore.value = true
-    const result = await api.listQuarantined(accountId, buildParams(nextCursor.value))
+    const result = await api.listArcs(accountId, buildParams(nextCursor.value))
     loadingMore.value = false
     if (result.isErr()) {
       error.value = result.error.message
@@ -65,27 +64,55 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     nextCursor.value = result.value.nextCursor
   }
 
-  async function allow(accountId: string, signalId: string) {
-    actionPending.value.add(signalId)
-    const result = await api.allowSignal(accountId, signalId)
-    actionPending.value.delete(signalId)
+  async function allowSender(accountId: string, arcId: string) {
+    const arc = items.value.find((a) => a.id === arcId)
+    if (!arc?.senderAddress || !arc?.recipientAddress) {
+      error.value = 'Missing sender or recipient address on arc'
+      return false
+    }
+    const accountStore = useAccountStore()
+    const aliasConfig = accountStore.account?.emailConfigs?.[arc.recipientAddress]
+    const currentApproved = aliasConfig?.approvedSenders ?? []
+
+    actionPending.value.add(arcId)
+    const result = await api.allowSender(
+      accountId,
+      arc.recipientAddress,
+      arc.senderAddress,
+      currentApproved,
+    )
+    actionPending.value.delete(arcId)
     if (result.isErr()) {
       error.value = result.error.message
       return false
     }
-    items.value = items.value.filter((s) => s.id !== signalId)
+    items.value = items.value.filter((a) => a.id !== arcId)
     return true
   }
 
-  async function dismiss(accountId: string, signalId: string, reason?: DismissReason) {
-    actionPending.value.add(signalId)
-    const result = await api.dismissSignal(accountId, signalId, reason)
-    actionPending.value.delete(signalId)
+  async function blockSender(accountId: string, arcId: string) {
+    const arc = items.value.find((a) => a.id === arcId)
+    if (!arc?.senderAddress || !arc?.recipientAddress) {
+      error.value = 'Missing sender or recipient address on arc'
+      return false
+    }
+    const accountStore = useAccountStore()
+    const aliasConfig = accountStore.account?.emailConfigs?.[arc.recipientAddress]
+    const currentBlocked = aliasConfig?.blockedSenders ?? []
+
+    actionPending.value.add(arcId)
+    const result = await api.blockSender(
+      accountId,
+      arc.recipientAddress,
+      arc.senderAddress,
+      currentBlocked,
+    )
+    actionPending.value.delete(arcId)
     if (result.isErr()) {
       error.value = result.error.message
       return false
     }
-    items.value = items.value.filter((s) => s.id !== signalId)
+    items.value = items.value.filter((a) => a.id !== arcId)
     return true
   }
 
@@ -105,10 +132,10 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     error,
     actionPending,
     filters,
-    fetchSignals,
+    fetchArcs,
     fetchMore,
-    allow,
-    dismiss,
+    allowSender,
+    blockSender,
     setFilters,
     clearError,
   }

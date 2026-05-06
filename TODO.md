@@ -140,12 +140,25 @@ endpoints being available.
 - Archive action on arc detail
 - `npm run check` gate: all 56 tests pass
 
-## Phase 5 — Quarantine view
+## Phase 5 — Quarantine view ✓ DONE
 
 - Route `/quarantine`
-- List of blocked / quarantined signals
-- Allow + dismiss actions, with reason capture
-- Filter by rule that fired, sender, date
+- List of quarantined arcs (status=quarantined), filtered by sender and date
+- Untrusted-sender branch: allow sender / block sender via alias PATCH
+- Matched-rules branch: create rule to allow, create rule to block, edit rule, view all rules
+- Filter by sender, date range
+
+### Backend TODOs required to complete Phase 5
+
+- **`Arc.matchedRules`** — add `matchedRules?: RuleExecution[]` to Arc where each entry has
+  `{ ruleId: string; labels: string[]; status: string }`. Needed to show which rule fired and
+  link to the rule editor.
+- **`Arc.recipientAddress`** — expose `recipientAddress?: string` on quarantined arcs so the UI
+  can target the correct alias when calling `PATCH /aliases/:address`.
+- **`Arc.senderAddress`** — expose `senderAddress?: string` on quarantined arcs for display and
+  for the allow/block alias PATCH body.
+- **`EmailAddressConfig.blockedSenders`** — add `blockedSenders?: string[]` field to the alias
+  config model and support `{ blockedSenders: string[] }` in `PATCH /aliases/:address` body.
 
 ## Phase 6 — Labels & views
 

@@ -5,7 +5,6 @@ import { useQuarantineStore } from '@/stores/quarantine'
 import { useRelativeTime } from '@/composables/useRelativeTime'
 import QuarantineFilters from '@/components/QuarantineFilters.vue'
 import QuarantineRow from '@/components/QuarantineRow.vue'
-import type { DismissReason } from '@/types/server'
 import type { QuarantineFilters as Filters } from '@/stores/quarantine'
 
 const accountStore = useAccountStore()
@@ -17,16 +16,15 @@ const hasMore = computed(() => !!store.nextCursor)
 onMounted(async () => {
   await accountStore.fetchAccount()
   if (accountStore.accountId) {
-    await store.fetchSignals(accountStore.accountId, true)
+    await store.fetchArcs(accountStore.accountId, true)
   }
 })
 
-// Re-fetch when filters change (debounced via watch flush)
 watch(
   () => ({ ...store.filters }),
   async () => {
     if (accountStore.accountId) {
-      await store.fetchSignals(accountStore.accountId, true)
+      await store.fetchArcs(accountStore.accountId, true)
     }
   },
   { deep: true },
@@ -36,15 +34,15 @@ function onUpdateFilters(next: Partial<Filters>) {
   store.setFilters(next)
 }
 
-async function onAllow(signalId: string) {
+async function onAllowSender(arcId: string) {
   if (accountStore.accountId) {
-    await store.allow(accountStore.accountId, signalId)
+    await store.allowSender(accountStore.accountId, arcId)
   }
 }
 
-async function onDismiss(signalId: string, reason: DismissReason) {
+async function onBlockSender(arcId: string) {
   if (accountStore.accountId) {
-    await store.dismiss(accountStore.accountId, signalId, reason)
+    await store.blockSender(accountStore.accountId, arcId)
   }
 }
 
@@ -60,7 +58,7 @@ async function loadMore() {
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
       <h1 class="text-lg font-semibold">Quarantine</h1>
       <p class="mt-0.5 text-xs text-ctp-subtext0">
-        Blocked and held signals — review before allowing into your inbox
+        Held emails that need your decision — allow, block, or create a rule
       </p>
     </header>
 
@@ -84,19 +82,19 @@ async function loadMore() {
         v-else-if="!store.loading && store.items.length === 0"
         class="py-20 text-center text-ctp-subtext0"
       >
-        <p class="text-base">No quarantined signals</p>
+        <p class="text-base">No quarantined emails</p>
         <p class="mt-1 text-sm">Everything is clear, or try adjusting your filters.</p>
       </div>
 
       <!-- List -->
-      <div v-else role="list" aria-label="Quarantined signals">
+      <div v-else role="list" aria-label="Quarantined emails">
         <QuarantineRow
-          v-for="signal in store.items"
-          :key="signal.id"
-          :signal="signal"
-          :pending="store.actionPending.has(signal.id)"
-          @allow="onAllow"
-          @dismiss="onDismiss"
+          v-for="arc in store.items"
+          :key="arc.id"
+          :arc="arc"
+          :pending="store.actionPending.has(arc.id)"
+          @allow-sender="onAllowSender"
+          @block-sender="onBlockSender"
         />
       </div>
 

@@ -17,9 +17,16 @@ export type Workflow =
   | 'support'
   | 'test'
 
-export type ArcStatus = 'active' | 'archived' | 'deleted'
+export type ArcStatus = 'active' | 'archived' | 'deleted' | 'quarantined'
 
 export type ArcUrgency = 'critical' | 'high' | 'normal' | 'low' | 'silent'
+
+// TODO(backend): add matchedRules, recipientAddress, senderAddress fields to quarantined arcs
+export interface RuleExecution {
+  ruleId: string
+  labels: string[]
+  status: string
+}
 
 export interface Arc {
   id: string
@@ -37,6 +44,9 @@ export interface Arc {
   ttl?: number
   sentMessageIds?: string[]
   urgency?: ArcUrgency
+  matchedRules?: RuleExecution[]
+  recipientAddress?: string
+  senderAddress?: string
 }
 
 export interface Page<T> {
@@ -71,6 +81,8 @@ export interface EmailAddressConfig {
   address: string
   filterMode: SenderFilterMode
   approvedSenders: string[]
+  // TODO(backend): add blockedSenders field to EmailAddressConfig and PATCH /aliases/:address support
+  blockedSenders?: string[]
   createdAt: string
   updatedAt: string
 }
@@ -97,10 +109,8 @@ export interface Label {
 
 // ─── Signal ───────────────────────────────────────────────────────────────────
 
-export type SignalStatus = 'received' | 'processed' | 'failed' | 'quarantined' | 'blocked'
+export type SignalStatus = 'received' | 'processed' | 'failed'
 export type SignalSource = 'ses' | 'api' | 'system'
-export type BlockReason = 'new_sender' | 'spam' | 'sender_mismatch' | 'reputation' | 'onboarding'
-export type DismissReason = 'spam' | 'not_relevant' | 'unwanted' | 'other'
 
 export interface EmailAddress {
   address: string
@@ -120,7 +130,6 @@ export interface Signal {
   accountId: string
   status: SignalStatus
   source: SignalSource
-  blockReason?: BlockReason
   from: EmailAddress
   to: EmailAddress[]
   cc?: EmailAddress[]

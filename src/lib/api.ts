@@ -1,6 +1,6 @@
 import { ok, err, type Result } from 'neverthrow'
 import { loginClient } from './auth'
-import type { Account, Arc, ArcStatus, DismissReason, Page, Signal } from '@/types/server'
+import type { Account, Arc, ArcStatus, EmailAddressConfig, Page, Signal } from '@/types/server'
 
 export class ApiError {
   constructor(
@@ -12,6 +12,9 @@ export class ApiError {
 export interface ArcListParams {
   workflow?: string
   status?: string
+  sender?: string
+  after?: string
+  before?: string
   cursor?: string
   limit?: number
 }
@@ -19,15 +22,6 @@ export interface ArcListParams {
 export interface PatchArcBody {
   status?: ArcStatus
   labels?: string[]
-}
-
-export interface QuarantineListParams {
-  sender?: string
-  blockReason?: string
-  after?: string
-  before?: string
-  cursor?: string
-  limit?: number
 }
 
 // Wire shapes returned by the backend list endpoints.
@@ -68,30 +62,6 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<Result<
   }
 }
 
-async function requestEmpty(path: string, init: RequestInit = {}): Promise<Result<void, ApiError>> {
-  try {
-    const token = await loginClient.ensureToken()
-    const res = await fetch(`${BASE}${path}`, {
-      ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...init.headers,
-      },
-    })
-    if (!res.ok) {
-      let message = `${init.method ?? 'GET'} ${path} → ${res.status}`
-      const body = (await res.json().catch(() => null)) as { title?: string } | null
-      if (body?.title) message = body.title
-      return err(new ApiError(res.status, message))
-    }
-    return ok(undefined)
-  } catch (e) {
-    const message = e instanceof Error ? e.message : 'Network error'
-    return err(new ApiError(0, message))
-  }
-}
-
 export const api = {
   getAccount(accountId: string): Promise<Result<Account, ApiError>> {
     return request<Account>(`/accounts/${accountId}`)
@@ -101,6 +71,9 @@ export const api = {
     const qs = new URLSearchParams()
     if (params.workflow) qs.set('workflow', params.workflow)
     if (params.status) qs.set('status', params.status)
+    if (params.sender) qs.set('sender', params.sender)
+    if (params.after) qs.set('after', params.after)
+    if (params.before) qs.set('before', params.before)
     if (params.cursor) qs.set('cursor', params.cursor)
     if (params.limit) qs.set('limit', String(params.limit))
     const query = qs.toString()
@@ -142,38 +115,30 @@ export const api = {
     }))
   },
 
-  async listQuarantined(
+  allowSender(
     accountId: string,
-    params: QuarantineListParams = {},
-  ): Promise<Result<Page<Signal>, ApiError>> {
-    const qs = new URLSearchParams()
-    qs.set('status', 'quarantined')
-    if (params.sender) qs.set('sender', params.sender)
-    if (params.blockReason) qs.set('blockReason', params.blockReason)
-    if (params.after) qs.set('after', params.after)
-    if (params.before) qs.set('before', params.before)
-    if (params.cursor) qs.set('cursor', params.cursor)
-    if (params.limit) qs.set('limit', String(params.limit))
-    const result = await request<SignalListWire>(`/accounts/${accountId}/signals?${qs.toString()}`)
-    return result.map(({ signals, pagination }) => ({
-      items: signals,
-      nextCursor: pagination.cursor ?? undefined,
-    }))
+    recipientAddress: string,
+    senderAddress: string,
+    currentApprovedSenders: string[],
+  ): Promise<Result<EmailAddressConfig, ApiError>> {
+    const approvedSenders = [...new Set([...currentApprovedSenders, senderAddress])]
+    return request<EmailAddressConfig>(
+      `/accounts/${accountId}/aliases/${encodeURIComponent(recipientAddress)}`,
+      { method: 'PATCH', body: JSON.stringify({ approvedSenders }) },
+    )
   },
 
-  allowSignal(accountId: string, signalId: string): Promise<Result<Signal, ApiError>> {
-    return request<Signal>(`/accounts/${accountId}/signals/${signalId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'active' }),
-    })
-  },
-
-  dismissSignal(
+  // TODO(backend): blockedSenders field on EmailAddressConfig and PATCH support required
+  blockSender(
     accountId: string,
-    signalId: string,
-    reason?: DismissReason,
-  ): Promise<Result<void, ApiError>> {
-    const qs = reason ? `?reason=${reason}` : ''
-    return requestEmpty(`/accounts/${accountId}/signals/${signalId}${qs}`, { method: 'DELETE' })
+    recipientAddress: string,
+    senderAddress: string,
+    currentBlockedSenders: string[],
+  ): Promise<Result<EmailAddressConfig, ApiError>> {
+    const blockedSenders = [...new Set([...currentBlockedSenders, senderAddress])]
+    return request<EmailAddressConfig>(
+      `/accounts/${accountId}/aliases/${encodeURIComponent(recipientAddress)}`,
+      { method: 'PATCH', body: JSON.stringify({ blockedSenders }) },
+    )
   },
 }

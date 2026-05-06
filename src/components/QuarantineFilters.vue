@@ -1,29 +1,20 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import type { BlockReason } from '@/types/server'
 import type { QuarantineFilters } from '@/stores/quarantine'
 
 const props = defineProps<{ filters: QuarantineFilters }>()
 const emit = defineEmits<{ (e: 'update', filters: Partial<QuarantineFilters>): void }>()
 
 const sender = ref(props.filters.sender)
-const blockReason = ref<BlockReason | ''>(props.filters.blockReason)
 const after = ref(props.filters.after)
 const before = ref(props.filters.before)
 
-const blockReasonOptions: { value: BlockReason | ''; label: string }[] = [
-  { value: '', label: 'All reasons' },
-  { value: 'new_sender', label: 'New sender' },
-  { value: 'spam', label: 'Spam' },
-  { value: 'sender_mismatch', label: 'Sender mismatch' },
-  { value: 'reputation', label: 'Poor reputation' },
-  { value: 'onboarding', label: 'Onboarding hold' },
-]
+const hasFilters = ref(false)
 
-watch([sender, blockReason, after, before], () => {
+watch([sender, after, before], () => {
+  hasFilters.value = !!(sender.value || after.value || before.value)
   emit('update', {
     sender: sender.value,
-    blockReason: blockReason.value,
     after: after.value,
     before: before.value,
   })
@@ -31,15 +22,9 @@ watch([sender, blockReason, after, before], () => {
 
 function reset() {
   sender.value = ''
-  blockReason.value = ''
   after.value = ''
   before.value = ''
 }
-
-const hasFilters = ref(false)
-watch([sender, blockReason, after, before], () => {
-  hasFilters.value = !!(sender.value || blockReason.value || after.value || before.value)
-})
 </script>
 
 <template>
@@ -53,19 +38,6 @@ watch([sender, blockReason, after, before], () => {
         placeholder="sender@example.com"
         class="w-48 rounded border border-ctp-surface1 bg-ctp-surface0 px-2 py-1 text-sm text-ctp-text placeholder-ctp-overlay0 focus:border-ctp-blue focus:outline-none"
       />
-    </div>
-
-    <!-- Block reason filter -->
-    <div class="flex flex-col gap-1">
-      <label class="text-xs text-ctp-subtext0">Reason</label>
-      <select
-        v-model="blockReason"
-        class="rounded border border-ctp-surface1 bg-ctp-surface0 px-2 py-1 text-sm text-ctp-text focus:border-ctp-blue focus:outline-none"
-      >
-        <option v-for="opt in blockReasonOptions" :key="opt.value" :value="opt.value">
-          {{ opt.label }}
-        </option>
-      </select>
     </div>
 
     <!-- Date range -->

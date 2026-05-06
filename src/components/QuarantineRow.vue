@@ -1,79 +1,51 @@
 <script setup lang="ts">
-import { ref, inject, computed } from 'vue'
-import type { BlockReason, DismissReason, Signal } from '@/types/server'
+import { computed, inject } from 'vue'
+import type { Arc } from '@/types/server'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
 
 const props = defineProps<{
-  signal: Signal
+  arc: Arc
   pending: boolean
 }>()
 
 const emit = defineEmits<{
-  (e: 'allow', id: string): void
-  (e: 'dismiss', id: string, reason: DismissReason): void
+  (e: 'allowSender', arcId: string): void
+  (e: 'blockSender', arcId: string): void
 }>()
 
 const now = inject(NOW_KEY)
-const timestamp = computed(() =>
-  now ? formatRelativeTime(props.signal.receivedAt, now.value) : '',
-)
+const timestamp = computed(() => (now ? formatRelativeTime(props.arc.lastSignalAt, now.value) : ''))
 
-const dismissOpen = ref(false)
-const dismissReason = ref<DismissReason>('spam')
-
-const blockReasonLabel: Record<BlockReason, string> = {
-  new_sender: 'New sender',
-  spam: 'Spam',
-  sender_mismatch: 'Sender mismatch',
-  reputation: 'Poor reputation',
-  onboarding: 'Onboarding hold',
-}
-
-const blockReasonColor: Record<BlockReason, string> = {
-  new_sender: 'bg-ctp-blue/15 text-ctp-blue',
-  spam: 'bg-ctp-red/15 text-ctp-red',
-  sender_mismatch: 'bg-ctp-peach/15 text-ctp-peach',
-  reputation: 'bg-ctp-maroon/15 text-ctp-maroon',
-  onboarding: 'bg-ctp-yellow/15 text-ctp-yellow',
-}
-
-const dismissReasonOptions: { value: DismissReason; label: string }[] = [
-  { value: 'spam', label: 'Spam' },
-  { value: 'not_relevant', label: 'Not relevant' },
-  { value: 'unwanted', label: 'Unwanted' },
-  { value: 'other', label: 'Other' },
-]
-
-function onAllow() {
-  emit('allow', props.signal.id)
-}
-
-function onDismissConfirm() {
-  emit('dismiss', props.signal.id, dismissReason.value)
-  dismissOpen.value = false
-}
+const isUntrustedSender = computed(() => props.arc.labels.includes('system:sender:untrusted'))
+const matchedRules = computed(() => props.arc.matchedRules ?? [])
 </script>
 
 <template>
   <div
     class="flex items-start gap-3 border-b border-ctp-surface0 px-4 py-3 transition-colors hover:bg-ctp-surface0"
     :class="{ 'opacity-50': pending }"
+    role="listitem"
   >
-    <!-- Block reason badge -->
+    <!-- Quarantine reason badge -->
     <div class="mt-0.5 shrink-0">
       <span
-        v-if="signal.blockReason"
-        class="inline-block rounded-full px-2 py-0.5 text-xs font-medium"
-        :class="blockReasonColor[signal.blockReason]"
+        v-if="isUntrustedSender"
+        class="inline-block rounded-full bg-ctp-peach/15 px-2 py-0.5 text-xs font-medium text-ctp-peach"
       >
-        {{ blockReasonLabel[signal.blockReason] }}
+        Untrusted sender
+      </span>
+      <span
+        v-else-if="matchedRules.length"
+        class="inline-block rounded-full bg-ctp-mauve/15 px-2 py-0.5 text-xs font-medium text-ctp-mauve"
+      >
+        Rule matched
       </span>
       <span
         v-else
         class="inline-block rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0"
       >
-        Blocked
+        Quarantined
       </span>
     </div>
 
@@ -81,73 +53,66 @@ function onDismissConfirm() {
     <div class="min-w-0 flex-1">
       <div class="flex items-center justify-between gap-2">
         <p class="truncate text-sm font-medium text-ctp-text">
-          {{ signal.from.name || signal.from.address }}
-          <span class="font-normal text-ctp-subtext0">&lt;{{ signal.from.address }}&gt;</span>
+          {{ arc.senderAddress ?? arc.summary }}
         </p>
         <span class="shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
       </div>
 
-      <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ signal.subject }}</p>
+      <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ arc.summary }}</p>
 
-      <div class="mt-1 flex items-center gap-2">
+      <!-- Matched rule IDs -->
+      <div v-if="matchedRules.length" class="mt-1 flex flex-wrap gap-1">
         <span
-          v-if="signal.spamScore !== undefined"
-          class="text-xs"
-          :class="signal.spamScore > 5 ? 'text-ctp-red' : 'text-ctp-subtext0'"
+          v-for="rule in matchedRules"
+          :key="rule.ruleId"
+          class="inline-block rounded bg-ctp-surface1 px-1.5 py-0.5 font-mono text-xs text-ctp-subtext0"
         >
-          Spam score: {{ signal.spamScore.toFixed(1) }}
+          {{ rule.ruleId }}
         </span>
       </div>
 
-      <!-- Actions -->
-      <div class="relative mt-2 flex items-center gap-2">
+      <!-- Branch A: untrusted sender actions -->
+      <div v-if="isUntrustedSender" class="mt-2 flex items-center gap-2">
         <button
           class="rounded bg-ctp-green/15 px-3 py-1 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/25 disabled:opacity-50"
           :disabled="pending"
-          @click="onAllow"
+          @click="emit('allowSender', arc.id)"
         >
-          Allow
+          Allow sender
         </button>
+        <button
+          class="rounded bg-ctp-red/15 px-3 py-1 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25 disabled:opacity-50"
+          :disabled="pending"
+          @click="emit('blockSender', arc.id)"
+        >
+          Block sender
+        </button>
+      </div>
 
-        <div class="relative">
-          <button
-            class="rounded bg-ctp-red/15 px-3 py-1 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25 disabled:opacity-50"
-            :disabled="pending"
-            @click="dismissOpen = !dismissOpen"
-          >
-            Dismiss ▾
-          </button>
-
-          <!-- Dismiss reason picker -->
-          <div
-            v-if="dismissOpen"
-            class="absolute left-0 top-full z-10 mt-1 w-48 rounded-lg border border-ctp-surface1 bg-ctp-mantle p-2 shadow-lg"
-          >
-            <p class="mb-1.5 text-xs text-ctp-subtext0">Reason</p>
-            <select
-              v-model="dismissReason"
-              class="mb-2 w-full rounded border border-ctp-surface1 bg-ctp-surface0 px-2 py-1 text-xs text-ctp-text"
-            >
-              <option v-for="opt in dismissReasonOptions" :key="opt.value" :value="opt.value">
-                {{ opt.label }}
-              </option>
-            </select>
-            <div class="flex gap-1.5">
-              <button
-                class="flex-1 rounded bg-ctp-red px-2 py-1 text-xs font-medium text-ctp-base transition-opacity hover:opacity-80"
-                @click="onDismissConfirm"
-              >
-                Confirm
-              </button>
-              <button
-                class="rounded border border-ctp-surface1 px-2 py-1 text-xs text-ctp-subtext0 hover:text-ctp-text"
-                @click="dismissOpen = false"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+      <!-- Branch B: matched rules actions -->
+      <div v-else-if="matchedRules.length" class="mt-2 flex flex-wrap items-center gap-2">
+        <router-link
+          to="/rules/new?action=allow"
+          class="rounded bg-ctp-green/15 px-3 py-1 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/25"
+        >
+          Create rule to allow
+        </router-link>
+        <router-link
+          to="/rules/new?action=block"
+          class="rounded bg-ctp-red/15 px-3 py-1 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25"
+        >
+          Create rule to block
+        </router-link>
+        <router-link
+          v-if="matchedRules[0]"
+          :to="`/rules/${matchedRules[0].ruleId}`"
+          class="rounded border border-ctp-surface1 px-3 py-1 text-xs text-ctp-subtext0 transition-colors hover:text-ctp-text"
+        >
+          Edit rule
+        </router-link>
+        <router-link to="/rules" class="text-xs text-ctp-blue hover:underline">
+          View all rules
+        </router-link>
       </div>
     </div>
   </div>
