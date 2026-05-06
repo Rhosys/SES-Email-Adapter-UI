@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import type { QuarantineSignalListParams } from '@/lib/api'
-import type { CreateRuleBody, Signal } from '@/types/server'
+import type { Signal } from '@/types/server'
 
 export interface QuarantineFilters {
   sender: string
@@ -87,30 +87,6 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     return true
   }
 
-  async function createRuleForSignal(
-    accountId: string,
-    signalId: string,
-    body: CreateRuleBody,
-    action: 'allow' | 'block',
-  ) {
-    actionPending.value.add(signalId)
-    const ruleResult = await api.createRule(accountId, body)
-    if (ruleResult.isErr()) {
-      actionPending.value.delete(signalId)
-      error.value = ruleResult.error.message
-      return false
-    }
-    const responseStatus = action === 'allow' ? 'active' : 'blocked'
-    const responseResult = await api.quarantineResponse(accountId, signalId, responseStatus)
-    actionPending.value.delete(signalId)
-    if (responseResult.isErr()) {
-      error.value = responseResult.error.message
-      return false
-    }
-    items.value = items.value.filter((s) => s.id !== signalId)
-    return true
-  }
-
   function setFilters(next: Partial<QuarantineFilters>) {
     filters.value = { ...filters.value, ...next }
   }
@@ -131,7 +107,6 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     fetchMore,
     allow,
     block,
-    createRuleForSignal,
     setFilters,
     clearError,
   }

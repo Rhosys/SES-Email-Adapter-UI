@@ -6,7 +6,6 @@ import { useRelativeTime } from '@/composables/useRelativeTime'
 import QuarantineFilters from '@/components/QuarantineFilters.vue'
 import QuarantineRow from '@/components/QuarantineRow.vue'
 import type { QuarantineFilters as Filters } from '@/stores/quarantine'
-import type { CreateRuleBody } from '@/types/server'
 
 const accountStore = useAccountStore()
 const store = useQuarantineStore()
@@ -44,12 +43,6 @@ async function onAllow(signalId: string) {
 async function onBlock(signalId: string) {
   if (accountStore.accountId) {
     await store.block(accountStore.accountId, signalId)
-  }
-}
-
-async function onCreateRule(signalId: string, body: CreateRuleBody, action: 'allow' | 'block') {
-  if (accountStore.accountId) {
-    await store.createRuleForSignal(accountStore.accountId, signalId, body, action)
   }
 }
 
@@ -102,7 +95,6 @@ async function loadMore() {
           :pending="store.actionPending.has(signal.id)"
           @allow="onAllow"
           @block="onBlock"
-          @create-rule="onCreateRule"
         />
       </div>
 
