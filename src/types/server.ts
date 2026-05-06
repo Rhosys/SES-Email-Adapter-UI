@@ -97,8 +97,10 @@ export interface Label {
 
 // ─── Signal ───────────────────────────────────────────────────────────────────
 
-export type SignalStatus = 'received' | 'processed' | 'failed'
+export type SignalStatus = 'received' | 'processed' | 'failed' | 'quarantined' | 'blocked'
 export type SignalSource = 'ses' | 'api' | 'system'
+export type BlockReason = 'new_sender' | 'spam' | 'sender_mismatch' | 'reputation' | 'onboarding'
+export type DismissReason = 'spam' | 'not_relevant' | 'unwanted' | 'other'
 
 export interface EmailAddress {
   address: string
@@ -118,6 +120,7 @@ export interface Signal {
   accountId: string
   status: SignalStatus
   source: SignalSource
+  blockReason?: BlockReason
   from: EmailAddress
   to: EmailAddress[]
   cc?: EmailAddress[]

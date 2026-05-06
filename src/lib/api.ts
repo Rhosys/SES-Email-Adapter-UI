@@ -1,6 +1,6 @@
 import { ok, err, type Result } from 'neverthrow'
 import { loginClient } from './auth'
-import type { Account, Arc, ArcStatus, Page, Signal } from '@/types/server'
+import type { Account, Arc, ArcStatus, DismissReason, Page, Signal } from '@/types/server'
 
 export class ApiError {
   constructor(
@@ -19,6 +19,15 @@ export interface ArcListParams {
 export interface PatchArcBody {
   status?: ArcStatus
   labels?: string[]
+}
+
+export interface QuarantineListParams {
+  sender?: string
+  blockReason?: string
+  after?: string
+  before?: string
+  cursor?: string
+  limit?: number
 }
 
 // Wire shapes returned by the backend list endpoints.
@@ -53,6 +62,30 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<Result<
     }
     const data = (await res.json()) as T
     return ok(data)
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Network error'
+    return err(new ApiError(0, message))
+  }
+}
+
+async function requestEmpty(path: string, init: RequestInit = {}): Promise<Result<void, ApiError>> {
+  try {
+    const token = await loginClient.ensureToken()
+    const res = await fetch(`${BASE}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...init.headers,
+      },
+    })
+    if (!res.ok) {
+      let message = `${init.method ?? 'GET'} ${path} → ${res.status}`
+      const body = (await res.json().catch(() => null)) as { title?: string } | null
+      if (body?.title) message = body.title
+      return err(new ApiError(res.status, message))
+    }
+    return ok(undefined)
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Network error'
     return err(new ApiError(0, message))
@@ -107,5 +140,40 @@ export const api = {
       items: signals,
       nextCursor: pagination.cursor ?? undefined,
     }))
+  },
+
+  async listQuarantined(
+    accountId: string,
+    params: QuarantineListParams = {},
+  ): Promise<Result<Page<Signal>, ApiError>> {
+    const qs = new URLSearchParams()
+    qs.set('status', 'quarantined')
+    if (params.sender) qs.set('sender', params.sender)
+    if (params.blockReason) qs.set('blockReason', params.blockReason)
+    if (params.after) qs.set('after', params.after)
+    if (params.before) qs.set('before', params.before)
+    if (params.cursor) qs.set('cursor', params.cursor)
+    if (params.limit) qs.set('limit', String(params.limit))
+    const result = await request<SignalListWire>(`/accounts/${accountId}/signals?${qs.toString()}`)
+    return result.map(({ signals, pagination }) => ({
+      items: signals,
+      nextCursor: pagination.cursor ?? undefined,
+    }))
+  },
+
+  allowSignal(accountId: string, signalId: string): Promise<Result<Signal, ApiError>> {
+    return request<Signal>(`/accounts/${accountId}/signals/${signalId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'active' }),
+    })
+  },
+
+  dismissSignal(
+    accountId: string,
+    signalId: string,
+    reason?: DismissReason,
+  ): Promise<Result<void, ApiError>> {
+    const qs = reason ? `?reason=${reason}` : ''
+    return requestEmpty(`/accounts/${accountId}/signals/${signalId}${qs}`, { method: 'DELETE' })
   },
 }
