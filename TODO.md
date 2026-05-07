@@ -105,16 +105,19 @@
 
   ### Layout persistence API (backend TODOs)
 
+  > **Sync required:** copy these TODOs into `rhosys/ses-email-adapter` (`TODO.md`) under a "Modular layout persistence" section.
+
   - `GET  /accounts/:id/views/:viewId/layouts` → `{ layouts: ViewLayout[] }`
   - `POST /accounts/:id/views/:viewId/layouts` → create custom layout → `ViewLayout`
   - `PATCH /accounts/:id/views/:viewId/layouts/:layoutId` → update (rename, set default, edit nodes)
   - `DELETE /accounts/:id/views/:viewId/layouts/:layoutId` → 204
-  - No backend involvement in generation — the backend only stores the final `LayoutNode[]` tree
-  - **Hard-coded system views** (`inbox`, `all`, `quarantine`) must be first-class view records in the DB so they can own layouts; they must exist as seeded rows that cannot be deleted but can have custom layouts attached:
+  - No backend involvement in generation — the backend only stores and returns the `nodes: LayoutNode[]` tree as an opaque JSON blob; no validation of component IDs server-side (that is the frontend's job)
+  - **Hard-coded system views** (`inbox`, `all`, `quarantine`) must become first-class view records in the DB so they can own layouts; seed them as undeletable rows:
     - `{ id: 'system:inbox',      name: 'Inbox',      type: 'system', filter: { status: 'active' } }`
     - `{ id: 'system:all',        name: 'All',        type: 'system', filter: {} }`
     - `{ id: 'system:quarantine', name: 'Quarantine', type: 'system', filter: { status: 'quarantined' } }`
-  - Each system view ships with a `isDefault: true` layout (the current hard-coded render) stored in the DB; users can create alternatives and promote one to default
+  - Each system view ships with an `isDefault: true` layout row (nodes = the current hard-coded render, expressed as a `LayoutNode[]`); users can create alternatives and promote one to default via the `PATCH` endpoint
+  - `DELETE` on a system view must return 403; `DELETE` on the last `isDefault` layout of any view must return 409 (there must always be one default)
 
   ### Frontend rendering engine
 
