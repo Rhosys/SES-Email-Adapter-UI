@@ -55,6 +55,22 @@
 
 - [ ] Add a top of page search bar
 
+- [ ] **AI-powered "code" rule action** — let users describe rule logic in plain language; an LLM generates the JavaScript predicate that is stored and executed at match time:
+  - **New action type:** add `'code'` to `RuleAction` union; add `prompt?: string` (human description) and `code?: string` (generated JS predicate) to `Rule`, `CreateRuleBody`, and `UpdateRuleBody` interfaces
+  - **UI in `RuleEditorView.vue`:** when action = `'code'`, replace the standard condition builder with a single textarea for the natural-language prompt and a "Generate" button; show the generated JS in a read-only code block for review before saving
+  - **LLM resolution order (client-side first):**
+    1. Desktop browser: check `window.LanguageModel ?? window.ai?.languageModel` (Chrome 127+ Gemini Nano); if available and `createTextSession()` succeeds, use it
+    2. Mobile browser: same check — `navigator.userAgent` mobile heuristic is unnecessary since the same API surface works on Chrome for Android / Samsung Internet; the capability check is sufficient
+    3. Server-side fallback: `POST /accounts/:id/rules/generate-code` with `{ prompt }` → `{ code: string }`; backend calls Anthropic/OpenAI and returns the predicate
+  - **Generated JS predicate shape:** a single-argument arrow function `(signal) => boolean` so it can be run in a `Worker` or validated before storage; example output: `(signal) => signal.from.address.endsWith('@example.com') && signal.subject.includes('invoice')`
+  - **Security — sandbox generated code before execution:** NEVER `eval()` or `new Function()` in the main thread; run inside a `Worker` with a strict `postMessage` interface or validate the AST server-side; document this constraint in a code comment
+  - **Auto-label:** after saving a code rule, automatically apply (or create) an `ai-generated` system label on the rule so it is visually distinct in the Rules list
+  - **Backend TODOs for this feature:**
+    - Add `prompt?: string` and `code?: string` to the Rule schema in the DB and API response
+    - Add `POST /accounts/:id/rules/generate-code` endpoint (LLM call, returns `{ code: string }`)
+    - Validate/sandbox the `code` field server-side before storing (parse to AST, reject unsafe nodes)
+    - Ensure the rule executor runs `code` predicates in an isolated VM context (not raw `eval`)
+
 ---
 
 This document is the working specification for the Vue 3 frontend that talks to
