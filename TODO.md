@@ -14,7 +14,45 @@
   - **Requires Vue/Vite SSR** (e.g. `vite-plugin-ssr` / Vike, or Nuxt) so the marketing page is
     server-rendered for SEO and fast first-paint; the authenticated app shell can remain a pure SPA.
     Current project is SPA-only — SSR setup is a prerequisite before building this page.
+  - **CRITICAL — no JavaScript requirement:** marketing page must be fully functional and readable
+    with JS disabled; use progressive enhancement only. All content, navigation, and CTAs must
+    render server-side. No hydration errors permitted.
+  - **SEO / AISEO:** semantic HTML5 landmarks, structured data (JSON-LD: `SoftwareApplication`,
+    `FAQPage`, `BreadcrumbList`), canonical URLs, `hreflang` if multi-locale, `robots.txt`,
+    `sitemap.xml`, `llms.txt` (plain-text summary for AI crawlers), and an `/llms-full.txt` with
+    the complete feature set for LLM indexing. Optimise `<title>`, `<meta description>`, and OG
+    tags per page. Target Core Web Vitals green on mobile.
 - [ ] Set up favicon and Open Graph meta tags
+
+- [ ] **Documentation site** — add a `/docs` section (or subdomain) with:
+  - Human-readable guides for every feature (rules, quarantine, labels, search, settings, onboarding)
+  - **LLM pages:** `/docs/llms.txt` (concise feature index) and `/docs/llms-full.txt` (full
+    structured reference). Both must be plain text, no JS, and updated whenever features change.
+    These are consumed by AI assistants and search crawlers.
+  - OpenAPI / API reference page auto-generated from the backend spec
+  - All doc pages must be statically rendered (SSG or SSR), indexable, and JS-free
+
+- [ ] **Inline feature explanations** — every view and complex UI element must explain itself
+  without redirecting to external documentation:
+  - Empty states describe what the feature does and how to get started (not just "nothing here")
+  - Tooltip or `<details>` disclosure on every non-obvious control (filter mode options, DNS record
+    types, rule operators, quarantine actions, etc.)
+  - Onboarding hints that persist until dismissed (not one-shot toasts)
+  - No "see docs" or "learn more" links as the primary explanation — docs links are supplementary
+
+- [ ] **Responsive design & mobile optimisation** — every screen must work at all viewport sizes:
+  - Mobile-first CSS: design and test at 320 px, 375 px, 390 px before scaling up
+  - Sidebar collapses to a bottom tab bar or hamburger drawer on narrow viewports (`< 640 px`)
+  - All tables/lists degrade gracefully (no horizontal scroll traps, stack to cards on mobile)
+  - Touch targets ≥ 44 × 44 px; tap-friendly spacing on all interactive elements
+  - **Playwright responsive test suite** covering every route at: 320 px, 390 px (iPhone 14),
+    768 px (iPad), 1280 px (laptop), 1920 px (desktop). Tests must assert:
+    - No horizontal overflow at any breakpoint
+    - Sidebar/nav is reachable (visible or togglable)
+    - Forms, buttons, and key actions are usable without zoom
+    - Text is legible (no overflow or clipping)
+  - Add Playwright viewport matrix to CI so a new breakpoint regression blocks the build
+
 - [ ] Add a top of page search bar
 
 ---
