@@ -54,7 +54,7 @@ async function loadMore() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-ctp-base text-ctp-text">
+  <div>
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
       <h1 class="text-lg font-semibold">Quarantine</h1>
       <p class="mt-0.5 text-xs text-ctp-subtext0">

@@ -122,6 +122,7 @@ export interface Rule {
   name: string
   conditions: RuleCondition[]
   action: RuleAction
+  labelId?: string
   createdAt: string
   updatedAt: string
 }
@@ -130,6 +131,7 @@ export interface CreateRuleBody {
   name: string
   conditions: RuleCondition[]
   action: RuleAction
+  labelId?: string
 }
 
 // ─── Signal ───────────────────────────────────────────────────────────────────
@@ -417,3 +419,120 @@ export type WorkflowData =
   | JobData
   | SupportData
   | TestData
+
+// ─── Rules additions ──────────────────────────────────────────────────────────
+
+export interface UpdateRuleBody {
+  name?: string
+  conditions?: RuleCondition[]
+  action?: RuleAction
+  labelId?: string
+}
+
+// ─── Saved views (Phase 6) ────────────────────────────────────────────────────
+
+export interface SavedViewFilters {
+  workflow?: string
+  labelId?: string
+  sender?: string
+  status?: string
+}
+
+export interface SavedView {
+  id: string
+  accountId: string
+  name: string
+  icon?: string
+  order: number
+  filters: SavedViewFilters
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateSavedViewBody {
+  name: string
+  icon?: string
+  order?: number
+  filters: SavedViewFilters
+}
+
+// ─── Domains (Phase 9) ────────────────────────────────────────────────────────
+
+export type DnsRecordType = 'TXT' | 'MX' | 'CNAME'
+export type DnsStatus = 'pending' | 'verified' | 'failed'
+
+export interface DnsRecord {
+  type: DnsRecordType
+  host: string
+  value: string
+  ttl?: number
+  status: DnsStatus
+}
+
+export interface Domain {
+  id: string
+  accountId: string
+  domain: string
+  status: DnsStatus
+  dnsRecords: DnsRecord[]
+  createdAt: string
+  updatedAt: string
+}
+
+// ─── Forwarding addresses (Phase 9) ──────────────────────────────────────────
+
+export interface ForwardingAddress {
+  id: string
+  accountId: string
+  address: string
+  label?: string
+  createdAt: string
+}
+
+// ─── Team members (Phase 9) ──────────────────────────────────────────────────
+
+export type UserRole = 'owner' | 'admin' | 'member' | 'viewer'
+
+export interface TeamMember {
+  id: string
+  accountId: string
+  userId: string
+  email: string
+  name?: string
+  role: UserRole
+  status: 'active' | 'invited' | 'suspended'
+  invitedAt: string
+  joinedAt?: string
+}
+
+// ─── Audit log (Phase 10) ────────────────────────────────────────────────────
+
+export type AuditEventType =
+  | 'signal.quarantined'
+  | 'signal.allowed'
+  | 'signal.blocked'
+  | 'rule.created'
+  | 'rule.updated'
+  | 'rule.deleted'
+  | 'label.created'
+  | 'label.updated'
+  | 'label.deleted'
+  | 'alias.created'
+  | 'alias.updated'
+  | 'alias.deleted'
+  | 'user.invited'
+  | 'user.role_changed'
+  | 'user.removed'
+  | 'account.updated'
+
+export interface AuditEvent {
+  id: string
+  accountId: string
+  actorId: string
+  actorEmail?: string
+  type: AuditEventType
+  resourceType: string
+  resourceId?: string
+  metadata?: Record<string, unknown>
+  createdAt: string
+}

@@ -39,7 +39,7 @@ function handleBulkLabel(label: string) {
 </script>
 
 <template>
-  <div class="min-h-screen bg-ctp-base text-ctp-text">
+  <div>
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
       <h1 class="text-lg font-semibold">Inbox</h1>
     </header>

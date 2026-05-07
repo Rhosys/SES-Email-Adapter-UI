@@ -2,14 +2,14 @@
 
 ## Open tasks
 
-- [ ] Reconcile API client against backend breaking changes (see "API Breaking Changes" below)
-- [ ] Implement Phase 5 — Quarantine view
-- [ ] Implement Phase 6 — Labels & views
-- [ ] Implement Phase 7 — Rules engine
-- [ ] Implement Phase 8 — Search
-- [ ] Implement Phase 9 — Settings
-- [ ] Implement Phase 10 — Secondary screens
-- [ ] Implement Phase 2 — Onboarding flow (deferred to end by design)
+- [x] Reconcile API client against backend breaking changes (see "API Breaking Changes" below)
+- [x] Implement Phase 5 — Quarantine view
+- [x] Implement Phase 6 — Labels & views
+- [x] Implement Phase 7 — Rules engine
+- [x] Implement Phase 8 — Search
+- [x] Implement Phase 9 — Settings
+- [x] Implement Phase 10 — Secondary screens
+- [x] Implement Phase 2 — Onboarding flow
 - [ ] Write marketing homepage copy (value prop, screenshots, CTA)
 - [ ] Set up favicon and Open Graph meta tags
 - [ ] Add a top of page search bar
@@ -143,68 +143,75 @@ endpoints being available.
 ## Phase 5 — Quarantine view ✓ DONE
 
 - Route `/quarantine`
-- List of quarantined arcs (status=quarantined), filtered by sender and date
-- Untrusted-sender branch: allow sender / block sender via alias PATCH
-- Matched-rules branch: create rule to allow, create rule to block, edit rule, view all rules
-- Filter by sender, date range
+- `GET /accounts/:id/signals?status=quarantined` with sender/date filters
+- Untrusted-sender branch (`signal.matchedRules[].labels` contains `system:sender:untrusted`): Allow / Block buttons calling `POST .../quarantineResponse { status: 'active'|'blocked' }`
+- Matched-rules branch: router-links to `/rules/new?signalId=...&action=allow|block` and `/rules/:id?signalId=...`
+- Filter by sender, date range; cursor pagination with Load more
 
-### Backend TODOs required to complete Phase 5
+### Backend TODOs for Phase 5
 
-- **`Arc.matchedRules`** — add `matchedRules?: RuleExecution[]` to Arc where each entry has
-  `{ ruleId: string; labels: string[]; status: string }`. Needed to show which rule fired and
-  link to the rule editor.
-- **`Arc.recipientAddress`** — expose `recipientAddress?: string` on quarantined arcs so the UI
-  can target the correct alias when calling `PATCH /aliases/:address`.
-- **`Arc.senderAddress`** — expose `senderAddress?: string` on quarantined arcs for display and
-  for the allow/block alias PATCH body.
-- **`EmailAddressConfig.blockedSenders`** — add `blockedSenders?: string[]` field to the alias
-  config model and support `{ blockedSenders: string[] }` in `PATCH /aliases/:address` body.
+- **`Signal.matchedRules`** — `matchedRules?: RuleExecution[]` already modelled in `src/types/server.ts`; backend must include it in the quarantine list response.
+- **`POST .../quarantineResponse`** — must resolve the signal and return the updated Signal.
+- **`EmailAddressConfig.blockedSenders`** — add `blockedSenders?: string[]` to alias config and support in `PATCH /aliases/:address`.
 
-## Phase 6 — Labels & views
+## Phase 6 — Labels & views ✓ DONE
 
-- Manage labels (CRUD, color, icon)
-- Custom sidebar views backed by saved searches
-- Drag-to-reorder sidebar entries; persists to the account store / API
+- `/labels` view with tabs: Labels (CRUD, color, icon picker) and Views (saved searches)
+- Sidebar shows custom views with drag-to-reorder (HTML5 DnD, PATCH order on drop)
+- Stores: `useLabelsStore`, `useViewsStore`
 
-## Phase 7 — Rules engine
+### Backend TODOs for Phase 6
 
-- Visual condition builder emitting JSONLogic
-- Action list (label, snooze, forward, quarantine, auto-reply with a pong)
-- Rule test runner that evaluates a sample signal against the rule
+- `GET/POST/PATCH/DELETE /accounts/:id/labels`
+- `GET/POST/PATCH/DELETE /accounts/:id/views`
 
-## Phase 8 — Search
+## Phase 7 — Rules engine ✓ DONE
 
-- do full-text by calling the resource specific search endpoints passing in the same query
-- Filter chips (workflow, label, urgency, date range, sender)
-- Cursor-paginated results sharing the inbox row component
-- which will search arcs, signals, sender emails, aliases, and rules as all separate searches, and then display those things in separate sections in the search results. After searching allow the user checkboxes to uncheck which of those things should not be displayed. Don't just use default checkbox display use good UX for managing those.
+- `/rules` list with action badges and condition summary
+- `/rules/new` and `/rules/:id` — visual condition builder (field × operator × value), action selector, client-side rule tester
+- Pre-fills from quarantine `?signalId=&action=` query params; resolves signal via `quarantineResponse` after save
 
-## Phase 9 — Settings
+### Backend TODOs for Phase 7
 
-Tabs:
+- `GET/POST/PATCH/DELETE /accounts/:id/rules`
 
-- Account profile
-- Email addresses (sender + reply-to)
-- Domains with two-tier DNS display (apex + DKIM/SPF/DMARC subrecords)
-- Forwarding addresses
-- Team / users (Authress RBAC: invite, role, remove)
+## Phase 8 — Search ✓ DONE
 
-## Phase 10 — Secondary screens
+- `/search` — single query input, parallel searches across arcs, aliases, and rules
+- Section visibility toggles as styled pill chips (at least one section always visible)
+- Results appear in labelled sections
 
-- Profile, billing, audit log, support panel
-- Legal pages (terms, privacy)
-- Notification preferences goes on the setting screen
+## Phase 9 — Settings ✓ DONE
 
-## Phase 2 — Onboarding flow (deferred — build last)
+- `/settings` with 6 tabs: Account, Email addresses, Domains, Forwarding, Team, Notifications
+- DNS two-tier display: type badge + host + value + per-record status
+- Team: invite, role picker, remove
+- Notifications: toggle + address + frequency
 
-Five-step wizard at `/onboarding`:
+### Backend TODOs for Phase 9
 
-1. **Domain** — capture sending domain, show DNS records (two-tier display)
-2. **Send test email** — render a real-time signal-arrival indicator (SSE or
-   polling) so the user sees ingestion working end-to-end
-3. **Sender setup** — pick a default sender address, set display name
-4. **Filter mode** — choose strict / balanced / permissive default rule mode
-5. **Done** — recap card, link into the inbox
+- `GET/POST/PATCH/DELETE /accounts/:id/aliases`
+- `GET/POST /accounts/:id/domains`
+- `GET/POST/DELETE /accounts/:id/forwarding-addresses`
+- `GET/POST/PATCH/DELETE /accounts/:id/users`
+
+## Phase 10 — Secondary screens ✓ DONE
+
+- `/profile` — account name, ID, sign-out
+- `/billing` — plan display, portal link
+- `/audit-log` — paginated event list with type icons
+- `/terms` and `/privacy` — legal pages (standalone, no sidebar)
+- Notification preferences on settings Notifications tab
+
+## Phase 2 — Onboarding flow ✓ DONE
+
+Five-step wizard at `/onboarding` (standalone, no sidebar):
+
+1. **Domain** — enter domain, see DNS records
+2. **Test email** — 3-second polling to detect first signal
+3. **Sender address** — creates alias via `POST /aliases`
+4. **Filter mode** — four options with recommended highlight
+5. **Done** — recap card with step completion summary, link to inbox
 
 ---
 
