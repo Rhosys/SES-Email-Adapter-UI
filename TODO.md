@@ -56,12 +56,11 @@
 - [x] Add a top of page search bar
 
 - [ ] **User profile screen** (`/profile`) — personal identity and security settings, fully separate from the account/organisation management screen (`/settings`):
-  - **Linked accounts / social login** — list connected identity providers (Google, GitHub, etc.) with connected-at date; "Connect" button for unlinked providers; "Disconnect" with confirmation (must keep at least one login method)
-  - **MFA configuration** — list enrolled factors (TOTP app, SMS, hardware key) with enrolled-at date and "Remove" per factor; "Add authenticator app" flow (QR code + verify code); "Add SMS" flow (phone number + OTP verify); "Add hardware key" flow (WebAuthn / passkey registration via `navigator.credentials.create`)
-  - **Active sessions** — table of current sessions (device, browser, IP, last active); "Revoke" per session; "Revoke all other sessions" bulk action
-  - **Password change** — current password + new password + confirm; only shown when password auth is a linked provider
+  - **Linked identity connections** — list connected providers (Google, GitHub, etc.) with connected-at date; "Connect" button for unlinked providers; "Disconnect" with confirmation (must keep at least one connection)
+  - **Passkey devices** — list enrolled passkeys (device name, registered-at); "Add passkey" flow via `navigator.credentials.create` (WebAuthn); "Remove" per device with confirmation
+  - **Active sessions** — table of current sessions (device, browser, IP, last active); "Terminate" per session; "Terminate all other sessions" bulk action
   - This screen is user-scoped (not account/org scoped) — all calls go to the identity provider via `@authress/login` SDK methods, not to the `ses-email-adapter` backend
-  - Keep existing `/profile` view (account name + sign-out) and extend it, or split into `/profile` (identity/security) vs `/account` (org name/ID); preference is split so Settings stays org-only
+  - Extend the existing `/profile` view; keep `/settings` strictly org-scoped
 
 - [ ] **Modular component system + LLM-composable layouts** — decompose every view into a registry of self-describing, slot-composable components so that an LLM can produce a valid layout tree for any view and users can save a custom layout per view:
 
