@@ -11,6 +11,9 @@
 - [x] Implement Phase 10 — Secondary screens
 - [x] Implement Phase 2 — Onboarding flow
 - [ ] Write marketing homepage copy (value prop, screenshots, CTA) — redirect to app if already logged in
+  - **Requires Vue/Vite SSR** (e.g. `vite-plugin-ssr` / Vike, or Nuxt) so the marketing page is
+    server-rendered for SEO and fast first-paint; the authenticated app shell can remain a pure SPA.
+    Current project is SPA-only — SSR setup is a prerequisite before building this page.
 - [ ] Set up favicon and Open Graph meta tags
 - [ ] Add a top of page search bar
 
