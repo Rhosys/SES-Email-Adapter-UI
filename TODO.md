@@ -10,7 +10,7 @@
 - [x] Implement Phase 9 — Settings
 - [x] Implement Phase 10 — Secondary screens
 - [x] Implement Phase 2 — Onboarding flow
-- [ ] Write marketing homepage copy (value prop, screenshots, CTA)
+- [ ] Write marketing homepage copy (value prop, screenshots, CTA) — redirect to app if already logged in
 - [ ] Set up favicon and Open Graph meta tags
 - [ ] Add a top of page search bar
 
