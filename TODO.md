@@ -33,7 +33,7 @@
   - All doc pages must be statically rendered (SSG or SSR), indexable, and JS-free
 
 - [ ] **Inline feature explanations** — every view and complex UI element must explain itself
-  without redirecting to external documentation:
+      without redirecting to external documentation:
   - Empty states describe what the feature does and how to get started (not just "nothing here")
   - Tooltip or `<details>` disclosure on every non-obvious control (filter mode options, DNS record
     types, rule operators, quarantine actions, etc.)
@@ -53,38 +53,36 @@
     - Text is legible (no overflow or clipping)
   - Add Playwright viewport matrix to CI so a new breakpoint regression blocks the build
 
-- [ ] Add a top of page search bar
+- [x] Add a top of page search bar
 
 - [ ] **Modular component system + LLM-composable layouts** — decompose every view into a registry of self-describing, slot-composable components so that an LLM can produce a valid layout tree for any view and users can save a custom layout per view:
 
   ### Component registry & descriptor format
-
   - Every leaf UI component (arc row, signal card, stat chip, filter bar, label chip, DNS record row, etc.) must be registered in a central `src/components/registry.ts` with a machine-readable descriptor:
     ```ts
     export interface ComponentDescriptor {
-      id: string              // e.g. 'arc-row', 'signal-card', 'stat-chip'
+      id: string // e.g. 'arc-row', 'signal-card', 'stat-chip'
       displayName: string
-      description: string     // plain-English purpose, consumed by LLM prompts
+      description: string // plain-English purpose, consumed by LLM prompts
       props: PropDescriptor[] // name, type, required, default, enum values
-      slots?: string[]        // named slots the component exposes
-      accepts?: string[]      // component IDs that can be placed in its slots
+      slots?: string[] // named slots the component exposes
+      accepts?: string[] // component IDs that can be placed in its slots
     }
     ```
   - Components declare their own descriptor via a `defineComponentMeta()` helper so the registry is always in sync with the component file — no separate manifest to maintain
   - Serve `public/component-registry.json` (generated at build time from the registry) so an LLM running entirely in the browser can read the available components without any server round-trip
 
   ### Layout schema
-
   - Each view has exactly one layout. A layout is a serialisable tree of component instances:
     ```ts
     export interface LayoutNode {
-      componentId: string          // must match a registered descriptor ID
+      componentId: string // must match a registered descriptor ID
       props?: Record<string, unknown>
-      slots?: Record<string, LayoutNode[]>  // named slot → child nodes
+      slots?: Record<string, LayoutNode[]> // named slot → child nodes
     }
     export interface ViewLayout {
-      viewId: string              // 'system:inbox' | 'system:all' | 'system:quarantine' | SavedView.id
-      nodes: LayoutNode[]         // top-level component tree
+      viewId: string // 'system:inbox' | 'system:all' | 'system:quarantine' | SavedView.id
+      nodes: LayoutNode[] // top-level component tree
       updatedAt: string
     }
     ```
@@ -92,7 +90,6 @@
   - Add `ViewLayout` and `LayoutNode` to `src/types/server.ts`
 
   ### LLM layout suggestion flow (browser-only)
-
   - "Customise this view" button opens a prompt textarea: user describes the layout they want in plain English
   - The browser fetches `public/component-registry.json` and passes it alongside the prompt to the browser's built-in LLM (`window.LanguageModel ?? window.ai?.languageModel`); **if no browser LLM is available the feature is not shown** — there is no server-side generation fallback
   - The LLM is prompted to return a JSON `LayoutNode[]` tree; the frontend validates it against the registry and renders a live preview
@@ -102,7 +99,6 @@
   ### Layout persistence API (backend TODOs)
 
   > **Sync required:** copy these TODOs into `rhosys/ses-email-adapter` (`TODO.md`) under a "Modular layout persistence" section.
-
   - Each view has exactly one layout record; use PUT (upsert) to create or replace it:
     - `GET  /accounts/:id/views/:viewId/layout` → `ViewLayout` (404 if not yet customised — frontend falls back to hard-coded render)
     - `PUT  /accounts/:id/views/:viewId/layout` → upsert layout → `ViewLayout`
@@ -115,14 +111,12 @@
   - `DELETE` on a system view record must return 403; `DELETE` on its layout is allowed (resets to hard-coded render)
 
   ### Frontend rendering engine
-
   - `<DynamicLayout :nodes="layout.nodes" />` — recursive renderer that looks up each `componentId` in the registry, resolves the Vue component, passes `props`, and fills named slots with child `<DynamicLayout>` calls
   - Wrap in an `<ErrorBoundary>` so a bad node crashes only its subtree, not the whole view
   - If no layout exists for a view (404 from the API), fall back to the hard-coded Vue template (zero regression for current users)
   - "Customise" / "Reset to default" buttons in the view header
 
   ### Decomposition work (prerequisite)
-
   - Audit every view and extract repeated or independently useful markup into registered components; target components include (non-exhaustive):
     - `ArcRow`, `ArcRowCompact`, `SignalCard`, `SignalCardCollapsed`
     - `LabelChip`, `ActionBadge`, `UrgencyStripe`, `WorkflowIcon`
