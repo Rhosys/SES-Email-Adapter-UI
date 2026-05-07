@@ -55,7 +55,7 @@
 
 - [ ] Add a top of page search bar
 
-- [ ] **Modular component system + LLM-composable layouts** — decompose every view into a registry of self-describing, slot-composable components so that an LLM can produce a valid layout tree for any view and users can save/restore custom layouts:
+- [ ] **Modular component system + LLM-composable layouts** — decompose every view into a registry of self-describing, slot-composable components so that an LLM can produce a valid layout tree for any view and users can save a custom layout per view:
 
   ### Component registry & descriptor format
 
@@ -75,7 +75,7 @@
 
   ### Layout schema
 
-  - A layout is a serialisable tree of component instances:
+  - Each view has exactly one layout. A layout is a serialisable tree of component instances:
     ```ts
     export interface LayoutNode {
       componentId: string          // must match a registered descriptor ID
@@ -83,12 +83,8 @@
       slots?: Record<string, LayoutNode[]>  // named slot → child nodes
     }
     export interface ViewLayout {
-      id: string
-      viewId: string              // 'inbox' | 'all' | 'quarantine' | SavedView.id
-      name: string
-      isDefault: boolean
+      viewId: string              // 'system:inbox' | 'system:all' | 'system:quarantine' | SavedView.id
       nodes: LayoutNode[]         // top-level component tree
-      createdAt: string
       updatedAt: string
     }
     ```
@@ -100,31 +96,30 @@
   - "Customise this view" button opens a prompt textarea: user describes the layout they want in plain English
   - The browser fetches `public/component-registry.json` and passes it alongside the prompt to the browser's built-in LLM (`window.LanguageModel ?? window.ai?.languageModel`); **if no browser LLM is available the feature is not shown** — there is no server-side generation fallback
   - The LLM is prompted to return a JSON `LayoutNode[]` tree; the frontend validates it against the registry and renders a live preview
-  - User can accept (saves via `POST .../layouts`), regenerate, or cancel
+  - User can accept (saves via `PUT .../layout`) or cancel
   - If the suggested layout references unknown components, surface a diff UI showing what was ignored
 
   ### Layout persistence API (backend TODOs)
 
   > **Sync required:** copy these TODOs into `rhosys/ses-email-adapter` (`TODO.md`) under a "Modular layout persistence" section.
 
-  - `GET  /accounts/:id/views/:viewId/layouts` → `{ layouts: ViewLayout[] }`
-  - `POST /accounts/:id/views/:viewId/layouts` → create custom layout → `ViewLayout`
-  - `PATCH /accounts/:id/views/:viewId/layouts/:layoutId` → update (rename, set default, edit nodes)
-  - `DELETE /accounts/:id/views/:viewId/layouts/:layoutId` → 204
-  - No backend involvement in generation — the backend only stores and returns the `nodes: LayoutNode[]` tree as an opaque JSON blob; no validation of component IDs server-side (that is the frontend's job)
-  - **Hard-coded system views** (`inbox`, `all`, `quarantine`) must become first-class view records in the DB so they can own layouts; seed them as undeletable rows:
+  - Each view has exactly one layout record; use PUT (upsert) to create or replace it:
+    - `GET  /accounts/:id/views/:viewId/layout` → `ViewLayout` (404 if not yet customised — frontend falls back to hard-coded render)
+    - `PUT  /accounts/:id/views/:viewId/layout` → upsert layout → `ViewLayout`
+    - `DELETE /accounts/:id/views/:viewId/layout` → 204, resets view to the hard-coded default
+  - No backend involvement in generation — the backend stores and returns the `nodes: LayoutNode[]` tree as an opaque JSON blob; no validation of component IDs server-side (that is the frontend's job)
+  - **Hard-coded system views** (`inbox`, `all`, `quarantine`) must become first-class view records in the DB so they can own a layout; seed them as undeletable rows:
     - `{ id: 'system:inbox',      name: 'Inbox',      type: 'system', filter: { status: 'active' } }`
     - `{ id: 'system:all',        name: 'All',        type: 'system', filter: {} }`
     - `{ id: 'system:quarantine', name: 'Quarantine', type: 'system', filter: { status: 'quarantined' } }`
-  - Each system view ships with an `isDefault: true` layout row (nodes = the current hard-coded render, expressed as a `LayoutNode[]`); users can create alternatives and promote one to default via the `PATCH` endpoint
-  - `DELETE` on a system view must return 403; `DELETE` on the last `isDefault` layout of any view must return 409 (there must always be one default)
+  - `DELETE` on a system view record must return 403; `DELETE` on its layout is allowed (resets to hard-coded render)
 
   ### Frontend rendering engine
 
   - `<DynamicLayout :nodes="layout.nodes" />` — recursive renderer that looks up each `componentId` in the registry, resolves the Vue component, passes `props`, and fills named slots with child `<DynamicLayout>` calls
   - Wrap in an `<ErrorBoundary>` so a bad node crashes only its subtree, not the whole view
-  - If no custom layout exists for a view, fall back to the hard-coded Vue template (zero regression for current users)
-  - Layout switcher UI in the view header: dropdown of saved layouts + "New layout" option
+  - If no layout exists for a view (404 from the API), fall back to the hard-coded Vue template (zero regression for current users)
+  - "Customise" / "Reset to default" buttons in the view header
 
   ### Decomposition work (prerequisite)
 
