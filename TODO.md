@@ -55,6 +55,85 @@
 
 - [ ] Add a top of page search bar
 
+- [ ] **Modular component system + LLM-composable layouts** — decompose every view into a registry of self-describing, slot-composable components so that an LLM can produce a valid layout tree for any view and users can save/restore custom layouts:
+
+  ### Component registry & descriptor format
+
+  - Every leaf UI component (arc row, signal card, stat chip, filter bar, label chip, DNS record row, etc.) must be registered in a central `src/components/registry.ts` with a machine-readable descriptor:
+    ```ts
+    export interface ComponentDescriptor {
+      id: string              // e.g. 'arc-row', 'signal-card', 'stat-chip'
+      displayName: string
+      description: string     // plain-English purpose, consumed by LLM prompts
+      props: PropDescriptor[] // name, type, required, default, enum values
+      slots?: string[]        // named slots the component exposes
+      accepts?: string[]      // component IDs that can be placed in its slots
+    }
+    ```
+  - Components declare their own descriptor via a `defineComponentMeta()` helper so the registry is always in sync with the component file — no separate manifest to maintain
+  - Export `GET /component-registry` (or serve `public/component-registry.json` as a static file) so the LLM can fetch the current registry without reading source code
+
+  ### Layout schema
+
+  - A layout is a serialisable tree of component instances:
+    ```ts
+    export interface LayoutNode {
+      componentId: string          // must match a registered descriptor ID
+      props?: Record<string, unknown>
+      slots?: Record<string, LayoutNode[]>  // named slot → child nodes
+    }
+    export interface ViewLayout {
+      id: string
+      viewId: string              // 'inbox' | 'all' | 'quarantine' | SavedView.id
+      name: string
+      isDefault: boolean
+      nodes: LayoutNode[]         // top-level component tree
+      createdAt: string
+      updatedAt: string
+    }
+    ```
+  - Validate every `LayoutNode` against the registry before rendering (unknown `componentId` → fallback placeholder, type-mismatched props → stripped with console warning)
+  - Add `ViewLayout` and `LayoutNode` to `src/types/server.ts`
+
+  ### LLM layout suggestion flow
+
+  - "Customise this view" button opens a prompt textarea: user describes the layout they want in plain English
+  - Request is sent to `POST /accounts/:id/views/:viewId/layouts/suggest` with `{ prompt, componentRegistry }` (registry is inlined so the backend LLM has full context)
+  - Backend returns a `LayoutNode[]` tree; frontend validates it against the registry and renders a live preview
+  - User can accept (saves via `POST .../layouts`), regenerate, or cancel
+  - If the suggested layout references unknown components, surface a diff UI showing what was ignored
+
+  ### Layout persistence API (backend TODOs)
+
+  - `GET  /accounts/:id/views/:viewId/layouts` → `{ layouts: ViewLayout[] }`
+  - `POST /accounts/:id/views/:viewId/layouts` → create custom layout → `ViewLayout`
+  - `PATCH /accounts/:id/views/:viewId/layouts/:layoutId` → update (rename, set default, edit nodes)
+  - `DELETE /accounts/:id/views/:viewId/layouts/:layoutId` → 204
+  - `POST /accounts/:id/views/:viewId/layouts/suggest` → LLM layout suggestion → `{ nodes: LayoutNode[] }`
+  - **Hard-coded system views** (`inbox`, `all`, `quarantine`) must be first-class view records in the DB so they can own layouts; they must exist as seeded rows that cannot be deleted but can have custom layouts attached:
+    - `{ id: 'system:inbox',      name: 'Inbox',      type: 'system', filter: { status: 'active' } }`
+    - `{ id: 'system:all',        name: 'All',        type: 'system', filter: {} }`
+    - `{ id: 'system:quarantine', name: 'Quarantine', type: 'system', filter: { status: 'quarantined' } }`
+  - Each system view ships with a `isDefault: true` layout (the current hard-coded render) stored in the DB; users can create alternatives and promote one to default
+
+  ### Frontend rendering engine
+
+  - `<DynamicLayout :nodes="layout.nodes" />` — recursive renderer that looks up each `componentId` in the registry, resolves the Vue component, passes `props`, and fills named slots with child `<DynamicLayout>` calls
+  - Wrap in an `<ErrorBoundary>` so a bad node crashes only its subtree, not the whole view
+  - If no custom layout exists for a view, fall back to the hard-coded Vue template (zero regression for current users)
+  - Layout switcher UI in the view header: dropdown of saved layouts + "New layout" option
+
+  ### Decomposition work (prerequisite)
+
+  - Audit every view and extract repeated or independently useful markup into registered components; target components include (non-exhaustive):
+    - `ArcRow`, `ArcRowCompact`, `SignalCard`, `SignalCardCollapsed`
+    - `LabelChip`, `ActionBadge`, `UrgencyStripe`, `WorkflowIcon`
+    - `FilterBar`, `SenderFilter`, `DateRangeFilter`, `StatusTabBar`
+    - `StatChip`, `PaginationBar`, `EmptyState`, `LoadingSpinner`
+    - `DnsRecordRow`, `TeamMemberRow`, `AuditEventRow`
+    - `RuleConditionBuilder`, `RuleActionSelector`
+  - Each extracted component must have a `defineComponentMeta()` call and appear in the registry before the layout engine can use it
+
 - [ ] **AI-powered "code" rule action** — let users describe rule logic in plain language; an LLM generates the JavaScript predicate that is stored and executed at match time:
   - **New action type:** add `'code'` to `RuleAction` union; add `prompt?: string` (human description) and `code?: string` (generated JS predicate) to `Rule`, `CreateRuleBody`, and `UpdateRuleBody` interfaces
   - **UI in `RuleEditorView.vue`:** when action = `'code'`, replace the standard condition builder with a single textarea for the natural-language prompt and a "Generate" button; show the generated JS in a read-only code block for review before saving
