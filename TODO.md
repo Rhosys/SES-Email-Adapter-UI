@@ -71,7 +71,7 @@
     }
     ```
   - Components declare their own descriptor via a `defineComponentMeta()` helper so the registry is always in sync with the component file — no separate manifest to maintain
-  - Export `GET /component-registry` (or serve `public/component-registry.json` as a static file) so the LLM can fetch the current registry without reading source code
+  - Serve `public/component-registry.json` (generated at build time from the registry) so an LLM running entirely in the browser can read the available components without any server round-trip
 
   ### Layout schema
 
@@ -95,11 +95,11 @@
   - Validate every `LayoutNode` against the registry before rendering (unknown `componentId` → fallback placeholder, type-mismatched props → stripped with console warning)
   - Add `ViewLayout` and `LayoutNode` to `src/types/server.ts`
 
-  ### LLM layout suggestion flow
+  ### LLM layout suggestion flow (browser-only)
 
   - "Customise this view" button opens a prompt textarea: user describes the layout they want in plain English
-  - Request is sent to `POST /accounts/:id/views/:viewId/layouts/suggest` with `{ prompt, componentRegistry }` (registry is inlined so the backend LLM has full context)
-  - Backend returns a `LayoutNode[]` tree; frontend validates it against the registry and renders a live preview
+  - The browser fetches `public/component-registry.json` and passes it alongside the prompt to the browser's built-in LLM (`window.LanguageModel ?? window.ai?.languageModel`); **if no browser LLM is available the feature is not shown** — there is no server-side generation fallback
+  - The LLM is prompted to return a JSON `LayoutNode[]` tree; the frontend validates it against the registry and renders a live preview
   - User can accept (saves via `POST .../layouts`), regenerate, or cancel
   - If the suggested layout references unknown components, surface a diff UI showing what was ignored
 
@@ -109,7 +109,7 @@
   - `POST /accounts/:id/views/:viewId/layouts` → create custom layout → `ViewLayout`
   - `PATCH /accounts/:id/views/:viewId/layouts/:layoutId` → update (rename, set default, edit nodes)
   - `DELETE /accounts/:id/views/:viewId/layouts/:layoutId` → 204
-  - `POST /accounts/:id/views/:viewId/layouts/suggest` → LLM layout suggestion → `{ nodes: LayoutNode[] }`
+  - No backend involvement in generation — the backend only stores the final `LayoutNode[]` tree
   - **Hard-coded system views** (`inbox`, `all`, `quarantine`) must be first-class view records in the DB so they can own layouts; they must exist as seeded rows that cannot be deleted but can have custom layouts attached:
     - `{ id: 'system:inbox',      name: 'Inbox',      type: 'system', filter: { status: 'active' } }`
     - `{ id: 'system:all',        name: 'All',        type: 'system', filter: {} }`
@@ -134,19 +134,15 @@
     - `RuleConditionBuilder`, `RuleActionSelector`
   - Each extracted component must have a `defineComponentMeta()` call and appear in the registry before the layout engine can use it
 
-- [ ] **AI-powered "code" rule action** — let users describe rule logic in plain language; an LLM generates the JavaScript predicate that is stored and executed at match time:
-  - **New action type:** add `'code'` to `RuleAction` union; add `prompt?: string` (human description) and `code?: string` (generated JS predicate) to `Rule`, `CreateRuleBody`, and `UpdateRuleBody` interfaces
-  - **UI in `RuleEditorView.vue`:** when action = `'code'`, replace the standard condition builder with a single textarea for the natural-language prompt and a "Generate" button; show the generated JS in a read-only code block for review before saving
-  - **LLM resolution order (client-side first):**
-    1. Desktop browser: check `window.LanguageModel ?? window.ai?.languageModel` (Chrome 127+ Gemini Nano); if available and `createTextSession()` succeeds, use it
-    2. Mobile browser: same check — `navigator.userAgent` mobile heuristic is unnecessary since the same API surface works on Chrome for Android / Samsung Internet; the capability check is sufficient
-    3. Server-side fallback: `POST /accounts/:id/rules/generate-code` with `{ prompt }` → `{ code: string }`; backend calls Anthropic/OpenAI and returns the predicate
-  - **Generated JS predicate shape:** a single-argument arrow function `(signal) => boolean` so it can be run in a `Worker` or validated before storage; example output: `(signal) => signal.from.address.endsWith('@example.com') && signal.subject.includes('invoice')`
-  - **Security — sandbox generated code before execution:** NEVER `eval()` or `new Function()` in the main thread; run inside a `Worker` with a strict `postMessage` interface or validate the AST server-side; document this constraint in a code comment
+- [ ] **AI-powered "code" rule action** — let users describe rule logic in plain language; the browser's built-in LLM generates the JavaScript predicate that is stored and executed at match time. **If the browser has no built-in LLM the feature is not shown — there is no server-side generation fallback.**
+  - **New action type:** add `'code'` to `RuleAction` union; add `code?: string` (generated JS predicate) to `Rule`, `CreateRuleBody`, and `UpdateRuleBody` — the human-language prompt is a transient frontend-only value, never persisted
+  - **UI in `RuleEditorView.vue`:** when action = `'code'`, show a textarea for the natural-language prompt and a "Generate" button; show the generated JS in a read-only code block for review before saving; if `window.LanguageModel ?? window.ai?.languageModel` is absent, hide the action option entirely
+  - **Browser LLM check:** `window.LanguageModel ?? window.ai?.languageModel` (Chrome 127+ Gemini Nano); the same API surface works on Chrome for Android / Samsung Internet so no UA sniffing is needed — the capability check is sufficient
+  - **Generated JS predicate shape:** a single-argument arrow function `(signal) => boolean`; example: `(signal) => signal.from.address.endsWith('@example.com') && signal.subject.includes('invoice')`
+  - **Security — sandbox generated code before execution:** NEVER `eval()` or `new Function()` in the main thread; run inside a `Worker` with a strict `postMessage` interface; document this constraint in a code comment
   - **Auto-label:** after saving a code rule, automatically apply (or create) an `ai-generated` system label on the rule so it is visually distinct in the Rules list
   - **Backend TODOs for this feature:**
-    - Add `prompt?: string` and `code?: string` to the Rule schema in the DB and API response
-    - Add `POST /accounts/:id/rules/generate-code` endpoint (LLM call, returns `{ code: string }`)
+    - Add `code?: string` to the Rule schema in the DB and API response (no `prompt` field — that is frontend-only)
     - Validate/sandbox the `code` field server-side before storing (parse to AST, reject unsafe nodes)
     - Ensure the rule executor runs `code` predicates in an isolated VM context (not raw `eval`)
 
