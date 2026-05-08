@@ -55,6 +55,7 @@
 
 - [x] Add a top of page search bar
 
+- [ ] Update authress properties, the appId is `app_2EAWGEdtzaeCj7b45DsDtt`, the app domain is email.rhosys.cloud, and the authress custom domain is login.rhosys.cloud
 - [ ] **User profile screen** (`/profile`) — personal identity and security settings, fully separate from the account/organisation management screen (`/settings`):
   - **Linked identity connections** — list connected providers (Google, GitHub, etc.) with connected-at date; "Connect" button for unlinked providers; "Disconnect" with confirmation (must keep at least one connection)
   - **Passkey devices** — list enrolled passkeys (device name, registered-at); "Add passkey" flow via `navigator.credentials.create` (WebAuthn); "Remove" per device with confirmation
