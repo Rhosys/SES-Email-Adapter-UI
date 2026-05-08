@@ -17,6 +17,15 @@ const route = useRoute()
 const searchQuery = ref('')
 const inputFocused = ref(false)
 const hasSearched = ref(false)
+const sidebarOpen = ref(false)
+
+// Close sidebar on navigation (mobile)
+watch(
+  () => route.path,
+  () => {
+    sidebarOpen.value = false
+  },
+)
 
 type SectionKey = 'arcs' | 'senders' | 'aliases' | 'rules'
 
@@ -201,12 +210,35 @@ onMounted(async () => {
 
 <template>
   <div class="flex h-screen overflow-hidden bg-ctp-base text-ctp-text">
-    <AppSidebar />
-    <div class="flex flex-1 flex-col overflow-hidden">
+    <!-- Backdrop for mobile sidebar -->
+    <div
+      v-if="sidebarOpen"
+      class="fixed inset-0 z-30 bg-black/50 sm:hidden"
+      @click="sidebarOpen = false"
+    />
+
+    <AppSidebar :open="sidebarOpen" />
+
+    <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
       <!-- Top search bar -->
       <header
-        class="flex h-11 shrink-0 items-center border-b border-ctp-surface0 bg-ctp-mantle px-4"
+        class="flex h-11 shrink-0 items-center gap-3 border-b border-ctp-surface0 bg-ctp-mantle px-4"
       >
+        <!-- Hamburger (mobile only) -->
+        <button
+          type="button"
+          class="flex h-8 w-8 shrink-0 items-center justify-center rounded text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text sm:hidden"
+          aria-label="Toggle menu"
+          @click="sidebarOpen = !sidebarOpen"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+            <path
+              fill-rule="evenodd"
+              d="M2.5 12a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5z"
+            />
+          </svg>
+        </button>
+
         <form class="flex w-full max-w-xl items-center gap-2" @submit.prevent="submitSearch">
           <div class="relative flex-1">
             <svg

@@ -129,6 +129,10 @@
  * Generates classes: bg-ctp-base, text-ctp-text, border-ctp-red, etc.
  */
 @theme {
+  /* Breakpoints — keep in sync with tests/viewports.ts */
+  --breakpoint-pixel: 25.75rem; /* 412px  - Pixel phones */
+  --breakpoint-desktop: 120rem; /* 1920px - QHD monitors */
+
   --color-ctp-base: var(--color-base);
   --color-ctp-mantle: var(--color-mantle);
   --color-ctp-crust: var(--color-crust);
