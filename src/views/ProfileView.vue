@@ -121,10 +121,6 @@ async function registerPasskey() {
   }
 }
 
-async function openAuthressProfile() {
-  await loginClient.openUserConfigurationScreen({ startPage: UserConfigurationScreen.Profile })
-}
-
 async function signOut() {
   await loginClient.logout()
 }
@@ -297,23 +293,6 @@ async function signOut() {
             </button>
           </li>
         </ul>
-      </section>
-
-      <!-- Sessions -->
-      <section class="rounded-lg border border-ctp-surface1 p-4">
-        <div class="mb-3">
-          <h2 class="text-sm font-medium text-ctp-subtext1">Active sessions</h2>
-          <p class="mt-0.5 text-xs text-ctp-subtext0">
-            Session management is handled by Authress. Open your profile to view and terminate
-            active sessions.
-          </p>
-        </div>
-        <button
-          class="rounded bg-ctp-surface1 px-3 py-1.5 text-xs text-ctp-text hover:bg-ctp-surface2"
-          @click="openAuthressProfile"
-        >
-          Open Authress profile →
-        </button>
       </section>
 
       <!-- Sign out -->
