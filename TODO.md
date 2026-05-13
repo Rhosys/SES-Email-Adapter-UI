@@ -26,6 +26,21 @@
     `POST /accounts/:id/signals/:id/send`; cancel calls `DELETE /accounts/:id/signals/:id`
   - Add `'draft'` to `SignalStatus` union in `src/types/server.ts`
 
+- [ ] **Support panel** — persistent help affordance built into the app shell:
+  - `?` icon button fixed in the bottom-left corner of the sidebar (always visible, above the
+    profile link); opens a slide-over or modal panel without navigating away
+  - Panel sections:
+    - Knowledge base search — text input that filters a local or fetched article index; results
+      show article title + short excerpt; click opens the article inline or in a new tab
+    - "Contact support" form — category dropdown, subject, description textarea; on submit
+      auto-attaches: account ID, user ID, current route, browser + OS string, and optionally the
+      arc/signal ID visible in the current view (read from the route params)
+    - Status page link — external link to the service status page
+    - Changelog link — links to `/changelog` (future) or external changelog
+  - The `?` button badge-dots red when there is an active incident on the status page (optional
+    enhancement — poll or use a status API if available)
+  - On mobile the button sits in the top header bar rather than the sidebar
+
 - [ ] **Rule editor — full redesign** (`RuleEditorView.vue`)
 
   The current editor has a simple flat AND-only condition list, a single action from 4 options,
