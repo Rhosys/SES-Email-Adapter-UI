@@ -151,6 +151,11 @@ async function deleteView(view: SavedView) {
 
 const sortedViews = computed(() => viewsStore.sortedViews)
 
+function clearErrors() {
+  labelsStore.clearError()
+  viewsStore.clearError()
+}
+
 onMounted(async () => {
   if (!accountStore.accountId) await accountStore.fetchAccount()
   if (accountStore.accountId) {
@@ -206,15 +211,7 @@ onMounted(async () => {
         class="mb-4 rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
       >
         {{ labelsStore.error || viewsStore.error }}
-        <button
-          class="ml-2 underline"
-          @click="
-            labelsStore.clearError()
-            viewsStore.clearError()
-          "
-        >
-          Dismiss
-        </button>
+        <button class="ml-2 underline" @click="clearErrors">Dismiss</button>
       </div>
 
       <!-- ── Labels tab ─────────────────────────────────────────────────────── -->

@@ -2,8 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAccountStore } from '@/stores/account'
 import { loginClient } from '@/lib/auth'
-import { DeviceType, UserConfigurationScreen } from '@authress/login'
-import type { Device, LinkedIdentity } from '@authress/login'
+import { UserConfigurationScreen } from '@authress/login'
+import type { DeviceType, Device, LinkedIdentity } from '@authress/login'
 
 const accountStore = useAccountStore()
 
@@ -110,7 +110,7 @@ async function registerPasskey() {
   passkeyPending.value = true
   deviceError.value = null
   try {
-    await loginClient.registerDevice({ name, type: DeviceType.WebAuthN })
+    await loginClient.registerDevice({ name, type: 'WebAuthN' as DeviceType })
     devices.value = await loginClient.getDevices()
     newPasskeyName.value = ''
     addingPasskey.value = false
