@@ -26,6 +26,16 @@
     `POST /accounts/:id/signals/:id/send`; cancel calls `DELETE /accounts/:id/signals/:id`
   - Add `'draft'` to `SignalStatus` union in `src/types/server.ts`
 
+- [ ] **Account switcher** — let users move between accounts they belong to without signing out:
+  - Displayed in the sidebar below the brand name: show the current account name with a
+    chevron/dropdown indicator; clicking opens an account list popover
+  - List all accounts the authenticated user has access to; selecting one reloads the app
+    with the new `accountId` (update store, re-fetch all account-scoped data, navigate to `/`)
+  - **Backend prerequisite:** no `GET /accounts` (list) endpoint exists — the backend is
+    account-scoped and requires a known `:accountId` in every URL. A new endpoint or Authress
+    token introspection is needed to enumerate accessible accounts before this can be built.
+    Add a corresponding TODO in `rhosys/ses-email-adapter`.
+
 - [ ] **Support panel** — persistent help affordance built into the app shell:
   - `?` icon button fixed in the bottom-left corner of the sidebar (always visible, above the
     profile link); opens a slide-over or modal panel without navigating away
