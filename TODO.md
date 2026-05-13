@@ -26,6 +26,28 @@
     `POST /accounts/:id/signals/:id/send`; cancel calls `DELETE /accounts/:id/signals/:id`
   - Add `'draft'` to `SignalStatus` union in `src/types/server.ts`
 
+- [ ] **Email templates** — new entity for reusable reply/draft content:
+  - Add `EmailTemplate` to `src/types/server.ts`:
+    ```ts
+    interface EmailTemplate {
+      id: string; accountId: string; name: string
+      subject: string; body: string; createdAt: string; updatedAt: string
+    }
+    ```
+  - Supported interpolation variables: `{{sender.name}}`, `{{sender.address}}`,
+    `{{signal.subject}}`, `{{arc.workflow}}`
+  - Add API methods to `src/lib/api.ts`:
+    `GET /accounts/:id/templates`, `POST`, `PUT /templates/:id`, `DELETE /templates/:id`
+  - New `useTemplatesStore` (list, create, update, delete, loading/error state)
+  - New route `/templates` — list view showing template name, subject preview, last updated;
+    inline or modal editor with name input, subject input, and body textarea; live preview panel
+    that resolves interpolation variables against sample values so the user can see the rendered
+    output before saving; delete with confirmation warning if the template is referenced by active
+    rules
+  - Add "Templates" link to the sidebar bottom nav (between Rules and Labels)
+  - Template picker in the rule editor for `auto_reply` and `auto_draft` action types
+    (searchable dropdown populated from the templates store)
+
 - [ ] **Audit log — expandable rows with before/after diff**
   - Update `AuditEvent` in `src/types/server.ts` to match the backend shape:
     replace `metadata?: Record<string, unknown>` with `before?: unknown; after?: unknown`;
