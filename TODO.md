@@ -12,6 +12,16 @@
 - [x] Implement Phase 2 — Onboarding flow
 - [ ] Set up favicon and Open Graph meta tags
 
+- [ ] **Re-check DNS button on domain rows** — Settings → Domains: add a "Re-check" button to
+  any domain or DNS record row whose status is not `'verified'` (i.e. `'pending'` or `'failed'`).
+  - Calls `PATCH /accounts/:id/domains/:domainId` to trigger an on-demand DNS verification
+  - Button is per-domain (not per-record) and only visible when the domain or any of its records
+    are non-verified — hide it entirely once all records show `'verified'`
+  - Show a spinner in place of the button while the check is in flight; update the record status
+    indicators in-place when the response arrives (no full page reload)
+  - If the check returns the same non-verified status, leave the button visible so the user can
+    retry after fixing their DNS
+
 ---
 
 > **Moving to a separate repo:** The marketing site and documentation site will live in their own
