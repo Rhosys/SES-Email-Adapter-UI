@@ -26,6 +26,45 @@
     `POST /accounts/:id/signals/:id/send`; cancel calls `DELETE /accounts/:id/signals/:id`
   - Add `'draft'` to `SignalStatus` union in `src/types/server.ts`
 
+- [ ] **Rule editor — full redesign** (`RuleEditorView.vue`)
+
+  The current editor has a simple flat AND-only condition list, a single action from 4 options,
+  and no JSONLogic serialisation. The backend requires a significant superset of all of this.
+
+  ### Conditions
+  - Expand available fields beyond the current 3 (`from.address`, `from.domain`, `subject`) to
+    match the backend's full set: `signal.workflow`, `signal.spamScore`, `signal.from.address`,
+    `signal.from.domain`, `signal.subject`, `arc.labels`, `arc.status`, `arc.urgency`,
+    `signal.workflowData.*` (freeform key path for workflow-specific fields)
+  - Add AND/OR group nesting — the current flat list is AND-only; the visual builder needs to
+    support nested condition groups so users can express `(A AND B) OR (C AND D)` logic
+  - Each condition group renders as an indented card with an AND/OR toggle and add/remove controls
+  - The entire condition tree must serialise to a JSONLogic JSON string (`condition: string`) for
+    the API, and deserialise back to the visual tree when loading an existing rule
+  - Add a JSONLogic client-side evaluator for the rule tester (replace the current manual
+    field-by-field evaluation); the test panel should also accept `workflow`, `spamScore`, and
+    `arc.urgency` as test inputs to cover the new condition fields
+
+  ### Actions
+  - Rules now support **multiple actions** (`actions: RuleAction[]`) — replace the single-select
+    action picker with an ordered list of action chips; allow add/remove per action
+  - Full set of 14 action types with action-specific inline configuration:
+    - `assign_label` — label picker (searchable dropdown from labels store)
+    - `assign_workflow` — workflow picker (the 14 workflow enum values)
+    - `set_urgency` — urgency picker (`low | normal | high | critical`)
+    - `forward` — target forwarding address input (validated email)
+    - `auto_reply` — email template picker (from `GET /accounts/:id/templates`)
+    - `auto_draft` — email template picker (same)
+    - `archive`, `delete`, `block`, `quarantine`, `quarantine_hidden`, `approve_sender`,
+      `suppress_notification`, `pong` — no extra config, just the action chip
+  - Action chips render in a priority stack; order matters (executed top-to-bottom)
+
+  ### Other editor fields
+  - **Enabled / disabled toggle** — maps to `Rule.status: 'enabled' | 'disabled'`; show as a
+    labelled toggle in the header area so it's always visible without scrolling
+  - **`priorityOrder`** — not editable inline in the editor; controlled via the list view
+    (drag-to-reorder or up/down arrows on `RulesView`)
+
 - [ ] **Fix `SavedView` position field mismatch** — UI type has `order: number` but backend uses
   `position: number`; the drag-to-reorder in the sidebar is silently sending the wrong field name
   on every PATCH call. Fix: rename `order` → `position` in `SavedView`, `CreateSavedViewBody`,
