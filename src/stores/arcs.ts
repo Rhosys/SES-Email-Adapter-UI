@@ -8,7 +8,6 @@ type TabKey = 'active' | 'archived' | 'all'
 export const useArcsStore = defineStore('arcs', () => {
   const items = ref<Arc[]>([])
   const nextCursor = ref<string | undefined>()
-  const total = ref(0)
   const loading = ref(false)
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
@@ -49,7 +48,6 @@ export const useArcsStore = defineStore('arcs', () => {
     const page = result.value
     items.value = reset ? page.items : [...items.value, ...page.items]
     nextCursor.value = page.nextCursor
-    total.value = page.total
   }
 
   async function fetchMoreArcs(accountId: string) {
@@ -69,7 +67,6 @@ export const useArcsStore = defineStore('arcs', () => {
     const page = result.value
     items.value = [...items.value, ...page.items]
     nextCursor.value = page.nextCursor
-    total.value = page.total
   }
 
   function setTab(tab: TabKey, accountId: string) {
@@ -136,7 +133,6 @@ export const useArcsStore = defineStore('arcs', () => {
     items,
     sortedItems,
     nextCursor,
-    total,
     loading,
     loadingMore,
     error,

@@ -1,0 +1,207 @@
+name: Build and Deploy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches: [main]
+  delete:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  # ── Build, check, and deploy ───────────────────────────────────────────────
+  build:
+    if: >
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+
+      # ── Compute deploy target ───────────────────────────────────────────────
+
+      - name: Set PR deploy prefix
+        if: github.event_name == 'pull_request'
+        run: |
+          SLUG=$(echo "${{ github.head_ref }}" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed 's/[^a-z0-9]/-/g' \
+            | sed 's/-\+/-/g' \
+            | sed 's/^-\|-$//g' \
+            | cut -c1-63)
+          echo "DEPLOY_PREFIX=pr/${SLUG}" >> "$GITHUB_ENV"
+          echo "VITE_BASE_PATH=/pr/${SLUG}/" >> "$GITHUB_ENV"
+        shell: bash
+
+      - name: Set main deploy prefix
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          YEAR=$(date +%Y)
+          echo "DEPLOY_PREFIX=main/${YEAR}" >> "$GITHUB_ENV"
+          echo "VITE_BASE_PATH=/main/${YEAR}/" >> "$GITHUB_ENV"
+        shell: bash
+
+      # ── Resolve infrastructure from OpenTofu state ──────────────────────────
+
+      - name: Install OpenTofu
+        if: env.DEPLOY_PREFIX != ''
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: latest
+
+      - name: Read infra outputs from backend state
+        if: env.DEPLOY_PREFIX != ''
+        run: |
+          set -euo pipefail
+
+          git clone --no-checkout --depth 1 \
+            https://github.com/rhosys/SES-Email-Adapter.git /tmp/ses-backend
+          cd /tmp/ses-backend
+          git sparse-checkout set deploy
+          git checkout
+
+          tofu -chdir=deploy init -input=false \
+            -backend-config="bucket=rhosys-opentofu-${{ secrets.AWS_ACCOUNT_ID }}-eu-west-1" \
+            -backend-config="key=SES-Email-Adapter/terraform.tfstate" \
+            -backend-config="region=eu-west-1"
+
+          SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name)
+          CF_ID=$(tofu -chdir=deploy output -raw cloudfront_distribution_id)
+
+          [ -n "$SITE_BUCKET" ] || { echo "::error::site_bucket_name output is empty"; exit 1; }
+          [ -n "$CF_ID" ]       || { echo "::error::cloudfront_distribution_id output is empty"; exit 1; }
+
+          echo "SITE_BUCKET_NAME=${SITE_BUCKET}" >> "$GITHUB_ENV"
+          echo "CLOUDFRONT_DISTRIBUTION_ID=${CF_ID}" >> "$GITHUB_ENV"
+        shell: bash
+
+      # ── Lint / type-check / test ────────────────────────────────────────────
+
+      - name: Check
+        run: npm run check
+
+      # ── Build (only when deploying) ─────────────────────────────────────────
+
+      - name: Build
+        if: env.DEPLOY_PREFIX != ''
+        run: npm run build
+        env:
+          VITE_BASE_PATH: ${{ env.VITE_BASE_PATH }}
+          VITE_API_BASE_URL: https://api.email.rhosys.cloud
+          VITE_AUTHRESS_LOGIN_URL: https://login.rhosys.cloud
+          VITE_AUTHRESS_APPLICATION_ID: app_2EAWGEdtzaeCj7b45DsDtt
+
+      # ── Deploy to S3 ────────────────────────────────────────────────────────
+
+      - name: Publish website to S3
+        if: env.DEPLOY_PREFIX != ''
+        run: npm run deploy:website -- publish "${{ env.DEPLOY_PREFIX }}"
+        env:
+          SITE_BUCKET_NAME: ${{ env.SITE_BUCKET_NAME }}
+
+      - name: Invalidate CloudFront
+        if: env.DEPLOY_PREFIX != ''
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/${{ env.DEPLOY_PREFIX }}/*"
+        shell: bash
+
+      # ── Post preview URL as PR comment ──────────────────────────────────────
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prefix = process.env.DEPLOY_PREFIX
+            const url = `https://email.rhosys.cloud/${prefix}/`
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `### Preview deployed\n\n**URL:** ${url}\n\n> Deep links require the CloudFront path-rewrite rule to be configured for the \`/${prefix}/\` prefix.`,
+            })
+
+  # ── Delete PR preview from S3 when branch is gone ─────────────────────────
+  cleanup:
+    if: >
+      (github.event_name == 'pull_request' && github.event.action == 'closed') ||
+      (github.event_name == 'delete' && github.event.ref_type == 'branch')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+
+      - name: Compute cleanup prefix
+        run: |
+          if [ "${{ github.event_name }}" = "delete" ]; then
+            BRANCH="${{ github.event.ref }}"
+          else
+            BRANCH="${{ github.head_ref }}"
+          fi
+          SLUG=$(echo "$BRANCH" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed 's/[^a-z0-9]/-/g' \
+            | sed 's/-\+/-/g' \
+            | sed 's/^-\|-$//g' \
+            | cut -c1-63)
+          echo "CLEANUP_PREFIX=pr/${SLUG}" >> "$GITHUB_ENV"
+        shell: bash
+
+      - name: Install OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: latest
+
+      - name: Read infra outputs from backend state
+        run: |
+          set -euo pipefail
+
+          git clone --no-checkout --depth 1 \
+            https://github.com/rhosys/SES-Email-Adapter.git /tmp/ses-backend
+          cd /tmp/ses-backend
+          git sparse-checkout set deploy
+          git checkout
+
+          tofu -chdir=deploy init -input=false \
+            -backend-config="bucket=rhosys-opentofu-${{ secrets.AWS_ACCOUNT_ID }}-eu-west-1" \
+            -backend-config="key=SES-Email-Adapter/terraform.tfstate" \
+            -backend-config="region=eu-west-1"
+
+          SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name)
+          CF_ID=$(tofu -chdir=deploy output -raw cloudfront_distribution_id)
+
+          [ -n "$SITE_BUCKET" ] || { echo "::error::site_bucket_name output is empty"; exit 1; }
+          [ -n "$CF_ID" ]       || { echo "::error::cloudfront_distribution_id output is empty"; exit 1; }
+
+          echo "SITE_BUCKET_NAME=${SITE_BUCKET}" >> "$GITHUB_ENV"
+          echo "CLOUDFRONT_DISTRIBUTION_ID=${CF_ID}" >> "$GITHUB_ENV"
+        shell: bash
+
+      - name: Delete website version from S3
+        run: npm run deploy:website -- delete "${{ env.CLEANUP_PREFIX }}"
+        env:
+          SITE_BUCKET_NAME: ${{ env.SITE_BUCKET_NAME }}
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/${{ env.CLEANUP_PREFIX }}/*"
+        shell: bash

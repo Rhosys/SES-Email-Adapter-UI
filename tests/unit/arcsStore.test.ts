@@ -39,7 +39,7 @@ describe('arcsStore', () => {
   })
 
   it('fetches arcs and populates items', async () => {
-    vi.mocked(api.listArcs).mockResolvedValue(ok({ items: [mockArc()], total: 1 }))
+    vi.mocked(api.listArcs).mockResolvedValue(ok({ items: [mockArc()] }))
     const store = useArcsStore()
     await store.fetchArcs('acc_1', true)
     expect(store.items).toHaveLength(1)
@@ -101,7 +101,7 @@ describe('arcsStore', () => {
 
   it('bulkArchive optimistically removes active arcs from list', async () => {
     vi.mocked(api.patchArc).mockResolvedValue(ok(mockArc({ status: 'archived' })))
-    vi.mocked(api.listArcs).mockResolvedValue(ok({ items: [], total: 0 }))
+    vi.mocked(api.listArcs).mockResolvedValue(ok({ items: [] }))
     const store = useArcsStore()
     store.items = [mockArc()]
     store.toggleSelect('arc_1')
@@ -111,9 +111,7 @@ describe('arcsStore', () => {
   })
 
   it('hasMore is true when nextCursor is set', async () => {
-    vi.mocked(api.listArcs).mockResolvedValue(
-      ok({ items: [mockArc()], total: 10, nextCursor: 'cursor_abc' }),
-    )
+    vi.mocked(api.listArcs).mockResolvedValue(ok({ items: [mockArc()], nextCursor: 'cursor_abc' }))
     const store = useArcsStore()
     await store.fetchArcs('acc_1', true)
     expect(store.hasMore).toBe(true)

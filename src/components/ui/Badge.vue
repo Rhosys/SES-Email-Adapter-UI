@@ -1,5 +1,5 @@
 <script setup lang="ts">
-defineProps<{ tone?: 'neutral' | 'info' | 'warn' | 'danger' }>();
+defineProps<{ tone?: 'neutral' | 'info' | 'warn' | 'danger' }>()
 </script>
 
 <template>
@@ -9,7 +9,7 @@ defineProps<{ tone?: 'neutral' | 'info' | 'warn' | 'danger' }>();
       'bg-surface0 text-subtext1': !tone || tone === 'neutral',
       'bg-surface0 text-blue': tone === 'info',
       'bg-surface0 text-yellow': tone === 'warn',
-      'bg-surface0 text-red': tone === 'danger'
+      'bg-surface0 text-red': tone === 'danger',
     }"
   >
     <slot />

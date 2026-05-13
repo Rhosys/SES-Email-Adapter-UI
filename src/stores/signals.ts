@@ -7,7 +7,6 @@ export const useSignalsStore = defineStore('signals', () => {
   const items = ref<Signal[]>([])
   const arc = ref<Arc | null>(null)
   const nextCursor = ref<string | undefined>(undefined)
-  const total = ref(0)
   const loading = ref(false)
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
@@ -40,7 +39,6 @@ export const useSignalsStore = defineStore('signals', () => {
     // Newest first
     items.value = [...signalsResult.value.items].reverse()
     nextCursor.value = signalsResult.value.nextCursor
-    total.value = signalsResult.value.total
     loading.value = false
   }
 
@@ -62,6 +60,30 @@ export const useSignalsStore = defineStore('signals', () => {
     }
 
     loadingMore.value = false
+  }
+
+  async function createDraft(accountId: string, arcId: string): Promise<boolean> {
+    // Use the latest non-draft signal as the reply target
+    const replyTo = items.value.find((s) => s.status !== 'draft') ?? items.value[0]
+    const result = await api.createDraftSignal(accountId, {
+      status: 'draft',
+      source: 'user',
+      from: { address: '' },
+      to: replyTo ? [{ address: replyTo.from.address }] : [],
+      subject: replyTo ? `Re: ${replyTo.subject}` : '',
+      arcId,
+    })
+    if (result.isErr()) {
+      error.value = result.error.message
+      return false
+    }
+    // Drafts appear at the bottom of the thread (below received signals)
+    items.value = [...items.value, result.value]
+    return true
+  }
+
+  function removeSignal(signalId: string) {
+    items.value = items.value.filter((s) => s.id !== signalId)
   }
 
   async function archiveArc(accountId: string, arcId: string) {
@@ -91,7 +113,6 @@ export const useSignalsStore = defineStore('signals', () => {
     items.value = []
     arc.value = null
     nextCursor.value = undefined
-    total.value = 0
     loading.value = false
     loadingMore.value = false
     error.value = null
@@ -101,7 +122,6 @@ export const useSignalsStore = defineStore('signals', () => {
     items,
     arc,
     nextCursor,
-    total,
     loading,
     loadingMore,
     error,
@@ -109,6 +129,8 @@ export const useSignalsStore = defineStore('signals', () => {
     latestSignal,
     fetchAll,
     fetchMore,
+    createDraft,
+    removeSignal,
     archiveArc,
     labelArc,
     reset,

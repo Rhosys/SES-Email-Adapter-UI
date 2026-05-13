@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { VIEWPORTS } from './tests/viewports'
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -11,8 +12,10 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile', use: { ...devices['Pixel 5'] } },
+    { name: 'laptop', use: { ...devices['Desktop Chrome'], viewport: VIEWPORTS.laptop } },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: VIEWPORTS.desktop } },
+    { name: 'tablet', use: { viewport: VIEWPORTS.tablet } },
+    { name: 'pixel', use: { ...devices['Pixel 7'], viewport: VIEWPORTS.pixel } },
   ],
   webServer: {
     command: 'npm run preview',

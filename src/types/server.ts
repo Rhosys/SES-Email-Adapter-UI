@@ -21,6 +21,12 @@ export type ArcStatus = 'active' | 'archived' | 'deleted'
 
 export type ArcUrgency = 'critical' | 'high' | 'normal' | 'low' | 'silent'
 
+export interface RuleExecution {
+  ruleId: string
+  labels: string[]
+  status: string
+}
+
 export interface Arc {
   id: string
   accountId: string
@@ -42,7 +48,6 @@ export interface Arc {
 export interface Page<T> {
   items: T[]
   nextCursor?: string
-  total: number
 }
 
 export interface EmailNotificationSettings {
@@ -72,6 +77,8 @@ export interface EmailAddressConfig {
   address: string
   filterMode: SenderFilterMode
   approvedSenders: string[]
+  // TODO(backend): add blockedSenders field to EmailAddressConfig and PATCH /aliases/:address support
+  blockedSenders?: string[]
   createdAt: string
   updatedAt: string
 }
@@ -96,10 +103,48 @@ export interface Label {
   createdAt: string
 }
 
+// ─── Rules (Phase 7) ──────────────────────────────────────────────────────────
+// TODO(backend): rules engine endpoints — POST/GET/PATCH/DELETE /accounts/:id/rules
+
+export type RuleAction = 'allow' | 'block' | 'label' | 'quarantine'
+export type RuleConditionField = 'from.address' | 'from.domain' | 'subject'
+export type RuleConditionOperator = 'equals' | 'contains' | 'starts_with' | 'ends_with'
+
+export interface RuleCondition {
+  field: RuleConditionField
+  operator: RuleConditionOperator
+  value: string
+}
+
+export interface Rule {
+  id: string
+  accountId: string
+  name: string
+  conditions: RuleCondition[]
+  action: RuleAction
+  labelId?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateRuleBody {
+  name: string
+  conditions: RuleCondition[]
+  action: RuleAction
+  labelId?: string
+}
+
 // ─── Signal ───────────────────────────────────────────────────────────────────
 
-export type SignalStatus = 'received' | 'processed' | 'failed'
-export type SignalSource = 'ses' | 'api' | 'system'
+export type SignalStatus =
+  | 'received'
+  | 'processed'
+  | 'failed'
+  | 'quarantined'
+  | 'blocked'
+  | 'active'
+  | 'draft'
+export type SignalSource = 'ses' | 'api' | 'user' | 'system'
 
 export interface EmailAddress {
   address: string
@@ -130,6 +175,7 @@ export interface Signal {
   createdAt: string
   workflowData?: WorkflowData
   attachments?: Attachment[]
+  matchedRules?: RuleExecution[]
 }
 
 // ─── WorkflowData union ───────────────────────────────────────────────────────
@@ -374,3 +420,138 @@ export type WorkflowData =
   | JobData
   | SupportData
   | TestData
+
+// ─── Rules additions ──────────────────────────────────────────────────────────
+
+export interface UpdateRuleBody {
+  name?: string
+  conditions?: RuleCondition[]
+  action?: RuleAction
+  labelId?: string
+}
+
+// ─── Draft signal (Reply composer) ───────────────────────────────────────────
+
+export interface CreateDraftSignalBody {
+  status: 'draft'
+  source: 'user'
+  from: EmailAddress
+  to: EmailAddress[]
+  subject: string
+  textBody?: string
+  arcId?: string
+}
+
+export interface UpdateDraftSignalBody {
+  from?: EmailAddress
+  subject?: string
+  textBody?: string
+}
+
+// ─── Saved views (Phase 6) ────────────────────────────────────────────────────
+
+export interface SavedViewFilters {
+  workflow?: string
+  labelId?: string
+  sender?: string
+  status?: string
+}
+
+export interface SavedView {
+  id: string
+  accountId: string
+  name: string
+  icon?: string
+  order: number
+  filters: SavedViewFilters
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateSavedViewBody {
+  name: string
+  icon?: string
+  order?: number
+  filters: SavedViewFilters
+}
+
+// ─── Domains (Phase 9) ────────────────────────────────────────────────────────
+
+export type DnsRecordType = 'TXT' | 'MX' | 'CNAME'
+export type DnsStatus = 'pending' | 'verified' | 'failed'
+
+export interface DnsRecord {
+  type: DnsRecordType
+  host: string
+  value: string
+  ttl?: number
+  status: DnsStatus
+}
+
+export interface Domain {
+  id: string
+  accountId: string
+  domain: string
+  status: DnsStatus
+  dnsRecords: DnsRecord[]
+  createdAt: string
+  updatedAt: string
+}
+
+// ─── Forwarding addresses (Phase 9) ──────────────────────────────────────────
+
+export interface ForwardingAddress {
+  id: string
+  accountId: string
+  address: string
+  label?: string
+  createdAt: string
+}
+
+// ─── Team members (Phase 9) ──────────────────────────────────────────────────
+
+export type UserRole = 'owner' | 'admin' | 'member' | 'viewer'
+
+export interface TeamMember {
+  id: string
+  accountId: string
+  userId: string
+  email: string
+  name?: string
+  role: UserRole
+  status: 'active' | 'invited' | 'suspended'
+  invitedAt: string
+  joinedAt?: string
+}
+
+// ─── Audit log (Phase 10) ────────────────────────────────────────────────────
+
+export type AuditEventType =
+  | 'signal.quarantined'
+  | 'signal.allowed'
+  | 'signal.blocked'
+  | 'rule.created'
+  | 'rule.updated'
+  | 'rule.deleted'
+  | 'label.created'
+  | 'label.updated'
+  | 'label.deleted'
+  | 'alias.created'
+  | 'alias.updated'
+  | 'alias.deleted'
+  | 'user.invited'
+  | 'user.role_changed'
+  | 'user.removed'
+  | 'account.updated'
+
+export interface AuditEvent {
+  id: string
+  accountId: string
+  actorId: string
+  actorEmail?: string
+  type: AuditEventType
+  resourceType: string
+  resourceId?: string
+  metadata?: Record<string, unknown>
+  createdAt: string
+}

@@ -1,0 +1,447 @@
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useAccountStore } from '@/stores/account'
+import { useLabelsStore } from '@/stores/labels'
+import { useViewsStore } from '@/stores/views'
+import type { Label, SavedView } from '@/types/server'
+
+const accountStore = useAccountStore()
+const labelsStore = useLabelsStore()
+const viewsStore = useViewsStore()
+
+const activeTab = ref<'labels' | 'views'>('labels')
+
+// ─── Label form ───────────────────────────────────────────────────────────────
+const showLabelForm = ref(false)
+const editingLabel = ref<Label | null>(null)
+const labelName = ref('')
+const labelColor = ref('#cba6f7')
+const labelIcon = ref('')
+const labelPending = ref(false)
+
+const PRESET_COLORS = [
+  '#cba6f7', // mauve
+  '#f38ba8', // red
+  '#fab387', // peach
+  '#f9e2af', // yellow
+  '#a6e3a1', // green
+  '#94e2d5', // teal
+  '#89b4fa', // blue
+  '#b4befe', // lavender
+]
+
+function openNewLabel() {
+  editingLabel.value = null
+  labelName.value = ''
+  labelColor.value = '#cba6f7'
+  labelIcon.value = ''
+  showLabelForm.value = true
+}
+
+function openEditLabel(label: Label) {
+  editingLabel.value = label
+  labelName.value = label.name
+  labelColor.value = label.color ?? '#cba6f7'
+  labelIcon.value = label.icon ?? ''
+  showLabelForm.value = true
+}
+
+function cancelLabel() {
+  showLabelForm.value = false
+  editingLabel.value = null
+}
+
+async function saveLabel() {
+  if (!accountStore.accountId || !labelName.value.trim()) return
+  labelPending.value = true
+  const body = {
+    name: labelName.value.trim(),
+    color: labelColor.value || undefined,
+    icon: labelIcon.value.trim() || undefined,
+  }
+  if (editingLabel.value) {
+    await labelsStore.updateLabel(accountStore.accountId, editingLabel.value.id, body)
+  } else {
+    await labelsStore.createLabel(accountStore.accountId, body)
+  }
+  labelPending.value = false
+  if (!labelsStore.error) cancelLabel()
+}
+
+async function deleteLabel(label: Label) {
+  if (!accountStore.accountId) return
+  if (!confirm(`Delete label "${label.name}"?`)) return
+  await labelsStore.deleteLabel(accountStore.accountId, label.id)
+}
+
+// ─── View form ────────────────────────────────────────────────────────────────
+const showViewForm = ref(false)
+const editingView = ref<SavedView | null>(null)
+const viewName = ref('')
+const viewIcon = ref('')
+const viewWorkflow = ref('')
+const viewSender = ref('')
+const viewPending = ref(false)
+
+const WORKFLOWS = [
+  'auth',
+  'conversation',
+  'crm',
+  'package',
+  'travel',
+  'scheduling',
+  'payments',
+  'alert',
+  'content',
+  'status',
+  'healthcare',
+  'job',
+  'support',
+  'test',
+]
+
+function openNewView() {
+  editingView.value = null
+  viewName.value = ''
+  viewIcon.value = ''
+  viewWorkflow.value = ''
+  viewSender.value = ''
+  showViewForm.value = true
+}
+
+function openEditView(view: SavedView) {
+  editingView.value = view
+  viewName.value = view.name
+  viewIcon.value = view.icon ?? ''
+  viewWorkflow.value = view.filters.workflow ?? ''
+  viewSender.value = view.filters.sender ?? ''
+  showViewForm.value = true
+}
+
+function cancelView() {
+  showViewForm.value = false
+  editingView.value = null
+}
+
+async function saveView() {
+  if (!accountStore.accountId || !viewName.value.trim()) return
+  viewPending.value = true
+  const body = {
+    name: viewName.value.trim(),
+    icon: viewIcon.value.trim() || undefined,
+    filters: {
+      workflow: viewWorkflow.value || undefined,
+      sender: viewSender.value.trim() || undefined,
+    },
+  }
+  if (editingView.value) {
+    await viewsStore.updateView(accountStore.accountId, editingView.value.id, body)
+  } else {
+    await viewsStore.createView(accountStore.accountId, body)
+  }
+  viewPending.value = false
+  if (!viewsStore.error) cancelView()
+}
+
+async function deleteView(view: SavedView) {
+  if (!accountStore.accountId) return
+  if (!confirm(`Delete view "${view.name}"?`)) return
+  await viewsStore.deleteView(accountStore.accountId, view.id)
+}
+
+const sortedViews = computed(() => viewsStore.sortedViews)
+
+function clearErrors() {
+  labelsStore.clearError()
+  viewsStore.clearError()
+}
+
+onMounted(async () => {
+  if (!accountStore.accountId) await accountStore.fetchAccount()
+  if (accountStore.accountId) {
+    await Promise.all([
+      labelsStore.fetchLabels(accountStore.accountId),
+      viewsStore.fetchViews(accountStore.accountId),
+    ])
+  }
+})
+</script>
+
+<template>
+  <div>
+    <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
+      <h1 class="text-lg font-semibold">Labels &amp; Views</h1>
+      <p class="mt-0.5 text-xs text-ctp-subtext0">
+        Organize your inbox with labels and custom sidebar views
+      </p>
+    </header>
+
+    <!-- Tabs -->
+    <div class="border-b border-ctp-surface0 bg-ctp-mantle px-4">
+      <div class="flex gap-4">
+        <button
+          class="border-b-2 px-1 py-2 text-sm transition-colors"
+          :class="
+            activeTab === 'labels'
+              ? 'border-ctp-mauve text-ctp-text'
+              : 'border-transparent text-ctp-subtext0 hover:text-ctp-text'
+          "
+          @click="activeTab = 'labels'"
+        >
+          Labels
+        </button>
+        <button
+          class="border-b-2 px-1 py-2 text-sm transition-colors"
+          :class="
+            activeTab === 'views'
+              ? 'border-ctp-mauve text-ctp-text'
+              : 'border-transparent text-ctp-subtext0 hover:text-ctp-text'
+          "
+          @click="activeTab = 'views'"
+        >
+          Views
+        </button>
+      </div>
+    </div>
+
+    <main class="mx-auto max-w-2xl px-4 py-6">
+      <!-- Error banner -->
+      <div
+        v-if="labelsStore.error || viewsStore.error"
+        class="mb-4 rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
+      >
+        {{ labelsStore.error || viewsStore.error }}
+        <button class="ml-2 underline" @click="clearErrors">Dismiss</button>
+      </div>
+
+      <!-- ── Labels tab ─────────────────────────────────────────────────────── -->
+      <section v-if="activeTab === 'labels'">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="text-sm font-medium text-ctp-subtext1">Your labels</h2>
+          <button
+            class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
+            @click="openNewLabel"
+          >
+            + New label
+          </button>
+        </div>
+
+        <!-- Label form -->
+        <div
+          v-if="showLabelForm"
+          class="mb-4 rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4"
+        >
+          <h3 class="mb-3 text-sm font-medium">
+            {{ editingLabel ? 'Edit label' : 'New label' }}
+          </h3>
+          <div class="space-y-3">
+            <div>
+              <label class="mb-1 block text-xs text-ctp-subtext0">Name</label>
+              <input
+                v-model="labelName"
+                type="text"
+                placeholder="e.g. Newsletters"
+                class="w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+              />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-ctp-subtext0">Color</label>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="color in PRESET_COLORS"
+                  :key="color"
+                  class="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
+                  :class="labelColor === color ? 'border-ctp-text' : 'border-transparent'"
+                  :style="{ backgroundColor: color }"
+                  @click="labelColor = color"
+                />
+                <input
+                  v-model="labelColor"
+                  type="color"
+                  class="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0"
+                  title="Custom color"
+                />
+              </div>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-ctp-subtext0">Icon (emoji, optional)</label>
+              <input
+                v-model="labelIcon"
+                type="text"
+                placeholder="e.g. 📧"
+                class="w-24 rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+              />
+            </div>
+          </div>
+          <div class="mt-4 flex gap-2">
+            <button
+              :disabled="!labelName.trim() || labelPending"
+              class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+              @click="saveLabel"
+            >
+              {{ labelPending ? 'Saving…' : 'Save' }}
+            </button>
+            <button
+              class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 hover:text-ctp-text"
+              @click="cancelLabel"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+
+        <!-- Label list -->
+        <div v-if="labelsStore.loading" class="py-12 text-center text-sm text-ctp-subtext0">
+          Loading…
+        </div>
+        <div
+          v-else-if="labelsStore.items.length === 0 && !showLabelForm"
+          class="rounded-lg border border-dashed border-ctp-surface1 py-12 text-center text-sm text-ctp-subtext0"
+        >
+          No labels yet. Create one to categorize your arcs.
+        </div>
+        <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
+          <div
+            v-for="label in labelsStore.items"
+            :key="label.id"
+            class="flex items-center gap-3 px-4 py-3"
+          >
+            <span
+              class="h-3 w-3 shrink-0 rounded-full"
+              :style="{ backgroundColor: label.color ?? '#cba6f7' }"
+            />
+            <span v-if="label.icon" class="shrink-0 text-sm">{{ label.icon }}</span>
+            <span class="flex-1 text-sm font-medium">{{ label.name }}</span>
+            <button
+              class="text-xs text-ctp-subtext0 hover:text-ctp-text"
+              @click="openEditLabel(label)"
+            >
+              Edit
+            </button>
+            <button class="text-xs text-ctp-red hover:text-ctp-red/80" @click="deleteLabel(label)">
+              Delete
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Views tab ──────────────────────────────────────────────────────── -->
+      <section v-else-if="activeTab === 'views'">
+        <div class="mb-4 flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-medium text-ctp-subtext1">Custom sidebar views</h2>
+            <p class="mt-0.5 text-xs text-ctp-subtext0">
+              Saved searches that appear in the sidebar. Drag to reorder.
+            </p>
+          </div>
+          <button
+            class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
+            @click="openNewView"
+          >
+            + New view
+          </button>
+        </div>
+
+        <!-- View form -->
+        <div
+          v-if="showViewForm"
+          class="mb-4 rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4"
+        >
+          <h3 class="mb-3 text-sm font-medium">
+            {{ editingView ? 'Edit view' : 'New view' }}
+          </h3>
+          <div class="space-y-3">
+            <div>
+              <label class="mb-1 block text-xs text-ctp-subtext0">Name</label>
+              <input
+                v-model="viewName"
+                type="text"
+                placeholder="e.g. Newsletters"
+                class="w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+              />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-ctp-subtext0">Icon (emoji, optional)</label>
+              <input
+                v-model="viewIcon"
+                type="text"
+                placeholder="e.g. 📰"
+                class="w-24 rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+              />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="mb-1 block text-xs text-ctp-subtext0">Workflow filter</label>
+                <select
+                  v-model="viewWorkflow"
+                  class="w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                >
+                  <option value="">Any workflow</option>
+                  <option v-for="wf in WORKFLOWS" :key="wf" :value="wf">{{ wf }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="mb-1 block text-xs text-ctp-subtext0">Sender filter</label>
+                <input
+                  v-model="viewSender"
+                  type="text"
+                  placeholder="e.g. @company.com"
+                  class="w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 flex gap-2">
+            <button
+              :disabled="!viewName.trim() || viewPending"
+              class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+              @click="saveView"
+            >
+              {{ viewPending ? 'Saving…' : 'Save' }}
+            </button>
+            <button
+              class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 hover:text-ctp-text"
+              @click="cancelView"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+
+        <!-- Views list -->
+        <div v-if="viewsStore.loading" class="py-12 text-center text-sm text-ctp-subtext0">
+          Loading…
+        </div>
+        <div
+          v-else-if="sortedViews.length === 0 && !showViewForm"
+          class="rounded-lg border border-dashed border-ctp-surface1 py-12 text-center text-sm text-ctp-subtext0"
+        >
+          No custom views yet. Create one to get a shortcut in the sidebar.
+        </div>
+        <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
+          <div v-for="view in sortedViews" :key="view.id" class="flex items-center gap-3 px-4 py-3">
+            <span class="shrink-0 text-base">{{ view.icon ?? '📋' }}</span>
+            <div class="flex-1">
+              <p class="text-sm font-medium">{{ view.name }}</p>
+              <p class="text-xs text-ctp-subtext0">
+                <span v-if="view.filters.workflow">workflow: {{ view.filters.workflow }}</span>
+                <span v-if="view.filters.workflow && view.filters.sender"> · </span>
+                <span v-if="view.filters.sender">sender: {{ view.filters.sender }}</span>
+                <span v-if="!view.filters.workflow && !view.filters.sender"> No filters </span>
+              </p>
+            </div>
+            <button
+              class="text-xs text-ctp-subtext0 hover:text-ctp-text"
+              @click="openEditView(view)"
+            >
+              Edit
+            </button>
+            <button class="text-xs text-ctp-red hover:text-ctp-red/80" @click="deleteView(view)">
+              Delete
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</template>

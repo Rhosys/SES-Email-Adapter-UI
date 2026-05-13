@@ -1,7 +1,7 @@
 /* Catppuccin palette as CSS custom properties, applied per <html data-theme="…">. */
 /* Tokens follow https://github.com/catppuccin/catppuccin#-palette */
 
-[data-theme="latte"] {
+[data-theme='latte'] {
   --ctp-base: #eff1f5;
   --ctp-mantle: #e6e9ef;
   --ctp-crust: #dce0e8;
@@ -28,7 +28,7 @@
   --ctp-lavender: #7287fd;
 }
 
-[data-theme="frappe"] {
+[data-theme='frappe'] {
   --ctp-base: #303446;
   --ctp-mantle: #292c3c;
   --ctp-crust: #232634;
@@ -55,7 +55,7 @@
   --ctp-lavender: #babbf1;
 }
 
-[data-theme="macchiato"] {
+[data-theme='macchiato'] {
   --ctp-base: #24273a;
   --ctp-mantle: #1e2030;
   --ctp-crust: #181926;
@@ -82,7 +82,7 @@
   --ctp-lavender: #b7bdf8;
 }
 
-[data-theme="mocha"] {
+[data-theme='mocha'] {
   --ctp-base: #1e1e2e;
   --ctp-mantle: #181825;
   --ctp-crust: #11111b;
