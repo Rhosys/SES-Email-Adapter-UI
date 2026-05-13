@@ -143,7 +143,8 @@ export type SignalStatus =
   | 'quarantined'
   | 'blocked'
   | 'active'
-export type SignalSource = 'ses' | 'api' | 'system'
+  | 'draft'
+export type SignalSource = 'ses' | 'api' | 'user' | 'system'
 
 export interface EmailAddress {
   address: string
@@ -427,6 +428,24 @@ export interface UpdateRuleBody {
   conditions?: RuleCondition[]
   action?: RuleAction
   labelId?: string
+}
+
+// ─── Draft signal (Reply composer) ───────────────────────────────────────────
+
+export interface CreateDraftSignalBody {
+  status: 'draft'
+  source: 'user'
+  from: EmailAddress
+  to: EmailAddress[]
+  subject: string
+  textBody?: string
+  arcId?: string
+}
+
+export interface UpdateDraftSignalBody {
+  from?: EmailAddress
+  subject?: string
+  textBody?: string
 }
 
 // ─── Saved views (Phase 6) ────────────────────────────────────────────────────

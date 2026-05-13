@@ -5,6 +5,7 @@ import type {
   Arc,
   ArcStatus,
   AuditEvent,
+  CreateDraftSignalBody,
   CreateRuleBody,
   CreateSavedViewBody,
   Domain,
@@ -15,6 +16,7 @@ import type {
   SavedView,
   Signal,
   TeamMember,
+  UpdateDraftSignalBody,
   UpdateRuleBody,
   UserRole,
 } from '@/types/server'
@@ -167,6 +169,37 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ status }),
     })
+  },
+
+  // ─── Draft signals (Reply composer) ──────────────────────────────────────
+
+  createDraftSignal(
+    accountId: string,
+    body: CreateDraftSignalBody,
+  ): Promise<Result<Signal, ApiError>> {
+    return request<Signal>(`/accounts/${accountId}/signals`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  },
+
+  updateDraftSignal(
+    accountId: string,
+    signalId: string,
+    body: UpdateDraftSignalBody,
+  ): Promise<Result<Signal, ApiError>> {
+    return request<Signal>(`/accounts/${accountId}/signals/${signalId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    })
+  },
+
+  sendSignal(accountId: string, signalId: string): Promise<Result<Signal, ApiError>> {
+    return request<Signal>(`/accounts/${accountId}/signals/${signalId}/send`, { method: 'POST' })
+  },
+
+  deleteDraftSignal(accountId: string, signalId: string): Promise<Result<void, ApiError>> {
+    return request<void>(`/accounts/${accountId}/signals/${signalId}`, { method: 'DELETE' })
   },
 
   // ─── Rules ───────────────────────────────────────────────────────────────
