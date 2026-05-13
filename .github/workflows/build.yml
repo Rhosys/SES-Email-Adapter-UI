@@ -71,7 +71,7 @@ jobs:
           git sparse-checkout set deploy
           git checkout
 
-          tofu -chdir=deploy init -input=false -backend-only \
+          tofu -chdir=deploy init -input=false \
             -backend-config="bucket=rhosys-opentofu-${{ secrets.AWS_ACCOUNT_ID }}-eu-west-1" \
             -backend-config="key=SES-Email-Adapter/terraform.tfstate" \
             -backend-config="region=eu-west-1"
@@ -179,7 +179,7 @@ jobs:
           git sparse-checkout set deploy
           git checkout
 
-          tofu -chdir=deploy init -input=false -backend-only \
+          tofu -chdir=deploy init -input=false \
             -backend-config="bucket=rhosys-opentofu-${{ secrets.AWS_ACCOUNT_ID }}-eu-west-1" \
             -backend-config="key=SES-Email-Adapter/terraform.tfstate" \
             -backend-config="region=eu-west-1"
