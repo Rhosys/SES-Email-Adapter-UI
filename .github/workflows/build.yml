@@ -2,8 +2,10 @@ name: Build and Deploy
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, closed]
   push:
     branches: [main]
+  delete:
   workflow_dispatch:
 
 permissions:
@@ -12,7 +14,12 @@ permissions:
   pull-requests: write
 
 jobs:
+  # ── Build, check, and deploy ───────────────────────────────────────────────
   build:
+    if: >
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
 
     steps:
@@ -23,7 +30,7 @@ jobs:
         with:
           aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
 
-      # ── Compute deploy target ─────────────────────────────────────────────
+      # ── Compute deploy target ───────────────────────────────────────────────
 
       - name: Set PR deploy prefix
         if: github.event_name == 'pull_request'
@@ -46,12 +53,12 @@ jobs:
           echo "VITE_BASE_PATH=/main/${YEAR}/" >> "$GITHUB_ENV"
         shell: bash
 
-      # ── Lint / type-check / test ──────────────────────────────────────────
+      # ── Lint / type-check / test ────────────────────────────────────────────
 
       - name: Check
         run: npm run check
 
-      # ── Build (only when deploying) ───────────────────────────────────────
+      # ── Build (only when deploying) ─────────────────────────────────────────
 
       - name: Build
         if: env.DEPLOY_PREFIX != ''
@@ -62,7 +69,7 @@ jobs:
           VITE_AUTHRESS_LOGIN_URL: ${{ secrets.VITE_AUTHRESS_LOGIN_URL }}
           VITE_AUTHRESS_APPLICATION_ID: ${{ secrets.VITE_AUTHRESS_APPLICATION_ID }}
 
-      # ── Deploy to S3 ──────────────────────────────────────────────────────
+      # ── Deploy to S3 ────────────────────────────────────────────────────────
 
       - name: Sync assets to S3
         if: env.DEPLOY_PREFIX != ''
@@ -86,7 +93,7 @@ jobs:
             --paths "/${{ env.DEPLOY_PREFIX }}/*"
         shell: bash
 
-      # ── Post preview URL as PR comment ────────────────────────────────────
+      # ── Post preview URL as PR comment ──────────────────────────────────────
 
       - name: Comment preview URL on PR
         if: github.event_name == 'pull_request'
@@ -101,3 +108,47 @@ jobs:
               issue_number: context.issue.number,
               body: `### Preview deployed\n\n**URL:** ${url}\n\n> Deep links require the CloudFront path-rewrite rule to be configured for the \`/${prefix}/\` prefix.`,
             })
+
+  # ── Delete PR preview from S3 when branch is gone ─────────────────────────
+  cleanup:
+    if: >
+      (github.event_name == 'pull_request' && github.event.action == 'closed') ||
+      (github.event_name == 'delete' && github.event.ref_type == 'branch')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+
+      - name: Compute cleanup prefix
+        run: |
+          if [ "${{ github.event_name }}" = "delete" ]; then
+            BRANCH="${{ github.event.ref }}"
+          else
+            BRANCH="${{ github.head_ref }}"
+          fi
+          SLUG=$(echo "$BRANCH" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed 's/[^a-z0-9]/-/g' \
+            | sed 's/-\+/-/g' \
+            | sed 's/^-\|-$//g' \
+            | cut -c1-63)
+          echo "CLEANUP_PREFIX=pr/${SLUG}" >> "$GITHUB_ENV"
+        shell: bash
+
+      - name: Delete S3 prefix
+        run: |
+          aws s3 rm "s3://${{ secrets.SITE_BUCKET_NAME }}/${{ env.CLEANUP_PREFIX }}/" \
+            --recursive
+        shell: bash
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/${{ env.CLEANUP_PREFIX }}/*"
+        shell: bash
