@@ -21,7 +21,6 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -71,19 +70,11 @@ jobs:
 
       # ── Deploy to S3 ────────────────────────────────────────────────────────
 
-      - name: Sync assets to S3
+      - name: Publish website to S3
         if: env.DEPLOY_PREFIX != ''
-        run: |
-          # Hashed asset filenames can be cached indefinitely
-          aws s3 sync dist/ "s3://${{ secrets.SITE_BUCKET_NAME }}/${{ env.DEPLOY_PREFIX }}/" \
-            --delete \
-            --exclude "index.html"
-
-          # index.html must never be cached — always fetch fresh
-          aws s3 cp dist/index.html \
-            "s3://${{ secrets.SITE_BUCKET_NAME }}/${{ env.DEPLOY_PREFIX }}/index.html" \
-            --cache-control "no-cache, no-store, must-revalidate"
-        shell: bash
+        run: npm run deploy:website -- publish "${{ env.DEPLOY_PREFIX }}"
+        env:
+          SITE_BUCKET_NAME: ${{ secrets.SITE_BUCKET_NAME }}
 
       - name: Invalidate CloudFront
         if: env.DEPLOY_PREFIX != ''
@@ -115,7 +106,6 @@ jobs:
       (github.event_name == 'pull_request' && github.event.action == 'closed') ||
       (github.event_name == 'delete' && github.event.ref_type == 'branch')
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -140,11 +130,10 @@ jobs:
           echo "CLEANUP_PREFIX=pr/${SLUG}" >> "$GITHUB_ENV"
         shell: bash
 
-      - name: Delete S3 prefix
-        run: |
-          aws s3 rm "s3://${{ secrets.SITE_BUCKET_NAME }}/${{ env.CLEANUP_PREFIX }}/" \
-            --recursive
-        shell: bash
+      - name: Delete website version from S3
+        run: npm run deploy:website -- delete "${{ env.CLEANUP_PREFIX }}"
+        env:
+          SITE_BUCKET_NAME: ${{ secrets.SITE_BUCKET_NAME }}
 
       - name: Invalidate CloudFront
         run: |
