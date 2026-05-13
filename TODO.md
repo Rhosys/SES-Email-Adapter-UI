@@ -12,6 +12,20 @@
 - [x] Implement Phase 2 — Onboarding flow
 - [ ] Set up favicon and Open Graph meta tags
 
+- [ ] **Reply composer — wire up draft signal API and complete From field UX**
+  - `ReplyComposer.vue` is a skeleton: no From field, send button permanently disabled
+  - **From field**: split into a free-text local-part input and a separate domain dropdown;
+    typing in the local part + selecting a domain composes the full sender address
+  - Domain dropdown only lists domains where `senderSetupComplete: true`; if none exist,
+    replace the From field with an explanatory banner linking to Settings → Domains
+  - As the user types the local part, suggest previously-used sender identities ordered by
+    recency then frequency
+  - **Draft flow**: on first keystroke (or explicit "Start draft" action) call
+    `POST /accounts/:id/signals` to create a draft (`status: 'draft'`, `source: 'user'`);
+    subsequent edits call `PUT /accounts/:id/signals/:id`; send calls
+    `POST /accounts/:id/signals/:id/send`; cancel calls `DELETE /accounts/:id/signals/:id`
+  - Add `'draft'` to `SignalStatus` union in `src/types/server.ts`
+
 - [ ] **Fix `SavedView` position field mismatch** — UI type has `order: number` but backend uses
   `position: number`; the drag-to-reorder in the sidebar is silently sending the wrong field name
   on every PATCH call. Fix: rename `order` → `position` in `SavedView`, `CreateSavedViewBody`,
