@@ -26,6 +26,19 @@
     `POST /accounts/:id/signals/:id/send`; cancel calls `DELETE /accounts/:id/signals/:id`
   - Add `'draft'` to `SignalStatus` union in `src/types/server.ts`
 
+- [ ] **Audit log — expandable rows with before/after diff**
+  - Update `AuditEvent` in `src/types/server.ts` to match the backend shape:
+    replace `metadata?: Record<string, unknown>` with `before?: unknown; after?: unknown`;
+    also align field names (`actorId` → `userId`, `createdAt` → `timestamp`,
+    `type: AuditEventType` → `action: 'created' | 'updated' | 'deleted' | 'reordered'`,
+    `resourceType` narrows to the 8 backend types: `rule | alias | domain | account | label |
+    view | template | forwarding_address`)
+  - Each row in `AuditLogView` becomes expandable (click to toggle); the expanded section renders
+    the `before` and `after` snapshots side-by-side as a key-value diff — keys that changed are
+    highlighted, added keys shown in green, removed keys in red
+  - Only render the expand affordance on rows where `before` or `after` is present (i.e. `updated`
+    events); `created` / `deleted` / `reordered` events can show the snapshot in a single column
+
 - [ ] **Account switcher** — let users move between accounts they belong to without signing out:
   - Displayed in the sidebar below the brand name: show the current account name with a
     chevron/dropdown indicator; clicking opens an account list popover
