@@ -20,6 +20,7 @@
   "dependencies": {
     "@authress/login": "^2.4.0",
     "@catppuccin/palette": "^1.7.1",
+    "marked": "^18.0.3",
     "neverthrow": "^8.2.0",
     "pinia": "^2.2.4",
     "vue": "^3.5.13",

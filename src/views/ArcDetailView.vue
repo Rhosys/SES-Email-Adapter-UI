@@ -5,6 +5,7 @@ import { useSignalsStore } from '@/stores/signals'
 import { useAccountStore } from '@/stores/account'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
 import SignalCard from '@/components/SignalCard.vue'
+import DraftSignalCard from '@/components/DraftSignalCard.vue'
 import ReplyComposer from '@/components/ReplyComposer.vue'
 
 const route = useRoute()
@@ -20,19 +21,28 @@ const showReply = computed(() => {
 
 onMounted(async () => {
   signalsStore.reset()
-  const accountId = accountStore.accountId
-  if (!accountId) {
-    await accountStore.fetchAccount()
-  }
+  if (!accountStore.accountId) await accountStore.fetchAccount()
   const id = accountStore.accountId
-  if (id) {
-    await signalsStore.fetchAll(id, arcId.value)
-  }
+  if (id) await signalsStore.fetchAll(id, arcId.value)
 })
 
 onUnmounted(() => {
   signalsStore.reset()
 })
+
+async function startDraft() {
+  const id = accountStore.accountId
+  if (!id) return
+  await signalsStore.createDraft(id, arcId.value)
+}
+
+function onDraftDiscard(signalId: string) {
+  signalsStore.removeSignal(signalId)
+}
+
+function onDraftSent(signalId: string) {
+  signalsStore.removeSignal(signalId)
+}
 
 async function archive() {
   const id = accountStore.accountId
@@ -109,14 +119,22 @@ async function loadMore() {
         </button>
       </div>
 
-      <!-- Signal thread -->
+      <!-- Signal thread — received + draft signals -->
       <div class="space-y-4">
-        <SignalCard v-for="signal in signalsStore.items" :key="signal.id" :signal="signal" />
+        <template v-for="signal in signalsStore.items" :key="signal.id">
+          <DraftSignalCard
+            v-if="signal.status === 'draft'"
+            :signal="signal"
+            @discard="onDraftDiscard(signal.id)"
+            @sent="onDraftSent(signal.id)"
+          />
+          <SignalCard v-else :signal="signal" />
+        </template>
       </div>
 
-      <!-- Reply composer -->
-      <div v-if="showReply && signalsStore.latestSignal" class="mt-6">
-        <ReplyComposer :signal="signalsStore.latestSignal" />
+      <!-- New reply trigger -->
+      <div v-if="showReply" class="mt-6">
+        <ReplyComposer @reply="startDraft" />
       </div>
 
       <!-- Archive action -->

@@ -62,6 +62,30 @@ export const useSignalsStore = defineStore('signals', () => {
     loadingMore.value = false
   }
 
+  async function createDraft(accountId: string, arcId: string): Promise<boolean> {
+    // Use the latest non-draft signal as the reply target
+    const replyTo = items.value.find((s) => s.status !== 'draft') ?? items.value[0]
+    const result = await api.createDraftSignal(accountId, {
+      status: 'draft',
+      source: 'user',
+      from: { address: '' },
+      to: replyTo ? [{ address: replyTo.from.address }] : [],
+      subject: replyTo ? `Re: ${replyTo.subject}` : '',
+      arcId,
+    })
+    if (result.isErr()) {
+      error.value = result.error.message
+      return false
+    }
+    // Drafts appear at the bottom of the thread (below received signals)
+    items.value = [...items.value, result.value]
+    return true
+  }
+
+  function removeSignal(signalId: string) {
+    items.value = items.value.filter((s) => s.id !== signalId)
+  }
+
   async function archiveArc(accountId: string, arcId: string) {
     const result = await api.patchArc(accountId, arcId, { status: 'archived' })
     if (result.isErr()) {
@@ -105,6 +129,8 @@ export const useSignalsStore = defineStore('signals', () => {
     latestSignal,
     fetchAll,
     fetchMore,
+    createDraft,
+    removeSignal,
     archiveArc,
     labelArc,
     reset,

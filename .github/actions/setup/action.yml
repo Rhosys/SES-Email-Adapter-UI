@@ -1,0 +1,30 @@
+name: 'Setup environment'
+description: 'Install Node.js 24 and configure AWS OIDC credentials'
+
+inputs:
+  aws_account_id:
+    required: true
+    description: 'AWS account ID for role assumption'
+  aws_region:
+    required: false
+    description: 'AWS region'
+    default: 'eu-west-1'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: 'npm'
+
+    - name: Configure AWS credentials (OIDC)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ inputs.aws_account_id }}:role/GitHubActionsRole
+        aws-region: ${{ inputs.aws_region }}
+
+    - name: Install dependencies
+      run: npm ci
+      shell: bash

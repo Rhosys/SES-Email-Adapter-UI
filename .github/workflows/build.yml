@@ -1,0 +1,103 @@
+name: Build and Deploy
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+
+      # ── Compute deploy target ─────────────────────────────────────────────
+
+      - name: Set PR deploy prefix
+        if: github.event_name == 'pull_request'
+        run: |
+          SLUG=$(echo "${{ github.head_ref }}" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed 's/[^a-z0-9]/-/g' \
+            | sed 's/-\+/-/g' \
+            | sed 's/^-\|-$//g' \
+            | cut -c1-63)
+          echo "DEPLOY_PREFIX=pr/${SLUG}" >> "$GITHUB_ENV"
+          echo "VITE_BASE_PATH=/pr/${SLUG}/" >> "$GITHUB_ENV"
+        shell: bash
+
+      - name: Set main deploy prefix
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          YEAR=$(date +%Y)
+          echo "DEPLOY_PREFIX=main/${YEAR}" >> "$GITHUB_ENV"
+          echo "VITE_BASE_PATH=/main/${YEAR}/" >> "$GITHUB_ENV"
+        shell: bash
+
+      # ── Lint / type-check / test ──────────────────────────────────────────
+
+      - name: Check
+        run: npm run check
+
+      # ── Build (only when deploying) ───────────────────────────────────────
+
+      - name: Build
+        if: env.DEPLOY_PREFIX != ''
+        run: npm run build
+        env:
+          VITE_BASE_PATH: ${{ env.VITE_BASE_PATH }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_AUTHRESS_LOGIN_URL: ${{ secrets.VITE_AUTHRESS_LOGIN_URL }}
+          VITE_AUTHRESS_APPLICATION_ID: ${{ secrets.VITE_AUTHRESS_APPLICATION_ID }}
+
+      # ── Deploy to S3 ──────────────────────────────────────────────────────
+
+      - name: Sync assets to S3
+        if: env.DEPLOY_PREFIX != ''
+        run: |
+          # Hashed asset filenames can be cached indefinitely
+          aws s3 sync dist/ "s3://${{ secrets.SITE_BUCKET_NAME }}/${{ env.DEPLOY_PREFIX }}/" \
+            --delete \
+            --exclude "index.html"
+
+          # index.html must never be cached — always fetch fresh
+          aws s3 cp dist/index.html \
+            "s3://${{ secrets.SITE_BUCKET_NAME }}/${{ env.DEPLOY_PREFIX }}/index.html" \
+            --cache-control "no-cache, no-store, must-revalidate"
+        shell: bash
+
+      - name: Invalidate CloudFront
+        if: env.DEPLOY_PREFIX != ''
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/${{ env.DEPLOY_PREFIX }}/*"
+        shell: bash
+
+      # ── Post preview URL as PR comment ────────────────────────────────────
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prefix = process.env.DEPLOY_PREFIX
+            const url = `https://email.rhosys.cloud/${prefix}/`
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `### Preview deployed\n\n**URL:** ${url}\n\n> Deep links require the CloudFront path-rewrite rule to be configured for the \`/${prefix}/\` prefix.`,
+            })
