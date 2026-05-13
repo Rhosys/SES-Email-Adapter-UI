@@ -63,19 +63,27 @@ jobs:
       - name: Read infra outputs from backend state
         if: env.DEPLOY_PREFIX != ''
         run: |
+          set -euo pipefail
+
           git clone --no-checkout --depth 1 \
             https://github.com/rhosys/SES-Email-Adapter.git /tmp/ses-backend
           cd /tmp/ses-backend
           git sparse-checkout set deploy
           git checkout
 
-          tofu -chdir=deploy init -input=false \
+          tofu -chdir=deploy init -input=false -backend-only \
             -backend-config="bucket=rhosys-opentofu-${{ secrets.AWS_ACCOUNT_ID }}-eu-west-1" \
             -backend-config="key=SES-Email-Adapter/terraform.tfstate" \
             -backend-config="region=eu-west-1"
 
-          echo "SITE_BUCKET_NAME=$(tofu -chdir=deploy output -raw site_bucket_name)" >> "$GITHUB_ENV"
-          echo "CLOUDFRONT_DISTRIBUTION_ID=$(tofu -chdir=deploy output -raw cloudfront_distribution_id)" >> "$GITHUB_ENV"
+          SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name)
+          CF_ID=$(tofu -chdir=deploy output -raw cloudfront_distribution_id)
+
+          [ -n "$SITE_BUCKET" ] || { echo "::error::site_bucket_name output is empty"; exit 1; }
+          [ -n "$CF_ID" ]       || { echo "::error::cloudfront_distribution_id output is empty"; exit 1; }
+
+          echo "SITE_BUCKET_NAME=${SITE_BUCKET}" >> "$GITHUB_ENV"
+          echo "CLOUDFRONT_DISTRIBUTION_ID=${CF_ID}" >> "$GITHUB_ENV"
         shell: bash
 
       # ── Lint / type-check / test ────────────────────────────────────────────
@@ -163,19 +171,27 @@ jobs:
 
       - name: Read infra outputs from backend state
         run: |
+          set -euo pipefail
+
           git clone --no-checkout --depth 1 \
             https://github.com/rhosys/SES-Email-Adapter.git /tmp/ses-backend
           cd /tmp/ses-backend
           git sparse-checkout set deploy
           git checkout
 
-          tofu -chdir=deploy init -input=false \
+          tofu -chdir=deploy init -input=false -backend-only \
             -backend-config="bucket=rhosys-opentofu-${{ secrets.AWS_ACCOUNT_ID }}-eu-west-1" \
             -backend-config="key=SES-Email-Adapter/terraform.tfstate" \
             -backend-config="region=eu-west-1"
 
-          echo "SITE_BUCKET_NAME=$(tofu -chdir=deploy output -raw site_bucket_name)" >> "$GITHUB_ENV"
-          echo "CLOUDFRONT_DISTRIBUTION_ID=$(tofu -chdir=deploy output -raw cloudfront_distribution_id)" >> "$GITHUB_ENV"
+          SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name)
+          CF_ID=$(tofu -chdir=deploy output -raw cloudfront_distribution_id)
+
+          [ -n "$SITE_BUCKET" ] || { echo "::error::site_bucket_name output is empty"; exit 1; }
+          [ -n "$CF_ID" ]       || { echo "::error::cloudfront_distribution_id output is empty"; exit 1; }
+
+          echo "SITE_BUCKET_NAME=${SITE_BUCKET}" >> "$GITHUB_ENV"
+          echo "CLOUDFRONT_DISTRIBUTION_ID=${CF_ID}" >> "$GITHUB_ENV"
         shell: bash
 
       - name: Delete website version from S3
