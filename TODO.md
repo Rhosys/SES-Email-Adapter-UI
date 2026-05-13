@@ -12,6 +12,22 @@
 - [x] Implement Phase 2 — Onboarding flow
 - [ ] Set up favicon and Open Graph meta tags
 
+- [ ] **Fix `SavedView` position field mismatch** — UI type has `order: number` but backend uses
+  `position: number`; the drag-to-reorder in the sidebar is silently sending the wrong field name
+  on every PATCH call. Fix: rename `order` → `position` in `SavedView`, `CreateSavedViewBody`,
+  `UpdateSavedViewBody`, and `useViewsStore` throughout.
+
+- [ ] **Reconcile `Rule` type against backend** — several structural mismatches:
+  - `action: RuleAction` (single, UI) → `actions: RuleAction[]` (array, backend)
+  - `RuleAction` union (`'allow' | 'block' | 'label' | 'quarantine'`) is stale — backend has 14
+    types: `assign_label | assign_workflow | archive | delete | forward | block | quarantine |
+    quarantine_hidden | set_urgency | suppress_notification | pong | approve_sender | auto_reply |
+    auto_draft`
+  - `conditions: RuleCondition[]` (UI visual builder) → `condition: string` (JSONLogic JSON string,
+    backend); the rule editor will need to serialise/deserialise JSONLogic
+  - `priorityOrder: number` missing from the UI `Rule` type; add it and expose drag-to-reorder
+    (or up/down arrows) in `RulesView` — persist by PATCHing `priorityOrder` on the affected rules
+
 - [ ] **Re-check DNS button on domain rows** — Settings → Domains: add a "Re-check" button to
   any domain or DNS record row whose status is not `'verified'` (i.e. `'pending'` or `'failed'`).
   - Calls `PATCH /accounts/:id/domains/:domainId` to trigger an on-demand DNS verification
