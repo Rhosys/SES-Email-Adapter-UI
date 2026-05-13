@@ -26,6 +26,21 @@
     `POST /accounts/:id/signals/:id/send`; cancel calls `DELETE /accounts/:id/signals/:id`
   - Add `'draft'` to `SignalStatus` union in `src/types/server.ts`
 
+- [ ] **Quarantine view — correct API usage and status handling**
+  - The list endpoint (`GET /accounts/:id/signals?status=`) only accepts a single status value per
+    call; the quarantine view must make **two parallel requests** — one for `quarantine_visible`
+    and one for `quarantine_hidden` — then merge and display all results
+  - Display both types in a single list; visually distinguish `quarantine_hidden` items (e.g. a
+    muted badge or secondary section) so users understand these were silently held rather than
+    actively flagged for review
+  - Quarantine response endpoint: `POST /accounts/:id/signals/:id/quarantineResponse`
+    - Allow / approve → `{ status: 'active' }` (backend finds or creates an arc and delivers)
+    - Block / dismiss → `{ status: 'blocked' }`
+  - Update `SignalStatus` in `src/types/server.ts` to include `'quarantine_visible'` and
+    `'quarantine_hidden'` (in addition to `'quarantined'` if still used elsewhere)
+  - Update `listQuarantinedSignals` in `src/lib/api.ts` to accept the specific status param and
+    update the store to issue both calls in parallel and merge results
+
 - [ ] **Email templates** — new entity for reusable reply/draft content:
   - Add `EmailTemplate` to `src/types/server.ts`:
     ```ts
