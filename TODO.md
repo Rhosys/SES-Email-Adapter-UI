@@ -10,7 +10,7 @@
 - [x] Implement Phase 9 — Settings
 - [x] Implement Phase 10 — Secondary screens
 - [x] Implement Phase 2 — Onboarding flow
-- [x] Set up favicon and Open Graph meta tags
+- [ ] Set up favicon and Open Graph meta tags
 
 - [ ] **Reply composer — wire up draft signal API and complete From field UX**
   - `ReplyComposer.vue` is a skeleton: no From field, send button permanently disabled
