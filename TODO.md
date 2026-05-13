@@ -10,7 +10,7 @@
 - [x] Implement Phase 9 — Settings
 - [x] Implement Phase 10 — Secondary screens
 - [x] Implement Phase 2 — Onboarding flow
-- [ ] Set up favicon and Open Graph meta tags
+- [x] Set up favicon and Open Graph meta tags
 
 - [ ] **Reply composer — wire up draft signal API and complete From field UX**
   - `ReplyComposer.vue` is a skeleton: no From field, send button permanently disabled
@@ -45,8 +45,13 @@
   - Add `EmailTemplate` to `src/types/server.ts`:
     ```ts
     interface EmailTemplate {
-      id: string; accountId: string; name: string
-      subject: string; body: string; createdAt: string; updatedAt: string
+      id: string
+      accountId: string
+      name: string
+      subject: string
+      body: string
+      createdAt: string
+      updatedAt: string
     }
     ```
   - Supported interpolation variables: `{{sender.name}}`, `{{sender.address}}`,
@@ -69,7 +74,7 @@
     also align field names (`actorId` → `userId`, `createdAt` → `timestamp`,
     `type: AuditEventType` → `action: 'created' | 'updated' | 'deleted' | 'reordered'`,
     `resourceType` narrows to the 8 backend types: `rule | alias | domain | account | label |
-    view | template | forwarding_address`)
+view | template | forwarding_address`)
   - Each row in `AuditLogView` becomes expandable (click to toggle); the expanded section renders
     the `before` and `after` snapshots side-by-side as a key-value diff — keys that changed are
     highlighted, added keys shown in green, removed keys in red
@@ -141,23 +146,23 @@
     (drag-to-reorder or up/down arrows on `RulesView`)
 
 - [ ] **Fix `SavedView` position field mismatch** — UI type has `order: number` but backend uses
-  `position: number`; the drag-to-reorder in the sidebar is silently sending the wrong field name
-  on every PATCH call. Fix: rename `order` → `position` in `SavedView`, `CreateSavedViewBody`,
-  `UpdateSavedViewBody`, and `useViewsStore` throughout.
+      `position: number`; the drag-to-reorder in the sidebar is silently sending the wrong field name
+      on every PATCH call. Fix: rename `order` → `position` in `SavedView`, `CreateSavedViewBody`,
+      `UpdateSavedViewBody`, and `useViewsStore` throughout.
 
 - [ ] **Reconcile `Rule` type against backend** — several structural mismatches:
   - `action: RuleAction` (single, UI) → `actions: RuleAction[]` (array, backend)
   - `RuleAction` union (`'allow' | 'block' | 'label' | 'quarantine'`) is stale — backend has 14
     types: `assign_label | assign_workflow | archive | delete | forward | block | quarantine |
-    quarantine_hidden | set_urgency | suppress_notification | pong | approve_sender | auto_reply |
-    auto_draft`
+quarantine_hidden | set_urgency | suppress_notification | pong | approve_sender | auto_reply |
+auto_draft`
   - `conditions: RuleCondition[]` (UI visual builder) → `condition: string` (JSONLogic JSON string,
     backend); the rule editor will need to serialise/deserialise JSONLogic
   - `priorityOrder: number` missing from the UI `Rule` type; add it and expose drag-to-reorder
     (or up/down arrows) in `RulesView` — persist by PATCHing `priorityOrder` on the affected rules
 
 - [ ] **Re-check DNS button on domain rows** — Settings → Domains: add a "Re-check" button to
-  any domain or DNS record row whose status is not `'verified'` (i.e. `'pending'` or `'failed'`).
+      any domain or DNS record row whose status is not `'verified'` (i.e. `'pending'` or `'failed'`).
   - Calls `PATCH /accounts/:id/domains/:domainId` to trigger an on-demand DNS verification
   - Button is per-domain (not per-record) and only visible when the domain or any of its records
     are non-verified — hide it entirely once all records show `'verified'`
