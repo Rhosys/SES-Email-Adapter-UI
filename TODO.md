@@ -10,7 +10,15 @@
 - [x] Implement Phase 9 — Settings
 - [x] Implement Phase 10 — Secondary screens
 - [x] Implement Phase 2 — Onboarding flow
-- [ ] Write marketing homepage copy (value prop, screenshots, CTA) — redirect to app if already logged in
+- [ ] Set up favicon and Open Graph meta tags
+
+---
+
+> **Moving to a separate repo:** The marketing site and documentation site will live in their own
+> repository. The specs below are preserved here for reference but will not be implemented in this
+> repo.
+
+- [ ] ~~Write marketing homepage copy (value prop, screenshots, CTA) — redirect to app if already logged in~~
   - **Requires Vue/Vite SSR** (e.g. `vite-plugin-ssr` / Vike, or Nuxt) so the marketing page is
     server-rendered for SEO and fast first-paint; the authenticated app shell can remain a pure SPA.
     Current project is SPA-only — SSR setup is a prerequisite before building this page.
@@ -22,15 +30,16 @@
     `sitemap.xml`, `llms.txt` (plain-text summary for AI crawlers), and an `/llms-full.txt` with
     the complete feature set for LLM indexing. Optimise `<title>`, `<meta description>`, and OG
     tags per page. Target Core Web Vitals green on mobile.
-- [ ] Set up favicon and Open Graph meta tags
 
-- [ ] **Documentation site** — add a `/docs` section (or subdomain) with:
+- [ ] ~~**Documentation site** — add a `/docs` section (or subdomain) with:~~
   - Human-readable guides for every feature (rules, quarantine, labels, search, settings, onboarding)
   - **LLM pages:** `/docs/llms.txt` (concise feature index) and `/docs/llms-full.txt` (full
     structured reference). Both must be plain text, no JS, and updated whenever features change.
     These are consumed by AI assistants and search crawlers.
   - OpenAPI / API reference page auto-generated from the backend spec
   - All doc pages must be statically rendered (SSG or SSR), indexable, and JS-free
+
+---
 
 - [ ] **Inline feature explanations** — every view and complex UI element must explain itself
       without redirecting to external documentation:
