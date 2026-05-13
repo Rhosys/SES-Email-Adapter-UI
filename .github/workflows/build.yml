@@ -52,6 +52,18 @@ jobs:
           echo "VITE_BASE_PATH=/main/${YEAR}/" >> "$GITHUB_ENV"
         shell: bash
 
+      # ── Resolve infrastructure references ───────────────────────────────────
+
+      - name: Resolve S3 bucket and CloudFront distribution
+        if: env.DEPLOY_PREFIX != ''
+        run: |
+          echo "SITE_BUCKET_NAME=ses-email-adapter-web-${{ secrets.AWS_ACCOUNT_ID }}-eu-west-1-an" >> "$GITHUB_ENV"
+          CF_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Aliases.Items[?@=='email.rhosys.cloud']].Id | [0]" \
+            --output text)
+          echo "CLOUDFRONT_DISTRIBUTION_ID=${CF_ID}" >> "$GITHUB_ENV"
+        shell: bash
+
       # ── Lint / type-check / test ────────────────────────────────────────────
 
       - name: Check
@@ -64,9 +76,9 @@ jobs:
         run: npm run build
         env:
           VITE_BASE_PATH: ${{ env.VITE_BASE_PATH }}
-          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
-          VITE_AUTHRESS_LOGIN_URL: ${{ secrets.VITE_AUTHRESS_LOGIN_URL }}
-          VITE_AUTHRESS_APPLICATION_ID: ${{ secrets.VITE_AUTHRESS_APPLICATION_ID }}
+          VITE_API_BASE_URL: https://api.email.rhosys.cloud
+          VITE_AUTHRESS_LOGIN_URL: https://login.rhosys.cloud
+          VITE_AUTHRESS_APPLICATION_ID: app_2EAWGEdtzaeCj7b45DsDtt
 
       # ── Deploy to S3 ────────────────────────────────────────────────────────
 
@@ -74,13 +86,13 @@ jobs:
         if: env.DEPLOY_PREFIX != ''
         run: npm run deploy:website -- publish "${{ env.DEPLOY_PREFIX }}"
         env:
-          SITE_BUCKET_NAME: ${{ secrets.SITE_BUCKET_NAME }}
+          SITE_BUCKET_NAME: ${{ env.SITE_BUCKET_NAME }}
 
       - name: Invalidate CloudFront
         if: env.DEPLOY_PREFIX != ''
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "/${{ env.DEPLOY_PREFIX }}/*"
         shell: bash
 
@@ -130,14 +142,23 @@ jobs:
           echo "CLEANUP_PREFIX=pr/${SLUG}" >> "$GITHUB_ENV"
         shell: bash
 
+      - name: Resolve S3 bucket and CloudFront distribution
+        run: |
+          echo "SITE_BUCKET_NAME=ses-email-adapter-web-${{ secrets.AWS_ACCOUNT_ID }}-eu-west-1-an" >> "$GITHUB_ENV"
+          CF_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Aliases.Items[?@=='email.rhosys.cloud']].Id | [0]" \
+            --output text)
+          echo "CLOUDFRONT_DISTRIBUTION_ID=${CF_ID}" >> "$GITHUB_ENV"
+        shell: bash
+
       - name: Delete website version from S3
         run: npm run deploy:website -- delete "${{ env.CLEANUP_PREFIX }}"
         env:
-          SITE_BUCKET_NAME: ${{ secrets.SITE_BUCKET_NAME }}
+          SITE_BUCKET_NAME: ${{ env.SITE_BUCKET_NAME }}
 
       - name: Invalidate CloudFront
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "/${{ env.CLEANUP_PREFIX }}/*"
         shell: bash
