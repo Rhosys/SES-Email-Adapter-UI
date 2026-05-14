@@ -106,14 +106,14 @@ const canSave = computed(
 )
 
 async function save() {
-  if (!accountStore.accountId || !canSave.value) return
+  if (!canSave.value) return
   const body = { name: name.value.trim(), conditions: conditions.value, action: action.value }
 
   let saved
   if (isEditing.value) {
-    saved = await rulesStore.updateRule(accountStore.accountId, ruleId.value!, body)
+    saved = await rulesStore.updateRule(ruleId.value!, body)
   } else {
-    saved = await rulesStore.createRule(accountStore.accountId, body)
+    saved = await rulesStore.createRule(body)
   }
 
   if (!saved) return // error already set in store
@@ -121,9 +121,9 @@ async function save() {
   // If we came from quarantine with a signalId, resolve the signal
   if (signalId.value && signalAction.value) {
     if (signalAction.value === 'allow') {
-      await quarantineStore.allow(accountStore.accountId, signalId.value)
+      await quarantineStore.allow(signalId.value)
     } else {
-      await quarantineStore.reject(accountStore.accountId, signalId.value)
+      await quarantineStore.reject(signalId.value)
     }
     void router.push('/quarantine')
   } else {
@@ -132,12 +132,12 @@ async function save() {
 }
 
 onMounted(async () => {
-  if (!accountStore.accountId) await accountStore.fetchAccount()
+  await accountStore.fetchAccount()
 
   if (isEditing.value) {
     // Load existing rule
-    if (rulesStore.items.length === 0 && accountStore.accountId) {
-      await rulesStore.fetchRules(accountStore.accountId)
+    if (rulesStore.items.length === 0) {
+      await rulesStore.fetchRules()
     }
     const existing = rulesStore.items.find((r) => r.id === ruleId.value)
     if (existing) {

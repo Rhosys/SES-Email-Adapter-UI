@@ -1,9 +1,12 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { api } from '@/lib/api'
+import { useAccountStore } from '@/stores/account'
 import type { Signal, Arc } from '@/types/server'
 
 export const useSignalsStore = defineStore('signals', () => {
+  const accountStore = useAccountStore()
+
   const items = ref<Signal[]>([])
   const arc = ref<Arc | null>(null)
   const nextCursor = ref<string | undefined>(undefined)
@@ -14,7 +17,9 @@ export const useSignalsStore = defineStore('signals', () => {
   const hasMore = computed(() => !!nextCursor.value)
   const latestSignal = computed(() => items.value[0] ?? null)
 
-  async function fetchAll(accountId: string, arcId: string) {
+  async function fetchAll(arcId: string) {
+    const accountId = accountStore.accountId
+    if (!accountId) return
     loading.value = true
     error.value = null
 
@@ -42,8 +47,9 @@ export const useSignalsStore = defineStore('signals', () => {
     loading.value = false
   }
 
-  async function fetchMore(accountId: string, arcId: string) {
-    if (!nextCursor.value || loadingMore.value) return
+  async function fetchMore(arcId: string) {
+    const accountId = accountStore.accountId
+    if (!accountId || !nextCursor.value || loadingMore.value) return
     loadingMore.value = true
 
     const result = await api.listSignals(accountId, arcId, {
@@ -62,7 +68,9 @@ export const useSignalsStore = defineStore('signals', () => {
     loadingMore.value = false
   }
 
-  async function createDraft(accountId: string, arcId: string): Promise<boolean> {
+  async function createDraft(arcId: string): Promise<boolean> {
+    const accountId = accountStore.accountId
+    if (!accountId) return false
     // Use the latest non-draft signal as the reply target
     const replyTo = items.value.find((s) => s.status !== 'draft') ?? items.value[0]
     const result = await api.createDraftSignal(accountId, {
@@ -86,7 +94,9 @@ export const useSignalsStore = defineStore('signals', () => {
     items.value = items.value.filter((s) => s.id !== signalId)
   }
 
-  async function archiveArc(accountId: string, arcId: string) {
+  async function archiveArc(arcId: string) {
+    const accountId = accountStore.accountId
+    if (!accountId) return false
     const result = await api.patchArc(accountId, arcId, { status: 'archived' })
     if (result.isErr()) {
       error.value = result.error.message
@@ -96,7 +106,9 @@ export const useSignalsStore = defineStore('signals', () => {
     return true
   }
 
-  async function labelArc(accountId: string, arcId: string, label: string) {
+  async function labelArc(arcId: string, label: string) {
+    const accountId = accountStore.accountId
+    if (!accountId) return false
     if (!arc.value) return false
     const existing = arc.value.labels ?? []
     if (existing.includes(label)) return true

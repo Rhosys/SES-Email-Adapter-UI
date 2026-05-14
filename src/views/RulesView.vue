@@ -29,14 +29,13 @@ function conditionSummary(rule: Rule): string {
 }
 
 async function deleteRule(rule: Rule) {
-  if (!accountStore.accountId) return
   if (!confirm(`Delete rule "${rule.name}"?`)) return
-  await rulesStore.deleteRule(accountStore.accountId, rule.id)
+  await rulesStore.deleteRule(rule.id)
 }
 
 onMounted(async () => {
-  if (!accountStore.accountId) await accountStore.fetchAccount()
-  if (accountStore.accountId) await rulesStore.fetchRules(accountStore.accountId)
+  await accountStore.fetchAccount()
+  await rulesStore.fetchRules()
 })
 </script>
 

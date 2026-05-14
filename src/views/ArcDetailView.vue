@@ -21,9 +21,8 @@ const showReply = computed(() => {
 
 onMounted(async () => {
   signalsStore.reset()
-  if (!accountStore.accountId) await accountStore.fetchAccount()
-  const id = accountStore.accountId
-  if (id) await signalsStore.fetchAll(id, arcId.value)
+  await accountStore.fetchAccount()
+  await signalsStore.fetchAll(arcId.value)
 })
 
 onUnmounted(() => {
@@ -31,9 +30,7 @@ onUnmounted(() => {
 })
 
 async function startDraft() {
-  const id = accountStore.accountId
-  if (!id) return
-  await signalsStore.createDraft(id, arcId.value)
+  await signalsStore.createDraft(arcId.value)
 }
 
 function onDraftDiscard(signalId: string) {
@@ -45,15 +42,11 @@ function onDraftSent(signalId: string) {
 }
 
 async function archive() {
-  const id = accountStore.accountId
-  if (!id) return
-  await signalsStore.archiveArc(id, arcId.value)
+  await signalsStore.archiveArc(arcId.value)
 }
 
 async function loadMore() {
-  const id = accountStore.accountId
-  if (!id) return
-  await signalsStore.fetchMore(id, arcId.value)
+  await signalsStore.fetchMore(arcId.value)
 }
 </script>
 

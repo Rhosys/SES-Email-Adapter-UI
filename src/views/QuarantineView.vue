@@ -13,17 +13,13 @@ useRelativeTime()
 
 onMounted(async () => {
   await accountStore.fetchAccount()
-  if (accountStore.accountId) {
-    await store.fetchSignals(accountStore.accountId, true)
-  }
+  await store.fetchSignals(true)
 })
 
 watch(
   () => ({ ...store.filters }),
   async () => {
-    if (accountStore.accountId) {
-      await store.fetchSignals(accountStore.accountId, true)
-    }
+    await store.fetchSignals(true)
   },
   { deep: true },
 )
@@ -33,27 +29,19 @@ function onUpdateFilters(next: Partial<Filters>) {
 }
 
 async function onAllow(signalId: string) {
-  if (accountStore.accountId) {
-    await store.allow(accountStore.accountId, signalId)
-  }
+  await store.allow(signalId)
 }
 
 async function onReject(signalId: string) {
-  if (accountStore.accountId) {
-    await store.reject(accountStore.accountId, signalId)
-  }
+  await store.reject(signalId)
 }
 
 async function onRejectForAlias(signalId: string, toAddress: string, fromAddress: string) {
-  if (accountStore.accountId) {
-    await store.rejectForAlias(accountStore.accountId, signalId, toAddress, fromAddress)
-  }
+  await store.rejectForAlias(signalId, toAddress, fromAddress)
 }
 
 async function loadMore() {
-  if (accountStore.accountId) {
-    await store.fetchMore(accountStore.accountId)
-  }
+  await store.fetchMore()
 }
 </script>
 

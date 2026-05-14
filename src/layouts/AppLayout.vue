@@ -199,12 +199,7 @@ onMounted(async () => {
   if (!accountStore.account) {
     await accountStore.fetchAccount()
   }
-  if (accountStore.accountId) {
-    await Promise.all([
-      labelsStore.fetchLabels(accountStore.accountId),
-      viewsStore.fetchViews(accountStore.accountId),
-    ])
-  }
+  await Promise.all([labelsStore.fetchLabels(), viewsStore.fetchViews()])
 })
 </script>
 

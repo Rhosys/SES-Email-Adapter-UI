@@ -52,7 +52,7 @@ function cancelLabel() {
 }
 
 async function saveLabel() {
-  if (!accountStore.accountId || !labelName.value.trim()) return
+  if (!labelName.value.trim()) return
   labelPending.value = true
   const body = {
     name: labelName.value.trim(),
@@ -60,18 +60,17 @@ async function saveLabel() {
     icon: labelIcon.value.trim() || undefined,
   }
   if (editingLabel.value) {
-    await labelsStore.updateLabel(accountStore.accountId, editingLabel.value.id, body)
+    await labelsStore.updateLabel(editingLabel.value.id, body)
   } else {
-    await labelsStore.createLabel(accountStore.accountId, body)
+    await labelsStore.createLabel(body)
   }
   labelPending.value = false
   if (!labelsStore.error) cancelLabel()
 }
 
 async function deleteLabel(label: Label) {
-  if (!accountStore.accountId) return
   if (!confirm(`Delete label "${label.name}"?`)) return
-  await labelsStore.deleteLabel(accountStore.accountId, label.id)
+  await labelsStore.deleteLabel(label.id)
 }
 
 // ─── View form ────────────────────────────────────────────────────────────────
@@ -124,7 +123,7 @@ function cancelView() {
 }
 
 async function saveView() {
-  if (!accountStore.accountId || !viewName.value.trim()) return
+  if (!viewName.value.trim()) return
   viewPending.value = true
   const body = {
     name: viewName.value.trim(),
@@ -135,18 +134,17 @@ async function saveView() {
     },
   }
   if (editingView.value) {
-    await viewsStore.updateView(accountStore.accountId, editingView.value.id, body)
+    await viewsStore.updateView(editingView.value.id, body)
   } else {
-    await viewsStore.createView(accountStore.accountId, body)
+    await viewsStore.createView(body)
   }
   viewPending.value = false
   if (!viewsStore.error) cancelView()
 }
 
 async function deleteView(view: SavedView) {
-  if (!accountStore.accountId) return
   if (!confirm(`Delete view "${view.name}"?`)) return
-  await viewsStore.deleteView(accountStore.accountId, view.id)
+  await viewsStore.deleteView(view.id)
 }
 
 const sortedViews = computed(() => viewsStore.sortedViews)
@@ -157,13 +155,8 @@ function clearErrors() {
 }
 
 onMounted(async () => {
-  if (!accountStore.accountId) await accountStore.fetchAccount()
-  if (accountStore.accountId) {
-    await Promise.all([
-      labelsStore.fetchLabels(accountStore.accountId),
-      viewsStore.fetchViews(accountStore.accountId),
-    ])
-  }
+  await accountStore.fetchAccount()
+  await Promise.all([labelsStore.fetchLabels(), viewsStore.fetchViews()])
 })
 </script>
 
