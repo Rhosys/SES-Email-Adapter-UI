@@ -137,13 +137,13 @@ describe('quarantineStore', () => {
   })
 
   it('reject removes signal from list on success', async () => {
-    vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockSignal({ status: 'block_reject' })))
+    vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockSignal({ status: 'block_hidden' })))
     const store = useQuarantineStore()
     store.items = [mockSignal({ id: 'sig_1' })]
     const result = await store.reject('acc_1', 'sig_1')
     expect(result).toBe(true)
     expect(store.items).toHaveLength(0)
-    expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'block_reject')
+    expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'block_hidden')
   })
 
   it('reject sets error and returns false on failure', async () => {
@@ -158,7 +158,7 @@ describe('quarantineStore', () => {
 
   it('rejectForAlias calls updateAlias and quarantineResponse then removes signal', async () => {
     vi.mocked(api.updateAlias).mockResolvedValue(ok({} as never))
-    vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockSignal({ status: 'block_reject' })))
+    vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockSignal({ status: 'block_hidden' })))
     const store = useQuarantineStore()
     store.items = [mockSignal({ id: 'sig_1' })]
     const result = await store.rejectForAlias(
@@ -172,7 +172,7 @@ describe('quarantineStore', () => {
     expect(vi.mocked(api.updateAlias)).toHaveBeenCalledWith('acc_1', 'inbox@example.com', {
       blockedSenders: ['sender@example.com'],
     })
-    expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'block_reject')
+    expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'block_hidden')
   })
 
   it('rejectForAlias sets error and returns false when alias update fails', async () => {

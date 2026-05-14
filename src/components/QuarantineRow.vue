@@ -102,7 +102,7 @@ const toAddress = computed(() => props.signal.to[0]?.address ?? '')
             Reject
           </button>
           <router-link
-            :to="`/rules/new?signalId=${signal.id}&action=block`"
+            :to="`/rules/new?signalId=${signal.id}&action=block_hidden`"
             class="rounded border border-ctp-surface1 px-3 py-1 text-xs text-ctp-subtext1 transition-colors hover:text-ctp-text"
           >
             Create rule to reject similar

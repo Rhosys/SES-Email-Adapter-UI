@@ -129,7 +129,7 @@ export const useQuarantineStore = defineStore('quarantine', () => {
 
   async function reject(accountId: string, signalId: string) {
     actionPending.value.add(signalId)
-    const result = await api.quarantineResponse(accountId, signalId, 'block_reject')
+    const result = await api.quarantineResponse(accountId, signalId, 'block_hidden')
     actionPending.value.delete(signalId)
     if (result.isErr()) {
       error.value = result.error.message
@@ -148,7 +148,7 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     actionPending.value.add(signalId)
     const [aliasResult, responseResult] = await Promise.all([
       api.updateAlias(accountId, toAddress, { blockedSenders: [fromAddress] }),
-      api.quarantineResponse(accountId, signalId, 'block_reject'),
+      api.quarantineResponse(accountId, signalId, 'block_hidden'),
     ])
     actionPending.value.delete(signalId)
     if (aliasResult.isErr()) {

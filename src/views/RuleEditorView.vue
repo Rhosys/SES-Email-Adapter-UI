@@ -19,7 +19,9 @@ const quarantineStore = useQuarantineStore()
 
 // Query params from quarantine row links
 const signalId = computed(() => (route.query.signalId as string) ?? null)
-const signalAction = computed(() => (route.query.action as 'allow' | 'block') ?? null)
+const signalAction = computed(
+  () => (route.query.action as 'allow' | 'block_hidden' | 'block_reject') ?? null,
+)
 const ruleId = computed(() => (route.params.id as string) ?? null)
 const isEditing = computed(() => !!ruleId.value)
 
@@ -45,9 +47,19 @@ const OPERATORS: { value: RuleConditionOperator; label: string }[] = [
 
 const ACTIONS: { value: RuleAction; label: string; description: string }[] = [
   { value: 'allow', label: 'Allow', description: 'Deliver to inbox' },
-  { value: 'block', label: 'Block', description: 'Reject the email' },
-  { value: 'quarantine', label: 'Quarantine', description: 'Hold for review' },
+  {
+    value: 'block_hidden',
+    label: 'Drop',
+    description: "Accept from sender's server but silently discard — sender is not notified",
+  },
+  {
+    value: 'block_reject',
+    label: 'Reject',
+    description: "Return a delivery failure to the sender's mail server",
+  },
+  { value: 'quarantine', label: 'Quarantine', description: 'Hold for manual review' },
   { value: 'label', label: 'Label', description: 'Tag and deliver' },
+  { value: 'block', label: 'Block (legacy)', description: 'Generic block — prefer Drop or Reject' },
 ]
 
 function addCondition() {
@@ -109,10 +121,10 @@ async function save() {
 
   // If we came from quarantine with a signalId, resolve the signal
   if (signalId.value && signalAction.value) {
-    if (signalAction.value === 'block') {
-      await quarantineStore.reject(accountStore.accountId, signalId.value)
-    } else {
+    if (signalAction.value === 'allow') {
       await quarantineStore.allow(accountStore.accountId, signalId.value)
+    } else {
+      await quarantineStore.reject(accountStore.accountId, signalId.value)
     }
     void router.push('/quarantine')
   } else {
@@ -137,7 +149,7 @@ onMounted(async () => {
   } else {
     // Pre-fill from signalAction query param
     if (signalAction.value) {
-      action.value = signalAction.value === 'allow' ? 'allow' : 'block'
+      action.value = signalAction.value === 'allow' ? 'allow' : signalAction.value
     }
     // Pre-fill condition value from the quarantined signal's sender if available
     if (signalId.value) {
@@ -146,7 +158,7 @@ onMounted(async () => {
         conditions.value = [
           { field: 'from.address', operator: 'equals', value: signal.from.address },
         ]
-        name.value = `${action.value === 'allow' ? 'Allow' : 'Block'} ${signal.from.address}`
+        name.value = `${action.value === 'allow' ? 'Allow' : 'Drop'} ${signal.from.address}`
         testInput.value.fromAddress = signal.from.address
       }
     }
@@ -155,7 +167,7 @@ onMounted(async () => {
 
 // Keep action in sync with signalAction when it changes (for new rules only)
 watch(signalAction, (val) => {
-  if (!isEditing.value && val) action.value = val === 'allow' ? 'allow' : 'block'
+  if (!isEditing.value && val) action.value = val === 'allow' ? 'allow' : val
 })
 </script>
 
@@ -272,7 +284,7 @@ watch(signalAction, (val) => {
       <!-- Action -->
       <section class="mb-6">
         <label class="mb-2 block text-xs font-medium text-ctp-subtext0">Action</label>
-        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
           <button
             v-for="a in ACTIONS"
             :key="a.value"
@@ -287,6 +299,19 @@ watch(signalAction, (val) => {
             <p class="font-medium">{{ a.label }}</p>
             <p class="text-ctp-subtext0">{{ a.description }}</p>
           </button>
+        </div>
+
+        <!-- Nuclear unsubscribe warning for block_reject -->
+        <div
+          v-if="action === 'block_reject'"
+          class="mt-3 rounded-lg border border-ctp-red/40 bg-ctp-red/10 px-4 py-3 text-xs text-ctp-red"
+        >
+          <p class="font-semibold">⚠ Nuclear unsubscribe</p>
+          <p class="mt-1">
+            This will tell the sender's mail server that your email alias is no longer available.
+            The sender will receive a permanent delivery failure. Use this only if you never want
+            any mail from this sender again and are comfortable revealing that the address exists.
+          </p>
         </div>
       </section>
 

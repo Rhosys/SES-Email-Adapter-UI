@@ -439,7 +439,10 @@ endpoints being available.
 ### Backend TODOs for Phase 5
 
 - **`Signal.matchedRules`** — `matchedRules?: RuleExecution[]` already modelled in `src/types/server.ts`; backend must include it in the quarantine list response.
-- **`POST .../quarantineResponse`** — must resolve the signal and return the updated Signal.
+- **`POST .../quarantineResponse`** — must resolve the signal and return the updated Signal. Must accept all quarantine outcome statuses:
+  - `{ status: 'active' }` — approve: find or create arc, deliver signal
+  - `{ status: 'block_hidden' }` — accept delivery from sender's server but silently discard the signal; sender receives a successful delivery acknowledgement and is never notified
+  - `{ status: 'block_reject' }` — return a permanent delivery failure (e.g. SMTP 5xx) to the sender's mail server; the sending server will notify the sender that the address is unavailable ("nuclear unsubscribe")
 - **`EmailAddressConfig.blockedSenders`** — add `blockedSenders?: string[]` to alias config and support in `PATCH /aliases/:address`.
 
 ## Phase 6 — Labels & views ✓ DONE
@@ -462,6 +465,8 @@ endpoints being available.
 ### Backend TODOs for Phase 7
 
 - `GET/POST/PATCH/DELETE /accounts/:id/rules`
+- **`block_hidden` rule action** — when a rule fires with `action: 'block_hidden'`, the backend must accept delivery from the sender's mail server (so the sender receives a successful 250 OK) and then silently discard the signal without creating an arc or delivering to the user.
+- **`block_reject` rule action** — when a rule fires with `action: 'block_reject'`, the backend must return a permanent delivery failure (SMTP 5xx / bounce) to the sender's mail server. The sending server will notify the original sender that the address is permanently unavailable. This is the "nuclear unsubscribe" path — use only when the intent is to signal that the alias no longer accepts mail from this sender.
 
 ## Phase 8 — Search ✓ DONE
 

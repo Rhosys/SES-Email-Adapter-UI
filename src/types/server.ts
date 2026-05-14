@@ -106,7 +106,13 @@ export interface Label {
 // ─── Rules (Phase 7) ──────────────────────────────────────────────────────────
 // TODO(backend): rules engine endpoints — POST/GET/PATCH/DELETE /accounts/:id/rules
 
-export type RuleAction = 'allow' | 'block' | 'label' | 'quarantine'
+export type RuleAction =
+  | 'allow'
+  | 'block'
+  | 'block_hidden'
+  | 'block_reject'
+  | 'label'
+  | 'quarantine'
 export type RuleConditionField = 'from.address' | 'from.domain' | 'subject'
 export type RuleConditionOperator = 'equals' | 'contains' | 'starts_with' | 'ends_with'
 
