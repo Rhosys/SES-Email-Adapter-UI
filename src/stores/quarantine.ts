@@ -128,9 +128,21 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     return true
   }
 
-  async function block(accountId: string, signalId: string) {
+  async function blockHidden(accountId: string, signalId: string) {
     actionPending.value.add(signalId)
-    const result = await api.quarantineResponse(accountId, signalId, 'blocked')
+    const result = await api.quarantineResponse(accountId, signalId, 'block_hidden')
+    actionPending.value.delete(signalId)
+    if (result.isErr()) {
+      error.value = result.error.message
+      return false
+    }
+    items.value = items.value.filter((s) => s.id !== signalId)
+    return true
+  }
+
+  async function blockReject(accountId: string, signalId: string) {
+    actionPending.value.add(signalId)
+    const result = await api.quarantineResponse(accountId, signalId, 'block_reject')
     actionPending.value.delete(signalId)
     if (result.isErr()) {
       error.value = result.error.message
@@ -159,7 +171,8 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     fetchSignals,
     fetchMore,
     allow,
-    block,
+    blockHidden,
+    blockReject,
     setFilters,
     clearError,
   }

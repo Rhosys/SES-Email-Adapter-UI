@@ -144,6 +144,8 @@ export type SignalStatus =
   | 'quarantine_visible'
   | 'quarantine_hidden'
   | 'blocked'
+  | 'block_hidden'
+  | 'block_reject'
   | 'active'
   | 'draft'
 export type SignalSource = 'ses' | 'api' | 'user' | 'system'

@@ -11,7 +11,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'allow', signalId: string): void
-  (e: 'block', signalId: string): void
+  (e: 'blockHidden', signalId: string): void
+  (e: 'blockReject', signalId: string): void
 }>()
 
 const now = inject(NOW_KEY)
@@ -86,8 +87,8 @@ const isHidden = computed(() => props.signal.status === 'quarantine_hidden')
           </span>
         </div>
 
-        <!-- Branch A: untrusted sender — allow or block directly -->
-        <div v-if="isUntrustedSender" class="mt-2 flex items-center gap-2">
+        <!-- Branch A: untrusted sender — allow, suppress, or reject -->
+        <div v-if="isUntrustedSender" class="mt-2 flex flex-wrap items-center gap-2">
           <button
             class="rounded bg-ctp-green/15 px-3 py-1 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/25 disabled:opacity-50"
             :disabled="pending"
@@ -96,11 +97,20 @@ const isHidden = computed(() => props.signal.status === 'quarantine_hidden')
             Allow
           </button>
           <button
+            class="rounded bg-ctp-surface1 px-3 py-1 text-xs font-medium text-ctp-subtext1 transition-colors hover:bg-ctp-surface2 disabled:opacity-50"
+            :disabled="pending"
+            :title="'Accept delivery but never surface signals like this again'"
+            @click="emit('blockHidden', signal.id)"
+          >
+            Suppress
+          </button>
+          <button
             class="rounded bg-ctp-red/15 px-3 py-1 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25 disabled:opacity-50"
             :disabled="pending"
-            @click="emit('block', signal.id)"
+            :title="'Reject this sender — future signals will be blocked'"
+            @click="emit('blockReject', signal.id)"
           >
-            Block
+            Reject
           </button>
         </div>
 

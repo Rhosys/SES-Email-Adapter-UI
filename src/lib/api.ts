@@ -164,7 +164,7 @@ export const api = {
   quarantineResponse(
     accountId: string,
     signalId: string,
-    status: 'active' | 'blocked',
+    status: 'active' | 'block_hidden' | 'block_reject',
   ): Promise<Result<Signal, ApiError>> {
     return request<Signal>(`/accounts/${accountId}/signals/${signalId}/quarantineResponse`, {
       method: 'POST',
