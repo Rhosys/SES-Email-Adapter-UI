@@ -24,12 +24,21 @@ const passkeyPending = ref(false)
 const linkedIdentities = computed(() => profile.value?.linkedIdentities ?? [])
 const canDisconnect = computed(() => linkedIdentities.value.length > 1)
 
+async function loadDevices() {
+  devicesLoading.value = true
+  deviceError.value = null
+  try {
+    devices.value = await loginClient.getDevices()
+  } catch {
+    deviceError.value = 'Failed to load security devices'
+  } finally {
+    devicesLoading.value = false
+  }
+}
+
 onMounted(async () => {
   if (!accountStore.account) await accountStore.fetchAccount()
-
   profileLoading.value = true
-  devicesLoading.value = true
-
   await Promise.all([
     loginClient
       .getUserProfile()
@@ -42,17 +51,7 @@ onMounted(async () => {
       .finally(() => {
         profileLoading.value = false
       }),
-    loginClient
-      .getDevices()
-      .then((d) => {
-        devices.value = d
-      })
-      .catch(() => {
-        deviceError.value = 'Failed to load security devices'
-      })
-      .finally(() => {
-        devicesLoading.value = false
-      }),
+    loadDevices(),
   ])
 })
 
@@ -60,10 +59,19 @@ function providerLabel(connectionId: string): string {
   const s = connectionId.toLowerCase()
   if (s.includes('google')) return 'Google'
   if (s.includes('github')) return 'GitHub'
-  if (s.includes('microsoft')) return 'Microsoft'
+  if (s.includes('microsoft') || s.includes('azure')) return 'Microsoft / Azure'
   if (s.includes('apple')) return 'Apple'
   if (s.includes('facebook')) return 'Facebook'
   return connectionId
+}
+
+function providerIcon(connectionId: string): string {
+  const s = connectionId.toLowerCase()
+  if (s.includes('google')) return 'G'
+  if (s.includes('github')) return '⌥'
+  if (s.includes('microsoft') || s.includes('azure')) return 'M'
+  if (s.includes('apple')) return ''
+  return '?'
 }
 
 async function disconnectIdentity(identity: LinkedIdentity) {
@@ -86,17 +94,28 @@ async function disconnectIdentity(identity: LinkedIdentity) {
   }
 }
 
-async function openLinkIdentity() {
+async function linkIdentity() {
   await loginClient.openUserConfigurationScreen({ startPage: UserConfigurationScreen.Profile })
+  profileLoading.value = true
+  try {
+    profile.value = await loginClient.getUserProfile()
+  } finally {
+    profileLoading.value = false
+  }
+}
+
+async function openMfaSetup() {
+  await loginClient.openUserConfigurationScreen({ startPage: UserConfigurationScreen.MFA })
+  await loadDevices()
 }
 
 async function removeDevice(device: Device) {
-  if (!confirm(`Remove passkey "${device.name}"?`)) return
+  if (!confirm(`Remove "${device.name}"?`)) return
   removePending.value = device.deviceId
   deviceError.value = null
   try {
     await loginClient.deleteDevice(device.deviceId)
-    devices.value = await loginClient.getDevices()
+    await loadDevices()
   } catch {
     deviceError.value = 'Failed to remove device'
   } finally {
@@ -111,7 +130,7 @@ async function registerPasskey() {
   deviceError.value = null
   try {
     await loginClient.registerDevice({ name, type: 'WebAuthN' as DeviceType })
-    devices.value = await loginClient.getDevices()
+    await loadDevices()
     newPasskeyName.value = ''
     addingPasskey.value = false
   } catch {
@@ -136,31 +155,19 @@ async function signOut() {
     </header>
 
     <main class="mx-auto max-w-lg space-y-5 px-4 py-6">
-      <!-- Account info -->
-      <section class="rounded-lg border border-ctp-surface1 p-4">
-        <h2 class="mb-3 text-sm font-medium text-ctp-subtext1">Account</h2>
-        <div class="space-y-2">
-          <div>
-            <p class="text-xs text-ctp-subtext0">Name</p>
-            <p class="text-sm text-ctp-text">{{ accountStore.account?.name ?? '—' }}</p>
-          </div>
-          <div>
-            <p class="text-xs text-ctp-subtext0">Account ID</p>
-            <p class="font-mono text-xs text-ctp-subtext1">{{ accountStore.accountId ?? '—' }}</p>
-          </div>
-        </div>
-      </section>
-
       <!-- Identity connections -->
       <section class="rounded-lg border border-ctp-surface1 p-4">
-        <div class="mb-3 flex items-center justify-between">
+        <div class="mb-3 flex items-start justify-between gap-3">
           <div>
-            <h2 class="text-sm font-medium text-ctp-subtext1">Identity connections</h2>
-            <p class="mt-0.5 text-xs text-ctp-subtext0">Providers you can use to sign in</p>
+            <h2 class="text-sm font-medium text-ctp-text">Identity connections</h2>
+            <p class="mt-0.5 text-xs text-ctp-subtext0">
+              Providers you can use to sign in — Google, Apple, Microsoft / Azure, GitHub, and more.
+              You can link multiple accounts from the same provider.
+            </p>
           </div>
           <button
-            class="rounded bg-ctp-surface1 px-2.5 py-1 text-xs text-ctp-text hover:bg-ctp-surface2"
-            @click="openLinkIdentity"
+            class="shrink-0 rounded bg-ctp-mauve px-2.5 py-1 text-xs font-medium text-ctp-base hover:opacity-90"
+            @click="linkIdentity"
           >
             + Link account
           </button>
@@ -177,7 +184,7 @@ async function signOut() {
 
         <div
           v-else-if="linkedIdentities.length === 0"
-          class="py-4 text-center text-sm text-ctp-subtext0"
+          class="rounded-lg border border-dashed border-ctp-surface1 py-6 text-center text-sm text-ctp-subtext0"
         >
           No linked identities found
         </div>
@@ -186,16 +193,25 @@ async function signOut() {
           <li
             v-for="identity in linkedIdentities"
             :key="identity.connection.userId"
-            class="flex items-center justify-between py-2.5"
+            class="flex items-center justify-between gap-3 py-2.5"
           >
-            <div>
-              <p class="text-sm font-medium text-ctp-text">
-                {{ providerLabel(identity.connection.connectionId) }}
-              </p>
-              <p class="font-mono text-xs text-ctp-subtext0">{{ identity.connection.userId }}</p>
+            <div class="flex items-center gap-2.5">
+              <span
+                class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ctp-surface1 text-xs font-medium text-ctp-subtext1"
+              >
+                {{ providerIcon(identity.connection.connectionId) }}
+              </span>
+              <div>
+                <p class="text-sm font-medium text-ctp-text">
+                  {{ providerLabel(identity.connection.connectionId) }}
+                </p>
+                <p class="font-mono text-xs text-ctp-subtext0">
+                  {{ identity.connection.userId }}
+                </p>
+              </div>
             </div>
             <button
-              class="text-xs text-ctp-red hover:text-ctp-red/80 disabled:cursor-not-allowed disabled:opacity-40"
+              class="shrink-0 text-xs text-ctp-red hover:text-ctp-red/80 disabled:cursor-not-allowed disabled:opacity-40"
               :disabled="!canDisconnect || disconnectPending === identity.connection.userId"
               :title="!canDisconnect ? 'Cannot disconnect your only login method' : undefined"
               @click="disconnectIdentity(identity)"
@@ -208,17 +224,17 @@ async function signOut() {
         </ul>
       </section>
 
-      <!-- Passkey / security devices -->
+      <!-- Passkeys -->
       <section class="rounded-lg border border-ctp-surface1 p-4">
-        <div class="mb-3 flex items-center justify-between">
+        <div class="mb-3 flex items-start justify-between gap-3">
           <div>
-            <h2 class="text-sm font-medium text-ctp-subtext1">Passkeys &amp; security devices</h2>
+            <h2 class="text-sm font-medium text-ctp-text">Passkeys</h2>
             <p class="mt-0.5 text-xs text-ctp-subtext0">
-              WebAuthn devices registered to your account
+              Sign in without a password using Face ID, Touch ID, or a hardware security key.
             </p>
           </div>
           <button
-            class="rounded bg-ctp-surface1 px-2.5 py-1 text-xs text-ctp-text hover:bg-ctp-surface2"
+            class="shrink-0 rounded bg-ctp-surface1 px-2.5 py-1 text-xs text-ctp-text hover:bg-ctp-surface2"
             @click="addingPasskey = !addingPasskey"
           >
             {{ addingPasskey ? 'Cancel' : '+ Add passkey' }}
@@ -262,7 +278,7 @@ async function signOut() {
         >
           <p class="text-sm text-ctp-subtext1">No passkeys registered</p>
           <p class="mt-1 text-xs text-ctp-subtext0">
-            Add a passkey to sign in without a password using Face ID, Touch ID, or a hardware key.
+            Add a passkey to sign in faster and more securely.
           </p>
         </div>
 
@@ -279,7 +295,7 @@ async function signOut() {
                 fill="currentColor"
               >
                 <path
-                  d="M11 1a2 2 0 00-2 2v4a2 2 0 012 2h3a2 2 0 012-2V3a2 2 0 00-2-2h-3zm0 1h3a1 1 0 011 1v4a1 1 0 01-1 1h-3a1 1 0 01-1-1V3a1 1 0 011-1zM2 13a1 1 0 001 1h8a1 1 0 001-1v-2H2v2zm0-3h10V8H2v2zm0-3h10V6H2v1zm0-2h10V4H2v1zM1 3a1 1 0 011-1h6V1H2a2 2 0 00-2 2v9a2 2 0 002 2h8a2 2 0 002-2v-1h-1v1a1 1 0 01-1 1H2a1 1 0 01-1-1V3z"
+                  d="M11 1a2 2 0 00-2 2v4a2 2 0 012 2h3a2 2 0 002-2V3a2 2 0 00-2-2h-3zm0 1h3a1 1 0 011 1v4a1 1 0 01-1 1h-3a1 1 0 01-1-1V3a1 1 0 011-1zM2 13a1 1 0 001 1h8a1 1 0 001-1v-2H2v2zm0-3h10V8H2v2zm0-3h10V6H2v1zm0-2h10V4H2v1zM1 3a1 1 0 011-1h6V1H2a2 2 0 00-2 2v9a2 2 0 002 2h8a2 2 0 002-2v-1h-1v1a1 1 0 01-1 1H2a1 1 0 01-1-1V3z"
                 />
               </svg>
               <span class="text-sm text-ctp-text">{{ device.name }}</span>
@@ -295,9 +311,28 @@ async function signOut() {
         </ul>
       </section>
 
+      <!-- Authenticator apps (MFA) -->
+      <section class="rounded-lg border border-ctp-surface1 p-4">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-medium text-ctp-text">Authenticator apps</h2>
+            <p class="mt-0.5 text-xs text-ctp-subtext0">
+              One-time passwords via an authenticator app (TOTP) such as Google Authenticator,
+              Authy, or 1Password.
+            </p>
+          </div>
+          <button
+            class="shrink-0 rounded bg-ctp-surface1 px-2.5 py-1 text-xs text-ctp-text hover:bg-ctp-surface2"
+            @click="openMfaSetup"
+          >
+            + Set up
+          </button>
+        </div>
+      </section>
+
       <!-- Sign out -->
       <section class="rounded-lg border border-ctp-surface1 p-4">
-        <h2 class="mb-3 text-sm font-medium text-ctp-subtext1">Session</h2>
+        <h2 class="mb-3 text-sm font-medium text-ctp-text">Session</h2>
         <button
           class="rounded-lg border border-ctp-red px-4 py-2 text-sm text-ctp-red hover:bg-ctp-red/10"
           @click="signOut"
