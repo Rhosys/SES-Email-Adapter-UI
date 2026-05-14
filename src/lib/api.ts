@@ -378,6 +378,10 @@ export const api = {
     })
   },
 
+  recheckDomain(accountId: string, domainId: string): Promise<Result<Domain, ApiError>> {
+    return request<Domain>(`/accounts/${accountId}/domains/${domainId}`, { method: 'PATCH' })
+  },
+
   // ─── Forwarding addresses ─────────────────────────────────────────────────
 
   // TODO(backend): GET/POST/DELETE /accounts/:id/forwarding-addresses (Phase 9)

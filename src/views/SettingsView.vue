@@ -94,6 +94,7 @@ const domains = ref<Domain[]>([])
 const domainsLoading = ref(false)
 const newDomain = ref('')
 const addDomainPending = ref(false)
+const recheckPending = ref<Set<string>>(new Set())
 
 async function loadDomains() {
   if (!accountStore.accountId) return
@@ -111,6 +112,16 @@ async function addDomain() {
   if (result.isOk()) {
     domains.value = [...domains.value, result.value]
     newDomain.value = ''
+  }
+}
+
+async function recheckDomain(domainId: string) {
+  if (!accountStore.accountId || recheckPending.value.has(domainId)) return
+  recheckPending.value = new Set([...recheckPending.value, domainId])
+  const result = await api.recheckDomain(accountStore.accountId, domainId)
+  recheckPending.value = new Set([...recheckPending.value].filter((id) => id !== domainId))
+  if (result.isOk()) {
+    domains.value = domains.value.map((d) => (d.id === domainId ? result.value : d))
   }
 }
 
@@ -414,6 +425,14 @@ const TABS: { key: TabKey; label: string }[] = [
                   {{ domain.status.charAt(0).toUpperCase() + domain.status.slice(1) }}
                 </p>
               </div>
+              <button
+                v-if="domain.status !== 'verified'"
+                :disabled="recheckPending.has(domain.id)"
+                class="rounded border border-ctp-surface1 px-3 py-1 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-surface2 hover:text-ctp-text disabled:opacity-50"
+                @click="recheckDomain(domain.id)"
+              >
+                {{ recheckPending.has(domain.id) ? 'Checking…' : 'Re-check DNS' }}
+              </button>
             </div>
             <!-- DNS records — two-tier display -->
             <div class="border-t border-ctp-surface0">
