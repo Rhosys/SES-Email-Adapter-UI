@@ -46,6 +46,11 @@ function navigateToView(v: {
   void router.push({ path: '/', query })
 }
 
+function selectAccount(id: string) {
+  switcherOpen.value = false
+  accountStore.switchAccount(id)
+}
+
 const viewsLoaded = computed(() => !viewsStore.loading)
 const sortedViews = computed(() => viewsStore.sortedViews)
 const labels = computed(() => labelsStore.items)
@@ -89,7 +94,7 @@ const labels = computed(() => labelsStore.items)
           :class="
             acc.id === accountStore.accountId ? 'font-medium text-ctp-text' : 'text-ctp-subtext1'
           "
-          @click="switcherOpen = false; accountStore.switchAccount(acc.id)"
+          @click="selectAccount(acc.id)"
         >
           <span class="flex-1 truncate">{{ acc.name }}</span>
           <svg
