@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useRulesStore } from '@/stores/rules'
@@ -110,6 +110,34 @@ async function moveDown(rule: Rule) {
   await rulesStore.moveRule(rule.id, 1)
 }
 
+// ─── Drag and drop ────────────────────────────────────────────────────────────
+
+const draggingId = ref<string | null>(null)
+const dragOverId = ref<string | null>(null)
+
+function onDragStart(ruleId: string) {
+  draggingId.value = ruleId
+}
+
+function onDragOver(e: DragEvent, ruleId: string) {
+  e.preventDefault()
+  dragOverId.value = ruleId
+}
+
+async function onDrop(targetId: string) {
+  const sourceId = draggingId.value
+  draggingId.value = null
+  dragOverId.value = null
+  if (sourceId && sourceId !== targetId) {
+    await rulesStore.reorderRule(sourceId, targetId)
+  }
+}
+
+function onDragEnd() {
+  draggingId.value = null
+  dragOverId.value = null
+}
+
 onMounted(async () => {
   await accountStore.fetchAccount()
   await rulesStore.fetchRules()
@@ -167,13 +195,27 @@ onMounted(async () => {
         </RouterLink>
       </div>
 
-      <!-- Rules list -->
-      <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
+      <!-- Rules list with move animation -->
+      <TransitionGroup
+        v-else
+        name="rule-row"
+        tag="div"
+        class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+      >
         <div
           v-for="(rule, idx) in rulesStore.items"
           :key="rule.id"
-          class="flex items-start gap-3 px-4 py-4"
-          :class="{ 'opacity-50': rule.status === 'disabled' }"
+          draggable="true"
+          class="flex cursor-grab items-start gap-3 px-4 py-4 transition-colors active:cursor-grabbing"
+          :class="{
+            'opacity-40': rule.id === draggingId,
+            'opacity-50': rule.status === 'disabled' && rule.id !== draggingId,
+            'border-t-2 border-t-ctp-mauve': rule.id === dragOverId && rule.id !== draggingId,
+          }"
+          @dragstart="onDragStart(rule.id)"
+          @dragover="onDragOver($event, rule.id)"
+          @drop.prevent="onDrop(rule.id)"
+          @dragend="onDragEnd"
         >
           <!-- Priority arrows -->
           <div class="flex shrink-0 flex-col items-center gap-0.5 pt-0.5">
@@ -238,7 +280,13 @@ onMounted(async () => {
             </button>
           </div>
         </div>
-      </div>
+      </TransitionGroup>
     </main>
   </div>
 </template>
+
+<style scoped>
+.rule-row-move {
+  transition: transform 250ms ease;
+}
+</style>

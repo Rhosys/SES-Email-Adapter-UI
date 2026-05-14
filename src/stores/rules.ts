@@ -110,6 +110,36 @@ export const useRulesStore = defineStore('rules', () => {
     _byAccount.value = { ..._byAccount.value, [id]: list }
   }
 
+  async function reorderRule(dragId: string, targetId: string): Promise<void> {
+    if (dragId === targetId) return
+    const id = accountStore.accountId
+    if (!id) return
+    const list = [...(_byAccount.value[id] ?? [])]
+    const dragRule = list.find((r) => r.id === dragId)
+    const targetRule = list.find((r) => r.id === targetId)
+    if (!dragRule || !targetRule) return
+
+    const [resA, resB] = await Promise.all([
+      api.updateRule(id, dragId, { priorityOrder: targetRule.priorityOrder }),
+      api.updateRule(id, targetId, { priorityOrder: dragRule.priorityOrder }),
+    ])
+    if (resA.isErr()) {
+      error.value = resA.error.message
+      return
+    }
+    if (resB.isErr()) {
+      error.value = resB.error.message
+      return
+    }
+
+    _byAccount.value = {
+      ..._byAccount.value,
+      [id]: list
+        .map((r) => (r.id === dragId ? resA.value : r.id === targetId ? resB.value : r))
+        .sort((a, b) => a.priorityOrder - b.priorityOrder),
+    }
+  }
+
   function clearError() {
     error.value = null
   }
@@ -124,6 +154,7 @@ export const useRulesStore = defineStore('rules', () => {
     updateRule,
     deleteRule,
     moveRule,
+    reorderRule,
     clearError,
   }
 })
