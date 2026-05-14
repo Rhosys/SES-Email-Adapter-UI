@@ -87,7 +87,7 @@ const isHidden = computed(() => props.signal.status === 'quarantine_hidden')
           </span>
         </div>
 
-        <!-- Branch A: untrusted sender — allow, suppress, or reject -->
+        <!-- Branch A: untrusted sender — allow, drop, or reject -->
         <div v-if="isUntrustedSender" class="mt-2 flex flex-wrap items-center gap-2">
           <button
             class="rounded bg-ctp-green/15 px-3 py-1 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/25 disabled:opacity-50"
@@ -99,15 +99,15 @@ const isHidden = computed(() => props.signal.status === 'quarantine_hidden')
           <button
             class="rounded bg-ctp-surface1 px-3 py-1 text-xs font-medium text-ctp-subtext1 transition-colors hover:bg-ctp-surface2 disabled:opacity-50"
             :disabled="pending"
-            :title="'Accept delivery but never surface signals like this again'"
+            title="Accept from the sender's server but silently discard — sender is not notified"
             @click="emit('blockHidden', signal.id)"
           >
-            Suppress
+            Drop
           </button>
           <button
             class="rounded bg-ctp-red/15 px-3 py-1 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25 disabled:opacity-50"
             :disabled="pending"
-            :title="'Reject this sender — future signals will be blocked'"
+            title="Return a delivery failure to the sender's server"
             @click="emit('blockReject', signal.id)"
           >
             Reject

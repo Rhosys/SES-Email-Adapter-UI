@@ -62,7 +62,7 @@ async function loadMore() {
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
       <h1 class="text-lg font-semibold">Quarantine</h1>
       <p class="mt-0.5 text-xs text-ctp-subtext0">
-        Held emails that need your decision — allow, suppress, reject, or create a rule
+        Held emails that need your decision — allow, drop, reject, or create a rule
       </p>
     </header>
 
