@@ -90,6 +90,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<Result<
 }
 
 export const api = {
+  async listAccounts(): Promise<Result<Account[], ApiError>> {
+    interface AccountListWire {
+      accounts: Account[]
+    }
+    const result = await request<AccountListWire>('/accounts')
+    return result.map((w) => w.accounts)
+  },
+
   getAccount(accountId: string): Promise<Result<Account, ApiError>> {
     return request<Account>(`/accounts/${accountId}`)
   },
