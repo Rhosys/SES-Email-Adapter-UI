@@ -23,7 +23,6 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     before: '',
   })
 
-  // Track cursors per status for pagination
   const _nextCursors = ref<{ visible?: string; hidden?: string }>({})
   const hasMore = computed(() => !!_nextCursors.value.visible || !!_nextCursors.value.hidden)
 
@@ -128,9 +127,9 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     return true
   }
 
-  async function blockHidden(accountId: string, signalId: string) {
+  async function reject(accountId: string, signalId: string) {
     actionPending.value.add(signalId)
-    const result = await api.quarantineResponse(accountId, signalId, 'block_hidden')
+    const result = await api.quarantineResponse(accountId, signalId, 'block_reject')
     actionPending.value.delete(signalId)
     if (result.isErr()) {
       error.value = result.error.message
@@ -140,12 +139,24 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     return true
   }
 
-  async function blockReject(accountId: string, signalId: string) {
+  async function rejectForAlias(
+    accountId: string,
+    signalId: string,
+    toAddress: string,
+    fromAddress: string,
+  ) {
     actionPending.value.add(signalId)
-    const result = await api.quarantineResponse(accountId, signalId, 'block_reject')
+    const [aliasResult, responseResult] = await Promise.all([
+      api.updateAlias(accountId, toAddress, { blockedSenders: [fromAddress] }),
+      api.quarantineResponse(accountId, signalId, 'block_reject'),
+    ])
     actionPending.value.delete(signalId)
-    if (result.isErr()) {
-      error.value = result.error.message
+    if (aliasResult.isErr()) {
+      error.value = aliasResult.error.message
+      return false
+    }
+    if (responseResult.isErr()) {
+      error.value = responseResult.error.message
       return false
     }
     items.value = items.value.filter((s) => s.id !== signalId)
@@ -171,8 +182,8 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     fetchSignals,
     fetchMore,
     allow,
-    blockHidden,
-    blockReject,
+    reject,
+    rejectForAlias,
     setFilters,
     clearError,
   }

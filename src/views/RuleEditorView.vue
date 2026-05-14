@@ -110,7 +110,7 @@ async function save() {
   // If we came from quarantine with a signalId, resolve the signal
   if (signalId.value && signalAction.value) {
     if (signalAction.value === 'block') {
-      await quarantineStore.blockReject(accountStore.accountId, signalId.value)
+      await quarantineStore.reject(accountStore.accountId, signalId.value)
     } else {
       await quarantineStore.allow(accountStore.accountId, signalId.value)
     }

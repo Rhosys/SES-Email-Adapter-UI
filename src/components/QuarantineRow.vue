@@ -11,8 +11,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'allow', signalId: string): void
-  (e: 'blockHidden', signalId: string): void
-  (e: 'blockReject', signalId: string): void
+  (e: 'reject', signalId: string): void
+  (e: 'rejectForAlias', signalId: string, toAddress: string, fromAddress: string): void
 }>()
 
 const now = inject(NOW_KEY)
@@ -20,12 +20,9 @@ const timestamp = computed(() =>
   now ? formatRelativeTime(props.signal.receivedAt, now.value) : '',
 )
 
-const isUntrustedSender = computed(
-  () =>
-    props.signal.matchedRules?.some((r) => r.labels.includes('system:sender:untrusted')) ?? false,
-)
 const matchedRules = computed(() => props.signal.matchedRules ?? [])
 const isHidden = computed(() => props.signal.status === 'quarantine_hidden')
+const toAddress = computed(() => props.signal.to[0]?.address ?? '')
 </script>
 
 <template>
@@ -38,7 +35,7 @@ const isHidden = computed(() => props.signal.status === 'quarantine_hidden')
       <!-- Quarantine reason badge -->
       <div class="mt-0.5 shrink-0">
         <span
-          v-if="isUntrustedSender"
+          v-if="signal.matchedRules?.some((r) => r.labels.includes('system:sender:untrusted'))"
           class="inline-block rounded-full bg-ctp-peach/15 px-2 py-0.5 text-xs font-medium text-ctp-peach"
         >
           Untrusted sender
@@ -87,8 +84,8 @@ const isHidden = computed(() => props.signal.status === 'quarantine_hidden')
           </span>
         </div>
 
-        <!-- Branch A: untrusted sender — allow, drop, or reject -->
-        <div v-if="isUntrustedSender" class="mt-2 flex flex-wrap items-center gap-2">
+        <!-- Actions -->
+        <div class="mt-2 flex flex-wrap items-center gap-2">
           <button
             class="rounded bg-ctp-green/15 px-3 py-1 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/25 disabled:opacity-50"
             :disabled="pending"
@@ -97,47 +94,28 @@ const isHidden = computed(() => props.signal.status === 'quarantine_hidden')
             Allow
           </button>
           <button
-            class="rounded bg-ctp-surface1 px-3 py-1 text-xs font-medium text-ctp-subtext1 transition-colors hover:bg-ctp-surface2 disabled:opacity-50"
-            :disabled="pending"
-            title="Accept from the sender's server but silently discard — sender is not notified"
-            @click="emit('blockHidden', signal.id)"
-          >
-            Drop
-          </button>
-          <button
             class="rounded bg-ctp-red/15 px-3 py-1 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25 disabled:opacity-50"
             :disabled="pending"
             title="Return a delivery failure to the sender's server"
-            @click="emit('blockReject', signal.id)"
+            @click="emit('reject', signal.id)"
           >
             Reject
           </button>
-        </div>
-
-        <!-- Branch B: rule matched — open rule editor to create/edit -->
-        <div v-else-if="matchedRules.length" class="mt-2 flex flex-wrap items-center gap-2">
-          <router-link
-            :to="`/rules/new?signalId=${signal.id}&action=allow`"
-            class="rounded bg-ctp-green/15 px-3 py-1 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/25"
-          >
-            Create rule to allow
-          </router-link>
           <router-link
             :to="`/rules/new?signalId=${signal.id}&action=block`"
-            class="rounded bg-ctp-red/15 px-3 py-1 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25"
+            class="rounded border border-ctp-surface1 px-3 py-1 text-xs text-ctp-subtext1 transition-colors hover:text-ctp-text"
           >
-            Create rule to block
+            Create rule to reject similar
           </router-link>
-          <router-link
-            v-if="matchedRules[0]"
-            :to="`/rules/${matchedRules[0].ruleId}?signalId=${signal.id}`"
-            class="rounded border border-ctp-surface1 px-3 py-1 text-xs text-ctp-subtext0 transition-colors hover:text-ctp-text"
+          <button
+            v-if="toAddress"
+            class="rounded border border-ctp-surface1 px-3 py-1 text-xs text-ctp-subtext1 transition-colors hover:text-ctp-text disabled:opacity-50"
+            :disabled="pending"
+            :title="`Block ${signal.from.address} for ${toAddress}`"
+            @click="emit('rejectForAlias', signal.id, toAddress, signal.from.address)"
           >
-            Edit rule
-          </router-link>
-          <router-link to="/rules" class="text-xs text-ctp-blue hover:underline">
-            View all rules
-          </router-link>
+            Reject sender using this alias
+          </button>
         </div>
       </div>
     </div>

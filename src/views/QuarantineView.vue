@@ -38,15 +38,15 @@ async function onAllow(signalId: string) {
   }
 }
 
-async function onBlockHidden(signalId: string) {
+async function onReject(signalId: string) {
   if (accountStore.accountId) {
-    await store.blockHidden(accountStore.accountId, signalId)
+    await store.reject(accountStore.accountId, signalId)
   }
 }
 
-async function onBlockReject(signalId: string) {
+async function onRejectForAlias(signalId: string, toAddress: string, fromAddress: string) {
   if (accountStore.accountId) {
-    await store.blockReject(accountStore.accountId, signalId)
+    await store.rejectForAlias(accountStore.accountId, signalId, toAddress, fromAddress)
   }
 }
 
@@ -62,7 +62,7 @@ async function loadMore() {
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
       <h1 class="text-lg font-semibold">Quarantine</h1>
       <p class="mt-0.5 text-xs text-ctp-subtext0">
-        Held emails that need your decision — allow, drop, reject, or create a rule
+        Held emails that need your decision — allow, reject, or create a rule
       </p>
     </header>
 
@@ -98,8 +98,8 @@ async function loadMore() {
           :signal="signal"
           :pending="store.actionPending.has(signal.id)"
           @allow="onAllow"
-          @block-hidden="onBlockHidden"
-          @block-reject="onBlockReject"
+          @reject="onReject"
+          @reject-for-alias="onRejectForAlias"
         />
       </div>
 
