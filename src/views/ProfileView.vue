@@ -21,10 +21,6 @@ const addingPasskey = ref(false)
 const newPasskeyName = ref('')
 const passkeyPending = ref(false)
 
-const addingPhysicalKey = ref(false)
-const newPhysicalKeyName = ref('')
-const physicalKeyPending = ref(false)
-
 const linkedIdentities = computed(() => profile.value?.linkedIdentities ?? [])
 const canDisconnect = computed(() => linkedIdentities.value.length > 1)
 
@@ -108,7 +104,7 @@ async function linkIdentity() {
   }
 }
 
-async function openTotpSetup() {
+async function openMfaSetup() {
   await loginClient.openUserConfigurationScreen({ startPage: UserConfigurationScreen.MFA })
   await loadDevices()
 }
@@ -141,23 +137,6 @@ async function registerPasskey() {
     deviceError.value = 'Passkey registration failed — check your browser supports WebAuthn'
   } finally {
     passkeyPending.value = false
-  }
-}
-
-async function registerPhysicalKey() {
-  const name = newPhysicalKeyName.value.trim()
-  if (!name) return
-  physicalKeyPending.value = true
-  deviceError.value = null
-  try {
-    await loginClient.registerDevice({ name, type: 'WebAuthN' as DeviceType })
-    await loadDevices()
-    newPhysicalKeyName.value = ''
-    addingPhysicalKey.value = false
-  } catch {
-    deviceError.value = 'Key registration failed — make sure your security key is connected'
-  } finally {
-    physicalKeyPending.value = false
   }
 }
 
@@ -350,32 +329,11 @@ async function signOut() {
               </div>
               <button
                 class="shrink-0 rounded bg-ctp-surface1 px-2.5 py-1 text-xs text-ctp-text hover:bg-ctp-surface2"
-                @click="addingPhysicalKey = !addingPhysicalKey"
+                @click="openMfaSetup"
               >
-                {{ addingPhysicalKey ? 'Cancel' : '+ Add key' }}
+                + Set up
               </button>
             </div>
-
-            <form
-              v-if="addingPhysicalKey"
-              class="mt-3 flex items-center gap-2"
-              @submit.prevent="registerPhysicalKey"
-            >
-              <input
-                v-model="newPhysicalKeyName"
-                type="text"
-                placeholder="Key name (e.g. YubiKey 5)"
-                class="flex-1 rounded border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-                autofocus
-              />
-              <button
-                type="submit"
-                :disabled="physicalKeyPending || !newPhysicalKeyName.trim()"
-                class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
-              >
-                {{ physicalKeyPending ? 'Registering…' : 'Register' }}
-              </button>
-            </form>
           </div>
 
           <!-- Authenticator app (virtual TOTP) -->
@@ -390,7 +348,7 @@ async function signOut() {
               </div>
               <button
                 class="shrink-0 rounded bg-ctp-surface1 px-2.5 py-1 text-xs text-ctp-text hover:bg-ctp-surface2"
-                @click="openTotpSetup"
+                @click="openMfaSetup"
               >
                 + Set up
               </button>
@@ -409,7 +367,7 @@ async function signOut() {
               </div>
               <button
                 class="shrink-0 rounded bg-ctp-surface1 px-2.5 py-1 text-xs text-ctp-text hover:bg-ctp-surface2"
-                @click="openTotpSetup"
+                @click="openMfaSetup"
               >
                 + Set up
               </button>
