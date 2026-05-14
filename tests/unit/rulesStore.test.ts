@@ -25,7 +25,7 @@ function mockRule(overrides: Partial<Rule> = {}): Rule {
     accountId: 'acc_1',
     name: 'Test rule',
     conditions: [{ field: 'from.address', operator: 'equals', value: 'spam@example.com' }],
-    action: 'block',
+    action: 'block_hidden',
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     ...overrides,
@@ -62,7 +62,7 @@ describe('rulesStore', () => {
     const result = await store.createRule('acc_1', {
       name: 'New rule',
       conditions: [],
-      action: 'block',
+      action: 'block_hidden',
     })
     expect(result).toEqual(rule)
     expect(store.items).toHaveLength(1)

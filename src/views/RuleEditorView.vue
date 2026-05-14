@@ -59,7 +59,6 @@ const ACTIONS: { value: RuleAction; label: string; description: string }[] = [
   },
   { value: 'quarantine', label: 'Quarantine', description: 'Hold for manual review' },
   { value: 'label', label: 'Label', description: 'Tag and deliver' },
-  { value: 'block', label: 'Block (legacy)', description: 'Generic block — prefer Drop or Reject' },
 ]
 
 function addCondition() {
