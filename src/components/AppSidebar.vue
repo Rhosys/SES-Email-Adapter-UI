@@ -61,7 +61,7 @@ const labels = computed(() => labelsStore.items)
       <button
         class="flex h-12 w-full items-center gap-2 px-4 text-left transition-colors hover:bg-ctp-surface0/50"
         :class="{ 'cursor-default hover:bg-transparent': accountStore.accounts.length <= 1 }"
-        @click="if (accountStore.accounts.length > 1) switcherOpen = !switcherOpen"
+        @click="accountStore.accounts.length > 1 && (switcherOpen = !switcherOpen)"
       >
         <span class="flex-1 truncate text-sm font-semibold text-ctp-text">
           {{ accountStore.account?.name ?? 'SES Adapter' }}
@@ -89,10 +89,7 @@ const labels = computed(() => labelsStore.items)
           :class="
             acc.id === accountStore.accountId ? 'font-medium text-ctp-text' : 'text-ctp-subtext1'
           "
-          @click="
-            switcherOpen = false
-            accountStore.switchAccount(acc.id)
-          "
+          @click="switcherOpen = false; accountStore.switchAccount(acc.id)"
         >
           <span class="flex-1 truncate">{{ acc.name }}</span>
           <svg
