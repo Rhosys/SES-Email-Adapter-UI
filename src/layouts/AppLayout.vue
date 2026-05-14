@@ -195,7 +195,15 @@ function submitSearch() {
 
 onMounted(async () => {
   if (!accountStore.account) {
-    await accountStore.fetchAccount()
+    const fromUrl = route.query.accountId as string | undefined
+    await accountStore.fetchAccount(fromUrl)
+    if (fromUrl) {
+      void router.replace({
+        path: route.path,
+        query: Object.fromEntries(Object.entries(route.query).filter(([k]) => k !== 'accountId')),
+        hash: route.hash,
+      })
+    }
   }
   await Promise.all([labelsStore.fetchLabels(), viewsStore.fetchViews()])
 })

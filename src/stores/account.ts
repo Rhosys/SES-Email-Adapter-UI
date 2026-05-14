@@ -3,12 +3,10 @@ import { ref, computed } from 'vue'
 import { api } from '@/lib/api'
 import type { Account } from '@/types/server'
 
-const ACCOUNT_KEY = 'ses:accountId'
-
-// Reload when another tab switches account (storage event never fires in the originating tab)
-window.addEventListener('storage', (e) => {
-  if (e.key === ACCOUNT_KEY) window.location.assign('/')
-})
+// Per-tab account (sessionStorage — isolated per tab, copied on Ctrl+click)
+const TAB_KEY = 'ses:tabAccountId'
+// Last-used account across sessions (localStorage — fallback for fresh tabs)
+const LAST_KEY = 'ses:lastAccountId'
 
 export const useAccountStore = defineStore('account', () => {
   const account = ref<Account | null>(null)
@@ -18,7 +16,8 @@ export const useAccountStore = defineStore('account', () => {
 
   const accountId = computed(() => account.value?.id ?? null)
 
-  async function fetchAccount() {
+  // fromAccountId: explicit override (e.g. from ?accountId= query param)
+  async function fetchAccount(fromAccountId?: string) {
     loading.value = true
     error.value = null
     const result = await api.listAccounts()
@@ -28,15 +27,25 @@ export const useAccountStore = defineStore('account', () => {
       return
     }
     accounts.value = result.value
-    const storedId = localStorage.getItem(ACCOUNT_KEY)
-    account.value = accounts.value.find((a) => a.id === storedId) ?? accounts.value[0] ?? null
+
+    const preferred =
+      fromAccountId ?? sessionStorage.getItem(TAB_KEY) ?? localStorage.getItem(LAST_KEY) ?? null
+
+    account.value =
+      (preferred ? (accounts.value.find((a) => a.id === preferred) ?? null) : null) ??
+      accounts.value[0] ??
+      null
+
+    if (account.value) sessionStorage.setItem(TAB_KEY, account.value.id)
   }
 
   function switchAccount(id: string) {
     const target = accounts.value.find((a) => a.id === id)
     if (!target) return
-    localStorage.setItem(ACCOUNT_KEY, id)
+    sessionStorage.setItem(TAB_KEY, id)
+    localStorage.setItem(LAST_KEY, id)
     account.value = target
+    // Full reload flushes all per-account store caches for this tab
     window.location.assign('/')
   }
 
