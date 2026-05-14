@@ -5,6 +5,11 @@ import type { Account } from '@/types/server'
 
 const ACCOUNT_KEY = 'ses:accountId'
 
+// Reload when another tab switches account (storage event never fires in the originating tab)
+window.addEventListener('storage', (e) => {
+  if (e.key === ACCOUNT_KEY) window.location.assign('/')
+})
+
 export const useAccountStore = defineStore('account', () => {
   const account = ref<Account | null>(null)
   const accounts = ref<Account[]>([])
