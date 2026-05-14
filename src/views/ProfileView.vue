@@ -21,6 +21,10 @@ const addingPasskey = ref(false)
 const newPasskeyName = ref('')
 const passkeyPending = ref(false)
 
+const addingPhysicalKey = ref(false)
+const newPhysicalKeyName = ref('')
+const physicalKeyPending = ref(false)
+
 const linkedIdentities = computed(() => profile.value?.linkedIdentities ?? [])
 const canDisconnect = computed(() => linkedIdentities.value.length > 1)
 
@@ -104,7 +108,7 @@ async function linkIdentity() {
   }
 }
 
-async function openMfaSetup() {
+async function openTotpSetup() {
   await loginClient.openUserConfigurationScreen({ startPage: UserConfigurationScreen.MFA })
   await loadDevices()
 }
@@ -137,6 +141,23 @@ async function registerPasskey() {
     deviceError.value = 'Passkey registration failed — check your browser supports WebAuthn'
   } finally {
     passkeyPending.value = false
+  }
+}
+
+async function registerPhysicalKey() {
+  const name = newPhysicalKeyName.value.trim()
+  if (!name) return
+  physicalKeyPending.value = true
+  deviceError.value = null
+  try {
+    await loginClient.registerDevice({ name, type: 'WebAuthN' as DeviceType })
+    await loadDevices()
+    newPhysicalKeyName.value = ''
+    addingPhysicalKey.value = false
+  } catch {
+    deviceError.value = 'Key registration failed — make sure your security key is connected'
+  } finally {
+    physicalKeyPending.value = false
   }
 }
 
@@ -230,7 +251,7 @@ async function signOut() {
           <div>
             <h2 class="text-sm font-medium text-ctp-text">Passkeys</h2>
             <p class="mt-0.5 text-xs text-ctp-subtext0">
-              Sign in without a password using Face ID, Touch ID, or a hardware security key.
+              Sign in without a password using Face ID, Touch ID, or Windows Hello.
             </p>
           </div>
           <button
@@ -241,7 +262,6 @@ async function signOut() {
           </button>
         </div>
 
-        <!-- Add passkey form -->
         <form
           v-if="addingPasskey"
           class="mb-4 flex items-center gap-2 rounded-lg border border-ctp-surface1 bg-ctp-base p-3"
@@ -311,22 +331,90 @@ async function signOut() {
         </ul>
       </section>
 
-      <!-- Authenticator apps (MFA) -->
+      <!-- MFA -->
       <section class="rounded-lg border border-ctp-surface1 p-4">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <h2 class="text-sm font-medium text-ctp-text">Authenticator apps</h2>
-            <p class="mt-0.5 text-xs text-ctp-subtext0">
-              One-time passwords via an authenticator app (TOTP) such as Google Authenticator,
-              Authy, or 1Password.
-            </p>
+        <h2 class="mb-1 text-sm font-medium text-ctp-text">MFA</h2>
+        <p class="mb-4 text-xs text-ctp-subtext0">
+          Add a second factor to protect your account even if your password is compromised.
+        </p>
+
+        <div class="space-y-3">
+          <!-- Physical security keys -->
+          <div class="rounded-lg border border-ctp-surface0 p-3">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-sm font-medium text-ctp-text">Physical security key</p>
+                <p class="mt-0.5 text-xs text-ctp-subtext0">
+                  FIDO2 hardware keys such as YubiKey, SoloKey, or any FIDO2-certified device.
+                </p>
+              </div>
+              <button
+                class="shrink-0 rounded bg-ctp-surface1 px-2.5 py-1 text-xs text-ctp-text hover:bg-ctp-surface2"
+                @click="addingPhysicalKey = !addingPhysicalKey"
+              >
+                {{ addingPhysicalKey ? 'Cancel' : '+ Add key' }}
+              </button>
+            </div>
+
+            <form
+              v-if="addingPhysicalKey"
+              class="mt-3 flex items-center gap-2"
+              @submit.prevent="registerPhysicalKey"
+            >
+              <input
+                v-model="newPhysicalKeyName"
+                type="text"
+                placeholder="Key name (e.g. YubiKey 5)"
+                class="flex-1 rounded border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+                autofocus
+              />
+              <button
+                type="submit"
+                :disabled="physicalKeyPending || !newPhysicalKeyName.trim()"
+                class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+              >
+                {{ physicalKeyPending ? 'Registering…' : 'Register' }}
+              </button>
+            </form>
           </div>
-          <button
-            class="shrink-0 rounded bg-ctp-surface1 px-2.5 py-1 text-xs text-ctp-text hover:bg-ctp-surface2"
-            @click="openMfaSetup"
-          >
-            + Set up
-          </button>
+
+          <!-- Authenticator app (virtual TOTP) -->
+          <div class="rounded-lg border border-ctp-surface0 p-3">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-sm font-medium text-ctp-text">Authenticator app</p>
+                <p class="mt-0.5 text-xs text-ctp-subtext0">
+                  Virtual TOTP via Google Authenticator, Authy, 1Password, or any TOTP-compatible
+                  app on your phone or computer.
+                </p>
+              </div>
+              <button
+                class="shrink-0 rounded bg-ctp-surface1 px-2.5 py-1 text-xs text-ctp-text hover:bg-ctp-surface2"
+                @click="openTotpSetup"
+              >
+                + Set up
+              </button>
+            </div>
+          </div>
+
+          <!-- Hardware TOTP token (device TOTP) -->
+          <div class="rounded-lg border border-ctp-surface0 p-3">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-sm font-medium text-ctp-text">Hardware TOTP token</p>
+                <p class="mt-0.5 text-xs text-ctp-subtext0">
+                  Dedicated OTP devices such as RSA SecurID, OATH hardware tokens, or any
+                  TOTP-compatible key fob.
+                </p>
+              </div>
+              <button
+                class="shrink-0 rounded bg-ctp-surface1 px-2.5 py-1 text-xs text-ctp-text hover:bg-ctp-surface2"
+                @click="openTotpSetup"
+              >
+                + Set up
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
