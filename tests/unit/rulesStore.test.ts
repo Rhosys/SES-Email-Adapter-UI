@@ -25,8 +25,10 @@ function mockRule(overrides: Partial<Rule> = {}): Rule {
     id: 'rule_1',
     accountId: 'acc_1',
     name: 'Test rule',
-    conditions: [{ field: 'from.address', operator: 'equals', value: 'spam@example.com' }],
-    action: 'block_hidden',
+    status: 'enabled',
+    priorityOrder: 1,
+    condition: '{"==":[{"var":"signal.from.address"},"spam@example.com"]}',
+    actions: [{ type: 'block' }],
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     ...overrides,
@@ -64,8 +66,8 @@ describe('rulesStore', () => {
     const store = useRulesStore()
     const result = await store.createRule({
       name: 'New rule',
-      conditions: [],
-      action: 'block_hidden',
+      condition: '{}',
+      actions: [{ type: 'block' }],
     })
     expect(result).toEqual(rule)
     expect(store.items).toHaveLength(1)
@@ -74,7 +76,7 @@ describe('rulesStore', () => {
   it('createRule sets error and returns null on failure', async () => {
     vi.mocked(api.createRule).mockResolvedValue(err(new ApiError(400, 'Invalid')))
     const store = useRulesStore()
-    const result = await store.createRule({ name: 'x', conditions: [], action: 'allow' })
+    const result = await store.createRule({ name: 'x', condition: '{}', actions: [] })
     expect(result).toBeNull()
     expect(store.error).toBe('Invalid')
   })
@@ -128,7 +130,7 @@ describe('rulesStore', () => {
       }),
     )
     const store = useRulesStore()
-    const p = store.createRule({ name: 'x', conditions: [], action: 'allow' })
+    const p = store.createRule({ name: 'x', condition: '{}', actions: [] })
     expect(store.savePending).toBe(true)
     resolve(ok(mockRule()))
     await p

@@ -78,9 +78,7 @@ async function doSearch() {
   if (rulesRes.isOk()) {
     const ql = q.toLowerCase()
     results.value.rules = rulesRes.value.filter(
-      (r) =>
-        r.name.toLowerCase().includes(ql) ||
-        r.conditions.some((c) => c.value.toLowerCase().includes(ql)),
+      (r) => r.name.toLowerCase().includes(ql) || r.condition.toLowerCase().includes(ql),
     )
   }
 
@@ -262,13 +260,11 @@ if (query.value) {
             <div class="flex items-center justify-between gap-2">
               <p class="text-sm font-medium text-ctp-text">{{ rule.name }}</p>
               <span class="rounded bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0">
-                {{ rule.action }}
+                {{ rule.actions[0]?.type ?? '—' }}
               </span>
             </div>
             <p class="mt-0.5 font-mono text-xs text-ctp-subtext0">
-              {{
-                rule.conditions.map((c) => `${c.field} ${c.operator} "${c.value}"`).join(' AND ')
-              }}
+              {{ rule.condition }}
             </p>
           </RouterLink>
         </div>

@@ -94,7 +94,7 @@ view | template | forwarding_address`)
     enhancement — poll or use a status API if available)
   - On mobile the button sits in the top header bar rather than the sidebar
 
-- [ ] **Rule editor — full redesign** (`RuleEditorView.vue`)
+- [x] **Rule editor — full redesign** (`RuleEditorView.vue`)
 
   The current editor has a simple flat AND-only condition list, a single action from 4 options,
   and no JSONLogic serialisation. The backend requires a significant superset of all of this.
@@ -138,7 +138,7 @@ view | template | forwarding_address`)
       on every PATCH call. Fix: rename `order` → `position` in `SavedView`, `CreateSavedViewBody`,
       `UpdateSavedViewBody`, and `useViewsStore` throughout.
 
-- [ ] **Reconcile `Rule` type against backend** — several structural mismatches:
+- [x] **Reconcile `Rule` type against backend** — several structural mismatches:
   - `action: RuleAction` (single, UI) → `actions: RuleAction[]` (array, backend)
   - `RuleAction` union (`'allow' | 'block' | 'label' | 'quarantine'`) is stale — backend has 14
     types: `assign_label | assign_workflow | archive | delete | forward | block | quarantine |

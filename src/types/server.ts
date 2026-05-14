@@ -103,36 +103,85 @@ export interface Label {
   createdAt: string
 }
 
-// ─── Rules (Phase 7) ──────────────────────────────────────────────────────────
-// TODO(backend): rules engine endpoints — POST/GET/PATCH/DELETE /accounts/:id/rules
+// ─── Rules ────────────────────────────────────────────────────────────────────
 
-export type RuleAction = 'allow' | 'block_hidden' | 'block_reject' | 'label' | 'quarantine'
-export type RuleConditionField = 'from.address' | 'from.domain' | 'subject'
-export type RuleConditionOperator = 'equals' | 'contains' | 'starts_with' | 'ends_with'
+export type RuleActionType =
+  | 'assign_label'
+  | 'assign_workflow'
+  | 'archive'
+  | 'delete'
+  | 'forward'
+  | 'block'
+  | 'quarantine'
+  | 'quarantine_hidden'
+  | 'set_urgency'
+  | 'suppress_notification'
+  | 'pong'
+  | 'approve_sender'
+  | 'auto_reply'
+  | 'auto_draft'
 
-export interface RuleCondition {
-  field: RuleConditionField
-  operator: RuleConditionOperator
+export interface RuleAction {
+  type: RuleActionType
+  labelId?: string
+  workflow?: Workflow
+  urgency?: ArcUrgency
+  forwardTo?: string
+  templateId?: string
+}
+
+// UI-only condition model — serialised to JSONLogic before sending to the API
+export type ConditionField =
+  | 'signal.from.address'
+  | 'signal.from.domain'
+  | 'signal.subject'
+  | 'signal.workflow'
+  | 'signal.spamScore'
+  | 'arc.labels'
+  | 'arc.urgency'
+  | 'arc.status'
+
+export type ConditionOperator =
+  | 'equals'
+  | 'not_equals'
+  | 'contains'
+  | 'not_contains'
+  | 'starts_with'
+  | 'ends_with'
+  | 'greater_than'
+  | 'less_than'
+
+export interface ConditionLeaf {
+  field: ConditionField
+  operator: ConditionOperator
   value: string
+}
+
+export interface ConditionGroup {
+  mode: 'and' | 'or'
+  conditions: ConditionLeaf[]
 }
 
 export interface Rule {
   id: string
   accountId: string
   name: string
-  conditions: RuleCondition[]
-  action: RuleAction
-  labelId?: string
+  status: 'enabled' | 'disabled'
+  priorityOrder: number
+  condition: string
+  actions: RuleAction[]
   createdAt: string
   updatedAt: string
 }
 
 export interface CreateRuleBody {
   name: string
-  conditions: RuleCondition[]
-  action: RuleAction
-  labelId?: string
+  status?: 'enabled' | 'disabled'
+  condition: string
+  actions: RuleAction[]
 }
+
+export type UpdateRuleBody = Partial<CreateRuleBody> & { priorityOrder?: number }
 
 // ─── Signal ───────────────────────────────────────────────────────────────────
 
@@ -424,15 +473,6 @@ export type WorkflowData =
   | JobData
   | SupportData
   | TestData
-
-// ─── Rules additions ──────────────────────────────────────────────────────────
-
-export interface UpdateRuleBody {
-  name?: string
-  conditions?: RuleCondition[]
-  action?: RuleAction
-  labelId?: string
-}
 
 // ─── Draft signal (Reply composer) ───────────────────────────────────────────
 

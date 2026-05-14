@@ -81,6 +81,35 @@ export const useRulesStore = defineStore('rules', () => {
     return true
   }
 
+  async function moveRule(ruleId: string, direction: -1 | 1): Promise<void> {
+    const id = accountStore.accountId
+    if (!id) return
+    const list = [...(_byAccount.value[id] ?? [])]
+    const idx = list.findIndex((r) => r.id === ruleId)
+    const swapIdx = idx + direction
+    if (idx < 0 || swapIdx < 0 || swapIdx >= list.length) return
+
+    const a = list[idx]
+    const b = list[swapIdx]
+    const [resA, resB] = await Promise.all([
+      api.updateRule(id, a.id, { priorityOrder: b.priorityOrder }),
+      api.updateRule(id, b.id, { priorityOrder: a.priorityOrder }),
+    ])
+    if (resA.isErr()) {
+      error.value = resA.error.message
+      return
+    }
+    if (resB.isErr()) {
+      error.value = resB.error.message
+      return
+    }
+
+    list[idx] = resA.value
+    list[swapIdx] = resB.value
+    list.sort((x, y) => x.priorityOrder - y.priorityOrder)
+    _byAccount.value = { ..._byAccount.value, [id]: list }
+  }
+
   function clearError() {
     error.value = null
   }
@@ -94,6 +123,7 @@ export const useRulesStore = defineStore('rules', () => {
     createRule,
     updateRule,
     deleteRule,
+    moveRule,
     clearError,
   }
 })
