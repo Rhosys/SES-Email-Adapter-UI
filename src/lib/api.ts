@@ -144,10 +144,11 @@ export const api = {
 
   async listQuarantinedSignals(
     accountId: string,
+    status: 'quarantine_visible' | 'quarantine_hidden',
     params: QuarantineSignalListParams = {},
   ): Promise<Result<Page<Signal>, ApiError>> {
     const qs = new URLSearchParams()
-    qs.set('status', 'quarantined')
+    qs.set('status', status)
     if (params.sender) qs.set('sender', params.sender)
     if (params.after) qs.set('after', params.after)
     if (params.before) qs.set('before', params.before)

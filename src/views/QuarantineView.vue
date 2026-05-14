@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch, computed } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useAccountStore } from '@/stores/account'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useRelativeTime } from '@/composables/useRelativeTime'
@@ -10,8 +10,6 @@ import type { QuarantineFilters as Filters } from '@/stores/quarantine'
 const accountStore = useAccountStore()
 const store = useQuarantineStore()
 useRelativeTime()
-
-const hasMore = computed(() => !!store.nextCursor)
 
 onMounted(async () => {
   await accountStore.fetchAccount()
@@ -99,7 +97,7 @@ async function loadMore() {
       </div>
 
       <!-- Load more -->
-      <div v-if="hasMore" class="flex justify-center py-4">
+      <div v-if="store.hasMore" class="flex justify-center py-4">
         <button
           :disabled="store.loadingMore"
           class="rounded bg-ctp-surface0 px-4 py-2 text-sm text-ctp-text hover:bg-ctp-surface1 disabled:opacity-50"

@@ -8,7 +8,7 @@ export const useViewsStore = defineStore('views', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  const sortedViews = computed(() => [...items.value].sort((a, b) => a.order - b.order))
+  const sortedViews = computed(() => [...items.value].sort((a, b) => a.position - b.position))
 
   async function fetchViews(accountId: string) {
     loading.value = true
@@ -23,8 +23,8 @@ export const useViewsStore = defineStore('views', () => {
   }
 
   async function createView(accountId: string, body: CreateSavedViewBody) {
-    const order = items.value.length
-    const result = await api.createView(accountId, { ...body, order })
+    const position = items.value.length
+    const result = await api.createView(accountId, { ...body, position })
     if (result.isErr()) {
       error.value = result.error.message
       return null
@@ -53,20 +53,20 @@ export const useViewsStore = defineStore('views', () => {
     return true
   }
 
-  // Reorder by swapping the order values of two views, then persisting.
+  // Reorder by swapping the position values of two views, then persisting.
   function reorder(sourceId: string, targetId: string) {
     const src = items.value.find((v) => v.id === sourceId)
     const tgt = items.value.find((v) => v.id === targetId)
     if (!src || !tgt) return
-    const srcOrder = src.order
+    const srcPosition = src.position
     items.value = items.value.map((v) => {
-      if (v.id === sourceId) return { ...v, order: tgt.order }
-      if (v.id === targetId) return { ...v, order: srcOrder }
+      if (v.id === sourceId) return { ...v, position: tgt.position }
+      if (v.id === targetId) return { ...v, position: srcPosition }
       return v
     })
     // Fire-and-forget persistence — errors are non-critical for reordering
-    void api.updateView(src.accountId, sourceId, { order: tgt.order })
-    void api.updateView(tgt.accountId, targetId, { order: srcOrder })
+    void api.updateView(src.accountId, sourceId, { position: tgt.position })
+    void api.updateView(tgt.accountId, targetId, { position: srcPosition })
   }
 
   function clearError() {

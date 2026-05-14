@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { api } from '@/lib/api'
 import type { QuarantineSignalListParams } from '@/lib/api'
 import type { Signal } from '@/types/server'
@@ -12,7 +12,6 @@ export interface QuarantineFilters {
 
 export const useQuarantineStore = defineStore('quarantine', () => {
   const items = ref<Signal[]>([])
-  const nextCursor = ref<string | undefined>()
   const loading = ref(false)
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
@@ -24,6 +23,10 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     before: '',
   })
 
+  // Track cursors per status for pagination
+  const _nextCursors = ref<{ visible?: string; hidden?: string }>({})
+  const hasMore = computed(() => !!_nextCursors.value.visible || !!_nextCursors.value.hidden)
+
   function buildParams(cursor?: string): QuarantineSignalListParams {
     const p: QuarantineSignalListParams = { limit: 50 }
     if (filters.value.sender) p.sender = filters.value.sender
@@ -33,34 +36,84 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     return p
   }
 
+  function mergeAndSort(a: Signal[], b: Signal[]): Signal[] {
+    return [...a, ...b].sort(
+      (x, y) => new Date(y.receivedAt).getTime() - new Date(x.receivedAt).getTime(),
+    )
+  }
+
   async function fetchSignals(accountId: string, reset = false) {
     if (reset) {
       items.value = []
-      nextCursor.value = undefined
+      _nextCursors.value = {}
     }
     loading.value = true
     error.value = null
-    const result = await api.listQuarantinedSignals(accountId, buildParams())
+
+    const [visResult, hidResult] = await Promise.all([
+      api.listQuarantinedSignals(accountId, 'quarantine_visible', buildParams()),
+      api.listQuarantinedSignals(accountId, 'quarantine_hidden', buildParams()),
+    ])
+
     loading.value = false
-    if (result.isErr()) {
-      error.value = result.error.message
+
+    if (visResult.isErr()) {
+      error.value = visResult.error.message
       return
     }
-    items.value = result.value.items
-    nextCursor.value = result.value.nextCursor
+    if (hidResult.isErr()) {
+      error.value = hidResult.error.message
+      return
+    }
+
+    items.value = mergeAndSort(visResult.value.items, hidResult.value.items)
+    _nextCursors.value = {
+      visible: visResult.value.nextCursor,
+      hidden: hidResult.value.nextCursor,
+    }
   }
 
   async function fetchMore(accountId: string) {
-    if (!nextCursor.value || loadingMore.value) return
+    if (!hasMore.value || loadingMore.value) return
     loadingMore.value = true
-    const result = await api.listQuarantinedSignals(accountId, buildParams(nextCursor.value))
+
+    const pendingVis = _nextCursors.value.visible
+      ? api.listQuarantinedSignals(
+          accountId,
+          'quarantine_visible',
+          buildParams(_nextCursors.value.visible),
+        )
+      : null
+    const pendingHid = _nextCursors.value.hidden
+      ? api.listQuarantinedSignals(
+          accountId,
+          'quarantine_hidden',
+          buildParams(_nextCursors.value.hidden),
+        )
+      : null
+
+    const [visResult, hidResult] = await Promise.all([pendingVis, pendingHid])
     loadingMore.value = false
-    if (result.isErr()) {
-      error.value = result.error.message
+
+    if (visResult?.isErr()) {
+      error.value = visResult.error.message
       return
     }
-    items.value = [...items.value, ...result.value.items]
-    nextCursor.value = result.value.nextCursor
+    if (hidResult?.isErr()) {
+      error.value = hidResult.error.message
+      return
+    }
+
+    const newItems = mergeAndSort(
+      visResult?.isOk() ? visResult.value.items : [],
+      hidResult?.isOk() ? hidResult.value.items : [],
+    )
+
+    items.value = [...items.value, ...newItems]
+    _nextCursors.value = {
+      visible: visResult?.isOk() ? visResult.value.nextCursor : undefined,
+      hidden: hidResult?.isOk() ? hidResult.value.nextCursor : undefined,
+    }
   }
 
   async function allow(accountId: string, signalId: string) {
@@ -97,7 +150,7 @@ export const useQuarantineStore = defineStore('quarantine', () => {
 
   return {
     items,
-    nextCursor,
+    hasMore,
     loading,
     loadingMore,
     error,

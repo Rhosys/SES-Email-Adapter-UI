@@ -22,7 +22,7 @@ function mockSignal(overrides: Partial<Signal> = {}): Signal {
     id: 'sig_1',
     arcId: 'arc_1',
     accountId: 'acc_1',
-    status: 'quarantined',
+    status: 'quarantine_visible',
     source: 'ses',
     from: { address: 'sender@example.com', name: 'Sender' },
     to: [{ address: 'inbox@example.com' }],
@@ -34,35 +34,96 @@ function mockSignal(overrides: Partial<Signal> = {}): Signal {
   }
 }
 
+// Helper: mock both status calls with specified results
+function mockBothCalls(
+  visItems: Signal[],
+  hidItems: Signal[],
+  visCursor?: string,
+  hidCursor?: string,
+) {
+  vi.mocked(api.listQuarantinedSignals)
+    .mockResolvedValueOnce(ok({ items: visItems, nextCursor: visCursor }))
+    .mockResolvedValueOnce(ok({ items: hidItems, nextCursor: hidCursor }))
+}
+
 describe('quarantineStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
   })
 
-  it('fetchSignals populates items', async () => {
-    vi.mocked(api.listQuarantinedSignals).mockResolvedValue(ok({ items: [mockSignal()] }))
+  it('fetchSignals merges visible and hidden items sorted by receivedAt desc', async () => {
+    const visible = mockSignal({ id: 'v1', receivedAt: '2025-01-01T10:00:00Z' })
+    const hidden = mockSignal({
+      id: 'h1',
+      status: 'quarantine_hidden',
+      receivedAt: '2025-01-01T12:00:00Z',
+    })
+    mockBothCalls([visible], [hidden])
+
     const store = useQuarantineStore()
     await store.fetchSignals('acc_1', true)
-    expect(store.items).toHaveLength(1)
+
+    expect(store.items).toHaveLength(2)
+    expect(store.items[0].id).toBe('h1') // newer first
+    expect(store.items[1].id).toBe('v1')
     expect(store.loading).toBe(false)
     expect(store.error).toBeNull()
+    expect(vi.mocked(api.listQuarantinedSignals)).toHaveBeenCalledWith(
+      'acc_1',
+      'quarantine_visible',
+      expect.any(Object),
+    )
+    expect(vi.mocked(api.listQuarantinedSignals)).toHaveBeenCalledWith(
+      'acc_1',
+      'quarantine_hidden',
+      expect.any(Object),
+    )
   })
 
-  it('fetchSignals sets error on failure', async () => {
-    vi.mocked(api.listQuarantinedSignals).mockResolvedValue(err(new ApiError(500, 'Server error')))
+  it('fetchSignals sets error when visible call fails', async () => {
+    vi.mocked(api.listQuarantinedSignals)
+      .mockResolvedValueOnce(err(new ApiError(500, 'Server error')))
+      .mockResolvedValueOnce(ok({ items: [] }))
+
     const store = useQuarantineStore()
     await store.fetchSignals('acc_1', true)
+
     expect(store.items).toHaveLength(0)
     expect(store.error).toBe('Server error')
   })
 
+  it('fetchSignals sets error when hidden call fails', async () => {
+    vi.mocked(api.listQuarantinedSignals)
+      .mockResolvedValueOnce(ok({ items: [] }))
+      .mockResolvedValueOnce(err(new ApiError(503, 'Hidden fetch failed')))
+
+    const store = useQuarantineStore()
+    await store.fetchSignals('acc_1', true)
+
+    expect(store.error).toBe('Hidden fetch failed')
+  })
+
   it('fetchSignals resets items when reset=true', async () => {
-    vi.mocked(api.listQuarantinedSignals).mockResolvedValue(ok({ items: [] }))
+    mockBothCalls([], [])
     const store = useQuarantineStore()
     store.items = [mockSignal()]
     await store.fetchSignals('acc_1', true)
     expect(store.items).toHaveLength(0)
+  })
+
+  it('hasMore is true when either cursor is set', async () => {
+    mockBothCalls([mockSignal()], [], 'cursor_vis', undefined)
+    const store = useQuarantineStore()
+    await store.fetchSignals('acc_1', true)
+    expect(store.hasMore).toBe(true)
+  })
+
+  it('hasMore is false when no cursors', async () => {
+    mockBothCalls([mockSignal()], [])
+    const store = useQuarantineStore()
+    await store.fetchSignals('acc_1', true)
+    expect(store.hasMore).toBe(false)
   })
 
   it('allow removes signal from list on success', async () => {
@@ -134,14 +195,5 @@ describe('quarantineStore', () => {
     store.error = 'some error'
     store.clearError()
     expect(store.error).toBeNull()
-  })
-
-  it('nextCursor reflects pagination', async () => {
-    vi.mocked(api.listQuarantinedSignals).mockResolvedValue(
-      ok({ items: [mockSignal()], nextCursor: 'cursor_xyz' }),
-    )
-    const store = useQuarantineStore()
-    await store.fetchSignals('acc_1', true)
-    expect(store.nextCursor).toBe('cursor_xyz')
   })
 })

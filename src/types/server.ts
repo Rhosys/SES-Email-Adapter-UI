@@ -141,6 +141,8 @@ export type SignalStatus =
   | 'processed'
   | 'failed'
   | 'quarantined'
+  | 'quarantine_visible'
+  | 'quarantine_hidden'
   | 'blocked'
   | 'active'
   | 'draft'
@@ -462,7 +464,7 @@ export interface SavedView {
   accountId: string
   name: string
   icon?: string
-  order: number
+  position: number
   filters: SavedViewFilters
   createdAt: string
   updatedAt: string
@@ -471,7 +473,7 @@ export interface SavedView {
 export interface CreateSavedViewBody {
   name: string
   icon?: string
-  order?: number
+  position?: number
   filters: SavedViewFilters
 }
 

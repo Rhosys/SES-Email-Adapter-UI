@@ -24,12 +24,13 @@ const isUntrustedSender = computed(
     props.signal.matchedRules?.some((r) => r.labels.includes('system:sender:untrusted')) ?? false,
 )
 const matchedRules = computed(() => props.signal.matchedRules ?? [])
+const isHidden = computed(() => props.signal.status === 'quarantine_hidden')
 </script>
 
 <template>
   <div
     class="border-b border-ctp-surface0 transition-colors hover:bg-ctp-surface0"
-    :class="{ 'opacity-50': pending }"
+    :class="{ 'opacity-50': pending, 'bg-ctp-mantle/40': isHidden }"
     role="listitem"
   >
     <div class="flex items-start gap-3 px-4 py-3">
@@ -62,7 +63,14 @@ const matchedRules = computed(() => props.signal.matchedRules ?? [])
             {{ signal.from.name || signal.from.address }}
             <span class="font-normal text-ctp-subtext0">&lt;{{ signal.from.address }}&gt;</span>
           </p>
-          <span class="shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
+          <div class="flex shrink-0 items-center gap-1.5">
+            <span
+              v-if="isHidden"
+              class="rounded bg-ctp-surface1 px-1.5 py-0.5 text-xs text-ctp-subtext0"
+              >Silently held</span
+            >
+            <span class="text-xs text-ctp-subtext0">{{ timestamp }}</span>
+          </div>
         </div>
 
         <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ signal.subject }}</p>
