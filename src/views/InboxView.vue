@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useArcsStore } from '@/stores/arcs'
 import { useRelativeTime } from '@/composables/useRelativeTime'
@@ -9,18 +10,26 @@ import ArcList from '@/components/ArcList.vue'
 import InboxError from '@/components/InboxError.vue'
 import InboxEmpty from '@/components/InboxEmpty.vue'
 
+const route = useRoute()
+const router = useRouter()
 const accountStore = useAccountStore()
 const arcsStore = useArcsStore()
 
 useRelativeTime()
 
+const VALID_TABS = ['active', 'archived', 'all'] as const
+type TabKey = (typeof VALID_TABS)[number]
+
 onMounted(async () => {
+  const tab = route.query.tab as TabKey | undefined
+  if (tab && (VALID_TABS as readonly string[]).includes(tab)) arcsStore.setTab(tab)
   await accountStore.fetchAccount()
   await arcsStore.fetchArcs(true)
 })
 
-function handleTabChange(tab: 'active' | 'archived' | 'all') {
+function handleTabChange(tab: TabKey) {
   arcsStore.setTab(tab)
+  void router.replace({ query: tab === 'active' ? {} : { tab } })
 }
 
 function handleLoadMore() {

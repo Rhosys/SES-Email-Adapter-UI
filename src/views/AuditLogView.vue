@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import type { AuditEvent } from '@/types/server'
 
+const route = useRoute()
+const router = useRouter()
 const accountStore = useAccountStore()
 const events = ref<AuditEvent[]>([])
 const loading = ref(false)
@@ -49,11 +52,15 @@ async function load(cursor?: string) {
     events.value = result.value.items
   }
   nextCursor.value = result.value.nextCursor
+  // Track the cursor used for this load so the URL reflects the current page position.
+  // Navigating to /audit-log?cursor=X starts from that position in the log.
+  void router.replace({ query: cursor ? { cursor } : {} })
 }
 
 onMounted(async () => {
   if (!accountStore.accountId) await accountStore.fetchAccount()
-  await load()
+  const cursor = route.query.cursor as string | undefined
+  await load(cursor)
 })
 </script>
 

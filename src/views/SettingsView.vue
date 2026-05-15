@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import type {
@@ -13,6 +13,7 @@ import type {
 } from '@/types/server'
 
 const route = useRoute()
+const router = useRouter()
 const accountStore = useAccountStore()
 
 type TabKey = 'account' | 'emails' | 'domains' | 'forwarding' | 'team' | 'notifications'
@@ -242,6 +243,7 @@ async function saveNotifications() {
 // ─── Tab loading ──────────────────────────────────────────────────────────────
 async function switchTab(tab: TabKey) {
   activeTab.value = tab
+  void router.replace({ query: tab === 'account' ? {} : { tab } })
   if (tab === 'emails' && aliases.value.length === 0) await loadAliases()
   if (tab === 'domains' && domains.value.length === 0) await loadDomains()
   if (tab === 'forwarding' && forwarding.value.length === 0) await loadForwarding()
@@ -256,8 +258,17 @@ onMounted(async () => {
     emailNotifEnabled.value = accountStore.account.notifications?.email?.enabled ?? false
     emailNotifFrequency.value = accountStore.account.notifications?.email?.frequency ?? 'daily'
   }
-  // Pre-load tab from route
-  if (route.name === 'settings-notifications') activeTab.value = 'notifications'
+  // Hydrate active tab from URL
+  const VALID_TABS: TabKey[] = [
+    'account',
+    'emails',
+    'domains',
+    'forwarding',
+    'team',
+    'notifications',
+  ]
+  const tab = route.query.tab as TabKey | undefined
+  if (tab && VALID_TABS.includes(tab)) await switchTab(tab)
 })
 
 const TABS: { key: TabKey; label: string }[] = [

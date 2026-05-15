@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useLabelsStore } from '@/stores/labels'
 import { useViewsStore } from '@/stores/views'
 import type { Label, SavedView } from '@/types/server'
 
+const route = useRoute()
+const router = useRouter()
 const accountStore = useAccountStore()
 const labelsStore = useLabelsStore()
 const viewsStore = useViewsStore()
@@ -155,6 +158,7 @@ function clearErrors() {
 }
 
 onMounted(async () => {
+  if (route.query.tab === 'views') activeTab.value = 'views'
   await accountStore.fetchAccount()
   await Promise.all([labelsStore.fetchLabels(), viewsStore.fetchViews()])
 })
@@ -179,7 +183,10 @@ onMounted(async () => {
               ? 'border-ctp-mauve text-ctp-text'
               : 'border-transparent text-ctp-subtext0 hover:text-ctp-text'
           "
-          @click="activeTab = 'labels'"
+          @click="
+            activeTab = 'labels'
+            void router.replace({ query: {} })
+          "
         >
           Labels
         </button>
@@ -190,7 +197,10 @@ onMounted(async () => {
               ? 'border-ctp-mauve text-ctp-text'
               : 'border-transparent text-ctp-subtext0 hover:text-ctp-text'
           "
-          @click="activeTab = 'views'"
+          @click="
+            activeTab = 'views'
+            void router.replace({ query: { tab: 'views' } })
+          "
         >
           Views
         </button>

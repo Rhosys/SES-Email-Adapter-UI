@@ -70,8 +70,7 @@ export const router = createRouter({
         },
         {
           path: 'settings/notifications',
-          name: 'settings-notifications',
-          component: () => import('@/views/SettingsView.vue'),
+          redirect: { name: 'settings', query: { tab: 'notifications' } },
         },
         {
           path: 'profile',

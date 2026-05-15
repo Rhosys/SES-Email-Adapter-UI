@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useRelativeTime } from '@/composables/useRelativeTime'
@@ -7,18 +8,33 @@ import QuarantineFilters from '@/components/QuarantineFilters.vue'
 import QuarantineRow from '@/components/QuarantineRow.vue'
 import type { QuarantineFilters as Filters } from '@/stores/quarantine'
 
+const route = useRoute()
+const router = useRouter()
 const accountStore = useAccountStore()
 const store = useQuarantineStore()
 useRelativeTime()
 
 onMounted(async () => {
   await accountStore.fetchAccount()
+  // Hydrate filters from URL on initial load
+  const { sender, after, before } = route.query
+  store.setFilters({
+    sender: String(sender || ''),
+    after: String(after || ''),
+    before: String(before || ''),
+  })
   await store.fetchSignals(true)
 })
 
 watch(
   () => ({ ...store.filters }),
-  async () => {
+  async (filters) => {
+    // Keep URL in sync with current filter state
+    const query: Record<string, string> = {}
+    if (filters.sender) query.sender = filters.sender
+    if (filters.after) query.after = filters.after
+    if (filters.before) query.before = filters.before
+    void router.replace({ query })
     await store.fetchSignals(true)
   },
   { deep: true },
