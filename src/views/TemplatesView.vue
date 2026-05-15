@@ -4,6 +4,7 @@ import Handlebars from 'handlebars'
 import { marked } from 'marked'
 import { useTemplatesStore } from '@/stores/templates'
 import { useAccountStore } from '@/stores/account'
+import CodeEditor from '@/components/CodeEditor.vue'
 import type { EmailTemplate, TemplateFunction } from '@/types/server'
 
 const store = useTemplatesStore()
@@ -454,11 +455,10 @@ onMounted(async () => {
                   Remove
                 </button>
               </div>
-              <textarea
-                :value="fn.code"
-                rows="5"
-                class="w-full resize-y rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 font-mono text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
-                @input="updateFnCode(idx, ($event.target as HTMLTextAreaElement).value)"
+              <CodeEditor
+                :model-value="fn.code"
+                min-height="7rem"
+                @update:model-value="updateFnCode(idx, $event)"
               />
             </div>
           </div>

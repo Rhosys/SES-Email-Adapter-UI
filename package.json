@@ -21,6 +21,8 @@
   "dependencies": {
     "@authress/login": "^2.4.0",
     "@catppuccin/palette": "^1.7.1",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "codemirror": "^6.0.2",
     "handlebars": "^4.7.9",
     "marked": "^18.0.3",
     "neverthrow": "^8.2.0",
