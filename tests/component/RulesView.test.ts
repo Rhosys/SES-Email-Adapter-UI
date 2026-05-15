@@ -104,7 +104,7 @@ describe('RulesView', () => {
   it('shows empty state when no rules', async () => {
     const wrapper = mountView()
     await flushPromises()
-    expect(wrapper.text()).toContain('No rules yet')
+    expect(wrapper.text()).toContain('Every email handled on autopilot')
   })
 
   it('shows error banner when store has error', async () => {
