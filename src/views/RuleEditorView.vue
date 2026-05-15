@@ -3,118 +3,208 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useRulesStore } from '@/stores/rules'
+import { useLabelsStore } from '@/stores/labels'
 import { useQuarantineStore } from '@/stores/quarantine'
 import type {
+  ConditionField,
+  ConditionGroup,
+  ConditionLeaf,
+  ConditionOperator,
   RuleAction,
-  RuleCondition,
-  RuleConditionField,
-  RuleConditionOperator,
+  RuleActionType,
 } from '@/types/server'
+import {
+  defaultLeaf,
+  evalLogic,
+  FIELDS,
+  logicToGroups,
+  OPERATORS,
+  serializeCondition,
+} from '@/lib/ruleLogic'
 
 const route = useRoute()
 const router = useRouter()
 const accountStore = useAccountStore()
 const rulesStore = useRulesStore()
+const labelsStore = useLabelsStore()
 const quarantineStore = useQuarantineStore()
 
-// Query params from quarantine row links
 const signalId = computed(() => (route.query.signalId as string) ?? null)
-const signalAction = computed(() => (route.query.action as 'allow' | 'block') ?? null)
+const signalAction = computed(
+  () => (route.query.action as 'allow' | 'block_hidden' | 'block_reject') ?? null,
+)
 const ruleId = computed(() => (route.params.id as string) ?? null)
 const isEditing = computed(() => !!ruleId.value)
 
-// Form state
+// ─── Form state ───────────────────────────────────────────────────────────────
+
 const name = ref('')
-const action = ref<RuleAction>('allow')
-const conditions = ref<RuleCondition[]>([{ field: 'from.address', operator: 'equals', value: '' }])
-const testInput = ref({ fromAddress: '', subject: '' })
-const testResult = ref<null | { matches: boolean; matchedConditions: number[] }>(null)
+const status = ref<'enabled' | 'disabled'>('enabled')
+const groups = ref<ConditionGroup[]>([{ mode: 'and', conditions: [defaultLeaf()] }])
+const actions = ref<RuleAction[]>([{ type: 'block' }])
 
-const FIELDS: { value: RuleConditionField; label: string }[] = [
-  { value: 'from.address', label: 'Sender address' },
-  { value: 'from.domain', label: 'Sender domain' },
-  { value: 'subject', label: 'Subject' },
-]
+// ─── Condition builder helpers ────────────────────────────────────────────────
 
-const OPERATORS: { value: RuleConditionOperator; label: string }[] = [
-  { value: 'equals', label: 'equals' },
-  { value: 'contains', label: 'contains' },
-  { value: 'starts_with', label: 'starts with' },
-  { value: 'ends_with', label: 'ends with' },
-]
-
-const ACTIONS: { value: RuleAction; label: string; description: string }[] = [
-  { value: 'allow', label: 'Allow', description: 'Deliver to inbox' },
-  { value: 'block', label: 'Block', description: 'Reject the email' },
-  { value: 'quarantine', label: 'Quarantine', description: 'Hold for review' },
-  { value: 'label', label: 'Label', description: 'Tag and deliver' },
-]
-
-function addCondition() {
-  conditions.value = [
-    ...conditions.value,
-    { field: 'from.address', operator: 'contains', value: '' },
-  ]
+function addGroup() {
+  groups.value = [...groups.value, { mode: 'and', conditions: [defaultLeaf()] }]
 }
 
-function removeCondition(idx: number) {
-  conditions.value = conditions.value.filter((_, i) => i !== idx)
+function removeGroup(gi: number) {
+  groups.value = groups.value.filter((_, i) => i !== gi)
 }
 
-function updateCondition(idx: number, patch: Partial<RuleCondition>) {
-  conditions.value = conditions.value.map((c, i) => (i === idx ? { ...c, ...patch } : c))
+function addCondition(gi: number) {
+  groups.value = groups.value.map((grp, i) =>
+    i === gi ? { ...grp, conditions: [...grp.conditions, defaultLeaf()] } : grp,
+  )
 }
 
-// Client-side rule tester
+function removeCondition(gi: number, ci: number) {
+  groups.value = groups.value.map((grp, i) =>
+    i === gi ? { ...grp, conditions: grp.conditions.filter((_, j) => j !== ci) } : grp,
+  )
+}
+
+function updateCondition(gi: number, ci: number, patch: Partial<ConditionLeaf>) {
+  groups.value = groups.value.map((grp, i) =>
+    i === gi
+      ? { ...grp, conditions: grp.conditions.map((c, j) => (j === ci ? { ...c, ...patch } : c)) }
+      : grp,
+  )
+}
+
+function setGroupMode(gi: number, mode: 'and' | 'or') {
+  groups.value = groups.value.map((grp, i) => (i === gi ? { ...grp, mode } : grp))
+}
+
+// ─── Rule tester ──────────────────────────────────────────────────────────────
+
+const testInput = ref({ fromAddress: '', subject: '', workflow: '', spamScore: '' })
+const testResult = ref<boolean | null>(null)
+
 function runTest() {
-  const matchedConditions: number[] = []
-  for (let i = 0; i < conditions.value.length; i++) {
-    const c = conditions.value[i]
-    let subject = ''
-    if (c.field === 'from.address') subject = testInput.value.fromAddress
-    else if (c.field === 'from.domain') subject = testInput.value.fromAddress.split('@')[1] ?? ''
-    else if (c.field === 'subject') subject = testInput.value.subject
-    let match = false
-    if (c.operator === 'equals') match = subject === c.value
-    else if (c.operator === 'contains') match = subject.includes(c.value)
-    else if (c.operator === 'starts_with') match = subject.startsWith(c.value)
-    else if (c.operator === 'ends_with') match = subject.endsWith(c.value)
-    if (match) matchedConditions.push(i)
+  const data = {
+    signal: {
+      from: {
+        address: testInput.value.fromAddress,
+        domain: testInput.value.fromAddress.split('@')[1] ?? '',
+      },
+      subject: testInput.value.subject,
+      workflow: testInput.value.workflow,
+      spamScore: testInput.value.spamScore ? Number(testInput.value.spamScore) : 0,
+    },
+    arc: { labels: [], urgency: 'normal', status: 'active' },
   }
-  testResult.value = {
-    matches: matchedConditions.length === conditions.value.length && conditions.value.length > 0,
-    matchedConditions,
+  try {
+    testResult.value = evalLogic(
+      JSON.parse(serializeCondition(groups.value)) as unknown,
+      data as Record<string, unknown>,
+    )
+  } catch {
+    testResult.value = false
   }
 }
+
+// ─── Actions editor ───────────────────────────────────────────────────────────
+
+interface ActionMeta {
+  type: RuleActionType
+  label: string
+  description: string
+}
+
+const ACTION_META: ActionMeta[] = [
+  { type: 'block', label: 'Block', description: 'Silently discard — sender not notified' },
+  { type: 'quarantine', label: 'Quarantine', description: 'Hold for manual review' },
+  {
+    type: 'quarantine_hidden',
+    label: 'Quarantine (hidden)',
+    description: 'Hold without user notification',
+  },
+  { type: 'archive', label: 'Archive', description: 'Archive the arc immediately' },
+  { type: 'assign_label', label: 'Assign label', description: 'Tag with a label' },
+  { type: 'assign_workflow', label: 'Assign workflow', description: 'Override workflow' },
+  { type: 'set_urgency', label: 'Set urgency', description: 'Override urgency level' },
+  { type: 'forward', label: 'Forward', description: 'Forward to another address' },
+  { type: 'approve_sender', label: 'Approve sender', description: 'Whitelist the sender' },
+  {
+    type: 'suppress_notification',
+    label: 'Suppress notification',
+    description: 'Deliver without notification',
+  },
+  { type: 'auto_reply', label: 'Auto reply', description: 'Send an automated reply' },
+  { type: 'auto_draft', label: 'Auto draft', description: 'Pre-draft a reply' },
+  { type: 'pong', label: 'Pong', description: 'Send an acknowledgement reply' },
+  { type: 'delete', label: 'Delete', description: 'Permanently delete the signal' },
+]
+
+const WORKFLOW_OPTIONS = [
+  'auth',
+  'conversation',
+  'crm',
+  'package',
+  'travel',
+  'scheduling',
+  'payments',
+  'alert',
+  'content',
+  'status',
+  'healthcare',
+  'job',
+  'support',
+  'test',
+]
+const URGENCY_OPTIONS = ['critical', 'high', 'normal', 'low', 'silent']
+
+const addingAction = ref(false)
+const actionTypeToAdd = ref<RuleActionType>('block')
+
+function addAction() {
+  actions.value = [...actions.value, { type: actionTypeToAdd.value }]
+  addingAction.value = false
+}
+
+function removeAction(idx: number) {
+  actions.value = actions.value.filter((_, i) => i !== idx)
+}
+
+function updateAction(idx: number, patch: Partial<RuleAction>) {
+  actions.value = actions.value.map((a, i) => (i === idx ? { ...a, ...patch } : a))
+}
+
+function actionLabel(type: RuleActionType): string {
+  return ACTION_META.find((m) => m.type === type)?.label ?? type
+}
+
+// ─── Save ─────────────────────────────────────────────────────────────────────
 
 const canSave = computed(
   () =>
     name.value.trim().length > 0 &&
-    conditions.value.length > 0 &&
-    conditions.value.every((c) => c.value.trim().length > 0),
+    actions.value.length > 0 &&
+    groups.value.every((g) => g.conditions.every((c) => c.value.trim().length > 0)),
 )
 
 async function save() {
-  if (!accountStore.accountId || !canSave.value) return
-  const body = { name: name.value.trim(), conditions: conditions.value, action: action.value }
-
-  let saved
-  if (isEditing.value) {
-    saved = await rulesStore.updateRule(accountStore.accountId, ruleId.value!, body)
-  } else {
-    saved = await rulesStore.createRule(accountStore.accountId, body)
+  if (!canSave.value) return
+  const body = {
+    name: name.value.trim(),
+    status: status.value,
+    condition: serializeCondition(groups.value),
+    actions: actions.value,
   }
 
-  if (!saved) return // error already set in store
+  const saved = isEditing.value
+    ? await rulesStore.updateRule(ruleId.value!, body)
+    : await rulesStore.createRule(body)
 
-  // If we came from quarantine with a signalId, resolve the signal
+  if (!saved) return
+
   if (signalId.value && signalAction.value) {
-    const status = signalAction.value === 'allow' ? 'active' : 'blocked'
-    await quarantineStore.allow(accountStore.accountId, signalId.value) // allow/block uses same pattern
-    if (status === 'blocked') {
-      await quarantineStore.block(accountStore.accountId, signalId.value)
+    if (signalAction.value === 'allow') {
+      await quarantineStore.allow(signalId.value)
     } else {
-      await quarantineStore.allow(accountStore.accountId, signalId.value)
+      await quarantineStore.reject(signalId.value)
     }
     void router.push('/quarantine')
   } else {
@@ -122,58 +212,82 @@ async function save() {
   }
 }
 
+// ─── Load ─────────────────────────────────────────────────────────────────────
+
 onMounted(async () => {
-  if (!accountStore.accountId) await accountStore.fetchAccount()
+  await accountStore.fetchAccount()
+  await labelsStore.fetchLabels()
 
   if (isEditing.value) {
-    // Load existing rule
-    if (rulesStore.items.length === 0 && accountStore.accountId) {
-      await rulesStore.fetchRules(accountStore.accountId)
-    }
+    if (rulesStore.items.length === 0) await rulesStore.fetchRules()
     const existing = rulesStore.items.find((r) => r.id === ruleId.value)
     if (existing) {
       name.value = existing.name
-      action.value = existing.action
-      conditions.value = [...existing.conditions]
+      status.value = existing.status
+      actions.value = [...existing.actions]
+      groups.value = logicToGroups(existing.condition)
     }
   } else {
-    // Pre-fill from signalAction query param
     if (signalAction.value) {
-      action.value = signalAction.value === 'allow' ? 'allow' : 'block'
+      actions.value = [{ type: signalAction.value === 'allow' ? 'approve_sender' : 'block' }]
     }
-    // Pre-fill condition value from the quarantined signal's sender if available
     if (signalId.value) {
       const signal = quarantineStore.items.find((s) => s.id === signalId.value)
       if (signal) {
-        conditions.value = [
-          { field: 'from.address', operator: 'equals', value: signal.from.address },
+        groups.value = [
+          {
+            mode: 'and',
+            conditions: [
+              { field: 'signal.from.address', operator: 'equals', value: signal.from.address },
+            ],
+          },
         ]
-        name.value = `${action.value === 'allow' ? 'Allow' : 'Block'} ${signal.from.address}`
+        name.value = `${signalAction.value === 'allow' ? 'Allow' : 'Block'} ${signal.from.address}`
         testInput.value.fromAddress = signal.from.address
       }
     }
   }
 })
 
-// Keep action in sync with signalAction when it changes (for new rules only)
 watch(signalAction, (val) => {
-  if (!isEditing.value && val) action.value = val === 'allow' ? 'allow' : 'block'
+  if (!isEditing.value && val) {
+    actions.value = [{ type: val === 'allow' ? 'approve_sender' : 'block' }]
+  }
 })
 </script>
 
 <template>
   <div>
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
-      <div class="flex items-center gap-3">
-        <button class="text-sm text-ctp-subtext0 hover:text-ctp-text" @click="router.back()">
-          ← Back
-        </button>
-        <div>
-          <h1 class="text-lg font-semibold">{{ isEditing ? 'Edit rule' : 'New rule' }}</h1>
-          <p v-if="signalId && !isEditing" class="mt-0.5 text-xs text-ctp-subtext0">
-            Creating rule from quarantined signal — will be resolved after saving.
-          </p>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <button class="text-sm text-ctp-subtext0 hover:text-ctp-text" @click="router.back()">
+            ← Back
+          </button>
+          <div>
+            <h1 class="text-lg font-semibold">{{ isEditing ? 'Edit rule' : 'New rule' }}</h1>
+            <p v-if="signalId && !isEditing" class="mt-0.5 text-xs text-ctp-subtext0">
+              Creating rule from quarantined signal — will be resolved after saving.
+            </p>
+          </div>
         </div>
+
+        <!-- Enabled/disabled toggle -->
+        <button
+          class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors"
+          :class="
+            status === 'enabled'
+              ? 'bg-ctp-green/15 text-ctp-green'
+              : 'bg-ctp-surface1 text-ctp-subtext0'
+          "
+          @click="status = status === 'enabled' ? 'disabled' : 'enabled'"
+        >
+          <span
+            class="inline-block h-1.5 w-1.5 rounded-full"
+            :class="status === 'enabled' ? 'bg-ctp-green' : 'bg-ctp-subtext0'"
+          />
+          {{ status === 'enabled' ? 'Enabled' : 'Disabled' }}
+        </button>
       </div>
     </header>
 
@@ -187,7 +301,7 @@ watch(signalAction, (val) => {
         <button class="ml-2 underline" @click="rulesStore.clearError()">Dismiss</button>
       </div>
 
-      <!-- Rule name -->
+      <!-- Name -->
       <section class="mb-6">
         <label class="mb-1 block text-xs font-medium text-ctp-subtext0">Rule name</label>
         <input
@@ -201,95 +315,235 @@ watch(signalAction, (val) => {
       <!-- Conditions -->
       <section class="mb-6">
         <div class="mb-2 flex items-center justify-between">
-          <label class="text-xs font-medium text-ctp-subtext0">Conditions (all must match)</label>
-          <button class="text-xs text-ctp-mauve hover:underline" @click="addCondition">
-            + Add condition
+          <label class="text-xs font-medium text-ctp-subtext0">Conditions</label>
+          <button class="text-xs text-ctp-mauve hover:underline" @click="addGroup">
+            + Add group
           </button>
         </div>
-        <div class="space-y-2">
+
+        <div class="space-y-3">
           <div
-            v-for="(cond, idx) in conditions"
-            :key="idx"
-            class="flex items-center gap-2 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2"
+            v-for="(group, gi) in groups"
+            :key="gi"
+            class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-3"
           >
-            <select
-              :value="cond.field"
-              class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
-              @change="
-                updateCondition(idx, {
-                  field: ($event.target as HTMLSelectElement).value as RuleConditionField,
-                })
-              "
-            >
-              <option v-for="f in FIELDS" :key="f.value" :value="f.value">{{ f.label }}</option>
-            </select>
+            <!-- AND / OR toggle -->
+            <div class="mb-2 flex items-center justify-between">
+              <div class="flex items-center gap-1 rounded-full bg-ctp-surface0 p-0.5">
+                <button
+                  class="rounded-full px-2.5 py-0.5 text-xs transition-colors"
+                  :class="
+                    group.mode === 'and'
+                      ? 'bg-ctp-surface2 text-ctp-text'
+                      : 'text-ctp-subtext0 hover:text-ctp-text'
+                  "
+                  @click="setGroupMode(gi, 'and')"
+                >
+                  AND
+                </button>
+                <button
+                  class="rounded-full px-2.5 py-0.5 text-xs transition-colors"
+                  :class="
+                    group.mode === 'or'
+                      ? 'bg-ctp-surface2 text-ctp-text'
+                      : 'text-ctp-subtext0 hover:text-ctp-text'
+                  "
+                  @click="setGroupMode(gi, 'or')"
+                >
+                  OR
+                </button>
+              </div>
+              <button
+                v-if="groups.length > 1"
+                class="text-xs text-ctp-subtext0 hover:text-ctp-red"
+                @click="removeGroup(gi)"
+              >
+                Remove group
+              </button>
+            </div>
 
-            <select
-              :value="cond.operator"
-              class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
-              @change="
-                updateCondition(idx, {
-                  operator: ($event.target as HTMLSelectElement).value as RuleConditionOperator,
-                })
-              "
-            >
-              <option v-for="op in OPERATORS" :key="op.value" :value="op.value">
-                {{ op.label }}
-              </option>
-            </select>
+            <!-- Condition rows -->
+            <div class="space-y-2">
+              <div
+                v-for="(cond, ci) in group.conditions"
+                :key="ci"
+                class="flex flex-wrap items-center gap-2"
+              >
+                <select
+                  :value="cond.field"
+                  class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                  @change="
+                    updateCondition(gi, ci, {
+                      field: ($event.target as HTMLSelectElement).value as ConditionField,
+                    })
+                  "
+                >
+                  <option v-for="f in FIELDS" :key="f.value" :value="f.value">
+                    {{ f.label }}
+                  </option>
+                </select>
 
-            <input
-              :value="cond.value"
-              type="text"
-              placeholder="value"
-              class="min-w-0 flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-              :class="{
-                'border-ctp-red':
-                  testResult && !testResult.matchedConditions.includes(idx) && cond.value,
-              }"
-              @input="updateCondition(idx, { value: ($event.target as HTMLInputElement).value })"
-            />
+                <select
+                  :value="cond.operator"
+                  class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                  @change="
+                    updateCondition(gi, ci, {
+                      operator: ($event.target as HTMLSelectElement).value as ConditionOperator,
+                    })
+                  "
+                >
+                  <option v-for="op in OPERATORS" :key="op.value" :value="op.value">
+                    {{ op.label }}
+                  </option>
+                </select>
 
-            <span
-              v-if="testResult"
-              class="text-xs"
-              :class="
-                testResult.matchedConditions.includes(idx) ? 'text-ctp-green' : 'text-ctp-surface2'
-              "
-            >
-              {{ testResult.matchedConditions.includes(idx) ? '✓' : '✗' }}
-            </span>
+                <input
+                  :value="cond.value"
+                  type="text"
+                  placeholder="value"
+                  class="min-w-0 flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+                  @input="
+                    updateCondition(gi, ci, { value: ($event.target as HTMLInputElement).value })
+                  "
+                />
 
-            <button
-              v-if="conditions.length > 1"
-              class="shrink-0 text-xs text-ctp-subtext0 hover:text-ctp-red"
-              @click="removeCondition(idx)"
-            >
-              ✕
+                <button
+                  v-if="group.conditions.length > 1"
+                  class="shrink-0 text-xs text-ctp-subtext0 hover:text-ctp-red"
+                  @click="removeCondition(gi, ci)"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <button class="mt-2 text-xs text-ctp-mauve hover:underline" @click="addCondition(gi)">
+              + Add condition
             </button>
           </div>
         </div>
       </section>
 
-      <!-- Action -->
+      <!-- Actions -->
       <section class="mb-6">
-        <label class="mb-2 block text-xs font-medium text-ctp-subtext0">Action</label>
-        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <button
-            v-for="a in ACTIONS"
-            :key="a.value"
-            class="rounded-lg border px-3 py-2 text-left text-xs transition-colors"
-            :class="
-              action === a.value
-                ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
-                : 'border-ctp-surface1 text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text'
-            "
-            @click="action = a.value"
+        <label class="mb-2 block text-xs font-medium text-ctp-subtext0">Actions</label>
+
+        <div class="space-y-2">
+          <div
+            v-for="(act, idx) in actions"
+            :key="idx"
+            class="flex flex-wrap items-center gap-3 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2"
           >
-            <p class="font-medium">{{ a.label }}</p>
-            <p class="text-ctp-subtext0">{{ a.description }}</p>
+            <span
+              class="rounded-full bg-ctp-surface1 px-2.5 py-0.5 text-xs font-medium text-ctp-text"
+            >
+              {{ actionLabel(act.type) }}
+            </span>
+
+            <template v-if="act.type === 'assign_label'">
+              <select
+                :value="act.labelId ?? ''"
+                class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                @change="updateAction(idx, { labelId: ($event.target as HTMLSelectElement).value })"
+              >
+                <option value="">Pick label…</option>
+                <option v-for="l in labelsStore.items" :key="l.id" :value="l.id">
+                  {{ l.name }}
+                </option>
+              </select>
+            </template>
+
+            <template v-else-if="act.type === 'assign_workflow'">
+              <select
+                :value="act.workflow ?? ''"
+                class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                @change="
+                  updateAction(idx, {
+                    workflow: ($event.target as HTMLSelectElement).value as never,
+                  })
+                "
+              >
+                <option value="">Pick workflow…</option>
+                <option v-for="w in WORKFLOW_OPTIONS" :key="w" :value="w">{{ w }}</option>
+              </select>
+            </template>
+
+            <template v-else-if="act.type === 'set_urgency'">
+              <select
+                :value="act.urgency ?? ''"
+                class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                @change="
+                  updateAction(idx, {
+                    urgency: ($event.target as HTMLSelectElement).value as never,
+                  })
+                "
+              >
+                <option value="">Pick urgency…</option>
+                <option v-for="u in URGENCY_OPTIONS" :key="u" :value="u">{{ u }}</option>
+              </select>
+            </template>
+
+            <template v-else-if="act.type === 'forward'">
+              <input
+                :value="act.forwardTo ?? ''"
+                type="email"
+                placeholder="forward@example.com"
+                class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+                @input="updateAction(idx, { forwardTo: ($event.target as HTMLInputElement).value })"
+              />
+            </template>
+
+            <template v-else-if="act.type === 'auto_reply' || act.type === 'auto_draft'">
+              <input
+                :value="act.templateId ?? ''"
+                type="text"
+                placeholder="Template ID"
+                class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+                @input="
+                  updateAction(idx, { templateId: ($event.target as HTMLInputElement).value })
+                "
+              />
+            </template>
+
+            <button
+              class="ml-auto text-xs text-ctp-subtext0 hover:text-ctp-red"
+              @click="removeAction(idx)"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <!-- Add action picker -->
+        <div v-if="addingAction" class="mt-2 flex items-center gap-2">
+          <select
+            v-model="actionTypeToAdd"
+            class="flex-1 rounded border border-ctp-surface1 bg-ctp-mantle px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+          >
+            <option v-for="m in ACTION_META" :key="m.type" :value="m.type">
+              {{ m.label }} — {{ m.description }}
+            </option>
+          </select>
+          <button
+            class="rounded bg-ctp-mauve px-3 py-1 text-xs font-medium text-ctp-base hover:opacity-90"
+            @click="addAction"
+          >
+            Add
+          </button>
+          <button
+            class="text-xs text-ctp-subtext0 hover:text-ctp-text"
+            @click="addingAction = false"
+          >
+            Cancel
           </button>
         </div>
+        <button
+          v-else
+          class="mt-2 text-xs text-ctp-mauve hover:underline"
+          @click="addingAction = true"
+        >
+          + Add action
+        </button>
       </section>
 
       <!-- Rule tester -->
@@ -314,6 +568,26 @@ watch(signalAction, (val) => {
               class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
             />
           </div>
+          <div>
+            <label class="mb-1 block text-xs text-ctp-subtext0">Workflow</label>
+            <input
+              v-model="testInput.workflow"
+              type="text"
+              placeholder="e.g. conversation"
+              class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs text-ctp-subtext0">Spam score (0–10)</label>
+            <input
+              v-model="testInput.spamScore"
+              type="number"
+              min="0"
+              max="10"
+              placeholder="0"
+              class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+            />
+          </div>
         </div>
         <div class="mt-3 flex items-center gap-3">
           <button
@@ -325,9 +599,9 @@ watch(signalAction, (val) => {
           <span
             v-if="testResult !== null"
             class="text-xs font-medium"
-            :class="testResult.matches ? 'text-ctp-green' : 'text-ctp-subtext0'"
+            :class="testResult ? 'text-ctp-green' : 'text-ctp-subtext0'"
           >
-            {{ testResult.matches ? '✓ Rule matches this email' : '✗ Rule does not match' }}
+            {{ testResult ? '✓ Rule matches this email' : '✗ Rule does not match' }}
           </span>
         </div>
       </section>

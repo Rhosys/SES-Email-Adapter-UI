@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch, computed } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useAccountStore } from '@/stores/account'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useRelativeTime } from '@/composables/useRelativeTime'
@@ -11,21 +11,15 @@ const accountStore = useAccountStore()
 const store = useQuarantineStore()
 useRelativeTime()
 
-const hasMore = computed(() => !!store.nextCursor)
-
 onMounted(async () => {
   await accountStore.fetchAccount()
-  if (accountStore.accountId) {
-    await store.fetchSignals(accountStore.accountId, true)
-  }
+  await store.fetchSignals(true)
 })
 
 watch(
   () => ({ ...store.filters }),
   async () => {
-    if (accountStore.accountId) {
-      await store.fetchSignals(accountStore.accountId, true)
-    }
+    await store.fetchSignals(true)
   },
   { deep: true },
 )
@@ -35,21 +29,19 @@ function onUpdateFilters(next: Partial<Filters>) {
 }
 
 async function onAllow(signalId: string) {
-  if (accountStore.accountId) {
-    await store.allow(accountStore.accountId, signalId)
-  }
+  await store.allow(signalId)
 }
 
-async function onBlock(signalId: string) {
-  if (accountStore.accountId) {
-    await store.block(accountStore.accountId, signalId)
-  }
+async function onReject(signalId: string) {
+  await store.reject(signalId)
+}
+
+async function onRejectForAlias(signalId: string, toAddress: string, fromAddress: string) {
+  await store.rejectForAlias(signalId, toAddress, fromAddress)
 }
 
 async function loadMore() {
-  if (accountStore.accountId) {
-    await store.fetchMore(accountStore.accountId)
-  }
+  await store.fetchMore()
 }
 </script>
 
@@ -58,7 +50,7 @@ async function loadMore() {
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
       <h1 class="text-lg font-semibold">Quarantine</h1>
       <p class="mt-0.5 text-xs text-ctp-subtext0">
-        Held emails that need your decision — allow, block, or create a rule
+        Held emails that need your decision — allow, reject, or create a rule
       </p>
     </header>
 
@@ -94,12 +86,13 @@ async function loadMore() {
           :signal="signal"
           :pending="store.actionPending.has(signal.id)"
           @allow="onAllow"
-          @block="onBlock"
+          @reject="onReject"
+          @reject-for-alias="onRejectForAlias"
         />
       </div>
 
       <!-- Load more -->
-      <div v-if="hasMore" class="flex justify-center py-4">
+      <div v-if="store.hasMore" class="flex justify-center py-4">
         <button
           :disabled="store.loadingMore"
           class="rounded bg-ctp-surface0 px-4 py-2 text-sm text-ctp-text hover:bg-ctp-surface1 disabled:opacity-50"

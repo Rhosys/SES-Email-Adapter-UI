@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { ok, err } from 'neverthrow'
 import { useSignalsStore } from '@/stores/signals'
-import type { Arc, Signal, Page } from '@/types/server'
+import { useAccountStore } from '@/stores/account'
+import type { Arc, Signal, Page, Account } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
@@ -57,6 +58,8 @@ describe('signalsStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    const accountStore = useAccountStore()
+    accountStore.account = { id: 'acc_1', name: 'Test' } as Account
   })
 
   it('fetchAll populates arc and items', async () => {
@@ -64,7 +67,7 @@ describe('signalsStore', () => {
     vi.mocked(api.listSignals).mockResolvedValue(ok(mockPage([mockSignal()])))
 
     const store = useSignalsStore()
-    await store.fetchAll('acc_1', 'arc_1')
+    await store.fetchAll('arc_1')
 
     expect(store.arc?.id).toBe('arc_1')
     expect(store.items).toHaveLength(1)
@@ -77,7 +80,7 @@ describe('signalsStore', () => {
     vi.mocked(api.listSignals).mockResolvedValue(ok(mockPage([])))
 
     const store = useSignalsStore()
-    await store.fetchAll('acc_1', 'arc_1')
+    await store.fetchAll('arc_1')
 
     expect(store.error).toBe('Not found')
     expect(store.arc).toBeNull()
@@ -88,7 +91,7 @@ describe('signalsStore', () => {
     vi.mocked(api.listSignals).mockResolvedValue(err(new ApiError(500, 'Server error')))
 
     const store = useSignalsStore()
-    await store.fetchAll('acc_1', 'arc_1')
+    await store.fetchAll('arc_1')
 
     expect(store.error).toBe('Server error')
   })
@@ -101,7 +104,7 @@ describe('signalsStore', () => {
     vi.mocked(api.listSignals).mockResolvedValue(ok(mockPage([sig1, sig2])))
 
     const store = useSignalsStore()
-    await store.fetchAll('acc_1', 'arc_1')
+    await store.fetchAll('arc_1')
 
     expect(store.latestSignal?.id).toBe('sig_2')
   })
@@ -113,7 +116,7 @@ describe('signalsStore', () => {
     )
 
     const store = useSignalsStore()
-    await store.fetchAll('acc_1', 'arc_1')
+    await store.fetchAll('arc_1')
 
     expect(store.hasMore).toBe(true)
   })
@@ -123,7 +126,7 @@ describe('signalsStore', () => {
     vi.mocked(api.listSignals).mockResolvedValue(ok(mockPage([mockSignal()])))
 
     const store = useSignalsStore()
-    await store.fetchAll('acc_1', 'arc_1')
+    await store.fetchAll('arc_1')
     store.reset()
 
     expect(store.arc).toBeNull()
@@ -135,7 +138,7 @@ describe('signalsStore', () => {
     vi.mocked(api.patchArc).mockResolvedValue(ok(mockArc({ status: 'archived' })))
 
     const store = useSignalsStore()
-    const result = await store.archiveArc('acc_1', 'arc_1')
+    const result = await store.archiveArc('arc_1')
 
     expect(result).toBe(true)
     expect(store.arc?.status).toBe('archived')
@@ -145,7 +148,7 @@ describe('signalsStore', () => {
     vi.mocked(api.patchArc).mockResolvedValue(err(new ApiError(500, 'Failed')))
 
     const store = useSignalsStore()
-    const result = await store.archiveArc('acc_1', 'arc_1')
+    const result = await store.archiveArc('arc_1')
 
     expect(result).toBe(false)
     expect(store.error).toBe('Failed')

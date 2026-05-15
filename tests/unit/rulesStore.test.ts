@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { ok, err } from 'neverthrow'
 import { useRulesStore } from '@/stores/rules'
-import type { Rule } from '@/types/server'
+import { useAccountStore } from '@/stores/account'
+import type { Rule, Account } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
@@ -24,8 +25,10 @@ function mockRule(overrides: Partial<Rule> = {}): Rule {
     id: 'rule_1',
     accountId: 'acc_1',
     name: 'Test rule',
-    conditions: [{ field: 'from.address', operator: 'equals', value: 'spam@example.com' }],
-    action: 'block',
+    status: 'enabled',
+    priorityOrder: 1,
+    condition: '{"==":[{"var":"signal.from.address"},"spam@example.com"]}',
+    actions: [{ type: 'block' }],
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     ...overrides,
@@ -36,12 +39,14 @@ describe('rulesStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    const accountStore = useAccountStore()
+    accountStore.account = { id: 'acc_1', name: 'Test' } as Account
   })
 
   it('fetchRules populates items', async () => {
     vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
     const store = useRulesStore()
-    await store.fetchRules('acc_1')
+    await store.fetchRules()
     expect(store.items).toHaveLength(1)
     expect(store.loading).toBe(false)
     expect(store.error).toBeNull()
@@ -50,7 +55,7 @@ describe('rulesStore', () => {
   it('fetchRules sets error on failure', async () => {
     vi.mocked(api.listRules).mockResolvedValue(err(new ApiError(500, 'Server error')))
     const store = useRulesStore()
-    await store.fetchRules('acc_1')
+    await store.fetchRules()
     expect(store.items).toHaveLength(0)
     expect(store.error).toBe('Server error')
   })
@@ -59,10 +64,10 @@ describe('rulesStore', () => {
     const rule = mockRule({ id: 'rule_2', name: 'New rule' })
     vi.mocked(api.createRule).mockResolvedValue(ok(rule))
     const store = useRulesStore()
-    const result = await store.createRule('acc_1', {
+    const result = await store.createRule({
       name: 'New rule',
-      conditions: [],
-      action: 'block',
+      condition: '{}',
+      actions: [{ type: 'block' }],
     })
     expect(result).toEqual(rule)
     expect(store.items).toHaveLength(1)
@@ -71,35 +76,40 @@ describe('rulesStore', () => {
   it('createRule sets error and returns null on failure', async () => {
     vi.mocked(api.createRule).mockResolvedValue(err(new ApiError(400, 'Invalid')))
     const store = useRulesStore()
-    const result = await store.createRule('acc_1', { name: 'x', conditions: [], action: 'allow' })
+    const result = await store.createRule({ name: 'x', condition: '{}', actions: [] })
     expect(result).toBeNull()
     expect(store.error).toBe('Invalid')
   })
 
   it('updateRule replaces item in list', async () => {
     const updated = mockRule({ name: 'Updated rule' })
+    vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
     vi.mocked(api.updateRule).mockResolvedValue(ok(updated))
     const store = useRulesStore()
-    store.items = [mockRule()]
-    const result = await store.updateRule('acc_1', 'rule_1', { name: 'Updated rule' })
+    await store.fetchRules()
+    const result = await store.updateRule('rule_1', { name: 'Updated rule' })
     expect(result?.name).toBe('Updated rule')
     expect(store.items[0].name).toBe('Updated rule')
   })
 
   it('deleteRule removes item from list', async () => {
+    vi.mocked(api.listRules).mockResolvedValue(
+      ok([mockRule({ id: 'rule_1' }), mockRule({ id: 'rule_2' })]),
+    )
     vi.mocked(api.deleteRule).mockResolvedValue(ok(undefined))
     const store = useRulesStore()
-    store.items = [mockRule({ id: 'rule_1' }), mockRule({ id: 'rule_2' })]
-    const result = await store.deleteRule('acc_1', 'rule_1')
+    await store.fetchRules()
+    const result = await store.deleteRule('rule_1')
     expect(result).toBe(true)
     expect(store.items.map((r) => r.id)).toEqual(['rule_2'])
   })
 
   it('deleteRule sets error and returns false on failure', async () => {
+    vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
     vi.mocked(api.deleteRule).mockResolvedValue(err(new ApiError(404, 'Not found')))
     const store = useRulesStore()
-    store.items = [mockRule()]
-    const result = await store.deleteRule('acc_1', 'rule_1')
+    await store.fetchRules()
+    const result = await store.deleteRule('rule_1')
     expect(result).toBe(false)
     expect(store.error).toBe('Not found')
     expect(store.items).toHaveLength(1)
@@ -120,7 +130,7 @@ describe('rulesStore', () => {
       }),
     )
     const store = useRulesStore()
-    const p = store.createRule('acc_1', { name: 'x', conditions: [], action: 'allow' })
+    const p = store.createRule({ name: 'x', condition: '{}', actions: [] })
     expect(store.savePending).toBe(true)
     resolve(ok(mockRule()))
     await p

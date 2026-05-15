@@ -14,7 +14,7 @@
 
 - [x] **Reply composer — wire up draft signal API and complete From field UX**
 
-- [ ] **Quarantine view — correct API usage and status handling**
+- [x] **Quarantine view — correct API usage and status handling**
   - The list endpoint (`GET /accounts/:id/signals?status=`) only accepts a single status value per
     call; the quarantine view must make **two parallel requests** — one for `quarantine_visible`
     and one for `quarantine_hidden` — then merge and display all results
@@ -94,7 +94,7 @@ view | template | forwarding_address`)
     enhancement — poll or use a status API if available)
   - On mobile the button sits in the top header bar rather than the sidebar
 
-- [ ] **Rule editor — full redesign** (`RuleEditorView.vue`)
+- [x] **Rule editor — full redesign** (`RuleEditorView.vue`)
 
   The current editor has a simple flat AND-only condition list, a single action from 4 options,
   and no JSONLogic serialisation. The backend requires a significant superset of all of this.
@@ -133,12 +133,12 @@ view | template | forwarding_address`)
   - **`priorityOrder`** — not editable inline in the editor; controlled via the list view
     (drag-to-reorder or up/down arrows on `RulesView`)
 
-- [ ] **Fix `SavedView` position field mismatch** — UI type has `order: number` but backend uses
+- [x] **Fix `SavedView` position field mismatch** — UI type has `order: number` but backend uses
       `position: number`; the drag-to-reorder in the sidebar is silently sending the wrong field name
       on every PATCH call. Fix: rename `order` → `position` in `SavedView`, `CreateSavedViewBody`,
       `UpdateSavedViewBody`, and `useViewsStore` throughout.
 
-- [ ] **Reconcile `Rule` type against backend** — several structural mismatches:
+- [x] **Reconcile `Rule` type against backend** — several structural mismatches:
   - `action: RuleAction` (single, UI) → `actions: RuleAction[]` (array, backend)
   - `RuleAction` union (`'allow' | 'block' | 'label' | 'quarantine'`) is stale — backend has 14
     types: `assign_label | assign_workflow | archive | delete | forward | block | quarantine |
@@ -149,7 +149,7 @@ auto_draft`
   - `priorityOrder: number` missing from the UI `Rule` type; add it and expose drag-to-reorder
     (or up/down arrows) in `RulesView` — persist by PATCHing `priorityOrder` on the affected rules
 
-- [ ] **Re-check DNS button on domain rows** — Settings → Domains: add a "Re-check" button to
+- [x] **Re-check DNS button on domain rows** — Settings → Domains: add a "Re-check" button to
       any domain or DNS record row whose status is not `'verified'` (i.e. `'pending'` or `'failed'`).
   - Calls `PATCH /accounts/:id/domains/:domainId` to trigger an on-demand DNS verification
   - Button is per-domain (not per-record) and only visible when the domain or any of its records
@@ -211,8 +211,8 @@ auto_draft`
 
 - [x] Add a top of page search bar
 
-- [ ] Update authress properties, the appId is `app_2EAWGEdtzaeCj7b45DsDtt`, the app domain is email.rhosys.cloud, and the authress custom domain is login.rhosys.cloud
-- [ ] **User profile screen** (`/profile`) — personal identity and security settings, fully separate from the account/organisation management screen (`/settings`):
+- [x] Update authress properties, the appId is `app_2EAWGEdtzaeCj7b45DsDtt`, the app domain is email.rhosys.cloud, and the authress custom domain is login.rhosys.cloud
+- [x] **User profile screen** (`/profile`) — personal identity and security settings, fully separate from the account/organisation management screen (`/settings`):
   - **Linked identity connections** — list connected providers (Google, GitHub, etc.) with connected-at date; "Connect" button for unlinked providers; "Disconnect" with confirmation (must keep at least one connection)
   - **Passkey devices** — list enrolled passkeys (device name, registered-at); "Add passkey" flow via `navigator.credentials.create` (WebAuthn); "Remove" per device with confirmation
   - **Active sessions** — table of current sessions (device, browser, IP, last active); "Terminate" per session; "Terminate all other sessions" bulk action
@@ -439,7 +439,10 @@ endpoints being available.
 ### Backend TODOs for Phase 5
 
 - **`Signal.matchedRules`** — `matchedRules?: RuleExecution[]` already modelled in `src/types/server.ts`; backend must include it in the quarantine list response.
-- **`POST .../quarantineResponse`** — must resolve the signal and return the updated Signal.
+- **`POST .../quarantineResponse`** — must resolve the signal and return the updated Signal. Must accept all quarantine outcome statuses:
+  - `{ status: 'active' }` — approve: find or create arc, deliver signal
+  - `{ status: 'block_hidden' }` — accept delivery from sender's server but silently discard the signal; sender receives a successful delivery acknowledgement and is never notified
+  - `{ status: 'block_reject' }` — return a permanent delivery failure (e.g. SMTP 5xx) to the sender's mail server; the sending server will notify the sender that the address is unavailable ("nuclear unsubscribe")
 - **`EmailAddressConfig.blockedSenders`** — add `blockedSenders?: string[]` to alias config and support in `PATCH /aliases/:address`.
 
 ## Phase 6 — Labels & views ✓ DONE
@@ -462,6 +465,8 @@ endpoints being available.
 ### Backend TODOs for Phase 7
 
 - `GET/POST/PATCH/DELETE /accounts/:id/rules`
+- **`block_hidden` rule action** — when a rule fires with `action: 'block_hidden'`, the backend must accept delivery from the sender's mail server (so the sender receives a successful 250 OK) and then silently discard the signal without creating an arc or delivering to the user.
+- **`block_reject` rule action** — when a rule fires with `action: 'block_reject'`, the backend must return a permanent delivery failure (SMTP 5xx / bounce) to the sender's mail server. The sending server will notify the original sender that the address is permanently unavailable. This is the "nuclear unsubscribe" path — use only when the intent is to signal that the alias no longer accepts mail from this sender.
 
 ## Phase 8 — Search ✓ DONE
 

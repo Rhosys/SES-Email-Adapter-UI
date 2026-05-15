@@ -42,26 +42,24 @@ jobs:
             | cut -c1-63)
           echo "DEPLOY_PREFIX=pr/${SLUG}" >> "$GITHUB_ENV"
           echo "VITE_BASE_PATH=/pr/${SLUG}/" >> "$GITHUB_ENV"
+          echo "CF_INVALIDATION_PATH=/pr/${SLUG}/*" >> "$GITHUB_ENV"
         shell: bash
 
       - name: Set main deploy prefix
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name != 'pull_request'
         run: |
-          YEAR=$(date +%Y)
-          echo "DEPLOY_PREFIX=main/${YEAR}" >> "$GITHUB_ENV"
-          echo "VITE_BASE_PATH=/main/${YEAR}/" >> "$GITHUB_ENV"
+          echo "DEPLOY_PREFIX=" >> "$GITHUB_ENV"
+          echo "CF_INVALIDATION_PATH=/*" >> "$GITHUB_ENV"
         shell: bash
 
       # ── Resolve infrastructure from OpenTofu state ──────────────────────────
 
       - name: Install OpenTofu
-        if: env.DEPLOY_PREFIX != ''
         uses: opentofu/setup-opentofu@v1
         with:
           tofu_version: latest
 
       - name: Read infra outputs from backend state
-        if: env.DEPLOY_PREFIX != ''
         run: |
           set -euo pipefail
 
@@ -91,10 +89,9 @@ jobs:
       - name: Check
         run: npm run check
 
-      # ── Build (only when deploying) ─────────────────────────────────────────
+      # ── Build ─────────────────────────────────────────
 
       - name: Build
-        if: env.DEPLOY_PREFIX != ''
         run: npm run build
         env:
           VITE_BASE_PATH: ${{ env.VITE_BASE_PATH }}
@@ -105,17 +102,15 @@ jobs:
       # ── Deploy to S3 ────────────────────────────────────────────────────────
 
       - name: Publish website to S3
-        if: env.DEPLOY_PREFIX != ''
         run: npm run deploy:website -- publish "${{ env.DEPLOY_PREFIX }}"
         env:
           SITE_BUCKET_NAME: ${{ env.SITE_BUCKET_NAME }}
 
       - name: Invalidate CloudFront
-        if: env.DEPLOY_PREFIX != ''
         run: |
           aws cloudfront create-invalidation \
             --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
-            --paths "/${{ env.DEPLOY_PREFIX }}/*"
+            --paths "${{ env.CF_INVALIDATION_PATH }}"
         shell: bash
 
       # ── Post preview URL as PR comment ──────────────────────────────────────
@@ -127,12 +122,34 @@ jobs:
           script: |
             const prefix = process.env.DEPLOY_PREFIX
             const url = `https://email.rhosys.cloud/${prefix}/`
-            await github.rest.issues.createComment({
+            const marker = '### Preview deployed'
+            const body = `${marker}\n\n**URL:** ${url}\n\n> Deep links require the CloudFront path-rewrite rule to be configured for the \`/${prefix}/\` prefix.`
+
+            const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `### Preview deployed\n\n**URL:** ${url}\n\n> Deep links require the CloudFront path-rewrite rule to be configured for the \`/${prefix}/\` prefix.`,
             })
+
+            const existing = comments.find(
+              c => c.user?.login === 'github-actions[bot]' && c.body?.includes(marker)
+            )
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              })
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              })
+            }
 
   # ── Delete PR preview from S3 when branch is gone ─────────────────────────
   cleanup:

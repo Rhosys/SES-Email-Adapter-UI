@@ -16,25 +16,23 @@ useRelativeTime()
 
 onMounted(async () => {
   await accountStore.fetchAccount()
-  if (accountStore.accountId) {
-    await arcsStore.fetchArcs(accountStore.accountId, true)
-  }
+  await arcsStore.fetchArcs(true)
 })
 
 function handleTabChange(tab: 'active' | 'archived' | 'all') {
-  if (accountStore.accountId) arcsStore.setTab(tab, accountStore.accountId)
+  arcsStore.setTab(tab)
 }
 
 function handleLoadMore() {
-  if (accountStore.accountId) void arcsStore.fetchMoreArcs(accountStore.accountId)
+  void arcsStore.fetchMoreArcs()
 }
 
 function handleBulkArchive() {
-  if (accountStore.accountId) void arcsStore.bulkArchive(accountStore.accountId)
+  void arcsStore.bulkArchive()
 }
 
 function handleBulkLabel(label: string) {
-  if (accountStore.accountId) void arcsStore.bulkLabel(accountStore.accountId, label)
+  void arcsStore.bulkLabel(label)
 }
 </script>
 

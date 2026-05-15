@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { ok, err } from 'neverthrow'
 import { useArcsStore } from '@/stores/arcs'
-import type { Arc } from '@/types/server'
+import { useAccountStore } from '@/stores/account'
+import type { Arc, Account } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
@@ -36,12 +37,14 @@ describe('arcsStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    const accountStore = useAccountStore()
+    accountStore.account = { id: 'acc_1', name: 'Test' } as Account
   })
 
   it('fetches arcs and populates items', async () => {
     vi.mocked(api.listArcs).mockResolvedValue(ok({ items: [mockArc()] }))
     const store = useArcsStore()
-    await store.fetchArcs('acc_1', true)
+    await store.fetchArcs(true)
     expect(store.items).toHaveLength(1)
     expect(store.loading).toBe(false)
     expect(store.error).toBeNull()
@@ -50,27 +53,37 @@ describe('arcsStore', () => {
   it('sets error when fetch fails', async () => {
     vi.mocked(api.listArcs).mockResolvedValue(err(new ApiError(500, 'Server error')))
     const store = useArcsStore()
-    await store.fetchArcs('acc_1', true)
+    await store.fetchArcs(true)
     expect(store.items).toHaveLength(0)
     expect(store.error).toBe('Server error')
   })
 
-  it('pins auth+critical arcs first in sortedItems', () => {
+  it('pins auth+critical arcs first in sortedItems', async () => {
+    vi.mocked(api.listArcs).mockResolvedValue(
+      ok({
+        items: [
+          mockArc({ id: 'arc_2', workflow: 'conversation', urgency: 'high' }),
+          mockArc({ id: 'arc_1', workflow: 'auth', urgency: 'critical' }),
+        ],
+      }),
+    )
     const store = useArcsStore()
-    store.items = [
-      mockArc({ id: 'arc_2', workflow: 'conversation', urgency: 'high' }),
-      mockArc({ id: 'arc_1', workflow: 'auth', urgency: 'critical' }),
-    ]
+    await store.fetchArcs(true)
     expect(store.sortedItems[0].id).toBe('arc_1')
     expect(store.sortedItems[1].id).toBe('arc_2')
   })
 
-  it('does not pin auth arcs that are not critical', () => {
+  it('does not pin auth arcs that are not critical', async () => {
+    vi.mocked(api.listArcs).mockResolvedValue(
+      ok({
+        items: [
+          mockArc({ id: 'arc_2', workflow: 'conversation', urgency: 'high' }),
+          mockArc({ id: 'arc_1', workflow: 'auth', urgency: 'normal' }),
+        ],
+      }),
+    )
     const store = useArcsStore()
-    store.items = [
-      mockArc({ id: 'arc_2', workflow: 'conversation', urgency: 'high' }),
-      mockArc({ id: 'arc_1', workflow: 'auth', urgency: 'normal' }),
-    ]
+    await store.fetchArcs(true)
     // auth without critical urgency is not pinned — original order preserved
     expect(store.sortedItems[0].id).toBe('arc_2')
   })
@@ -83,9 +96,12 @@ describe('arcsStore', () => {
     expect(store.selectedIds.has('arc_1')).toBe(false)
   })
 
-  it('selectAll adds all item ids', () => {
+  it('selectAll adds all item ids', async () => {
+    vi.mocked(api.listArcs).mockResolvedValue(
+      ok({ items: [mockArc({ id: 'arc_1' }), mockArc({ id: 'arc_2' })] }),
+    )
     const store = useArcsStore()
-    store.items = [mockArc({ id: 'arc_1' }), mockArc({ id: 'arc_2' })]
+    await store.fetchArcs(true)
     store.selectAll()
     expect(store.selectedIds.has('arc_1')).toBe(true)
     expect(store.selectedIds.has('arc_2')).toBe(true)
@@ -100,12 +116,14 @@ describe('arcsStore', () => {
   })
 
   it('bulkArchive optimistically removes active arcs from list', async () => {
+    vi.mocked(api.listArcs)
+      .mockResolvedValueOnce(ok({ items: [mockArc()] }))
+      .mockResolvedValue(ok({ items: [] }))
     vi.mocked(api.patchArc).mockResolvedValue(ok(mockArc({ status: 'archived' })))
-    vi.mocked(api.listArcs).mockResolvedValue(ok({ items: [] }))
     const store = useArcsStore()
-    store.items = [mockArc()]
+    await store.fetchArcs(true)
     store.toggleSelect('arc_1')
-    await store.bulkArchive('acc_1')
+    await store.bulkArchive()
     expect(store.items).toHaveLength(0)
     expect(store.selectedIds.size).toBe(0)
   })
@@ -113,7 +131,7 @@ describe('arcsStore', () => {
   it('hasMore is true when nextCursor is set', async () => {
     vi.mocked(api.listArcs).mockResolvedValue(ok({ items: [mockArc()], nextCursor: 'cursor_abc' }))
     const store = useArcsStore()
-    await store.fetchArcs('acc_1', true)
+    await store.fetchArcs(true)
     expect(store.hasMore).toBe(true)
   })
 })

@@ -47,7 +47,9 @@ function startPolling() {
       clearInterval(pollInterval!)
       return
     }
-    const result = await api.listQuarantinedSignals(accountStore.accountId!, { limit: 1 })
+    const result = await api.listQuarantinedSignals(accountStore.accountId!, 'quarantine_visible', {
+      limit: 1,
+    })
     if (result.isOk() && result.value.items.length > 0) {
       signalArrived.value = true
       clearInterval(pollInterval!)

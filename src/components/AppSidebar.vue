@@ -13,6 +13,8 @@ const labelsStore = useLabelsStore()
 const viewsStore = useViewsStore()
 const accountStore = useAccountStore()
 
+const switcherOpen = ref(false)
+
 const isActive = (path: string) => route.path === path || route.path.startsWith(path + '/')
 const exactActive = (path: string) => route.path === path
 
@@ -44,6 +46,11 @@ function navigateToView(v: {
   void router.push({ path: '/', query })
 }
 
+function selectAccount(id: string) {
+  switcherOpen.value = false
+  accountStore.switchAccount(id)
+}
+
 const viewsLoaded = computed(() => !viewsStore.loading)
 const sortedViews = computed(() => viewsStore.sortedViews)
 const labels = computed(() => labelsStore.items)
@@ -54,9 +61,55 @@ const labels = computed(() => labelsStore.items)
     class="fixed inset-y-0 left-0 z-40 flex w-56 flex-col border-r border-ctp-surface0 bg-ctp-mantle transition-transform duration-200 sm:static sm:inset-auto sm:z-auto sm:transition-none"
     :class="open ? 'translate-x-0' : '-translate-x-full sm:translate-x-0'"
   >
-    <!-- Brand -->
-    <div class="flex h-12 items-center gap-2 border-b border-ctp-surface0 px-4">
-      <span class="text-sm font-semibold text-ctp-text">SES Adapter</span>
+    <!-- Brand / account switcher -->
+    <div class="relative border-b border-ctp-surface0">
+      <button
+        class="flex h-12 w-full items-center gap-2 px-4 text-left transition-colors hover:bg-ctp-surface0/50"
+        :class="{ 'cursor-default hover:bg-transparent': accountStore.accounts.length <= 1 }"
+        @click="accountStore.accounts.length > 1 && (switcherOpen = !switcherOpen)"
+      >
+        <span class="flex-1 truncate text-sm font-semibold text-ctp-text">
+          {{ accountStore.account?.name ?? 'SES Adapter' }}
+        </span>
+        <svg
+          v-if="accountStore.accounts.length > 1"
+          class="h-3.5 w-3.5 shrink-0 text-ctp-subtext0 transition-transform"
+          :class="{ 'rotate-180': switcherOpen }"
+          viewBox="0 0 16 16"
+          fill="currentColor"
+        >
+          <path d="M1.5 5.5l6 6 6-6" stroke="currentColor" stroke-width="1.5" fill="none" />
+        </svg>
+      </button>
+
+      <!-- Dropdown -->
+      <div
+        v-if="switcherOpen"
+        class="absolute left-0 right-0 top-full z-50 rounded-b-lg border-x border-b border-ctp-surface0 bg-ctp-mantle shadow-lg"
+      >
+        <button
+          v-for="acc in accountStore.accounts"
+          :key="acc.id"
+          class="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-ctp-surface0"
+          :class="
+            acc.id === accountStore.accountId ? 'font-medium text-ctp-text' : 'text-ctp-subtext1'
+          "
+          @click="selectAccount(acc.id)"
+        >
+          <span class="flex-1 truncate">{{ acc.name }}</span>
+          <svg
+            v-if="acc.id === accountStore.accountId"
+            class="h-3.5 w-3.5 shrink-0 text-ctp-mauve"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+          >
+            <path d="M2 8l4 4 8-8" stroke="currentColor" stroke-width="1.5" fill="none" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Click-outside backdrop -->
+      <div v-if="switcherOpen" class="fixed inset-0 z-40" @click="switcherOpen = false" />
     </div>
 
     <nav class="flex-1 overflow-y-auto py-2">

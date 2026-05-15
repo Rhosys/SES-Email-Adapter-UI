@@ -47,10 +47,12 @@ const suggestions = ref<{
 }>({ arcs: [], senders: [], aliases: [], rules: [], loading: false })
 
 const ACTION_COLORS: Record<string, string> = {
-  allow: 'text-ctp-green bg-ctp-green/10',
   block: 'text-ctp-red bg-ctp-red/10',
-  label: 'text-ctp-blue bg-ctp-blue/10',
+  delete: 'text-ctp-red bg-ctp-red/10',
   quarantine: 'text-ctp-peach bg-ctp-peach/10',
+  quarantine_hidden: 'text-ctp-peach bg-ctp-peach/10',
+  assign_label: 'text-ctp-blue bg-ctp-blue/10',
+  approve_sender: 'text-ctp-green bg-ctp-green/10',
 }
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -130,11 +132,7 @@ async function fetchSuggestions(q: string) {
 
   suggestions.value.rules = rulesRes.isOk()
     ? rulesRes.value
-        .filter(
-          (r) =>
-            r.name.toLowerCase().includes(ql) ||
-            r.conditions.some((c) => c.value.toLowerCase().includes(ql)),
-        )
+        .filter((r) => r.name.toLowerCase().includes(ql) || r.condition.toLowerCase().includes(ql))
         .slice(0, 3)
     : []
 }
@@ -197,14 +195,17 @@ function submitSearch() {
 
 onMounted(async () => {
   if (!accountStore.account) {
-    await accountStore.fetchAccount()
+    const fromUrl = route.query.accountId as string | undefined
+    await accountStore.fetchAccount(fromUrl)
+    if (fromUrl) {
+      void router.replace({
+        path: route.path,
+        query: Object.fromEntries(Object.entries(route.query).filter(([k]) => k !== 'accountId')),
+        hash: route.hash,
+      })
+    }
   }
-  if (accountStore.accountId) {
-    await Promise.all([
-      labelsStore.fetchLabels(accountStore.accountId),
-      viewsStore.fetchViews(accountStore.accountId),
-    ])
-  }
+  await Promise.all([labelsStore.fetchLabels(), viewsStore.fetchViews()])
 })
 </script>
 
@@ -396,9 +397,12 @@ onMounted(async () => {
                       <span class="flex-1 truncate text-sm text-ctp-text">{{ rule.name }}</span>
                       <span
                         class="shrink-0 rounded px-1.5 py-0.5 text-xs"
-                        :class="ACTION_COLORS[rule.action] ?? 'bg-ctp-surface1 text-ctp-subtext0'"
+                        :class="
+                          ACTION_COLORS[rule.actions[0]?.type] ??
+                          'bg-ctp-surface1 text-ctp-subtext0'
+                        "
                       >
-                        {{ rule.action }}
+                        {{ rule.actions[0]?.type ?? '—' }}
                       </span>
                     </button>
                   </template>

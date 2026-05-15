@@ -1,72 +1,101 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api } from '@/lib/api'
+import { useAccountStore } from '@/stores/account'
 import type { CreateSavedViewBody, SavedView } from '@/types/server'
 
 export const useViewsStore = defineStore('views', () => {
-  const items = ref<SavedView[]>([])
+  const accountStore = useAccountStore()
+
+  const _byAccount = ref<Record<string, SavedView[]>>({})
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  const sortedViews = computed(() => [...items.value].sort((a, b) => a.order - b.order))
+  const items = computed<SavedView[]>(() =>
+    accountStore.accountId ? (_byAccount.value[accountStore.accountId] ?? []) : [],
+  )
 
-  async function fetchViews(accountId: string) {
+  const sortedViews = computed(() => [...items.value].sort((a, b) => a.position - b.position))
+
+  async function fetchViews() {
+    const id = accountStore.accountId
+    if (!id) return
     loading.value = true
     error.value = null
-    const result = await api.listViews(accountId)
+    const result = await api.listViews(id)
     loading.value = false
     if (result.isErr()) {
       error.value = result.error.message
       return
     }
-    items.value = result.value
+    _byAccount.value = { ..._byAccount.value, [id]: result.value }
   }
 
-  async function createView(accountId: string, body: CreateSavedViewBody) {
-    const order = items.value.length
-    const result = await api.createView(accountId, { ...body, order })
+  async function createView(body: CreateSavedViewBody) {
+    const id = accountStore.accountId
+    if (!id) return null
+    const position = items.value.length
+    const result = await api.createView(id, { ...body, position })
     if (result.isErr()) {
       error.value = result.error.message
       return null
     }
-    items.value = [...items.value, result.value]
+    _byAccount.value = {
+      ..._byAccount.value,
+      [id]: [...(_byAccount.value[id] ?? []), result.value],
+    }
     return result.value
   }
 
-  async function updateView(accountId: string, viewId: string, body: Partial<CreateSavedViewBody>) {
-    const result = await api.updateView(accountId, viewId, body)
+  async function updateView(viewId: string, body: Partial<CreateSavedViewBody>) {
+    const id = accountStore.accountId
+    if (!id) return false
+    const result = await api.updateView(id, viewId, body)
     if (result.isErr()) {
       error.value = result.error.message
       return false
     }
-    items.value = items.value.map((v) => (v.id === viewId ? result.value : v))
+    _byAccount.value = {
+      ..._byAccount.value,
+      [id]: (_byAccount.value[id] ?? []).map((v) => (v.id === viewId ? result.value : v)),
+    }
     return true
   }
 
-  async function deleteView(accountId: string, viewId: string) {
-    const result = await api.deleteView(accountId, viewId)
+  async function deleteView(viewId: string) {
+    const id = accountStore.accountId
+    if (!id) return false
+    const result = await api.deleteView(id, viewId)
     if (result.isErr()) {
       error.value = result.error.message
       return false
     }
-    items.value = items.value.filter((v) => v.id !== viewId)
+    _byAccount.value = {
+      ..._byAccount.value,
+      [id]: (_byAccount.value[id] ?? []).filter((v) => v.id !== viewId),
+    }
     return true
   }
 
-  // Reorder by swapping the order values of two views, then persisting.
+  // Reorder by swapping the position values of two views, then persisting.
   function reorder(sourceId: string, targetId: string) {
+    const id = accountStore.accountId
+    if (!id) return
     const src = items.value.find((v) => v.id === sourceId)
     const tgt = items.value.find((v) => v.id === targetId)
     if (!src || !tgt) return
-    const srcOrder = src.order
-    items.value = items.value.map((v) => {
-      if (v.id === sourceId) return { ...v, order: tgt.order }
-      if (v.id === targetId) return { ...v, order: srcOrder }
-      return v
-    })
+    const srcPosition = src.position
+    _byAccount.value = {
+      ..._byAccount.value,
+      [id]: (_byAccount.value[id] ?? []).map((v) => {
+        if (v.id === sourceId) return { ...v, position: tgt.position }
+        if (v.id === targetId) return { ...v, position: srcPosition }
+        return v
+      }),
+    }
     // Fire-and-forget persistence — errors are non-critical for reordering
-    void api.updateView(src.accountId, sourceId, { order: tgt.order })
-    void api.updateView(tgt.accountId, targetId, { order: srcOrder })
+    void api.updateView(id, sourceId, { position: tgt.position })
+    void api.updateView(id, targetId, { position: srcPosition })
   }
 
   function clearError() {

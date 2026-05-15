@@ -90,6 +90,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<Result<
 }
 
 export const api = {
+  async listAccounts(): Promise<Result<Account[], ApiError>> {
+    interface AccountListWire {
+      accounts: Account[]
+    }
+    const result = await request<AccountListWire>('/accounts')
+    return result.map((w) => w.accounts)
+  },
+
   getAccount(accountId: string): Promise<Result<Account, ApiError>> {
     return request<Account>(`/accounts/${accountId}`)
   },
@@ -144,10 +152,11 @@ export const api = {
 
   async listQuarantinedSignals(
     accountId: string,
+    status: 'quarantine_visible' | 'quarantine_hidden',
     params: QuarantineSignalListParams = {},
   ): Promise<Result<Page<Signal>, ApiError>> {
     const qs = new URLSearchParams()
-    qs.set('status', 'quarantined')
+    qs.set('status', status)
     if (params.sender) qs.set('sender', params.sender)
     if (params.after) qs.set('after', params.after)
     if (params.before) qs.set('before', params.before)
@@ -163,7 +172,7 @@ export const api = {
   quarantineResponse(
     accountId: string,
     signalId: string,
-    status: 'active' | 'blocked',
+    status: 'active' | 'block_hidden' | 'block_reject',
   ): Promise<Result<Signal, ApiError>> {
     return request<Signal>(`/accounts/${accountId}/signals/${signalId}/quarantineResponse`, {
       method: 'POST',
@@ -375,6 +384,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     })
+  },
+
+  recheckDomain(accountId: string, domainId: string): Promise<Result<Domain, ApiError>> {
+    return request<Domain>(`/accounts/${accountId}/domains/${domainId}`, { method: 'PATCH' })
   },
 
   // ─── Forwarding addresses ─────────────────────────────────────────────────
