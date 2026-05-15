@@ -1,4 +1,3 @@
-import AWS from 'aws-sdk'
 import AwsArchitect from 'aws-architect'
 import type { WebsiteDeploymentOptions } from 'aws-architect'
 
@@ -21,14 +20,12 @@ if (!bucket) {
   process.exit(1)
 }
 
-// aws-architect only applies apiOptions.regions when aws.config.region is unset,
-// so force it explicitly before instantiation to override any env default.
-AWS.config.update({ region: 'eu-central-1' })
+const region = process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? 'eu-central-1'
 
 const awsArchitect = new AwsArchitect(
   { name: 'ses-email-adapter-ui', version: '0.0.0' },
   {
-    regions: ['eu-central-1'],
+    regions: [region],
     deploymentBucket: bucket,
     sourceDirectory: 'dist',
     description: 'SES Email Adapter UI',
