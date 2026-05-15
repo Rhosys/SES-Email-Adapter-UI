@@ -30,8 +30,10 @@ interface PlanDef {
   recommended?: boolean
 }
 
-const starterPriceId = import.meta.env.VITE_STRIPE_PRICE_STARTER as string | undefined
-const proPriceId = import.meta.env.VITE_STRIPE_PRICE_PRO as string | undefined
+// TODO: Replace with actual Stripe price IDs from your Stripe dashboard once the account is set up
+// (Dashboard → Products → select product → copy Price ID, format: price_1ABC...)
+const starterPriceId = 'price_TODO_starter'
+const proPriceId = 'price_TODO_pro'
 
 const PLANS: PlanDef[] = [
   {
