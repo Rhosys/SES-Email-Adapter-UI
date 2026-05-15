@@ -10,6 +10,7 @@ import type {
   CreateRuleBody,
   CreateSavedViewBody,
   Domain,
+  EmailTemplate,
   ForwardingAddress,
   Label,
   NotificationSettings,
@@ -514,5 +515,39 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     })
+  },
+
+  // ─── Email templates ────────────────────────────────────────────────────────
+  // TODO(backend): implement GET/POST/PUT/DELETE /accounts/:id/templates
+
+  listTemplates(accountId: string): Promise<Result<EmailTemplate[], ApiError>> {
+    return request<{ templates: EmailTemplate[] }>(`/accounts/${accountId}/templates`).then((r) =>
+      r.map((d) => d.templates),
+    )
+  },
+
+  createTemplate(
+    accountId: string,
+    body: { name: string; subject: string; body: string },
+  ): Promise<Result<EmailTemplate, ApiError>> {
+    return request<EmailTemplate>(`/accounts/${accountId}/templates`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  },
+
+  updateTemplate(
+    accountId: string,
+    templateId: string,
+    body: { name: string; subject: string; body: string },
+  ): Promise<Result<EmailTemplate, ApiError>> {
+    return request<EmailTemplate>(`/accounts/${accountId}/templates/${templateId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    })
+  },
+
+  deleteTemplate(accountId: string, templateId: string): Promise<Result<void, ApiError>> {
+    return request<void>(`/accounts/${accountId}/templates/${templateId}`, { method: 'DELETE' })
   },
 }

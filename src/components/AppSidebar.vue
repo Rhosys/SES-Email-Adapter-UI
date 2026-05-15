@@ -248,6 +248,22 @@ const labels = computed(() => labelsStore.items)
       </RouterLink>
 
       <RouterLink
+        to="/templates"
+        class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
+        :class="
+          isActive('/templates')
+            ? 'bg-ctp-surface0 text-ctp-text font-medium'
+            : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
+        "
+      >
+        <!-- Document icon -->
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M4 0a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4.5L9.5 0H4zm5 1v3.5H12L9 1zM4 7h8v1H4V7zm0 2h8v1H4V9zm0 2h5v1H4v-1z"/>
+        </svg>
+        Templates
+      </RouterLink>
+
+      <RouterLink
         to="/labels"
         class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
         :class="

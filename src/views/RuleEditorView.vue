@@ -5,6 +5,7 @@ import { useAccountStore } from '@/stores/account'
 import { useRulesStore } from '@/stores/rules'
 import { useLabelsStore } from '@/stores/labels'
 import { useQuarantineStore } from '@/stores/quarantine'
+import { useTemplatesStore } from '@/stores/templates'
 import type {
   ConditionField,
   ConditionGroup,
@@ -28,6 +29,7 @@ const accountStore = useAccountStore()
 const rulesStore = useRulesStore()
 const labelsStore = useLabelsStore()
 const quarantineStore = useQuarantineStore()
+const templatesStore = useTemplatesStore()
 
 const signalId = computed(() => (route.query.signalId as string) ?? null)
 const signalAction = computed(
@@ -216,7 +218,7 @@ async function save() {
 
 onMounted(async () => {
   await accountStore.fetchAccount()
-  await labelsStore.fetchLabels()
+  await Promise.all([labelsStore.fetchLabels(), templatesStore.fetchTemplates()])
 
   if (isEditing.value) {
     if (rulesStore.items.length === 0) await rulesStore.fetchRules()
@@ -494,15 +496,23 @@ watch(signalAction, (val) => {
             </template>
 
             <template v-else-if="act.type === 'auto_reply' || act.type === 'auto_draft'">
-              <input
+              <select
                 :value="act.templateId ?? ''"
-                type="text"
-                placeholder="Template ID"
-                class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-                @input="
-                  updateAction(idx, { templateId: ($event.target as HTMLInputElement).value })
-                "
-              />
+                class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                @change="updateAction(idx, { templateId: ($event.target as HTMLSelectElement).value || undefined })"
+              >
+                <option value="">— Select template —</option>
+                <option v-for="tpl in templatesStore.templates" :key="tpl.id" :value="tpl.id">
+                  {{ tpl.name }}
+                </option>
+              </select>
+              <RouterLink
+                to="/templates"
+                class="shrink-0 text-xs text-ctp-mauve hover:opacity-80"
+                title="Manage templates"
+              >
+                Manage
+              </RouterLink>
             </template>
 
             <button

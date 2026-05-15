@@ -612,3 +612,15 @@ export interface BillingInfo {
   cancelAtPeriodEnd?: boolean
   trialEnd?: string
 }
+
+// ─── Email templates ──────────────────────────────────────────────────────────
+
+export interface EmailTemplate {
+  id: string
+  accountId: string
+  name: string
+  subject: string
+  body: string
+  createdAt: string
+  updatedAt: string
+}
