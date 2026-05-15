@@ -57,10 +57,32 @@ These are all `// TODO(backend)` items in `src/lib/api.ts`, consolidated here so
 
 ### Email templates (`/accounts/:id/templates`)
 
-- `GET` — list templates
-- `POST` — create `{ name, subject, body }`
-- `PUT /:templateId` — replace template
-- `DELETE /:templateId` — delete
+**Resource shape** (`EmailTemplate`):
+```ts
+{
+  id: string
+  accountId: string
+  name: string       // display name, e.g. "Out of office reply"
+  subject: string    // email subject line, may contain {{variables}}
+  body: string       // markdown body, may contain {{variables}}
+  createdAt: string  // ISO 8601
+  updatedAt: string  // ISO 8601
+}
+```
+
+**Supported interpolation variables** (resolved by the backend at send time):
+- `{{sender.name}}` — display name of the incoming signal's sender
+- `{{sender.address}}` — email address of the sender
+- `{{signal.subject}}` — subject of the incoming signal
+- `{{arc.workflow}}` — workflow category of the conversation arc
+
+**Endpoints:**
+- `GET /accounts/:id/templates` → `{ templates: EmailTemplate[] }` — full list, no pagination needed initially
+- `POST /accounts/:id/templates` — body `{ name, subject, body }` → `EmailTemplate` (201)
+- `PUT /accounts/:id/templates/:templateId` — full replace, body `{ name, subject, body }` → `EmailTemplate`
+- `DELETE /accounts/:id/templates/:templateId` → 204 No Content
+
+**Rule integration:** when a rule action has `type: 'auto_reply'` or `type: 'auto_draft'` and a `templateId`, the backend resolves the template, interpolates the variables against the signal/arc context, renders the markdown to HTML (or passes the markdown through to SES), and either sends it immediately (`auto_reply`) or creates a draft signal (`auto_draft`) for the user to review before sending.
 
 ### Quarantine response
 
@@ -103,7 +125,7 @@ These are all `// TODO(backend)` items in `src/lib/api.ts`, consolidated here so
   - Update `listQuarantinedSignals` in `src/lib/api.ts` to accept the specific status param and
     update the store to issue both calls in parallel and merge results
 
-- [ ] **Email templates** — new entity for reusable reply/draft content:
+- [x] **Email templates** — new entity for reusable reply/draft content:
   - Add `EmailTemplate` to `src/types/server.ts`:
     ```ts
     interface EmailTemplate {
