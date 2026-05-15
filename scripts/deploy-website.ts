@@ -49,17 +49,19 @@ if (action === 'delete') {
 
   const options: WebsiteDeploymentOptions = {
     cacheControlRegexMap: [
-      // Content-hashed Vite asset bundles — fingerprinted filenames mean they are
-      // safe to cache indefinitely on main; PR builds still get no-store.
+      // Content-hashed Vite bundles — fingerprinted filenames are safe to cache forever.
+      // CloudFront serves /assets/* from a dedicated origin with its own cache policy.
       {
         regex: /^assets\//,
         value: isMain ? 'public, max-age=31536000, immutable' : 'no-store',
       },
-      // HTML entry points — short SWR on main so updates reach users within 5 min
-      // without a blocking round-trip; immediate no-store for PR previews.
+      // HTML entry point — short SWR so updates reach users within 5 min.
       { explicit: 'index.html', value: isMain ? swrPolicy : 'no-store' },
+      // Web app manifest — same cadence as HTML.
       { explicit: 'manifest.json', value: isMain ? swrPolicy : 'no-store' },
-      // Everything else (favicon, robots.txt, etc.)
+      // Favicon has no content hash — cache for 1 day on main, bust on next deploy.
+      { explicit: 'favicon.svg', value: isMain ? 'public, max-age=86400' : 'no-store' },
+      // Catch-all (robots.txt, etc.)
       { value: isMain ? swrPolicy : 'no-store' },
     ],
   }

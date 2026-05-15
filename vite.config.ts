@@ -13,7 +13,17 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    assetsDir: 'assets',
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        // All JS/CSS/font/image chunks land in dist/assets/ with content hashes.
+        // CloudFront serves /assets/* from a dedicated origin with immutable cache.
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+      },
+    },
   },
   server: {
     port: 5173,
