@@ -157,6 +157,11 @@ function clearErrors() {
   viewsStore.clearError()
 }
 
+function selectTab(tab: 'labels' | 'views') {
+  activeTab.value = tab
+  void router.replace({ query: tab === 'views' ? { tab: 'views' } : {} })
+}
+
 onMounted(async () => {
   if (route.query.tab === 'views') activeTab.value = 'views'
   await accountStore.fetchAccount()
@@ -183,10 +188,7 @@ onMounted(async () => {
               ? 'border-ctp-mauve text-ctp-text'
               : 'border-transparent text-ctp-subtext0 hover:text-ctp-text'
           "
-          @click="
-            activeTab = 'labels'
-            void router.replace({ query: {} })
-          "
+          @click="selectTab('labels')"
         >
           Labels
         </button>
@@ -197,10 +199,7 @@ onMounted(async () => {
               ? 'border-ctp-mauve text-ctp-text'
               : 'border-transparent text-ctp-subtext0 hover:text-ctp-text'
           "
-          @click="
-            activeTab = 'views'
-            void router.replace({ query: { tab: 'views' } })
-          "
+          @click="selectTab('views')"
         >
           Views
         </button>
