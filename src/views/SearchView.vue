@@ -182,7 +182,10 @@ if (query.value) {
         class="py-16 text-center text-sm text-ctp-subtext0"
       >
         <p class="font-medium text-ctp-text">No results for "{{ query }}"</p>
-        <p class="mt-1">Try a different term, or search by sender address, arc summary, or rule name.</p>
+        <p class="mt-1">
+          Try a sender address, part of a subject line, or a rule name — search checks across all
+          of them.
+        </p>
       </div>
 
       <!-- Arcs section -->

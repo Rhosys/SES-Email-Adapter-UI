@@ -300,7 +300,10 @@ onMounted(async () => {
           v-else-if="labelsStore.items.length === 0 && !showLabelForm"
           class="rounded-lg border border-dashed border-ctp-surface1 py-12 text-center text-sm text-ctp-subtext0"
         >
-          No labels yet. Create one to categorize your arcs.
+          <p class="font-medium text-ctp-text">No labels yet</p>
+          <p class="mx-auto mt-1 max-w-xs text-xs">
+            Labels make it easy to group and filter arcs at a glance. Create one and start attaching it in rules.
+          </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div
@@ -418,7 +421,11 @@ onMounted(async () => {
           v-else-if="sortedViews.length === 0 && !showViewForm"
           class="rounded-lg border border-dashed border-ctp-surface1 py-12 text-center text-sm text-ctp-subtext0"
         >
-          No custom views yet. Create one to get a shortcut in the sidebar.
+          <p class="font-medium text-ctp-text">No saved views yet</p>
+          <p class="mx-auto mt-1 max-w-xs text-xs">
+            Save a filtered view of your inbox as a shortcut — it appears in the sidebar so you're
+            one click away from exactly what you need.
+          </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div v-for="view in sortedViews" :key="view.id" class="flex items-center gap-3 px-4 py-3">

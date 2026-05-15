@@ -3,18 +3,19 @@ defineProps<{ tab: 'active' | 'archived' | 'all' }>()
 
 const messages = {
   active: {
-    primary: 'Your inbox is empty',
+    primary: 'Your inbox is ready and waiting',
     secondary:
-      'Incoming emails will appear here once your domain is connected and DNS records are verified.',
+      'Once your domain is verified, every email sent to it lands here. Takes about 2 minutes to set up — add your domain in Settings to get started.',
   },
   archived: {
     primary: 'Nothing archived yet',
-    secondary: 'Emails you archive move here. They stay for reference but won\'t clutter your inbox.',
+    secondary:
+      'Emails you archive disappear from your inbox but stay here for reference. A clean inbox without losing anything.',
   },
   all: {
     primary: 'No emails yet',
     secondary:
-      'Once your domain is connected and verified, every incoming email will appear here regardless of status.',
+      'Every email — active, quarantined, and archived — shows up here once your domain is connected. Add one in Settings to start receiving.',
   },
 }
 </script>

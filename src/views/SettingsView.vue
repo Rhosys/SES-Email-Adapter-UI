@@ -369,10 +369,10 @@ const TABS: { key: TabKey; label: string }[] = [
           v-else-if="aliases.length === 0"
           class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
         >
-          <p class="font-medium text-ctp-text">No email addresses configured</p>
+          <p class="font-medium text-ctp-text">No receiving addresses yet</p>
           <p class="mx-auto mt-1 max-w-sm">
-            Add the addresses you want to receive mail at. Each one can have its own filter mode to
-            control how unknown senders are handled.
+            Add an address and emails sent to it will start flowing in. Each address gets its own
+            filter mode — so you stay in control of who reaches you.
           </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
@@ -431,10 +431,10 @@ const TABS: { key: TabKey; label: string }[] = [
           v-else-if="domains.length === 0"
           class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
         >
-          <p class="font-medium text-ctp-text">No domain connected</p>
+          <p class="font-medium text-ctp-text">No domain connected yet</p>
           <p class="mx-auto mt-1 max-w-sm">
-            Add your sending domain to get the DNS records you'll need to verify ownership and
-            start routing email through the adapter.
+            Add your domain above and we'll generate the DNS records. Once you paste them into your
+            DNS provider, email starts flowing — usually within minutes.
           </p>
         </div>
         <div v-else class="space-y-4">
@@ -527,10 +527,11 @@ const TABS: { key: TabKey; label: string }[] = [
           v-else-if="forwarding.length === 0"
           class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
         >
-          <p class="font-medium text-ctp-text">No forwarding addresses</p>
+          <p class="font-medium text-ctp-text">No forwarding addresses yet</p>
           <p class="mx-auto mt-1 max-w-sm">
-            Forwarding addresses let you route emails matching certain rules to an external inbox.
-            Add one here, then reference it in a rule's forward action.
+            Forwarding lets you send matched emails to another inbox automatically. Add a
+            destination here, then wire it up in a rule — useful for team handoffs or archiving to
+            a shared mailbox.
           </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
@@ -587,9 +588,13 @@ const TABS: { key: TabKey; label: string }[] = [
         <div v-if="teamLoading" class="py-8 text-center text-sm text-ctp-subtext0">Loading…</div>
         <div
           v-else-if="team.length === 0"
-          class="rounded-lg border border-dashed border-ctp-surface1 py-10 text-center text-sm text-ctp-subtext0"
+          class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
         >
-          No team members yet. Invite someone to collaborate.
+          <p class="font-medium text-ctp-text">Just you for now</p>
+          <p class="mx-auto mt-1 max-w-sm">
+            Invite teammates to share access — each person gets their own role so you control
+            exactly what they can see and do.
+          </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div v-for="member in team" :key="member.id" class="flex items-center gap-3 px-4 py-3">

@@ -183,9 +183,10 @@ onMounted(async () => {
         v-else-if="rulesStore.items.length === 0"
         class="rounded-lg border border-dashed border-ctp-surface1 py-20 text-center"
       >
-        <p class="text-sm text-ctp-subtext1">No rules yet</p>
+        <p class="text-sm font-medium text-ctp-text">Every email handled on autopilot</p>
         <p class="mt-1 text-xs text-ctp-subtext0">
-          Rules automatically process incoming emails based on conditions you define.
+          Rules run the moment a message arrives — label it, archive it, forward it, or block the
+          sender. Create your first rule to stop doing it manually.
         </p>
         <RouterLink
           to="/rules/new"
