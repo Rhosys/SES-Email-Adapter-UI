@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useQuarantineStore } from '@/stores/quarantine'
@@ -14,9 +14,12 @@ const accountStore = useAccountStore()
 const store = useQuarantineStore()
 useRelativeTime()
 
+const isEmpty = computed(
+  () => !store.loading && store.visibleItems.length === 0 && store.hiddenItems.length === 0,
+)
+
 onMounted(async () => {
   await accountStore.fetchAccount()
-  // Hydrate filters from URL on initial load
   const { sender, after, before } = route.query
   store.setFilters({
     sender: String(sender || ''),
@@ -29,7 +32,6 @@ onMounted(async () => {
 watch(
   () => ({ ...store.filters }),
   async (filters) => {
-    // Keep URL in sync with current filter state
     const query: Record<string, string> = {}
     if (filters.sender) query.sender = filters.sender
     if (filters.after) query.after = filters.after
@@ -86,10 +88,7 @@ async function loadMore() {
       <div v-if="store.loading" class="py-20 text-center text-sm text-ctp-subtext0">Loading…</div>
 
       <!-- Empty -->
-      <div
-        v-else-if="!store.loading && store.items.length === 0"
-        class="py-20 text-center text-ctp-subtext0"
-      >
+      <div v-else-if="isEmpty" class="py-20 text-center text-ctp-subtext0">
         <p class="text-base font-medium text-ctp-text">No emails waiting for review</p>
         <p class="mx-auto mt-2 max-w-sm text-sm">
           When a new sender writes to you, their email waits here — you decide whether to let them
@@ -98,29 +97,71 @@ async function loadMore() {
         </p>
       </div>
 
-      <!-- List -->
-      <div v-else role="list" aria-label="Quarantined emails">
-        <QuarantineRow
-          v-for="signal in store.items"
-          :key="signal.id"
-          :signal="signal"
-          :pending="store.actionPending.has(signal.id)"
-          @allow="onAllow"
-          @reject="onReject"
-          @reject-for-alias="onRejectForAlias"
-        />
-      </div>
+      <template v-else>
+        <!-- Needs review (quarantine_visible) -->
+        <section v-if="store.visibleItems.length > 0" aria-label="Needs review">
+          <div
+            class="flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-ctp-subtext0"
+          >
+            <span>Needs review</span>
+            <span class="rounded-full bg-ctp-peach/20 px-1.5 py-0.5 text-ctp-peach">
+              {{ store.visibleItems.length }}
+            </span>
+          </div>
+          <div role="list" aria-label="Emails needing review">
+            <QuarantineRow
+              v-for="signal in store.visibleItems"
+              :key="signal.id"
+              :signal="signal"
+              :pending="store.actionPending.has(signal.id)"
+              @allow="onAllow"
+              @reject="onReject"
+              @reject-for-alias="onRejectForAlias"
+            />
+          </div>
+        </section>
 
-      <!-- Load more -->
-      <div v-if="store.hasMore" class="flex justify-center py-4">
-        <button
-          :disabled="store.loadingMore"
-          class="rounded bg-ctp-surface0 px-4 py-2 text-sm text-ctp-text hover:bg-ctp-surface1 disabled:opacity-50"
-          @click="loadMore"
+        <!-- Silently held (quarantine_hidden) -->
+        <section
+          v-if="store.hiddenItems.length > 0"
+          :class="{ 'mt-6': store.visibleItems.length > 0 }"
+          aria-label="Silently held"
         >
-          {{ store.loadingMore ? 'Loading…' : 'Load more' }}
-        </button>
-      </div>
+          <div
+            class="flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-ctp-subtext0"
+          >
+            <span>Silently held</span>
+            <span class="rounded-full bg-ctp-surface1 px-1.5 py-0.5 text-ctp-subtext0">
+              {{ store.hiddenItems.length }}
+            </span>
+            <span class="font-normal normal-case text-ctp-subtext0">
+              — accepted by your server but not delivered
+            </span>
+          </div>
+          <div role="list" aria-label="Silently held emails">
+            <QuarantineRow
+              v-for="signal in store.hiddenItems"
+              :key="signal.id"
+              :signal="signal"
+              :pending="store.actionPending.has(signal.id)"
+              @allow="onAllow"
+              @reject="onReject"
+              @reject-for-alias="onRejectForAlias"
+            />
+          </div>
+        </section>
+
+        <!-- Load more — fetches remaining visible pages first, then hidden -->
+        <div v-if="store.hasMore" class="flex justify-center py-6">
+          <button
+            :disabled="store.loadingMore"
+            class="rounded bg-ctp-surface0 px-4 py-2 text-sm text-ctp-text hover:bg-ctp-surface1 disabled:opacity-50"
+            @click="loadMore"
+          >
+            {{ store.loadingMore ? 'Loading…' : 'Load more' }}
+          </button>
+        </div>
+      </template>
     </main>
   </div>
 </template>
