@@ -21,11 +21,11 @@ const submitted = ref(false)
 
 watch(
   () => props.open,
-  async (open) => {
+  (open) => {
     if (open && !userId.value) {
       try {
-        const profile = await loginClient.getUserProfile()
-        userId.value = profile?.linkedIdentities?.[0]?.connection?.userId ?? null
+        const identity = loginClient.getUserIdentity()
+        userId.value = (identity?.sub as string) ?? null
       } catch {
         // best-effort
       }
