@@ -95,11 +95,10 @@ export const router = createRouter({
       ],
     },
 
-    // Catch-all 404
+    // Catch-all — redirect unknown paths to inbox
     {
       path: '/:pathMatch(.*)*',
-      name: 'not-found',
-      component: () => import('@/views/NotFoundView.vue'),
+      redirect: '/',
     },
 
     // Legal pages (no sidebar)
@@ -136,7 +135,6 @@ const ROUTE_TITLES: Record<string, string> = {
   onboarding: 'Setup',
   terms: 'Terms of service',
   privacy: 'Privacy policy',
-  'not-found': 'Page not found',
 }
 
 const APP_NAME = 'SES Email Adapter'
