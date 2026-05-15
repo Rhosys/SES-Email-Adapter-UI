@@ -79,7 +79,7 @@ view | template | forwarding_address`)
     token introspection is needed to enumerate accessible accounts before this can be built.
     Add a corresponding TODO in `rhosys/ses-email-adapter`.
 
-- [ ] **Support panel** — persistent help affordance built into the app shell:
+- [x] **Support panel** — persistent help affordance built into the app shell:
   - `?` icon button fixed in the bottom-left corner of the sidebar (always visible, above the
     profile link); opens a slide-over or modal panel without navigating away
   - Panel sections:
