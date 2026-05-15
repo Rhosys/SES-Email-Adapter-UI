@@ -18,7 +18,7 @@ const tabs: { key: TabKey; label: string }[] = [
       :key="tab.key"
       role="tab"
       :aria-selected="activeTab === tab.key"
-      class="px-4 py-2 text-sm transition-colors"
+      class="px-4 py-2.5 text-sm transition-colors"
       :class="
         activeTab === tab.key
           ? 'border-b-2 border-ctp-blue font-medium text-ctp-text'

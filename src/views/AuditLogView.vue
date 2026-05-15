@@ -81,11 +81,14 @@ onMounted(async () => {
       <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
         <div v-for="event in events" :key="event.id" class="flex gap-3 px-4 py-3">
           <span class="mt-0.5 shrink-0 text-base">{{ EVENT_ICONS[event.type] ?? '📝' }}</span>
-          <div class="flex-1">
+          <div class="min-w-0 flex-1">
             <div class="flex items-start justify-between gap-2">
-              <div>
-                <span class="font-mono text-xs text-ctp-subtext0">{{ event.type }}</span>
-                <span v-if="event.resourceId" class="ml-2 font-mono text-xs text-ctp-subtext0">
+              <div class="min-w-0 overflow-hidden">
+                <span class="truncate font-mono text-xs text-ctp-subtext0">{{ event.type }}</span>
+                <span
+                  v-if="event.resourceId"
+                  class="ml-2 truncate font-mono text-xs text-ctp-subtext0"
+                >
                   {{ event.resourceId }}
                 </span>
               </div>
@@ -93,7 +96,7 @@ onMounted(async () => {
                 formatDate(event.createdAt)
               }}</span>
             </div>
-            <p class="mt-0.5 text-xs text-ctp-subtext0">
+            <p class="mt-0.5 truncate text-xs text-ctp-subtext0">
               {{ event.actorEmail ?? event.actorId }}
             </p>
           </div>

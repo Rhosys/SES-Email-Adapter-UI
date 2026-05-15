@@ -428,7 +428,7 @@ const TABS: { key: TabKey; label: string }[] = [
               <button
                 v-if="domain.status !== 'verified'"
                 :disabled="recheckPending.has(domain.id)"
-                class="rounded border border-ctp-surface1 px-3 py-1 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-surface2 hover:text-ctp-text disabled:opacity-50"
+                class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-surface2 hover:text-ctp-text disabled:opacity-50"
                 @click="recheckDomain(domain.id)"
               >
                 {{ recheckPending.has(domain.id) ? 'Checking…' : 'Re-check DNS' }}
@@ -579,7 +579,7 @@ const TABS: { key: TabKey; label: string }[] = [
             </div>
             <select
               :value="member.role"
-              class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+              class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
               @change="
                 updateMemberRole(
                   member.userId,

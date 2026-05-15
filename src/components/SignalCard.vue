@@ -55,7 +55,7 @@ const sentAt = computed(() =>
       />
       <pre
         v-else-if="signal.textBody"
-        class="whitespace-pre-wrap px-4 py-3 font-sans text-sm text-ctp-text"
+        class="break-words whitespace-pre-wrap px-4 py-3 font-sans text-sm text-ctp-text"
         >{{ signal.textBody }}</pre
       >
       <p v-else class="px-4 py-3 text-sm text-ctp-subtext0">(No content)</p>

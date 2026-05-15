@@ -172,18 +172,18 @@ const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Filter mode', 'Done']
           {{ domainError }}
         </div>
 
-        <form class="flex gap-2" @submit.prevent="submitDomain">
+        <form class="flex flex-wrap gap-2" @submit.prevent="submitDomain">
           <input
             v-model="domain"
             type="text"
             placeholder="yourdomain.com"
             :disabled="domainAdded"
-            class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-4 py-2.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none disabled:opacity-50"
+            class="min-w-0 flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-4 py-2.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none disabled:opacity-50"
           />
           <button
             type="submit"
             :disabled="addingDomain || domainAdded || !domain.trim()"
-            class="rounded-lg bg-ctp-mauve px-5 py-2.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+            class="shrink-0 rounded-lg bg-ctp-mauve px-5 py-2.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
           >
             {{ addingDomain ? 'Adding…' : domainAdded ? 'Added ✓' : 'Add domain' }}
           </button>
@@ -265,18 +265,18 @@ const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Filter mode', 'Done']
           Choose the email address that will appear in the "From" field for outgoing emails.
         </p>
 
-        <form class="flex gap-2" @submit.prevent="saveSender">
+        <form class="flex flex-wrap gap-2" @submit.prevent="saveSender">
           <input
             v-model="senderAddress"
             type="email"
             placeholder="you@yourdomain.com"
             :disabled="senderDone"
-            class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-4 py-2.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none disabled:opacity-50"
+            class="min-w-0 flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-4 py-2.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none disabled:opacity-50"
           />
           <button
             type="submit"
             :disabled="senderPending || senderDone || !senderAddress.trim()"
-            class="rounded-lg bg-ctp-mauve px-5 py-2.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+            class="shrink-0 rounded-lg bg-ctp-mauve px-5 py-2.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
           >
             {{ senderPending ? 'Saving…' : senderDone ? 'Saved ✓' : 'Save' }}
           </button>

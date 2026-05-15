@@ -362,7 +362,7 @@ onMounted(async () => {
                 class="w-24 rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
               />
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid gap-3 sm:grid-cols-2">
               <div>
                 <label class="mb-1 block text-xs text-ctp-subtext0">Workflow filter</label>
                 <select

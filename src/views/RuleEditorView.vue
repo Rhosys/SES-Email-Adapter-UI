@@ -274,7 +274,7 @@ watch(signalAction, (val) => {
 
         <!-- Enabled/disabled toggle -->
         <button
-          class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors"
+          class="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
           :class="
             status === 'enabled'
               ? 'bg-ctp-green/15 text-ctp-green'
@@ -371,7 +371,7 @@ watch(signalAction, (val) => {
               >
                 <select
                   :value="cond.field"
-                  class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                  class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                   @change="
                     updateCondition(gi, ci, {
                       field: ($event.target as HTMLSelectElement).value as ConditionField,
@@ -385,7 +385,7 @@ watch(signalAction, (val) => {
 
                 <select
                   :value="cond.operator"
-                  class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                  class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                   @change="
                     updateCondition(gi, ci, {
                       operator: ($event.target as HTMLSelectElement).value as ConditionOperator,
@@ -401,7 +401,7 @@ watch(signalAction, (val) => {
                   :value="cond.value"
                   type="text"
                   placeholder="value"
-                  class="min-w-0 flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+                  class="min-w-0 flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
                   @input="
                     updateCondition(gi, ci, { value: ($event.target as HTMLInputElement).value })
                   "
@@ -518,14 +518,14 @@ watch(signalAction, (val) => {
         <div v-if="addingAction" class="mt-2 flex items-center gap-2">
           <select
             v-model="actionTypeToAdd"
-            class="flex-1 rounded border border-ctp-surface1 bg-ctp-mantle px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+            class="flex-1 rounded border border-ctp-surface1 bg-ctp-mantle px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
           >
             <option v-for="m in ACTION_META" :key="m.type" :value="m.type">
               {{ m.label }} — {{ m.description }}
             </option>
           </select>
           <button
-            class="rounded bg-ctp-mauve px-3 py-1 text-xs font-medium text-ctp-base hover:opacity-90"
+            class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
             @click="addAction"
           >
             Add

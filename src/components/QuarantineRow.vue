@@ -87,14 +87,14 @@ const toAddress = computed(() => props.signal.to[0]?.address ?? '')
         <!-- Actions -->
         <div class="mt-2 flex flex-wrap items-center gap-2">
           <button
-            class="rounded bg-ctp-green/15 px-3 py-1 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/25 disabled:opacity-50"
+            class="rounded bg-ctp-green/15 px-3 py-1.5 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/25 disabled:opacity-50"
             :disabled="pending"
             @click="emit('allow', signal.id)"
           >
             Allow
           </button>
           <button
-            class="rounded bg-ctp-red/15 px-3 py-1 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25 disabled:opacity-50"
+            class="rounded bg-ctp-red/15 px-3 py-1.5 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25 disabled:opacity-50"
             :disabled="pending"
             title="Return a delivery failure to the sender's server"
             @click="emit('reject', signal.id)"
@@ -103,13 +103,13 @@ const toAddress = computed(() => props.signal.to[0]?.address ?? '')
           </button>
           <router-link
             :to="`/rules/new?signalId=${signal.id}&action=block_hidden`"
-            class="rounded border border-ctp-surface1 px-3 py-1 text-xs text-ctp-subtext1 transition-colors hover:text-ctp-text"
+            class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:text-ctp-text"
           >
             Create rule to reject similar
           </router-link>
           <button
             v-if="toAddress"
-            class="rounded border border-ctp-surface1 px-3 py-1 text-xs text-ctp-subtext1 transition-colors hover:text-ctp-text disabled:opacity-50"
+            class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:text-ctp-text disabled:opacity-50"
             :disabled="pending"
             :title="`Block ${signal.from.address} for ${toAddress}`"
             @click="emit('rejectForAlias', signal.id, toAddress, signal.from.address)"

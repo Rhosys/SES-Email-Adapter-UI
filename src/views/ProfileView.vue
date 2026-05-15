@@ -243,7 +243,7 @@ async function signOut() {
 
         <form
           v-if="addingPasskey"
-          class="mb-4 flex items-center gap-2 rounded-lg border border-ctp-surface1 bg-ctp-base p-3"
+          class="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-ctp-surface1 bg-ctp-base p-3"
           @submit.prevent="registerPasskey"
         >
           <input
