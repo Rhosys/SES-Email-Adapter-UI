@@ -144,7 +144,7 @@ const APP_NAME = 'SES Email Adapter'
 router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return true
   const authenticated = await loginClient.userSessionExists()
-  if (!authenticated) return { name: 'login' }
+  if (!authenticated) return { name: 'login', query: { redirect: to.fullPath } }
 
   // Onboarding creates the account — skip the account check there
   if (to.name === 'onboarding') return true
