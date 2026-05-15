@@ -69,7 +69,7 @@ view | template | forwarding_address`)
   - Only render the expand affordance on rows where `before` or `after` is present (i.e. `updated`
     events); `created` / `deleted` / `reordered` events can show the snapshot in a single column
 
-- [ ] **Account switcher** — let users move between accounts they belong to without signing out:
+- [x] **Account switcher** — let users move between accounts they belong to without signing out:
   - Displayed in the sidebar below the brand name: show the current account name with a
     chevron/dropdown indicator; clicking opens an account list popover
   - List all accounts the authenticated user has access to; selecting one reloads the app
