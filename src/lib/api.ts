@@ -19,6 +19,7 @@ import type {
   SavedView,
   Signal,
   TeamMember,
+  TemplateFunction,
   UpdateDraftSignalBody,
   UpdateRuleBody,
   UserRole,
@@ -528,7 +529,7 @@ export const api = {
 
   createTemplate(
     accountId: string,
-    body: { name: string; subject: string; body: string },
+    body: { name: string; subject: string; body: string; functions: TemplateFunction[] },
   ): Promise<Result<EmailTemplate, ApiError>> {
     return request<EmailTemplate>(`/accounts/${accountId}/templates`, {
       method: 'POST',
@@ -539,7 +540,7 @@ export const api = {
   updateTemplate(
     accountId: string,
     templateId: string,
-    body: { name: string; subject: string; body: string },
+    body: { name: string; subject: string; body: string; functions: TemplateFunction[] },
   ): Promise<Result<EmailTemplate, ApiError>> {
     return request<EmailTemplate>(`/accounts/${accountId}/templates/${templateId}`, {
       method: 'PUT',

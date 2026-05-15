@@ -2,7 +2,14 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
 import { useAccountStore } from '@/stores/account'
-import type { EmailTemplate } from '@/types/server'
+import type { EmailTemplate, TemplateFunction } from '@/types/server'
+
+interface TemplateBody {
+  name: string
+  subject: string
+  body: string
+  functions: TemplateFunction[]
+}
 
 export const useTemplatesStore = defineStore('templates', () => {
   const accountStore = useAccountStore()
@@ -22,11 +29,7 @@ export const useTemplatesStore = defineStore('templates', () => {
     templates.value = result.value
   }
 
-  async function createTemplate(body: {
-    name: string
-    subject: string
-    body: string
-  }): Promise<EmailTemplate | null> {
+  async function createTemplate(body: TemplateBody): Promise<EmailTemplate | null> {
     const id = accountStore.accountId
     if (!id) return null
     error.value = null
@@ -36,10 +39,7 @@ export const useTemplatesStore = defineStore('templates', () => {
     return result.value
   }
 
-  async function updateTemplate(
-    templateId: string,
-    body: { name: string; subject: string; body: string },
-  ): Promise<boolean> {
+  async function updateTemplate(templateId: string, body: TemplateBody): Promise<boolean> {
     const id = accountStore.accountId
     if (!id) return false
     error.value = null

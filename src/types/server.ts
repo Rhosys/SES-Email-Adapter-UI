@@ -615,12 +615,18 @@ export interface BillingInfo {
 
 // ─── Email templates ──────────────────────────────────────────────────────────
 
+export interface TemplateFunction {
+  name: string  // identifier used as {{fn.name}} in the template
+  code: string  // JS expression: (signal, arc) => string
+}
+
 export interface EmailTemplate {
   id: string
   accountId: string
   name: string
   subject: string
   body: string
+  functions: TemplateFunction[]
   createdAt: string
   updatedAt: string
 }

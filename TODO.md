@@ -57,32 +57,52 @@ These are all `// TODO(backend)` items in `src/lib/api.ts`, consolidated here so
 
 ### Email templates (`/accounts/:id/templates`)
 
-**Resource shape** (`EmailTemplate`):
+**Resource shapes:**
 ```ts
-{
+interface TemplateFunction {
+  name: string  // JS identifier — referenced in body as {{fn.name}}
+  code: string  // full JS expression: (signal, arc) => string
+}
+
+interface EmailTemplate {
   id: string
   accountId: string
-  name: string       // display name, e.g. "Out of office reply"
-  subject: string    // email subject line, may contain {{variables}}
-  body: string       // markdown body, may contain {{variables}}
-  createdAt: string  // ISO 8601
-  updatedAt: string  // ISO 8601
+  name: string               // display name, e.g. "Order confirmation reply"
+  subject: string            // email subject, may contain {{sender.name}}, {{sender.address}}, {{fn.*}}
+  body: string               // markdown body, same variable set
+  functions: TemplateFunction[]
+  createdAt: string          // ISO 8601
+  updatedAt: string          // ISO 8601
 }
 ```
 
-**Supported interpolation variables** (resolved by the backend at send time):
+**Static variables** (always available, resolved server-side):
 - `{{sender.name}}` — display name of the incoming signal's sender
 - `{{sender.address}}` — email address of the sender
-- `{{signal.subject}}` — subject of the incoming signal
-- `{{arc.workflow}}` — workflow category of the conversation arc
+
+**Custom function outputs** (`{{fn.<name>}}`): each `TemplateFunction` is an arrow function
+expression that receives `(signal, arc)` and returns a string. The backend evaluates each
+function in a sandboxed VM against the live signal and arc at send time, collects the outputs
+into a `fn` namespace, then performs the Handlebars pass over subject and body. Functions may
+access any field on the full signal and arc objects.
 
 **Endpoints:**
 - `GET /accounts/:id/templates` → `{ templates: EmailTemplate[] }` — full list, no pagination needed initially
-- `POST /accounts/:id/templates` — body `{ name, subject, body }` → `EmailTemplate` (201)
-- `PUT /accounts/:id/templates/:templateId` — full replace, body `{ name, subject, body }` → `EmailTemplate`
+- `POST /accounts/:id/templates` — body `{ name, subject, body, functions }` → `EmailTemplate` (201)
+- `PUT /accounts/:id/templates/:templateId` — full replace, same body shape → `EmailTemplate`
 - `DELETE /accounts/:id/templates/:templateId` → 204 No Content
 
-**Rule integration:** when a rule action has `type: 'auto_reply'` or `type: 'auto_draft'` and a `templateId`, the backend resolves the template, interpolates the variables against the signal/arc context, renders the markdown to HTML (or passes the markdown through to SES), and either sends it immediately (`auto_reply`) or creates a draft signal (`auto_draft`) for the user to review before sending.
+**Security:** user-supplied `functions[].code` must be executed in an isolated VM context
+server-side (e.g. Node.js `vm.runInNewContext` with a timeout), never via raw `eval`. Validate
+that each `name` is a valid JS identifier before storing.
+
+**Rule integration:** when a rule action has `type: 'auto_reply'` or `type: 'auto_draft'` and a
+`templateId`, the backend:
+1. Loads the template
+2. Runs each function against the live signal/arc in a sandboxed VM, collecting `fn.*` outputs
+3. Performs a Handlebars pass over subject and body with `{ sender, fn }` context
+4. Renders the markdown body to HTML (or passes raw markdown to SES depending on your pipeline)
+5. Either sends immediately (`auto_reply`) or creates a draft signal (`auto_draft`) for user review
 
 ### Quarantine response
 
