@@ -23,7 +23,7 @@ if (!bucket) {
 const awsArchitect = new AwsArchitect(
   { name: 'ses-email-adapter-ui', version: '0.0.0' },
   {
-    regions: ['eu-west-1'],
+    regions: ['eu-central-1'],
     deploymentBucket: bucket,
     sourceDirectory: 'dist',
     description: 'SES Email Adapter UI',
