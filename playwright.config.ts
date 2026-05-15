@@ -16,6 +16,7 @@ export default defineConfig({
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: VIEWPORTS.desktop } },
     { name: 'tablet', use: { viewport: VIEWPORTS.tablet } },
     { name: 'pixel', use: { ...devices['Pixel 7'], viewport: VIEWPORTS.pixel } },
+    { name: 'mobile', use: { ...devices['iPhone 14'], viewport: VIEWPORTS.mobile } },
   ],
   webServer: {
     command: 'npm run preview',

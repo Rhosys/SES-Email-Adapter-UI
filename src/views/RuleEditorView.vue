@@ -549,7 +549,7 @@ watch(signalAction, (val) => {
       <!-- Rule tester -->
       <section class="mb-6 rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
         <h3 class="mb-3 text-xs font-medium text-ctp-subtext1">Test this rule</h3>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid gap-3 sm:grid-cols-2">
           <div>
             <label class="mb-1 block text-xs text-ctp-subtext0">Sender address</label>
             <input

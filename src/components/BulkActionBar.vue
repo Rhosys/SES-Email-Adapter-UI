@@ -32,12 +32,12 @@ function submitLabel() {
       Archive
     </button>
 
-    <form class="flex items-center gap-1" @submit.prevent="submitLabel">
+    <form class="flex flex-wrap items-center gap-1" @submit.prevent="submitLabel">
       <input
         v-model="labelInput"
         type="text"
         placeholder="Add label…"
-        class="rounded border border-ctp-surface1 bg-ctp-surface0 px-2 py-1 text-sm text-ctp-text placeholder-ctp-overlay0 focus:outline-none focus:ring-1 focus:ring-ctp-blue"
+        class="w-full rounded border border-ctp-surface1 bg-ctp-surface0 px-2 py-1 text-sm text-ctp-text placeholder-ctp-overlay0 focus:outline-none focus:ring-1 focus:ring-ctp-blue sm:w-auto"
       />
       <button
         type="submit"

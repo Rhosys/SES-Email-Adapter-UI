@@ -119,3 +119,107 @@ test.describe('search bar', () => {
     await expectNoHorizontalOverflow(page)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Quarantine page
+// ---------------------------------------------------------------------------
+
+test.describe('quarantine page — responsive layout', () => {
+  test.beforeEach(async ({ page }) => {
+    await injectAuth(page)
+    // Stub the quarantine API so the page renders without a real backend
+    await page.route('**/signals**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ signals: [], pagination: { cursor: null } }),
+      }),
+    )
+    await page.goto('/quarantine')
+  })
+
+  test('no horizontal overflow', async ({ page }) => {
+    await expectNoHorizontalOverflow(page)
+  })
+
+  test('sender filter input fits viewport', async ({ page }) => {
+    const input = page.getByPlaceholder('sender@example.com')
+    await expect(input).toBeVisible()
+    const box = await input.boundingBox()
+    const viewport = page.viewportSize()!
+    expect(box!.x + box!.width, 'sender input must not extend beyond viewport').toBeLessThanOrEqual(
+      viewport.width,
+    )
+  })
+
+  test('date filter inputs are visible', async ({ page }) => {
+    const inputs = page.locator('input[type="date"]')
+    await expect(inputs.first()).toBeVisible()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Rules page
+// ---------------------------------------------------------------------------
+
+test.describe('rules page — responsive layout', () => {
+  test.beforeEach(async ({ page }) => {
+    await injectAuth(page)
+    await page.route('**/rules**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ rules: [], pagination: { cursor: null } }),
+      }),
+    )
+    await page.goto('/rules')
+  })
+
+  test('no horizontal overflow', async ({ page }) => {
+    await expectNoHorizontalOverflow(page)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Settings page
+// ---------------------------------------------------------------------------
+
+test.describe('settings page — responsive layout', () => {
+  test.beforeEach(async ({ page }) => {
+    await injectAuth(page)
+    await page.route('**/accounts/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({}),
+      }),
+    )
+    await page.goto('/settings')
+  })
+
+  test('no horizontal overflow', async ({ page }) => {
+    await expectNoHorizontalOverflow(page)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Inbox page
+// ---------------------------------------------------------------------------
+
+test.describe('inbox page — responsive layout', () => {
+  test.beforeEach(async ({ page }) => {
+    await injectAuth(page)
+    await page.route('**/arcs**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ arcs: [], pagination: { cursor: null } }),
+      }),
+    )
+    await page.goto('/')
+  })
+
+  test('no horizontal overflow', async ({ page }) => {
+    await expectNoHorizontalOverflow(page)
+  })
+})
