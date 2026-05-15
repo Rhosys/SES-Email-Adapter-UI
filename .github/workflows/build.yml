@@ -74,7 +74,7 @@ jobs:
             -backend-config="key=SES-Email-Adapter/terraform.tfstate" \
             -backend-config="region=eu-west-1"
 
-          SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name)
+          SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name | sed 's/eu-west-1/eu-central-1/g')
           CF_ID=$(tofu -chdir=deploy output -raw cloudfront_distribution_id)
 
           [ -n "$SITE_BUCKET" ] || { echo "::error::site_bucket_name output is empty"; exit 1; }
@@ -252,7 +252,7 @@ jobs:
             -backend-config="key=SES-Email-Adapter/terraform.tfstate" \
             -backend-config="region=eu-west-1"
 
-          SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name)
+          SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name | sed 's/eu-west-1/eu-central-1/g')
           CF_ID=$(tofu -chdir=deploy output -raw cloudfront_distribution_id)
 
           [ -n "$SITE_BUCKET" ] || { echo "::error::site_bucket_name output is empty"; exit 1; }
