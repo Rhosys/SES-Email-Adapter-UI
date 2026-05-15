@@ -87,7 +87,19 @@ export const router = createRouter({
           name: 'audit-log',
           component: () => import('@/views/AuditLogView.vue'),
         },
+        {
+          path: 'changelog',
+          name: 'changelog',
+          component: () => import('@/views/ChangelogView.vue'),
+        },
       ],
+    },
+
+    // Catch-all 404
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('@/views/NotFoundView.vue'),
     },
 
     // Legal pages (no sidebar)
@@ -106,9 +118,37 @@ export const router = createRouter({
   ],
 })
 
+const ROUTE_TITLES: Record<string, string> = {
+  inbox: 'Inbox',
+  'arc-detail': 'Conversation',
+  quarantine: 'Quarantine',
+  search: 'Search',
+  labels: 'Labels & Views',
+  rules: 'Rules',
+  'rules-new': 'New rule',
+  'rules-edit': 'Edit rule',
+  settings: 'Settings',
+  profile: 'Profile',
+  billing: 'Billing',
+  'audit-log': 'Audit log',
+  changelog: 'Changelog',
+  login: 'Sign in',
+  onboarding: 'Setup',
+  terms: 'Terms of service',
+  privacy: 'Privacy policy',
+  'not-found': 'Page not found',
+}
+
+const APP_NAME = 'SES Email Adapter'
+
 router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return true
   const authenticated = await loginClient.userSessionExists()
   if (!authenticated) return { name: 'login' }
   return true
+})
+
+router.afterEach((to) => {
+  const routeTitle = to.name ? ROUTE_TITLES[String(to.name)] : undefined
+  document.title = routeTitle ? `${routeTitle} — ${APP_NAME}` : APP_NAME
 })

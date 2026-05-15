@@ -229,8 +229,15 @@ async function saveNotifications() {
   if (!accountStore.accountId) return
   notifPending.value = true
   notifSaved.value = false
-  // PATCH account with notification settings
-  const result = await api.updateAccount(accountStore.accountId, {})
+  const result = await api.updateAccount(accountStore.accountId, {
+    notifications: {
+      email: {
+        enabled: emailNotifEnabled.value,
+        address: emailNotifAddress.value.trim(),
+        frequency: emailNotifFrequency.value,
+      },
+    },
+  })
   notifPending.value = false
   if (result.isOk()) {
     notifSaved.value = true

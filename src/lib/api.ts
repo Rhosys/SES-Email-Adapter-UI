@@ -11,6 +11,7 @@ import type {
   Domain,
   ForwardingAddress,
   Label,
+  NotificationSettings,
   Page,
   Rule,
   SavedView,
@@ -317,7 +318,7 @@ export const api = {
 
   updateAccount(
     accountId: string,
-    body: { name?: string; deletionRetentionDays?: number },
+    body: { name?: string; deletionRetentionDays?: number; notifications?: NotificationSettings },
   ): Promise<Result<Account, ApiError>> {
     return request<Account>(`/accounts/${accountId}`, {
       method: 'PATCH',
