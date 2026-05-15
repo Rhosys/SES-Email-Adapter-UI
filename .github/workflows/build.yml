@@ -28,7 +28,6 @@ jobs:
         uses: ./.github/actions/setup
         with:
           aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
-          aws_region: eu-west-1
 
       # ── Compute deploy target ───────────────────────────────────────────────
 
@@ -188,7 +187,6 @@ jobs:
         uses: ./.github/actions/setup
         with:
           aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
-          aws_region: eu-west-1
 
       - name: Compute cleanup prefix
         run: |
