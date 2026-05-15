@@ -18,9 +18,9 @@ onMounted(async () => {
     void router.replace(destination)
     return
   }
-  // Redirect to Authress. Use the intended destination as the OAuth callback URL so the user
-  // lands directly there after authenticating instead of always hitting the inbox.
-  await loginClient.authenticate({ redirectUrl: `${window.location.origin}${destination}` })
+  // Redirect to Authress. Use the current URL (which already contains ?redirect=...) as the
+  // OAuth callback so Authress returns here and LoginView handles the final navigation.
+  await loginClient.authenticate({ redirectUrl: window.location.href })
 })
 </script>
 
