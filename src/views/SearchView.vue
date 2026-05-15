@@ -181,7 +181,8 @@ if (query.value) {
         v-if="searched && !hasResults && !searching"
         class="py-16 text-center text-sm text-ctp-subtext0"
       >
-        No results for "{{ query }}"
+        <p class="font-medium text-ctp-text">No results for "{{ query }}"</p>
+        <p class="mt-1">Try a different term, or search by sender address, arc summary, or rule name.</p>
       </div>
 
       <!-- Arcs section -->

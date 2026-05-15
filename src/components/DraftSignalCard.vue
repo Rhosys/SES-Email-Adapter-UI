@@ -137,9 +137,10 @@ async function discard() {
           <div
             class="rounded border border-ctp-yellow/40 bg-ctp-yellow/10 px-3 py-2 text-xs text-ctp-yellow"
           >
-            No verified sending domains.
+            <span class="font-medium">No verified sending domain.</span>
+            You need at least one verified domain before you can send replies.
             <router-link to="/settings" class="underline hover:text-ctp-text">
-              Settings → Domains
+              Add one in Settings → Domains.
             </router-link>
           </div>
         </template>

@@ -90,8 +90,11 @@ async function loadMore() {
         v-else-if="!store.loading && store.items.length === 0"
         class="py-20 text-center text-ctp-subtext0"
       >
-        <p class="text-base">No quarantined emails</p>
-        <p class="mt-1 text-sm">Everything is clear, or try adjusting your filters.</p>
+        <p class="text-base font-medium text-ctp-text">No quarantined emails</p>
+        <p class="mx-auto mt-2 max-w-sm text-sm">
+          Emails from unknown senders are held here for review based on your filter mode. When a
+          new sender writes to you, you'll be able to approve or block them from this view.
+        </p>
       </div>
 
       <!-- List -->

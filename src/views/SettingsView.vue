@@ -367,9 +367,13 @@ const TABS: { key: TabKey; label: string }[] = [
         <div v-if="aliasesLoading" class="py-8 text-center text-sm text-ctp-subtext0">Loading…</div>
         <div
           v-else-if="aliases.length === 0"
-          class="rounded-lg border border-dashed border-ctp-surface1 py-10 text-center text-sm text-ctp-subtext0"
+          class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
         >
-          No email addresses configured
+          <p class="font-medium text-ctp-text">No email addresses configured</p>
+          <p class="mx-auto mt-1 max-w-sm">
+            Add the addresses you want to receive mail at. Each one can have its own filter mode to
+            control how unknown senders are handled.
+          </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div v-for="alias in aliases" :key="alias.id" class="px-4 py-3">
@@ -425,9 +429,13 @@ const TABS: { key: TabKey; label: string }[] = [
         <div v-if="domainsLoading" class="py-8 text-center text-sm text-ctp-subtext0">Loading…</div>
         <div
           v-else-if="domains.length === 0"
-          class="rounded-lg border border-dashed border-ctp-surface1 py-10 text-center text-sm text-ctp-subtext0"
+          class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
         >
-          No domains configured. Add your sending domain to get DNS records.
+          <p class="font-medium text-ctp-text">No domain connected</p>
+          <p class="mx-auto mt-1 max-w-sm">
+            Add your sending domain to get the DNS records you'll need to verify ownership and
+            start routing email through the adapter.
+          </p>
         </div>
         <div v-else class="space-y-4">
           <div
@@ -517,9 +525,13 @@ const TABS: { key: TabKey; label: string }[] = [
         </div>
         <div
           v-else-if="forwarding.length === 0"
-          class="rounded-lg border border-dashed border-ctp-surface1 py-10 text-center text-sm text-ctp-subtext0"
+          class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
         >
-          No forwarding addresses yet
+          <p class="font-medium text-ctp-text">No forwarding addresses</p>
+          <p class="mx-auto mt-1 max-w-sm">
+            Forwarding addresses let you route emails matching certain rules to an external inbox.
+            Add one here, then reference it in a rule's forward action.
+          </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div
