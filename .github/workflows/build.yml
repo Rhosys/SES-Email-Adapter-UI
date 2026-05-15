@@ -92,6 +92,9 @@ jobs:
           echo "AWS_DEFAULT_REGION : $AWS_DEFAULT_REGION"
           echo "AWS_REGION         : $AWS_REGION"
           echo ""
+          echo "=== ALL available OpenTofu outputs ==="
+          tofu -chdir=/tmp/ses-backend/deploy output -json 2>&1 || echo "(tofu output -json failed)"
+          echo ""
           echo "=== AWS caller identity ==="
           aws sts get-caller-identity
           echo ""
@@ -99,12 +102,20 @@ jobs:
           aws s3api head-bucket --bucket "${{ env.SITE_BUCKET_NAME }}" 2>&1 \
             && echo "Bucket EXISTS and is accessible" \
             || echo "Bucket NOT found or no access (see error above)"
+          echo ""
+          echo "=== S3 buckets in account (first 20) ==="
+          aws s3api list-buckets --query 'Buckets[*].Name' --output text 2>&1 | tr '\t' '\n' | head -20
         shell: bash
 
       # ── Lint / type-check / test ────────────────────────────────────────────
 
       - name: Check
         run: npm run check
+
+      - name: Format check (advisory)
+        continue-on-error: true
+        run: npm run format:check || true
+        shell: bash
 
       # ── Build ─────────────────────────────────────────
 
