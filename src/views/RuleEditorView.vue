@@ -232,7 +232,7 @@ onMounted(async () => {
       actions.value = [{ type: signalAction.value === 'allow' ? 'approve_sender' : 'block' }]
     }
     if (signalId.value) {
-      const signal = quarantineStore.items.find((s) => s.id === signalId.value)
+      const signal = [...quarantineStore.quarantineVisible, ...quarantineStore.quarantineHidden].find((s) => s.id === signalId.value)
       if (signal) {
         groups.value = [
           {

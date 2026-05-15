@@ -44,11 +44,11 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     return _byAccount.value[id] ?? { visible: { items: [] }, hidden: { items: [] } }
   }
 
-  const visibleItems = computed<Signal[]>(() =>
+  const quarantineVisible = computed<Signal[]>(() =>
     accountStore.accountId ? _state(accountStore.accountId).visible.items : [],
   )
 
-  const hiddenItems = computed<Signal[]>(() =>
+  const quarantineHidden = computed<Signal[]>(() =>
     accountStore.accountId ? _state(accountStore.accountId).hidden.items : [],
   )
 
@@ -210,8 +210,8 @@ export const useQuarantineStore = defineStore('quarantine', () => {
   }
 
   return {
-    visibleItems,
-    hiddenItems,
+    quarantineVisible,
+    quarantineHidden,
     hasMore,
     loading,
     loadingMore,

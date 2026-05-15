@@ -15,7 +15,7 @@ const store = useQuarantineStore()
 useRelativeTime()
 
 const isEmpty = computed(
-  () => !store.loading && store.visibleItems.length === 0 && store.hiddenItems.length === 0,
+  () => !store.loading && store.quarantineVisible.length === 0 && store.quarantineHidden.length === 0,
 )
 
 onMounted(async () => {
@@ -99,18 +99,18 @@ async function loadMore() {
 
       <template v-else>
         <!-- Needs review (quarantine_visible) -->
-        <section v-if="store.visibleItems.length > 0" aria-label="Needs review">
+        <section v-if="store.quarantineVisible.length > 0" aria-label="Needs review">
           <div
             class="flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-ctp-subtext0"
           >
             <span>Needs review</span>
             <span class="rounded-full bg-ctp-peach/20 px-1.5 py-0.5 text-ctp-peach">
-              {{ store.visibleItems.length }}
+              {{ store.quarantineVisible.length }}
             </span>
           </div>
           <div role="list" aria-label="Emails needing review">
             <QuarantineRow
-              v-for="signal in store.visibleItems"
+              v-for="signal in store.quarantineVisible"
               :key="signal.id"
               :signal="signal"
               :pending="store.actionPending.has(signal.id)"
@@ -123,8 +123,8 @@ async function loadMore() {
 
         <!-- Silently held (quarantine_hidden) -->
         <section
-          v-if="store.hiddenItems.length > 0"
-          :class="{ 'mt-6': store.visibleItems.length > 0 }"
+          v-if="store.quarantineHidden.length > 0"
+          :class="{ 'mt-6': store.quarantineVisible.length > 0 }"
           aria-label="Silently held"
         >
           <div
@@ -132,7 +132,7 @@ async function loadMore() {
           >
             <span>Silently held</span>
             <span class="rounded-full bg-ctp-surface1 px-1.5 py-0.5 text-ctp-subtext0">
-              {{ store.hiddenItems.length }}
+              {{ store.quarantineHidden.length }}
             </span>
             <span class="font-normal normal-case text-ctp-subtext0">
               — accepted by your server but not delivered
@@ -140,7 +140,7 @@ async function loadMore() {
           </div>
           <div role="list" aria-label="Silently held emails">
             <QuarantineRow
-              v-for="signal in store.hiddenItems"
+              v-for="signal in store.quarantineHidden"
               :key="signal.id"
               :signal="signal"
               :pending="store.actionPending.has(signal.id)"
