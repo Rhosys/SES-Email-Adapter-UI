@@ -5,6 +5,7 @@ import type {
   Arc,
   ArcStatus,
   AuditEvent,
+  BillingInfo,
   CreateDraftSignalBody,
   CreateRuleBody,
   CreateSavedViewBody,
@@ -101,6 +102,14 @@ export const api = {
 
   getAccount(accountId: string): Promise<Result<Account, ApiError>> {
     return request<Account>(`/accounts/${accountId}`)
+  },
+
+  // TODO(backend): POST /accounts
+  createAccount(body: { name: string }): Promise<Result<Account, ApiError>> {
+    return request<Account>('/accounts', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
   },
 
   async listArcs(accountId: string, params: ArcListParams): Promise<Result<Page<Arc>, ApiError>> {
@@ -476,5 +485,34 @@ export const api = {
       items: events,
       nextCursor: pagination.cursor ?? undefined,
     }))
+  },
+
+  // ─── Billing ─────────────────────────────────────────────────────────────────
+
+  // TODO(backend): GET /accounts/:id/billing
+  getBilling(accountId: string): Promise<Result<BillingInfo, ApiError>> {
+    return request<BillingInfo>(`/accounts/${accountId}/billing`)
+  },
+
+  // TODO(backend): POST /accounts/:id/billing/checkout-session
+  createCheckoutSession(
+    accountId: string,
+    body: { priceId: string; successUrl: string; cancelUrl: string },
+  ): Promise<Result<{ url: string }, ApiError>> {
+    return request<{ url: string }>(`/accounts/${accountId}/billing/checkout-session`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  },
+
+  // TODO(backend): POST /accounts/:id/billing/portal-session
+  createBillingPortalSession(
+    accountId: string,
+    body: { returnUrl: string },
+  ): Promise<Result<{ url: string }, ApiError>> {
+    return request<{ url: string }>(`/accounts/${accountId}/billing/portal-session`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
   },
 }

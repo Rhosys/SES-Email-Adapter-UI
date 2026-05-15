@@ -599,3 +599,16 @@ export interface AuditEvent {
   metadata?: Record<string, unknown>
   createdAt: string
 }
+
+// ─── Billing ──────────────────────────────────────────────────────────────────
+
+export type BillingPlan = 'free' | 'starter' | 'pro'
+export type BillingStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete'
+
+export interface BillingInfo {
+  plan: BillingPlan
+  status: BillingStatus
+  currentPeriodEnd?: string
+  cancelAtPeriodEnd?: boolean
+  trialEnd?: string
+}

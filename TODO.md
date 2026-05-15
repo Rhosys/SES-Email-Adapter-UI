@@ -9,61 +9,74 @@
 These are all `// TODO(backend)` items in `src/lib/api.ts`, consolidated here so they can be ported to `rhosys/ses-email-adapter`.
 
 ### Account management
-- `POST /accounts` — create a new account (needed for onboarding signup flow; currently no way to create an account from the UI)
+
+- `POST /accounts` — create a new account (required for self-service onboarding; Step 1 of the onboarding wizard calls this before any domain/alias setup can proceed)
 - `GET /accounts` — list all accounts the authenticated user belongs to (needed for account switcher)
 
 ### Labels (`/accounts/:id/labels`)
+
 - `GET` — list labels
 - `POST` — create label `{ name, color?, icon? }`
 - `PATCH /:labelId` — update label
 - `DELETE /:labelId` — delete label
 
 ### Saved views (`/accounts/:id/views`)
+
 - `GET` — list views
 - `POST` — create view
 - `PATCH /:viewId` — update view
 - `DELETE /:viewId` — delete view
 
 ### Rules (`/accounts/:id/rules`)
+
 - `GET` — list rules
 - `POST` — create rule
 - `PATCH /:ruleId` — update rule
 - `DELETE /:ruleId` — delete rule
 
 ### Domains (`/accounts/:id/domains`)
+
 - `GET` — list domains (POST and PATCH already implemented)
 
 ### Forwarding addresses (`/accounts/:id/forwarding-addresses`)
+
 - `GET` — list forwarding addresses
 - `POST` — create `{ address, label? }`
 - `DELETE /:id` — delete
 
 ### Team members (`/accounts/:id/users`)
+
 - `GET` — list team members
 - `POST` — invite `{ email, role }`
 - `PATCH /:userId` — update role
 - `DELETE /:userId` — remove
 
 ### Audit log (`/accounts/:id/audit-log`)
+
 - `GET` — cursor-paginated event list; response shape: `{ events: AuditEvent[], pagination: { cursor: string | null } }`
 
 ### Email templates (`/accounts/:id/templates`)
+
 - `GET` — list templates
 - `POST` — create `{ name, subject, body }`
 - `PUT /:templateId` — replace template
 - `DELETE /:templateId` — delete
 
 ### Quarantine response
+
 - `POST /accounts/:id/signals/:signalId/quarantineResponse` — body `{ status: 'active' | 'block_hidden' | 'block_reject' }`:
   - `active` — approve: find or create arc, deliver signal
   - `block_hidden` — silently discard; sender gets 250 OK but signal is dropped
   - `block_reject` — return SMTP 5xx to sender's mail server ("nuclear unsubscribe")
 
 ### Billing / Stripe
+
 - `POST /accounts/:id/billing/checkout-session` — create Stripe Checkout session, return `{ url }` so frontend can redirect
 - `GET /accounts/:id/billing` — return current plan/subscription status so BillingView can display it
+- `POST /accounts/:id/billing/portal-session` — create Stripe Customer Portal session, return `{ url }` so frontend can redirect (needed for managing subscriptions from BillingView)
 
 ---
+
 - [x] Implement Phase 5 — Quarantine view
 - [x] Implement Phase 6 — Labels & views
 - [x] Implement Phase 7 — Rules engine

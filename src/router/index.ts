@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { loginClient } from '@/lib/auth'
 import AppLayout from '@/layouts/AppLayout.vue'
+import { useAccountStore } from '@/stores/account'
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.VITE_BASE_PATH ?? '/'),
@@ -15,6 +16,7 @@ export const router = createRouter({
       path: '/onboarding',
       name: 'onboarding',
       component: () => import('@/views/OnboardingView.vue'),
+      meta: { requiresAuth: true },
     },
 
     // Authenticated routes — all rendered inside AppLayout (sidebar)
@@ -143,6 +145,18 @@ router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return true
   const authenticated = await loginClient.userSessionExists()
   if (!authenticated) return { name: 'login' }
+
+  // Onboarding creates the account — skip the account check there
+  if (to.name === 'onboarding') return true
+
+  // For all other authenticated routes: ensure an account is loaded
+  const accountStore = useAccountStore()
+  if (!accountStore.fetched) {
+    await accountStore.fetchAccount()
+  }
+  if (!accountStore.accountId) {
+    return { name: 'onboarding' }
+  }
   return true
 })
 

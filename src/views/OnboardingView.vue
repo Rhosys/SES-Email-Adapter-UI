@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
@@ -9,9 +9,29 @@ const router = useRouter()
 const accountStore = useAccountStore()
 
 const step = ref(1)
-const TOTAL_STEPS = 5
+const TOTAL_STEPS = 6
+const STEP_LABELS = ['Account', 'Domain', 'Test email', 'Sender', 'Filter mode', 'Done']
 
-// Step 1 – Domain
+// Step 1 – Account creation
+const accountName = ref('')
+const accountCreating = ref(false)
+const accountCreated = ref(false)
+const accountError = ref('')
+
+async function submitAccount() {
+  if (!accountName.value.trim()) return
+  accountCreating.value = true
+  accountError.value = ''
+  const ok = await accountStore.createAccount(accountName.value.trim())
+  accountCreating.value = false
+  if (!ok) {
+    accountError.value = accountStore.error ?? 'Failed to create account'
+    return
+  }
+  accountCreated.value = true
+}
+
+// Step 2 – Domain
 const domain = ref('')
 const addingDomain = ref(false)
 const domainAdded = ref(false)
@@ -32,7 +52,7 @@ async function submitDomain() {
   domainAdded.value = true
 }
 
-// Step 2 – Test email (polling for a signal arrival)
+// Step 3 – Test email
 const testEmailSent = ref(false)
 const signalArrived = ref(false)
 let pollInterval: ReturnType<typeof setInterval> | null = null
@@ -57,7 +77,11 @@ function startPolling() {
   }, 3000)
 }
 
-// Step 3 – Sender address
+onUnmounted(() => {
+  if (pollInterval) clearInterval(pollInterval)
+})
+
+// Step 4 – Sender address
 const senderAddress = ref('')
 const senderPending = ref(false)
 const senderDone = ref(false)
@@ -72,7 +96,7 @@ async function saveSender() {
   if (result.isOk()) senderDone.value = true
 }
 
-// Step 4 – Filter mode
+// Step 5 – Filter mode
 const filterMode = ref<SenderFilterMode>('notify_new')
 
 const FILTER_OPTIONS: {
@@ -105,7 +129,12 @@ const FILTER_OPTIONS: {
 ]
 
 // Navigation
-function next() {
+async function next() {
+  if (step.value === 5 && senderDone.value) {
+    await api.updateAlias(accountStore.accountId!, senderAddress.value.trim(), {
+      filterMode: filterMode.value,
+    })
+  }
   if (step.value < TOTAL_STEPS) step.value++
 }
 
@@ -118,13 +147,20 @@ function finish() {
 }
 
 const canProceed = computed(() => {
-  if (step.value === 1) return domainAdded.value
-  if (step.value === 2) return signalArrived.value || testEmailSent.value
-  if (step.value === 3) return senderDone.value || senderAddress.value.trim().length > 0
+  if (step.value === 1) return accountCreated.value
+  if (step.value === 2) return domainAdded.value
+  if (step.value === 3) return signalArrived.value || testEmailSent.value
+  if (step.value === 4) return senderDone.value || senderAddress.value.trim().length > 0
   return true
 })
 
-const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Filter mode', 'Done']
+onMounted(async () => {
+  if (!accountStore.fetched) await accountStore.fetchAccount()
+  if (accountStore.accountId) {
+    accountCreated.value = true
+    step.value = 2
+  }
+})
 </script>
 
 <template>
@@ -136,7 +172,6 @@ const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Filter mode', 'Done']
           <span class="text-sm font-semibold">Setup</span>
           <span class="text-xs text-ctp-subtext0">Step {{ step }} of {{ TOTAL_STEPS }}</span>
         </div>
-        <!-- Step dots -->
         <div class="flex gap-1">
           <div
             v-for="i in TOTAL_STEPS"
@@ -150,7 +185,7 @@ const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Filter mode', 'Done']
             v-for="(label, i) in STEP_LABELS"
             :key="i"
             class="flex-1 text-center text-xs"
-            :class="i + 1 === step ? 'text-ctp-mauve font-medium' : 'text-ctp-subtext0'"
+            :class="i + 1 === step ? 'font-medium text-ctp-mauve' : 'text-ctp-subtext0'"
             >{{ label }}</span
           >
         </div>
@@ -158,8 +193,40 @@ const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Filter mode', 'Done']
     </header>
 
     <main class="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
-      <!-- ── Step 1: Domain ─────────────────────────────────────────────── -->
+      <!-- ── Step 1: Account ────────────────────────────────────────────────── -->
       <section v-if="step === 1">
+        <h2 class="mb-1 text-xl font-semibold">Create your account</h2>
+        <p class="mb-6 text-sm text-ctp-subtext0">
+          Give your organisation a name. You can change this later in Settings.
+        </p>
+
+        <div
+          v-if="accountError"
+          class="mb-4 rounded border border-ctp-red bg-ctp-red/10 px-3 py-2 text-xs text-ctp-red"
+        >
+          {{ accountError }}
+        </div>
+
+        <form class="flex flex-wrap gap-2" @submit.prevent="submitAccount">
+          <input
+            v-model="accountName"
+            type="text"
+            placeholder="Acme Corp"
+            :disabled="accountCreated"
+            class="min-w-0 flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-4 py-2.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            :disabled="accountCreating || accountCreated || !accountName.trim()"
+            class="shrink-0 rounded-lg bg-ctp-mauve px-5 py-2.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+          >
+            {{ accountCreating ? 'Creating…' : accountCreated ? 'Created ✓' : 'Create account' }}
+          </button>
+        </form>
+      </section>
+
+      <!-- ── Step 2: Domain ─────────────────────────────────────────────────── -->
+      <section v-else-if="step === 2">
         <h2 class="mb-1 text-xl font-semibold">Add your sending domain</h2>
         <p class="mb-6 text-sm text-ctp-subtext0">
           Enter the domain you'll receive emails at. We'll give you DNS records to configure.
@@ -189,7 +256,6 @@ const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Filter mode', 'Done']
           </button>
         </form>
 
-        <!-- DNS records -->
         <div v-if="dnsRecords.length" class="mt-6 space-y-2">
           <p class="text-sm font-medium text-ctp-subtext1">Add these DNS records to your domain:</p>
           <div
@@ -213,8 +279,8 @@ const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Filter mode', 'Done']
         </div>
       </section>
 
-      <!-- ── Step 2: Test email ─────────────────────────────────────────── -->
-      <section v-else-if="step === 2">
+      <!-- ── Step 3: Test email ─────────────────────────────────────────────── -->
+      <section v-else-if="step === 3">
         <h2 class="mb-1 text-xl font-semibold">Send a test email</h2>
         <p class="mb-6 text-sm text-ctp-subtext0">
           Send any email to an address at your domain. We'll detect it here in real time.
@@ -258,8 +324,8 @@ const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Filter mode', 'Done']
         </p>
       </section>
 
-      <!-- ── Step 3: Sender address ─────────────────────────────────────── -->
-      <section v-else-if="step === 3">
+      <!-- ── Step 4: Sender address ─────────────────────────────────────────── -->
+      <section v-else-if="step === 4">
         <h2 class="mb-1 text-xl font-semibold">Set your sender address</h2>
         <p class="mb-6 text-sm text-ctp-subtext0">
           Choose the email address that will appear in the "From" field for outgoing emails.
@@ -283,8 +349,8 @@ const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Filter mode', 'Done']
         </form>
       </section>
 
-      <!-- ── Step 4: Filter mode ────────────────────────────────────────── -->
-      <section v-else-if="step === 4">
+      <!-- ── Step 5: Filter mode ────────────────────────────────────────────── -->
+      <section v-else-if="step === 5">
         <h2 class="mb-1 text-xl font-semibold">Choose your default filter mode</h2>
         <p class="mb-6 text-sm text-ctp-subtext0">
           This controls how new unknown senders are handled by default.
@@ -316,8 +382,8 @@ const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Filter mode', 'Done']
         </div>
       </section>
 
-      <!-- ── Step 5: Done ───────────────────────────────────────────────── -->
-      <section v-else-if="step === 5" class="text-center">
+      <!-- ── Step 6: Done ───────────────────────────────────────────────────── -->
+      <section v-else-if="step === 6" class="text-center">
         <p class="mb-3 text-4xl">🎉</p>
         <h2 class="mb-1 text-xl font-semibold">You're all set!</h2>
         <p class="mb-6 text-sm text-ctp-subtext0">
@@ -325,6 +391,13 @@ const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Filter mode', 'Done']
         </p>
 
         <div class="mb-6 space-y-2 rounded-lg border border-ctp-surface1 p-4 text-left text-sm">
+          <div class="flex items-center gap-2">
+            <span class="text-ctp-green">✓</span>
+            <span class="text-ctp-subtext1"
+              >Account:
+              <strong class="text-ctp-text">{{ accountStore.account?.name }}</strong></span
+            >
+          </div>
           <div class="flex items-center gap-2">
             <span class="text-ctp-green">✓</span>
             <span class="text-ctp-subtext1"
