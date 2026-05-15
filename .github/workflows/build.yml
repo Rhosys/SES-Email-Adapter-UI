@@ -84,6 +84,23 @@ jobs:
           echo "CLOUDFRONT_DISTRIBUTION_ID=${CF_ID}" >> "$GITHUB_ENV"
         shell: bash
 
+      - name: Debug infra outputs
+        run: |
+          echo "=== Infra outputs from OpenTofu state ==="
+          echo "SITE_BUCKET_NAME   : ${{ env.SITE_BUCKET_NAME }}"
+          echo "CF_DISTRIBUTION_ID : ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}"
+          echo "AWS_DEFAULT_REGION : $AWS_DEFAULT_REGION"
+          echo "AWS_REGION         : $AWS_REGION"
+          echo ""
+          echo "=== AWS caller identity ==="
+          aws sts get-caller-identity
+          echo ""
+          echo "=== S3 bucket existence check ==="
+          aws s3api head-bucket --bucket "${{ env.SITE_BUCKET_NAME }}" 2>&1 \
+            && echo "Bucket EXISTS and is accessible" \
+            || echo "Bucket NOT found or no access (see error above)"
+        shell: bash
+
       # ── Lint / type-check / test ────────────────────────────────────────────
 
       - name: Check
