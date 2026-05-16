@@ -96,10 +96,23 @@ access any field on the full signal and arc objects.
 server-side (e.g. Node.js `vm.runInNewContext` with a timeout), never via raw `eval`. Validate
 that each `name` is a valid JS identifier before storing.
 
+**VM execution context:** the sandboxed VM must expose the full `signal` and `arc` objects,
+including all optional fields (`signal.workflowData`, `signal.attachments`, `signal.matchedRules`,
+`signal.textBody`, `signal.htmlBody`, `signal.spamScore`, `arc.urgency`, `arc.labels`, etc.).
+Fields that are absent for a given signal must be `undefined` (not omitted), so user code can
+safely test `signal.workflowData?.orderNumber` without a property-access error.
+
+**Function error handling at send time:** if a function throws or times out during execution
+against live data, substitute an empty string for that `fn.*` token and continue rendering —
+do not abort the send/draft action. Log the error (function name + message + signal ID) for
+observability. This matches what users see in the browser preview (`[Error: ...]` renders as
+an empty placeholder in production so the email still goes out).
+
 **Rule integration:** when a rule action has `type: 'auto_reply'` or `type: 'auto_draft'` and a
 `templateId`, the backend:
 1. Loads the template
 2. Runs each function against the live signal/arc in a sandboxed VM, collecting `fn.*` outputs
+   (errors substitute empty string — see above)
 3. Performs a Handlebars pass over subject and body with `{ sender, fn }` context
 4. Renders the markdown body to HTML (or passes raw markdown to SES depending on your pipeline)
 5. Either sends immediately (`auto_reply`) or creates a draft signal (`auto_draft`) for user review
