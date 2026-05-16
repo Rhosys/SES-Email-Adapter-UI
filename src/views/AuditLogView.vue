@@ -125,10 +125,30 @@ onMounted(async () => {
       <div v-if="loading" class="py-20 text-center text-sm text-ctp-subtext0">Loading…</div>
 
       <div v-else-if="events.length === 0" class="py-20 text-center text-sm text-ctp-subtext0">
-        No audit events found
+        <p class="font-medium text-ctp-text">No activity yet</p>
+        <p class="mx-auto mt-1 max-w-xs">
+          Audit events are recorded whenever a rule, alias, domain, label, or account setting is
+          created, updated, or deleted. Changes will appear here as they happen.
+        </p>
       </div>
 
-      <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
+      <template v-else>
+        <div
+          v-if="events.some((e) => hasDiff(e))"
+          class="mb-2 flex flex-wrap items-center gap-3 text-xs text-ctp-subtext0"
+        >
+          <span>Diff:</span>
+          <span class="flex items-center gap-1">
+            <span class="h-2 w-2 rounded-sm bg-ctp-green/30 ring-1 ring-ctp-green/50" />
+            Added / new value
+          </span>
+          <span class="flex items-center gap-1">
+            <span class="h-2 w-2 rounded-sm bg-ctp-red/30 ring-1 ring-ctp-red/50" />
+            Removed / old value
+          </span>
+        </div>
+
+      <div class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
         <div v-for="event in events" :key="event.id">
           <!-- Row -->
           <button
@@ -299,6 +319,7 @@ onMounted(async () => {
           {{ loadingMore ? 'Loading…' : 'Load more' }}
         </button>
       </div>
+      </template>
     </main>
   </div>
 </template>

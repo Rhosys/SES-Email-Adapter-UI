@@ -8,6 +8,18 @@ import UserAvatar from '@/components/UserAvatar.vue'
 const router = useRouter()
 const accountStore = useAccountStore()
 
+// DNS copy-to-clipboard
+const copiedDns = ref<Set<number>>(new Set())
+
+function copyDnsValue(i: number, value: string) {
+  void navigator.clipboard.writeText(value).then(() => {
+    copiedDns.value = new Set([...copiedDns.value, i])
+    setTimeout(() => {
+      copiedDns.value = new Set([...copiedDns.value].filter((k) => k !== i))
+    }, 1500)
+  })
+}
+
 const step = ref(1)
 const TOTAL_STEPS = 4
 const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Done']
@@ -219,9 +231,18 @@ onMounted(async () => {
             :key="i"
             class="rounded-lg border border-ctp-surface1 p-3"
           >
-            <div class="mb-1 flex items-center gap-2">
-              <span class="rounded bg-ctp-surface1 px-1.5 py-0.5 font-mono text-xs text-ctp-subtext0">{{ rec.type }}</span>
-              <span class="font-mono text-xs text-ctp-text">{{ rec.host }}</span>
+            <div class="mb-1 flex items-center justify-between gap-2">
+              <div class="flex min-w-0 items-center gap-2">
+                <span class="shrink-0 rounded bg-ctp-surface1 px-1.5 py-0.5 font-mono text-xs text-ctp-subtext0">{{ rec.type }}</span>
+                <span class="truncate font-mono text-xs text-ctp-text">{{ rec.host }}</span>
+              </div>
+              <button
+                class="shrink-0 rounded border border-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
+                :title="`Copy ${rec.type} value`"
+                @click="copyDnsValue(i, rec.value)"
+              >
+                {{ copiedDns.has(i) ? '✓' : 'Copy' }}
+              </button>
             </div>
             <p class="break-all font-mono text-xs text-ctp-subtext0">{{ rec.value }}</p>
           </div>

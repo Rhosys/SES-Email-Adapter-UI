@@ -378,6 +378,10 @@ onMounted(async () => {
                   <option value="">Any workflow</option>
                   <option v-for="wf in WORKFLOWS" :key="wf" :value="wf">{{ wf }}</option>
                 </select>
+                <p class="mt-1 text-xs text-ctp-subtext0">
+                  Limit this view to arcs from a specific automation workflow. Leave blank to show
+                  all workflows.
+                </p>
               </div>
             </div>
           </div>

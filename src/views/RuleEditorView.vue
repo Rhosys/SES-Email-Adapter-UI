@@ -355,13 +355,18 @@ watch(signalAction, (val) => {
                   OR
                 </button>
               </div>
-              <button
-                v-if="groups.length > 1"
-                class="text-xs text-ctp-subtext0 hover:text-ctp-red"
-                @click="removeGroup(gi)"
-              >
-                Remove group
-              </button>
+              <div class="flex items-center gap-3">
+                <p class="text-xs text-ctp-subtext0">
+                  {{ group.mode === 'and' ? 'All conditions must match' : 'Any one condition is enough' }}
+                </p>
+                <button
+                  v-if="groups.length > 1"
+                  class="text-xs text-ctp-subtext0 hover:text-ctp-red"
+                  @click="removeGroup(gi)"
+                >
+                  Remove group
+                </button>
+              </div>
             </div>
 
             <!-- Condition rows -->

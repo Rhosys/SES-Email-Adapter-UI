@@ -4,10 +4,10 @@ type TabKey = 'active' | 'archived' | 'all'
 defineProps<{ activeTab: TabKey }>()
 const emit = defineEmits<{ (e: 'change', tab: TabKey): void }>()
 
-const tabs: { key: TabKey; label: string }[] = [
-  { key: 'active', label: 'Inbox' },
-  { key: 'archived', label: 'Archived' },
-  { key: 'all', label: 'All' },
+const tabs: { key: TabKey; label: string; title: string }[] = [
+  { key: 'active', label: 'Inbox', title: 'Active email threads waiting for processing or reply' },
+  { key: 'archived', label: 'Archived', title: 'Threads that have been completed or manually archived' },
+  { key: 'all', label: 'All', title: 'Every thread regardless of status' },
 ]
 </script>
 
@@ -18,6 +18,7 @@ const tabs: { key: TabKey; label: string }[] = [
       :key="tab.key"
       role="tab"
       :aria-selected="activeTab === tab.key"
+      :title="tab.title"
       class="px-4 py-2.5 text-sm transition-colors"
       :class="
         activeTab === tab.key

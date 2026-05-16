@@ -177,6 +177,25 @@ const teamError = ref('')
 
 const ROLES: UserRole[] = ['owner', 'admin', 'member', 'viewer']
 
+const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
+  owner: 'Full access including billing and account deletion',
+  admin: 'Manage everything except billing',
+  member: 'Process emails and manage rules',
+  viewer: 'Read-only access',
+}
+
+// ─── DNS copy-to-clipboard ───────────────────────────────────────────────────
+const copiedDns = ref<Set<string>>(new Set())
+
+function copyDnsValue(key: string, value: string) {
+  void navigator.clipboard.writeText(value).then(() => {
+    copiedDns.value = new Set([...copiedDns.value, key])
+    setTimeout(() => {
+      copiedDns.value = new Set([...copiedDns.value].filter((k) => k !== key))
+    }, 1500)
+  })
+}
+
 async function loadTeam() {
   if (!accountStore.accountId) return
   teamLoading.value = true
@@ -479,12 +498,21 @@ const TABS: { key: TabKey; label: string }[] = [
                       {{ rec.value }}
                     </p>
                   </div>
-                  <span
-                    class="shrink-0 text-xs"
-                    :class="STATUS_COLORS[rec.status] ?? 'text-ctp-subtext0'"
-                  >
-                    {{ rec.status }}
-                  </span>
+                  <div class="flex shrink-0 items-center gap-2">
+                    <span
+                      class="text-xs"
+                      :class="STATUS_COLORS[rec.status] ?? 'text-ctp-subtext0'"
+                    >
+                      {{ rec.status }}
+                    </span>
+                    <button
+                      class="rounded border border-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
+                      :title="`Copy ${rec.type} value`"
+                      @click="copyDnsValue(`${domain.id}-${i}`, rec.value)"
+                    >
+                      {{ copiedDns.has(`${domain.id}-${i}`) ? '✓' : 'Copy' }}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -563,16 +591,19 @@ const TABS: { key: TabKey; label: string }[] = [
             placeholder="colleague@example.com"
             class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           />
-          <select
-            v-model="inviteRole"
-            class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
-          >
-            <option v-for="role in ROLES" :key="role" :value="role">{{ role }}</option>
-          </select>
+          <div class="flex flex-col gap-1">
+            <select
+              v-model="inviteRole"
+              class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
+            >
+              <option v-for="role in ROLES" :key="role" :value="role">{{ role }}</option>
+            </select>
+            <p class="text-xs text-ctp-subtext0">{{ ROLE_DESCRIPTIONS[inviteRole] }}</p>
+          </div>
           <button
             type="submit"
             :disabled="invitePending || !inviteEmail.trim()"
-            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+            class="self-start rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
           >
             {{ invitePending ? 'Inviting…' : 'Invite' }}
           </button>
@@ -676,6 +707,11 @@ const TABS: { key: TabKey; label: string }[] = [
                   {{ freq.charAt(0).toUpperCase() + freq.slice(1) }}
                 </button>
               </div>
+              <p class="mt-1 text-xs text-ctp-subtext0">
+                <template v-if="emailNotifFrequency === 'instant'">Sent as each event arrives</template>
+                <template v-else-if="emailNotifFrequency === 'hourly'">One digest per hour if anything new</template>
+                <template v-else>One daily summary at 8 AM UTC</template>
+              </p>
             </div>
           </div>
         </div>

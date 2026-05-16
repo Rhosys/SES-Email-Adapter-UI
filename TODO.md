@@ -317,7 +317,7 @@ auto_draft`
 
 ---
 
-- [ ] **Inline feature explanations** — every view and complex UI element must explain itself
+- [x] **Inline feature explanations** — every view and complex UI element must explain itself
       without redirecting to external documentation:
   - Empty states describe what the feature does and how to get started (not just "nothing here")
   - Tooltip or `<details>` disclosure on every non-obvious control (filter mode options, DNS record

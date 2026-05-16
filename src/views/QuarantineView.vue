@@ -138,6 +138,10 @@ async function loadMore() {
               — accepted by your server but not delivered
             </span>
           </div>
+          <p class="px-4 pb-2 text-xs text-ctp-subtext0">
+            These arrived from senders whose domain matched a block rule. They were accepted
+            silently so the sender doesn't know they were filtered.
+          </p>
           <div role="list" aria-label="Silently held emails">
             <QuarantineRow
               v-for="signal in store.quarantineHidden"

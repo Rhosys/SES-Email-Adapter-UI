@@ -376,6 +376,22 @@ onMounted(async () => {
           />
         </div>
 
+        <!-- Variable reference -->
+        <details class="rounded border border-ctp-surface1 text-xs">
+          <summary class="cursor-pointer px-3 py-2 text-ctp-subtext0 hover:text-ctp-text select-none">
+            Available variables
+          </summary>
+          <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 px-3 py-2 pb-3">
+            <code class="font-mono text-ctp-mauve">&#123;&#123;from.address&#125;&#125;</code><span class="text-ctp-subtext0">Sender email address</span>
+            <code class="font-mono text-ctp-mauve">&#123;&#123;from.name&#125;&#125;</code><span class="text-ctp-subtext0">Sender display name</span>
+            <code class="font-mono text-ctp-mauve">&#123;&#123;subject&#125;&#125;</code><span class="text-ctp-subtext0">Email subject line</span>
+            <code class="font-mono text-ctp-mauve">&#123;&#123;to&#125;&#125;</code><span class="text-ctp-subtext0">Recipient address(es)</span>
+            <code class="font-mono text-ctp-mauve">&#123;&#123;receivedAt&#125;&#125;</code><span class="text-ctp-subtext0">ISO timestamp the email was received</span>
+            <code class="font-mono text-ctp-mauve">&#123;&#123;arcId&#125;&#125;</code><span class="text-ctp-subtext0">Thread / arc identifier</span>
+            <code class="font-mono text-ctp-mauve">&#123;&#123;accountId&#125;&#125;</code><span class="text-ctp-subtext0">Your account ID</span>
+          </div>
+        </details>
+
         <!-- Subject -->
         <div>
           <label class="mb-1 block text-xs text-ctp-subtext0">
