@@ -19,6 +19,20 @@ const sentAt = computed(() =>
     timeStyle: 'short',
   }),
 )
+
+// Best-effort auto-height: works if the browser grants parent access to the
+// srcdoc iframe's contentDocument (behaviour varies; fails silently if not).
+// The sandbox intentionally omits allow-scripts and allow-same-origin, so this
+// may always fall through to the CSS min-height — that is the safe fallback.
+function fitHeight(e: Event) {
+  const iframe = e.target as HTMLIFrameElement
+  try {
+    const h = iframe.contentDocument?.documentElement.scrollHeight
+    if (h) iframe.style.height = `${h}px`
+  } catch {
+    // Cross-origin sandbox blocked contentDocument access — keep CSS min-height
+  }
+}
 </script>
 
 <template>
@@ -49,9 +63,11 @@ const sentAt = computed(() =>
         v-if="signal.htmlBody"
         :srcdoc="signal.htmlBody"
         sandbox="allow-popups allow-popups-to-escape-sandbox"
+        referrerpolicy="no-referrer"
         class="w-full rounded-b-lg"
         style="min-height: 200px; border: none"
         title="Email content"
+        @load="fitHeight"
       />
       <pre
         v-else-if="signal.textBody"
