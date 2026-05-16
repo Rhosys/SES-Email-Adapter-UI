@@ -68,6 +68,7 @@ async function loadMore() {
     <!-- Error -->
     <div
       v-else-if="signalsStore.error"
+      role="alert"
       class="rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
     >
       {{ signalsStore.error }}

@@ -40,6 +40,7 @@ function fitHeight(e: Event) {
     <!-- Card header -->
     <button
       class="flex w-full items-center justify-between px-4 py-3 text-left"
+      :aria-expanded="expanded"
       @click="expanded = !expanded"
     >
       <div class="min-w-0 flex-1">
@@ -54,7 +55,7 @@ function fitHeight(e: Event) {
         </div>
         <span class="text-xs text-ctp-subtext0">{{ sentAt }}</span>
       </div>
-      <span class="ml-2 shrink-0 text-xs text-ctp-subtext0">{{ expanded ? '▲' : '▼' }}</span>
+      <span class="ml-2 shrink-0 text-xs text-ctp-subtext0" aria-hidden="true">{{ expanded ? '▲' : '▼' }}</span>
     </button>
 
     <!-- Email body -->

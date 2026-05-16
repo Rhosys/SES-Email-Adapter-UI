@@ -66,8 +66,8 @@ describe('UserAvatar', () => {
   it('popup shows clipboard icon buttons for email and userId', async () => {
     const wrapper = mount(UserAvatar, { global: { plugins: [router] } })
     await wrapper.vm.$nextTick() // let onMounted identity propagate to v-if="email"
-    expect(wrapper.find('button[title="Copy email"]').exists()).toBe(true)
-    expect(wrapper.find('button[title="Copy user ID"]').exists()).toBe(true)
+    expect(wrapper.find('button[aria-label="Copy email"]').exists()).toBe(true)
+    expect(wrapper.find('button[aria-label="Copy user ID"]').exists()).toBe(true)
   })
 
   it('popup closes after mouseleave timeout', async () => {

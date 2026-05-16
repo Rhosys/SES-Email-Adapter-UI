@@ -223,7 +223,7 @@ onMounted(async () => {
             <button
               :disabled="idx === 0"
               class="text-ctp-subtext0 hover:text-ctp-text disabled:opacity-20"
-              title="Move up"
+              aria-label="Move rule up"
               @click="moveUp(rule)"
             >
               ▲
@@ -232,7 +232,7 @@ onMounted(async () => {
             <button
               :disabled="idx === rulesStore.items.length - 1"
               class="text-ctp-subtext0 hover:text-ctp-text disabled:opacity-20"
-              title="Move down"
+              aria-label="Move rule down"
               @click="moveDown(rule)"
             >
               ▼

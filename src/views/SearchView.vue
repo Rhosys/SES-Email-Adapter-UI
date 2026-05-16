@@ -159,6 +159,7 @@ if (query.value) {
               ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
               : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
           "
+          :aria-pressed="visibleSections.has(key)"
           :disabled="visibleSections.has(key) && visibleSections.size === 1"
           @click="toggleSection(key)"
         >

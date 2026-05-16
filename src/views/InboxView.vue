@@ -65,7 +65,7 @@ function handleBulkLabel(label: string) {
         @clear="arcsStore.clearSelection()"
       />
 
-      <div v-if="arcsStore.loading" class="py-16 text-center text-ctp-subtext0">Loading…</div>
+      <div v-if="arcsStore.loading" role="status" aria-live="polite" class="py-16 text-center text-ctp-subtext0">Loading…</div>
 
       <InboxEmpty
         v-else-if="!arcsStore.loading && arcsStore.sortedItems.length === 0"

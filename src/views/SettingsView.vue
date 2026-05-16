@@ -314,10 +314,12 @@ const TABS: { key: TabKey; label: string }[] = [
 
     <!-- Tab bar -->
     <div class="border-b border-ctp-surface0 bg-ctp-mantle px-4">
-      <div class="flex gap-1 overflow-x-auto">
+      <div role="tablist" class="flex gap-1 overflow-x-auto">
         <button
           v-for="tab in TABS"
           :key="tab.key"
+          role="tab"
+          :aria-selected="activeTab === tab.key"
           class="shrink-0 border-b-2 px-3 py-2 text-sm transition-colors"
           :class="
             activeTab === tab.key
@@ -669,6 +671,9 @@ const TABS: { key: TabKey; label: string }[] = [
               </p>
             </div>
             <button
+              role="switch"
+              :aria-checked="emailNotifEnabled"
+              :aria-label="emailNotifEnabled ? 'Disable email notifications' : 'Enable email notifications'"
               class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
               :class="emailNotifEnabled ? 'bg-ctp-mauve' : 'bg-ctp-surface1'"
               @click="emailNotifEnabled = !emailNotifEnabled"
@@ -696,6 +701,7 @@ const TABS: { key: TabKey; label: string }[] = [
                 <button
                   v-for="freq in ['instant', 'hourly', 'daily'] as const"
                   :key="freq"
+                  :aria-pressed="emailNotifFrequency === freq"
                   class="rounded-full border px-3 py-1 text-xs transition-colors"
                   :class="
                     emailNotifFrequency === freq

@@ -418,6 +418,7 @@ onMounted(async () => {
             </label>
             <div class="flex gap-1">
               <button
+                :aria-pressed="!showPreview"
                 class="rounded px-2 py-0.5 text-xs transition-colors"
                 :class="!showPreview ? 'bg-ctp-surface1 text-ctp-text' : 'text-ctp-subtext0 hover:text-ctp-text'"
                 @click="showPreview = false"
@@ -425,6 +426,7 @@ onMounted(async () => {
                 Edit
               </button>
               <button
+                :aria-pressed="showPreview"
                 class="rounded px-2 py-0.5 text-xs transition-colors"
                 :class="showPreview ? 'bg-ctp-surface1 text-ctp-text' : 'text-ctp-subtext0 hover:text-ctp-text'"
                 @click="showPreview = true"

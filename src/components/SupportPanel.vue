@@ -150,6 +150,7 @@ function resetContact() {
         class="fixed inset-y-0 right-0 z-50 flex w-96 max-w-full flex-col border-l border-ctp-surface0 bg-ctp-mantle shadow-2xl"
         role="dialog"
         aria-label="Support"
+        @keydown.escape="emit('close')"
       >
         <!-- Header -->
         <div
@@ -170,10 +171,12 @@ function resetContact() {
         </div>
 
         <!-- Tabs -->
-        <div class="flex shrink-0 border-b border-ctp-surface0">
+        <div role="tablist" class="flex shrink-0 border-b border-ctp-surface0">
           <button
             v-for="tab in ['help', 'contact', 'status'] as Tab[]"
             :key="tab"
+            role="tab"
+            :aria-selected="activeTab === tab"
             class="flex-1 py-2.5 text-xs font-medium capitalize transition-colors"
             :class="
               activeTab === tab
@@ -193,6 +196,7 @@ function resetContact() {
             <input
               v-model="searchQuery"
               type="search"
+              aria-label="Search articles"
               placeholder="Search articles…"
               class="mb-4 h-8 w-full rounded-md border border-ctp-surface1 bg-ctp-base px-3 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
             />

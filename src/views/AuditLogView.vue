@@ -154,9 +154,10 @@ onMounted(async () => {
           <button
             class="flex w-full gap-3 px-4 py-3 text-left transition-colors"
             :class="hasDiff(event) ? 'cursor-pointer hover:bg-ctp-surface0/40' : 'cursor-default'"
+            :aria-expanded="hasDiff(event) ? expandedIds.has(event.id) : undefined"
             @click="hasDiff(event) && toggleExpand(event.id)"
           >
-            <span class="mt-0.5 shrink-0 text-base">
+            <span class="mt-0.5 shrink-0 text-base" aria-hidden="true">
               {{ RESOURCE_ICONS[event.resourceType] ?? '📝' }}
             </span>
             <div class="min-w-0 flex-1">

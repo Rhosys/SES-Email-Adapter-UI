@@ -213,6 +213,12 @@ onMounted(async () => {
 
 <template>
   <div class="flex h-screen overflow-hidden bg-ctp-base text-ctp-text">
+    <!-- Skip to main content -->
+    <a
+      href="#main-content"
+      class="absolute left-2 top-2 z-[100] -translate-y-20 rounded bg-ctp-mauve px-3 py-1.5 text-sm font-medium text-ctp-base focus:translate-y-0"
+    >Skip to content</a>
+
     <!-- Backdrop for mobile sidebar -->
     <div
       v-if="sidebarOpen"
@@ -234,7 +240,7 @@ onMounted(async () => {
           aria-label="Toggle menu"
           @click="sidebarOpen = !sidebarOpen"
         >
-          <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+          <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path
               fill-rule="evenodd"
               d="M2.5 12a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5z"
@@ -262,6 +268,7 @@ onMounted(async () => {
               class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ctp-subtext0"
               viewBox="0 0 16 16"
               fill="currentColor"
+              aria-hidden="true"
             >
               <path
                 d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 001.415-1.414l-3.85-3.85a1.007 1.007 0 00-.115-.099zm-5.242 1.156a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"
@@ -270,6 +277,7 @@ onMounted(async () => {
             <input
               v-model="searchQuery"
               type="search"
+              aria-label="Search arcs, rules, aliases"
               placeholder="Search…"
               class="h-7 w-full rounded-md border border-ctp-surface1 bg-ctp-base pl-8 pr-3 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
               autocomplete="off"
@@ -298,6 +306,7 @@ onMounted(async () => {
                       ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
                       : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
                   "
+                  :aria-pressed="activeCategories.has(cat.key)"
                   :disabled="activeCategories.has(cat.key) && activeCategories.size === 1"
                   @mousedown.prevent="toggleCategory(cat.key)"
                 >
@@ -441,7 +450,7 @@ onMounted(async () => {
         </form>
       </header>
 
-      <div class="flex-1 overflow-y-auto">
+      <div id="main-content" class="flex-1 overflow-y-auto">
         <RouterView />
       </div>
     </div>

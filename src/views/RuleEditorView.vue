@@ -276,6 +276,8 @@ watch(signalAction, (val) => {
 
         <!-- Enabled/disabled toggle -->
         <button
+          role="switch"
+          :aria-checked="status === 'enabled'"
           class="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
           :class="
             status === 'enabled'
@@ -297,6 +299,7 @@ watch(signalAction, (val) => {
       <!-- Error -->
       <div
         v-if="rulesStore.error"
+        role="alert"
         class="mb-4 rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
       >
         {{ rulesStore.error }}
@@ -333,6 +336,7 @@ watch(signalAction, (val) => {
             <div class="mb-2 flex items-center justify-between">
               <div class="flex items-center gap-1 rounded-full bg-ctp-surface0 p-0.5">
                 <button
+                  :aria-pressed="group.mode === 'and'"
                   class="rounded-full px-2.5 py-0.5 text-xs transition-colors"
                   :class="
                     group.mode === 'and'
@@ -344,6 +348,7 @@ watch(signalAction, (val) => {
                   AND
                 </button>
                 <button
+                  :aria-pressed="group.mode === 'or'"
                   class="rounded-full px-2.5 py-0.5 text-xs transition-colors"
                   :class="
                     group.mode === 'or'

@@ -93,6 +93,7 @@ function copyUserId() {
     @mouseleave="scheduleHide"
     @focusin="show"
     @focusout="handleFocusout"
+    @keydown.escape="open = false"
   >
     <!-- ── Sidebar mode: full-width row ──────────────────────────────────── -->
     <button
@@ -189,7 +190,7 @@ function copyUserId() {
             type="button"
             class="shrink-0 transition-colors"
             :class="emailCopied ? 'text-ctp-green' : 'text-ctp-subtext0 hover:text-ctp-text'"
-            :title="emailCopied ? 'Copied!' : 'Copy email'"
+            :aria-label="emailCopied ? 'Copied!' : 'Copy email'"
             @click.stop="copyEmail"
           >
             <!-- Checkmark when copied -->
@@ -213,7 +214,7 @@ function copyUserId() {
             type="button"
             class="shrink-0 transition-colors"
             :class="userIdCopied ? 'text-ctp-green' : 'text-ctp-subtext0 hover:text-ctp-text'"
-            :title="userIdCopied ? 'Copied!' : 'Copy user ID'"
+            :aria-label="userIdCopied ? 'Copied!' : 'Copy user ID'"
             @click.stop="copyUserId"
           >
             <svg v-if="userIdCopied" class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

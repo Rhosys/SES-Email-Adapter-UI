@@ -259,6 +259,7 @@ onUnmounted(() => {
               i + 1 === step ? 'font-medium text-ctp-mauve' : 'text-ctp-subtext0',
               i + 1 < step && i + 1 >= 2 ? 'cursor-pointer hover:text-ctp-text' : 'cursor-default',
             ]"
+            :aria-current="i + 1 === step ? 'step' : undefined"
             :disabled="i + 1 >= step || i + 1 < 2"
             @click="goToStep(i + 1)"
           >
@@ -304,10 +305,12 @@ onUnmounted(() => {
               placeholder="yourdomain.com"
               :disabled="domainAdded"
               class="w-full rounded-lg border bg-ctp-mantle px-4 py-2.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:outline-none disabled:opacity-50"
+              :aria-invalid="!!domainFieldError"
+              :aria-describedby="domainFieldError ? 'domain-error' : undefined"
               :class="domainFieldError ? 'border-ctp-red focus:border-ctp-red' : 'border-ctp-surface1 focus:border-ctp-mauve'"
               @blur="domainTouched = true"
             />
-            <p v-if="domainFieldError" class="text-xs text-ctp-red">{{ domainFieldError }}</p>
+            <p v-if="domainFieldError" id="domain-error" class="text-xs text-ctp-red">{{ domainFieldError }}</p>
           </div>
           <button
             type="submit"

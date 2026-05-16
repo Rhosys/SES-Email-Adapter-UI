@@ -65,6 +65,8 @@ const labels = computed(() => labelsStore.items)
       <button
         class="flex h-12 w-full items-center gap-2 px-4 text-left transition-colors hover:bg-ctp-surface0/50"
         :class="{ 'cursor-default hover:bg-transparent': accountStore.accounts.length <= 1 }"
+        :aria-expanded="accountStore.accounts.length > 1 ? switcherOpen : undefined"
+        :aria-haspopup="accountStore.accounts.length > 1 ? 'listbox' : undefined"
         @click="accountStore.accounts.length > 1 && (switcherOpen = !switcherOpen)"
       >
         <span class="flex-1 truncate text-sm font-semibold text-ctp-text">
@@ -124,7 +126,7 @@ const labels = computed(() => labelsStore.items)
           "
         >
           <!-- Inbox icon -->
-          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path
               d="M1 2.5A1.5 1.5 0 012.5 1h11A1.5 1.5 0 0115 2.5v11a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 13.5v-11zM2.5 2a.5.5 0 00-.5.5V9h2.5a.5.5 0 01.5.5 2.5 2.5 0 005 0 .5.5 0 01.5-.5H13V2.5a.5.5 0 00-.5-.5h-10z"
             />
@@ -142,7 +144,7 @@ const labels = computed(() => labelsStore.items)
           "
         >
           <!-- Shield icon -->
-          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path
               d="M8 1l6 2v4c0 3.5-2.5 6.3-6 7.5C2.5 13.3 0 10.5 0 7V3l8-2zm0 1.5L1.5 4.3V7c0 2.8 2 5.1 6.5 6.3C12.5 12.1 14.5 9.8 14.5 7V4.3L8 2.5z"
             />
@@ -160,7 +162,7 @@ const labels = computed(() => labelsStore.items)
           "
         >
           <!-- Search icon -->
-          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path
               d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 001.415-1.414l-3.85-3.85a1.007 1.007 0 00-.115-.099zm-5.242 1.156a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"
             />
@@ -181,19 +183,21 @@ const labels = computed(() => labelsStore.items)
             Manage
           </RouterLink>
         </div>
-        <div
+        <button
           v-for="view in sortedViews"
           :key="view.id"
+          type="button"
           draggable="true"
-          class="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-ctp-subtext1 transition-colors hover:bg-ctp-surface0/50 hover:text-ctp-text"
+          class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-ctp-subtext1 transition-colors hover:bg-ctp-surface0/50 hover:text-ctp-text"
           @click="navigateToView(view)"
+          @keydown.enter="navigateToView(view)"
           @dragstart="onDragStart(view.id)"
           @dragover="onDragOver"
           @drop="onDrop(view.id)"
         >
-          <span class="shrink-0 text-xs">{{ view.icon ?? '📋' }}</span>
+          <span class="shrink-0 text-xs" aria-hidden="true">{{ view.icon ?? '📋' }}</span>
           <span class="truncate">{{ view.name }}</span>
-        </div>
+        </button>
       </div>
 
       <!-- Labels -->
@@ -235,7 +239,7 @@ const labels = computed(() => labelsStore.items)
         "
       >
         <!-- List icon -->
-        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path
             fill-rule="evenodd"
             d="M2.5 12a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5z"
@@ -254,7 +258,7 @@ const labels = computed(() => labelsStore.items)
         "
       >
         <!-- Document icon -->
-        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path d="M4 0a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4.5L9.5 0H4zm5 1v3.5H12L9 1zM4 7h8v1H4V7zm0 2h8v1H4V9zm0 2h5v1H4v-1z"/>
         </svg>
         Templates
@@ -270,7 +274,7 @@ const labels = computed(() => labelsStore.items)
         "
       >
         <!-- Tag icon -->
-        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path
             d="M1 1h6.5a1 1 0 01.707.293l6 6a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-6-6A1 1 0 011 7.5V1zm1.5 1.5v5l5.5 5.5 4-4L7 3.5H2.5zM4 4.5a.5.5 0 100 1 .5.5 0 000-1z"
           />
@@ -288,7 +292,7 @@ const labels = computed(() => labelsStore.items)
         "
       >
         <!-- Gear icon -->
-        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path
             d="M8 4.754a3.246 3.246 0 100 6.492 3.246 3.246 0 000-6.492zM5.754 8a2.246 2.246 0 114.492 0 2.246 2.246 0 01-4.492 0z"
           />
