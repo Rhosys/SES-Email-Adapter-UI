@@ -321,7 +321,7 @@ auto_draft`
 
 ---
 
-- [ ] **Accessibility** — audit the app against WCAG 2.1 AA and fix violations (keyboard nav,
+- [x] **Accessibility** — audit the app against WCAG 2.1 AA and fix violations (keyboard nav,
       focus indicators, ARIA labels, colour contrast, screen reader support)
 
 
