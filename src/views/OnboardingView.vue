@@ -38,8 +38,8 @@ const testEmailUser = `${pick()}.${pick()}`
 import { isValidDomain } from '@/lib/validation'
 
 // ── Steps ────────────────────────────────────────────────────────────────────
-const TOTAL_STEPS = 3
-const STEP_LABELS = ['Create Account', 'Configure Domain', 'Test Email']
+const TOTAL_STEPS = 4
+const STEP_LABELS = ['Create Account', 'Configure Domain', 'Test Email', 'Done']
 const step = ref(1)
 
 function goToStep(n: number) {
@@ -194,7 +194,7 @@ async function onSignalArrived() {
   if (signalArrived.value) return
   signalArrived.value = true
   await persistProgress({ testEmailReceived: true, completed: true })
-  void router.push('/inbox')
+  step.value = 4
 }
 
 function markEmailSent() {
@@ -430,6 +430,157 @@ onUnmounted(() => {
         </div>
       </section>
 
+      <!-- ── Step 4: Done — CSS fireworks celebration ───────────────────────── -->
+      <section v-else-if="step === 4" class="relative flex flex-col items-center justify-center py-16 text-center">
+
+        <!-- CSS-only fireworks — no JavaScript ──────────────────────────────── -->
+        <div class="fw" aria-hidden="true">
+          <!-- 5 burst groups scattered across the viewport -->
+          <div class="fw-b fw-b1">
+            <span/><span/><span/><span/><span/><span/>
+            <span/><span/><span/><span/><span/><span/>
+          </div>
+          <div class="fw-b fw-b2">
+            <span/><span/><span/><span/><span/><span/>
+            <span/><span/><span/><span/><span/><span/>
+          </div>
+          <div class="fw-b fw-b3">
+            <span/><span/><span/><span/><span/><span/>
+            <span/><span/><span/><span/><span/><span/>
+          </div>
+          <div class="fw-b fw-b4">
+            <span/><span/><span/><span/><span/><span/>
+            <span/><span/><span/><span/><span/><span/>
+          </div>
+          <div class="fw-b fw-b5">
+            <span/><span/><span/><span/><span/><span/>
+            <span/><span/><span/><span/><span/><span/>
+          </div>
+        </div>
+
+        <!-- Done card -->
+        <div class="relative z-10 flex flex-col items-center gap-5">
+          <div class="flex h-20 w-20 items-center justify-center rounded-full bg-ctp-mauve/20 ring-2 ring-ctp-mauve/30">
+            <svg class="h-10 w-10 text-ctp-mauve" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4h16v16H4z" rx="2"/>
+              <path d="M4 8l8 6 8-6"/>
+            </svg>
+          </div>
+
+          <div>
+            <h2 class="text-2xl font-bold text-ctp-text">Your email arrived!</h2>
+            <p class="mt-2 max-w-sm text-sm text-ctp-subtext0">
+              Setup is complete. Your inbox is ready — head over to see your first message and
+              start exploring what SES Adapter can do.
+            </p>
+          </div>
+
+          <button
+            class="rounded-lg bg-ctp-mauve px-8 py-3 text-sm font-semibold text-ctp-base transition-opacity hover:opacity-90"
+            @click="router.push('/inbox')"
+          >
+            See the result →
+          </button>
+        </div>
+      </section>
+
     </main>
   </div>
 </template>
+
+<style scoped>
+/* ── CSS-only fireworks — no JavaScript required ─────────────────────────────
+   Each .fw-b is a burst origin (0×0 point).  Its <span> children are particles
+   that shoot radially outward using rotate(--a) translateY(-dist) so the
+   direction is baked into a CSS custom property — no script needed.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.fw {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Burst origin positions ── */
+.fw-b {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.fw-b1 { left: 18%;  top: 22%; }
+.fw-b2 { left: 78%;  top: 16%; }
+.fw-b3 { left: 50%;  top: 50%; }
+.fw-b4 { left: 14%;  top: 70%; }
+.fw-b5 { left: 82%;  top: 68%; }
+
+/* ── Particles ── */
+.fw-b > span {
+  position: absolute;
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  /* centred on burst origin */
+  top: -3px;
+  left: -3px;
+  animation: fw-spark 1.5s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+}
+
+/* 12 particles, evenly spread at 30° intervals */
+.fw-b > span:nth-child(1)  { --a: 0deg   }
+.fw-b > span:nth-child(2)  { --a: 30deg  }
+.fw-b > span:nth-child(3)  { --a: 60deg  }
+.fw-b > span:nth-child(4)  { --a: 90deg  }
+.fw-b > span:nth-child(5)  { --a: 120deg }
+.fw-b > span:nth-child(6)  { --a: 150deg }
+.fw-b > span:nth-child(7)  { --a: 180deg }
+.fw-b > span:nth-child(8)  { --a: 210deg }
+.fw-b > span:nth-child(9)  { --a: 240deg }
+.fw-b > span:nth-child(10) { --a: 270deg }
+.fw-b > span:nth-child(11) { --a: 300deg }
+.fw-b > span:nth-child(12) { --a: 330deg }
+
+/* ── Per-burst timing offsets ── */
+.fw-b1 > span { animation-delay: 0s;     }
+.fw-b2 > span { animation-delay: 0.38s;  }
+.fw-b3 > span { animation-delay: 0.76s;  }
+.fw-b4 > span { animation-delay: 0.19s;  }
+.fw-b5 > span { animation-delay: 0.57s;  }
+
+/* ── Per-burst colours (odd = primary, even = accent) ── */
+.fw-b1 > span              { background: #cba6f7; } /* mauve     */
+.fw-b1 > span:nth-child(even) { background: #f5c2e7; } /* pink      */
+
+.fw-b2 > span              { background: #89b4fa; } /* blue      */
+.fw-b2 > span:nth-child(even) { background: #74c7ec; } /* sapphire  */
+
+.fw-b3 > span              { background: #a6e3a1; } /* green     */
+.fw-b3 > span:nth-child(even) { background: #94e2d5; } /* teal      */
+
+.fw-b4 > span              { background: #fab387; } /* peach     */
+.fw-b4 > span:nth-child(even) { background: #f9e2af; } /* yellow    */
+
+.fw-b5 > span              { background: #f38ba8; } /* red       */
+.fw-b5 > span:nth-child(even) { background: #eba0ac; } /* maroon    */
+
+/* ── Keyframe: radial outward burst ──
+   rotate(--a) puts the particle on the right bearing;
+   translateY then moves it along that rotated Y axis (away from origin).
+   Scale + opacity fade complete the "spark trails off" look.
+   ─────────────────────────────────────────────────────────────────────── */
+@keyframes fw-spark {
+  0% {
+    transform: rotate(var(--a)) translateY(0)    scale(1);
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: rotate(var(--a)) translateY(-110px) scale(0.2);
+    opacity: 0;
+  }
+}
+</style>
