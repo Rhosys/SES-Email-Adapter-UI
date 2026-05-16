@@ -5,6 +5,8 @@ import { marked } from 'marked'
 import { useTemplatesStore } from '@/stores/templates'
 import { useAccountStore } from '@/stores/account'
 import CodeEditor from '@/components/CodeEditor.vue'
+import SignalBrowser from '@/components/SignalBrowser.vue'
+import { useHbsAutocomplete } from '@/composables/useHbsAutocomplete'
 import type { EmailTemplate, TemplateFunction } from '@/types/server'
 
 const store = useTemplatesStore()
@@ -16,6 +18,8 @@ const editingId = ref<string | null>(null)
 const showEditor = ref(false)
 const showPreview = ref(false)
 const saving = ref(false)
+const validating = ref(false)
+const fnErrors = ref<Record<string, string>>({})
 
 const draftName = ref('')
 const draftSubject = ref('')
@@ -29,12 +33,15 @@ const canSave = computed(
     draftFunctions.value.every((f) => f.name.trim().length > 0),
 )
 
+const hasValidationErrors = computed(() => Object.keys(fnErrors.value).length > 0)
+
 function openNew() {
   editingId.value = null
   draftName.value = ''
   draftSubject.value = ''
   draftBody.value = ''
   draftFunctions.value = []
+  fnErrors.value = {}
   showPreview.value = false
   showEditor.value = true
 }
@@ -45,6 +52,7 @@ function openEdit(tpl: EmailTemplate) {
   draftSubject.value = tpl.subject
   draftBody.value = tpl.body
   draftFunctions.value = tpl.functions.map((f) => ({ ...f }))
+  fnErrors.value = {}
   showPreview.value = false
   showEditor.value = true
 }
@@ -55,7 +63,16 @@ function closeEditor() {
 }
 
 async function save() {
-  if (!canSave.value || saving.value) return
+  if (!canSave.value || saving.value || validating.value) return
+
+  // Validate functions before saving
+  validating.value = true
+  const { errors } = await runWorker(draftFunctions.value)
+  validating.value = false
+  fnErrors.value = errors
+
+  if (Object.keys(errors).length > 0) return
+
   saving.value = true
   const payload = {
     name: draftName.value.trim(),
@@ -85,17 +102,24 @@ function removeFunction(idx: number) {
   draftFunctions.value = draftFunctions.value.filter((_, i) => i !== idx)
 }
 
+function _dropFnError(name: string) {
+  const next = { ...fnErrors.value }
+  delete next[name]
+  fnErrors.value = next
+}
+
 function updateFnName(idx: number, name: string) {
   draftFunctions.value = draftFunctions.value.map((f, i) => (i === idx ? { ...f, name } : f))
 }
 
 function updateFnCode(idx: number, code: string) {
   draftFunctions.value = draftFunctions.value.map((f, i) => (i === idx ? { ...f, code } : f))
+  const fn = draftFunctions.value[idx]
+  if (fn?.name && fnErrors.value[fn.name]) _dropFnError(fn.name)
 }
 
-// ─── Live preview — Worker-based to sandbox user JS ──────────────────────────
+// ─── Worker sandbox ───────────────────────────────────────────────────────────
 
-// Sample data passed to user functions during preview
 const SAMPLE_SIGNAL = {
   from: { name: 'Jane Smith', address: 'jane@example.com' },
   to: [{ address: 'you@yourdomain.com' }],
@@ -111,12 +135,10 @@ const SAMPLE_ARC = {
   labels: [],
 }
 
-// Each user function receives (signal, arc) and returns a string.
-// We run them inside a Worker so user JS can't touch the main thread DOM.
 const WORKER_SRC = `
 self.onmessage = function(e) {
   var fns = e.data.fns, signal = e.data.signal, arc = e.data.arc
-  var outputs = {}
+  var outputs = {}, errors = {}
   for (var i = 0; i < fns.length; i++) {
     var fn = fns[i]
     try {
@@ -124,25 +146,28 @@ self.onmessage = function(e) {
       var result = f(signal, arc)
       outputs[fn.name] = typeof result === 'string' ? result : String(result == null ? '' : result)
     } catch (err) {
-      outputs[fn.name] = '[Error: ' + err.message + ']'
+      errors[fn.name] = err.message
+      outputs[fn.name] = ''
     }
   }
-  self.postMessage(outputs)
+  self.postMessage({ outputs: outputs, errors: errors })
 }
 `
 
-function runFunctionsInWorker(fns: TemplateFunction[]): Promise<Record<string, string>> {
-  if (fns.length === 0) return Promise.resolve({})
+function runWorker(
+  fns: TemplateFunction[],
+): Promise<{ outputs: Record<string, string>; errors: Record<string, string> }> {
+  if (fns.length === 0) return Promise.resolve({ outputs: {}, errors: {} })
   return new Promise((resolve) => {
     const blob = new Blob([WORKER_SRC], { type: 'application/javascript' })
     const url = URL.createObjectURL(blob)
     const worker = new Worker(url)
     const timeout = setTimeout(() => {
-      resolve({})
+      resolve({ outputs: {}, errors: { _timeout: 'Functions timed out after 3 seconds' } })
       worker.terminate()
       URL.revokeObjectURL(url)
     }, 3000)
-    worker.onmessage = (e: MessageEvent<Record<string, string>>) => {
+    worker.onmessage = (e: MessageEvent<{ outputs: Record<string, string>; errors: Record<string, string> }>) => {
       clearTimeout(timeout)
       resolve(e.data)
       worker.terminate()
@@ -150,7 +175,7 @@ function runFunctionsInWorker(fns: TemplateFunction[]): Promise<Record<string, s
     }
     worker.onerror = () => {
       clearTimeout(timeout)
-      resolve({})
+      resolve({ outputs: {}, errors: {} })
       worker.terminate()
       URL.revokeObjectURL(url)
     }
@@ -158,8 +183,9 @@ function runFunctionsInWorker(fns: TemplateFunction[]): Promise<Record<string, s
   })
 }
 
+// ─── Live preview ─────────────────────────────────────────────────────────────
+
 const fnOutputs = ref<Record<string, string>>({})
-const previewError = ref<string | null>(null)
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(
@@ -168,14 +194,18 @@ watch(
     if (!showPreview.value) return
     if (debounceTimer) clearTimeout(debounceTimer)
     debounceTimer = setTimeout(async () => {
-      fnOutputs.value = await runFunctionsInWorker(draftFunctions.value)
+      const { outputs } = await runWorker(draftFunctions.value)
+      fnOutputs.value = outputs
     }, 400)
   },
   { deep: true },
 )
 
 watch(showPreview, async (val) => {
-  if (val) fnOutputs.value = await runFunctionsInWorker(draftFunctions.value)
+  if (val) {
+    const { outputs } = await runWorker(draftFunctions.value)
+    fnOutputs.value = outputs
+  }
 })
 
 const hbsContext = computed(() => ({
@@ -185,23 +215,41 @@ const hbsContext = computed(() => ({
 
 const previewSubject = computed(() => {
   try {
-    previewError.value = null
     return Handlebars.compile(draftSubject.value)(hbsContext.value)
-  } catch (e) {
+  } catch {
     return draftSubject.value
   }
 })
 
-const previewHtml = computed(() => {
+const _bodyResult = computed(() => {
   try {
-    previewError.value = null
     const rendered = Handlebars.compile(draftBody.value)(hbsContext.value)
-    return marked.parse(rendered) as string
+    return { html: marked.parse(rendered) as string, error: null as string | null }
   } catch (e) {
-    previewError.value = e instanceof Error ? e.message : 'Template syntax error'
-    return ''
+    return { html: '', error: e instanceof Error ? e.message : 'Template syntax error' }
   }
 })
+
+const previewHtml = computed(() => _bodyResult.value.html)
+const previewError = computed(() => _bodyResult.value.error)
+
+// ─── Handlebars autocomplete ──────────────────────────────────────────────────
+
+const hbsCompletions = computed(() => [
+  { token: 'sender.name', label: 'sender.name', type: 'string', example: SAMPLE_SIGNAL.from.name },
+  { token: 'sender.address', label: 'sender.address', type: 'string', example: SAMPLE_SIGNAL.from.address },
+  ...draftFunctions.value
+    .filter((f) => f.name.trim().length > 0)
+    .map((f) => ({ token: `fn.${f.name}`, label: `fn.${f.name}`, type: 'function', example: 'output of your function' })),
+])
+
+const ac = useHbsAutocomplete(() => hbsCompletions.value)
+
+// Helper: wrap a token in {{}} without triggering Vue's template parser
+// { = { } = }
+function hbsToken(token: string) {
+  return '{{' + token + '}}'
+}
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -330,12 +378,18 @@ onMounted(async () => {
 
         <!-- Subject -->
         <div>
-          <label class="mb-1 block text-xs text-ctp-subtext0">Subject</label>
+          <label class="mb-1 block text-xs text-ctp-subtext0">
+            Subject
+            <span class="text-ctp-surface2 font-normal"> — type <code class="font-mono">&#123;&#123;&#125;&#125;</code> for variables</span>
+          </label>
           <input
             v-model="draftSubject"
             type="text"
-            placeholder="Re: your enquiry"
+            placeholder="Re: {{sender.name}}'s enquiry"
             class="w-full rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+            @input="ac.onInput"
+            @keydown="ac.onKeydown"
+            @blur="ac.close"
           />
         </div>
 
@@ -344,11 +398,7 @@ onMounted(async () => {
           <div class="mb-1 flex items-center justify-between">
             <label class="text-xs text-ctp-subtext0">
               Body
-              <span class="text-ctp-surface2">
-                — use <code class="font-mono">{{'{{'}}sender.name{{'}}'}}</code>,
-                <code class="font-mono">{{'{{'}}sender.address{{'}}'}}</code>, or
-                <code class="font-mono">{{'{{'}}fn.yourFunction{{'}}'}}</code>
-              </span>
+              <span class="font-normal text-ctp-surface2"> — type <code class="font-mono">&#123;&#123;&#125;&#125;</code> for variables</span>
             </label>
             <div class="flex gap-1">
               <button
@@ -374,6 +424,9 @@ onMounted(async () => {
             rows="10"
             placeholder="Hi {{sender.name}},&#10;&#10;Thanks for reaching out. {{fn.greeting}}&#10;&#10;Best regards"
             class="w-full resize-y rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 font-mono text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+            @input="ac.onInput"
+            @keydown="ac.onKeydown"
+            @blur="ac.close"
           />
 
           <div v-else class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-3">
@@ -394,7 +447,6 @@ onMounted(async () => {
               style="border: none"
               title="Template preview"
             />
-            <!-- Show resolved fn outputs for debugging -->
             <div v-if="draftFunctions.length > 0" class="mt-3 border-t border-ctp-surface0 pt-3">
               <p class="mb-1 text-xs text-ctp-subtext0">Function outputs (sample data)</p>
               <div
@@ -416,9 +468,8 @@ onMounted(async () => {
             <div>
               <p class="text-xs font-medium text-ctp-text">Functions</p>
               <p class="text-xs text-ctp-subtext0">
-                Each function receives <code class="font-mono">(signal, arc)</code> and returns a
-                string. Reference its output in the body with
-                <code class="font-mono">{{'{{'}}fn.name{{'}}'}}</code>.
+                Each receives <code class="font-mono">(signal, arc)</code> and returns a string.
+                Use <code class="font-mono">&#123;&#123;fn.name&#125;&#125;</code> in the body.
               </p>
             </div>
             <button
@@ -429,7 +480,18 @@ onMounted(async () => {
             </button>
           </div>
 
-          <div v-if="draftFunctions.length === 0" class="rounded-lg border border-dashed border-ctp-surface1 py-6 text-center text-xs text-ctp-subtext0">
+          <!-- Validation error summary -->
+          <div
+            v-if="hasValidationErrors"
+            class="mb-3 rounded border border-ctp-red bg-ctp-red/10 px-3 py-2 text-xs text-ctp-red"
+          >
+            Fix the errors below before saving.
+          </div>
+
+          <div
+            v-if="draftFunctions.length === 0"
+            class="rounded-lg border border-dashed border-ctp-surface1 py-6 text-center text-xs text-ctp-subtext0"
+          >
             No functions yet — add one to compute dynamic content from the incoming signal and arc.
           </div>
 
@@ -437,7 +499,8 @@ onMounted(async () => {
             <div
               v-for="(fn, idx) in draftFunctions"
               :key="idx"
-              class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-3"
+              class="rounded-lg border bg-ctp-mantle p-3"
+              :class="fnErrors[fn.name] ? 'border-ctp-red' : 'border-ctp-surface1'"
             >
               <div class="mb-2 flex items-center gap-2">
                 <code class="text-xs text-ctp-subtext0">fn.</code>
@@ -458,20 +521,32 @@ onMounted(async () => {
               <CodeEditor
                 :model-value="fn.code"
                 min-height="7rem"
+                signal-completions
                 @update:model-value="updateFnCode(idx, $event)"
               />
+              <!-- Per-function error -->
+              <div
+                v-if="fn.name && fnErrors[fn.name]"
+                class="mt-2 flex items-start gap-1.5 rounded bg-ctp-red/10 px-2 py-1.5 font-mono text-xs text-ctp-red"
+              >
+                <span class="shrink-0">✕</span>
+                <span>{{ fnErrors[fn.name] }}</span>
+              </div>
             </div>
           </div>
         </div>
 
+        <!-- Signal browser -->
+        <SignalBrowser :functions="draftFunctions" />
+
         <!-- Save / cancel -->
         <div class="flex gap-3">
           <button
-            :disabled="!canSave || saving"
+            :disabled="!canSave || saving || validating"
             class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             @click="save"
           >
-            {{ saving ? 'Saving…' : editingId ? 'Save changes' : 'Create template' }}
+            {{ validating ? 'Checking…' : saving ? 'Saving…' : editingId ? 'Save changes' : 'Create template' }}
           </button>
           <button class="text-sm text-ctp-subtext0 hover:text-ctp-text" @click="closeEditor">
             Cancel
@@ -479,5 +554,28 @@ onMounted(async () => {
         </div>
       </div>
     </main>
+
+    <!-- Autocomplete popup (fixed, teleported to body to avoid clipping) -->
+    <Teleport to="body">
+      <div
+        v-if="ac.showPopup.value"
+        class="fixed z-50 min-w-56 overflow-hidden rounded-lg border border-ctp-surface1 bg-ctp-base shadow-xl"
+        :style="{ left: ac.popupLeft.value + 'px', top: ac.popupTop.value + 'px' }"
+      >
+        <ul>
+          <li
+            v-for="(c, i) in ac.filtered.value"
+            :key="c.token"
+            class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs"
+            :class="i === ac.selectedIdx.value ? 'bg-ctp-surface1 text-ctp-text' : 'text-ctp-subtext1 hover:bg-ctp-surface0'"
+            @mousedown.prevent="ac.accept(c)"
+          >
+            <code class="text-ctp-mauve">{{ hbsToken(c.token) }}</code>
+            <span class="shrink-0 rounded bg-ctp-surface0 px-1 font-mono text-ctp-overlay1">{{ c.type }}</span>
+            <span v-if="c.example" class="ml-auto truncate text-ctp-subtext0">{{ c.example }}</span>
+          </li>
+        </ul>
+      </div>
+    </Teleport>
   </div>
 </template>
