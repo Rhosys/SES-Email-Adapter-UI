@@ -76,11 +76,15 @@ export interface EmailAddressConfig {
   accountId: string
   address: string
   filterMode: SenderFilterMode
-  approvedSenders: string[]
-  // TODO(backend): add blockedSenders field to EmailAddressConfig and PATCH /aliases/:address support
-  blockedSenders?: string[]
   createdAt: string
   updatedAt: string
+}
+
+// Approved/blocked senders for an alias — managed via /aliases/:address/senders sub-resource
+export interface AliasSender {
+  domain: string
+  mode: 'allow' | 'block'
+  addedAt: string
 }
 
 export interface Account {
@@ -477,13 +481,10 @@ export type WorkflowData =
 // ─── Draft signal (Reply composer) ───────────────────────────────────────────
 
 export interface CreateDraftSignalBody {
-  status: 'draft'
-  source: 'user'
   from: EmailAddress
   to: EmailAddress[]
   subject: string
   textBody?: string
-  arcId?: string
 }
 
 export interface UpdateDraftSignalBody {
@@ -494,20 +495,17 @@ export interface UpdateDraftSignalBody {
 
 // ─── Saved views (Phase 6) ────────────────────────────────────────────────────
 
-export interface SavedViewFilters {
-  workflow?: string
-  labelId?: string
-  sender?: string
-  status?: string
-}
-
 export interface SavedView {
   id: string
   accountId: string
   name: string
   icon?: string
+  color?: string
   position: number
-  filters: SavedViewFilters
+  workflow?: string
+  labels?: string[]
+  sortField?: string
+  sortDirection?: string
   createdAt: string
   updatedAt: string
 }
@@ -515,8 +513,12 @@ export interface SavedView {
 export interface CreateSavedViewBody {
   name: string
   icon?: string
+  color?: string
   position?: number
-  filters: SavedViewFilters
+  workflow?: string
+  labels?: string[]
+  sortField?: string
+  sortDirection?: string
 }
 
 // ─── Domains (Phase 9) ────────────────────────────────────────────────────────
@@ -548,7 +550,7 @@ export interface ForwardingAddress {
   id: string
   accountId: string
   address: string
-  label?: string
+  status: 'pending' | 'verified'
   createdAt: string
 }
 

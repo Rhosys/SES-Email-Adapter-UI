@@ -136,7 +136,6 @@ const STATUS_COLORS: Record<string, string> = {
 const forwarding = ref<ForwardingAddress[]>([])
 const forwardingLoading = ref(false)
 const newForwardAddress = ref('')
-const newForwardLabel = ref('')
 const addForwardPending = ref(false)
 
 async function loadForwarding() {
@@ -152,13 +151,11 @@ async function addForwardingAddress() {
   addForwardPending.value = true
   const result = await api.createForwardingAddress(accountStore.accountId, {
     address: newForwardAddress.value.trim(),
-    label: newForwardLabel.value.trim() || undefined,
   })
   addForwardPending.value = false
   if (result.isOk()) {
     forwarding.value = [...forwarding.value, result.value]
     newForwardAddress.value = ''
-    newForwardLabel.value = ''
   }
 }
 
@@ -505,12 +502,6 @@ const TABS: { key: TabKey; label: string }[] = [
             placeholder="forward@example.com"
             class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           />
-          <input
-            v-model="newForwardLabel"
-            type="text"
-            placeholder="Label (optional)"
-            class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-          />
           <button
             type="submit"
             :disabled="addForwardPending || !newForwardAddress.trim()"
@@ -542,7 +533,7 @@ const TABS: { key: TabKey; label: string }[] = [
           >
             <div>
               <p class="text-sm text-ctp-text">{{ fwd.address }}</p>
-              <p v-if="fwd.label" class="text-xs text-ctp-subtext0">{{ fwd.label }}</p>
+              <p class="text-xs text-ctp-subtext0">{{ fwd.status }}</p>
             </div>
             <button
               class="text-xs text-ctp-red hover:text-ctp-red/80"

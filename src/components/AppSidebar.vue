@@ -37,14 +37,10 @@ function onDragOver(e: DragEvent) {
   e.preventDefault()
 }
 
-function navigateToView(v: {
-  filters: { workflow?: string; labelId?: string; sender?: string; status?: string }
-}) {
+function navigateToView(v: { workflow?: string; labels?: string[] }) {
   const query: Record<string, string> = {}
-  if (v.filters.workflow) query.workflow = v.filters.workflow
-  if (v.filters.labelId) query.label = v.filters.labelId
-  if (v.filters.sender) query.sender = v.filters.sender
-  if (v.filters.status) query.status = v.filters.status
+  if (v.workflow) query.workflow = v.workflow
+  if (v.labels?.[0]) query.label = v.labels[0]
   void router.push({ path: '/', query })
 }
 

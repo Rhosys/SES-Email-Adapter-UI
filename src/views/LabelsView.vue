@@ -82,7 +82,6 @@ const editingView = ref<SavedView | null>(null)
 const viewName = ref('')
 const viewIcon = ref('')
 const viewWorkflow = ref('')
-const viewSender = ref('')
 const viewPending = ref(false)
 
 const WORKFLOWS = [
@@ -107,7 +106,6 @@ function openNewView() {
   viewName.value = ''
   viewIcon.value = ''
   viewWorkflow.value = ''
-  viewSender.value = ''
   showViewForm.value = true
 }
 
@@ -115,8 +113,7 @@ function openEditView(view: SavedView) {
   editingView.value = view
   viewName.value = view.name
   viewIcon.value = view.icon ?? ''
-  viewWorkflow.value = view.filters.workflow ?? ''
-  viewSender.value = view.filters.sender ?? ''
+  viewWorkflow.value = view.workflow ?? ''
   showViewForm.value = true
 }
 
@@ -131,10 +128,7 @@ async function saveView() {
   const body = {
     name: viewName.value.trim(),
     icon: viewIcon.value.trim() || undefined,
-    filters: {
-      workflow: viewWorkflow.value || undefined,
-      sender: viewSender.value.trim() || undefined,
-    },
+    workflow: viewWorkflow.value || undefined,
   }
   if (editingView.value) {
     await viewsStore.updateView(editingView.value.id, body)
@@ -385,15 +379,6 @@ onMounted(async () => {
                   <option v-for="wf in WORKFLOWS" :key="wf" :value="wf">{{ wf }}</option>
                 </select>
               </div>
-              <div>
-                <label class="mb-1 block text-xs text-ctp-subtext0">Sender filter</label>
-                <input
-                  v-model="viewSender"
-                  type="text"
-                  placeholder="e.g. @company.com"
-                  class="w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-                />
-              </div>
             </div>
           </div>
           <div class="mt-4 flex gap-2">
@@ -433,10 +418,8 @@ onMounted(async () => {
             <div class="flex-1">
               <p class="text-sm font-medium">{{ view.name }}</p>
               <p class="text-xs text-ctp-subtext0">
-                <span v-if="view.filters.workflow">workflow: {{ view.filters.workflow }}</span>
-                <span v-if="view.filters.workflow && view.filters.sender"> · </span>
-                <span v-if="view.filters.sender">sender: {{ view.filters.sender }}</span>
-                <span v-if="!view.filters.workflow && !view.filters.sender"> No filters </span>
+                <span v-if="view.workflow">workflow: {{ view.workflow }}</span>
+                <span v-if="!view.workflow">No filters</span>
               </p>
             </div>
             <button

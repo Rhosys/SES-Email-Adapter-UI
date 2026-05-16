@@ -2,6 +2,7 @@ import { ok, err, type Result } from 'neverthrow'
 import { loginClient } from './auth'
 import type {
   Account,
+  AliasSender,
   Arc,
   ArcStatus,
   AuditEvent,
@@ -196,9 +197,10 @@ export const api = {
 
   createDraftSignal(
     accountId: string,
+    arcId: string,
     body: CreateDraftSignalBody,
   ): Promise<Result<Signal, ApiError>> {
-    return request<Signal>(`/accounts/${accountId}/signals`, {
+    return request<Signal>(`/accounts/${accountId}/arcs/${arcId}/signals`, {
       method: 'POST',
       body: JSON.stringify(body),
     })
@@ -227,9 +229,7 @@ export const api = {
 
   // TODO(backend): GET/POST/PATCH/DELETE /accounts/:id/rules (Phase 7)
   async listRules(accountId: string): Promise<Result<Rule[], ApiError>> {
-    interface RuleListWire {
-      rules: Rule[]
-    }
+    interface RuleListWire { rules: Rule[]; pagination: { cursor: string | null } }
     const result = await request<RuleListWire>(`/accounts/${accountId}/rules`)
     return result.map((w) => w.rules)
   },
@@ -260,9 +260,7 @@ export const api = {
 
   // TODO(backend): GET/POST/PATCH/DELETE /accounts/:id/labels (Phase 6)
   async listLabels(accountId: string): Promise<Result<Label[], ApiError>> {
-    interface LabelListWire {
-      labels: Label[]
-    }
+    interface LabelListWire { labels: Label[]; pagination: { cursor: string | null } }
     const result = await request<LabelListWire>(`/accounts/${accountId}/labels`)
     return result.map((w) => w.labels)
   },
@@ -296,9 +294,7 @@ export const api = {
 
   // TODO(backend): GET/POST/PATCH/DELETE /accounts/:id/views (Phase 6)
   async listViews(accountId: string): Promise<Result<SavedView[], ApiError>> {
-    interface ViewListWire {
-      views: SavedView[]
-    }
+    interface ViewListWire { views: SavedView[]; pagination: { cursor: string | null } }
     const result = await request<ViewListWire>(`/accounts/${accountId}/views`)
     return result.map((w) => w.views)
   },
@@ -344,6 +340,7 @@ export const api = {
   ): Promise<Result<import('@/types/server').EmailAddressConfig[], ApiError>> {
     interface AliasListWire {
       aliases: import('@/types/server').EmailAddressConfig[]
+      pagination: { cursor: string | null }
     }
     const result = await request<AliasListWire>(`/accounts/${accountId}/aliases`)
     return result.map((w) => w.aliases)
@@ -362,16 +359,38 @@ export const api = {
   updateAlias(
     accountId: string,
     address: string,
-    body: {
-      filterMode?: string
-      approvedSenders?: string[]
-      blockedSenders?: string[]
-    },
+    body: { filterMode?: string },
   ): Promise<Result<import('@/types/server').EmailAddressConfig, ApiError>> {
     return request(`/accounts/${accountId}/aliases/${encodeURIComponent(address)}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     })
+  },
+
+  // ─── Alias senders sub-resource ──────────────────────────────────────────────
+
+  async listAliasSenders(accountId: string, address: string): Promise<Result<AliasSender[], ApiError>> {
+    interface Wire { senders: AliasSender[] }
+    const result = await request<Wire>(`/accounts/${accountId}/aliases/${encodeURIComponent(address)}/senders`)
+    return result.map((w) => w.senders)
+  },
+
+  addAliasSender(
+    accountId: string,
+    address: string,
+    body: { domain: string; mode: 'allow' | 'block' },
+  ): Promise<Result<AliasSender, ApiError>> {
+    return request<AliasSender>(
+      `/accounts/${accountId}/aliases/${encodeURIComponent(address)}/senders`,
+      { method: 'POST', body: JSON.stringify(body) },
+    )
+  },
+
+  removeAliasSender(accountId: string, address: string, domain: string): Promise<Result<void, ApiError>> {
+    return request<void>(
+      `/accounts/${accountId}/aliases/${encodeURIComponent(address)}/senders/${encodeURIComponent(domain)}`,
+      { method: 'DELETE' },
+    )
   },
 
   deleteAlias(accountId: string, address: string): Promise<Result<void, ApiError>> {
@@ -384,9 +403,7 @@ export const api = {
 
   // TODO(backend): GET /accounts/:id/domains (Phase 9)
   async listDomains(accountId: string): Promise<Result<Domain[], ApiError>> {
-    interface DomainListWire {
-      domains: Domain[]
-    }
+    interface DomainListWire { domains: Domain[]; pagination: { cursor: string | null } }
     const result = await request<DomainListWire>(`/accounts/${accountId}/domains`)
     return result.map((w) => w.domains)
   },
@@ -406,16 +423,14 @@ export const api = {
 
   // TODO(backend): GET/POST/DELETE /accounts/:id/forwarding-addresses (Phase 9)
   async listForwardingAddresses(accountId: string): Promise<Result<ForwardingAddress[], ApiError>> {
-    interface FwdListWire {
-      forwardingAddresses: ForwardingAddress[]
-    }
+    interface FwdListWire { forwardingAddresses: ForwardingAddress[]; pagination: { cursor: string | null } }
     const result = await request<FwdListWire>(`/accounts/${accountId}/forwarding-addresses`)
     return result.map((w) => w.forwardingAddresses)
   },
 
   createForwardingAddress(
     accountId: string,
-    body: { address: string; label?: string },
+    body: { address: string },
   ): Promise<Result<ForwardingAddress, ApiError>> {
     return request<ForwardingAddress>(`/accounts/${accountId}/forwarding-addresses`, {
       method: 'POST',
@@ -433,9 +448,7 @@ export const api = {
 
   // TODO(backend): GET/POST/PATCH/DELETE /accounts/:id/users (Phase 9)
   async listTeamMembers(accountId: string): Promise<Result<TeamMember[], ApiError>> {
-    interface TeamListWire {
-      users: TeamMember[]
-    }
+    interface TeamListWire { users: TeamMember[]; pagination: { cursor: string | null } }
     const result = await request<TeamListWire>(`/accounts/${accountId}/users`)
     return result.map((w) => w.users)
   },
@@ -467,7 +480,7 @@ export const api = {
 
   // ─── Audit log ────────────────────────────────────────────────────────────
 
-  // TODO(backend): GET /accounts/:id/audit-log (Phase 10)
+  // TODO(backend): GET /accounts/:id/audit (Phase 10)
   async listAuditEvents(
     accountId: string,
     params: { cursor?: string; limit?: number } = {},
@@ -481,7 +494,7 @@ export const api = {
     if (params.limit) qs.set('limit', String(params.limit))
     const query = qs.toString()
     const result = await request<AuditListWire>(
-      `/accounts/${accountId}/audit-log${query ? `?${query}` : ''}`,
+      `/accounts/${accountId}/audit${query ? `?${query}` : ''}`,
     )
     return result.map(({ events, pagination }) => ({
       items: events,

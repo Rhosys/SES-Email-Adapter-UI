@@ -124,11 +124,9 @@ async function fetchSuggestions(q: string) {
         .slice(0, 4)
     : []
 
-  suggestions.value.senders = aliasesRes.isOk()
-    ? [...new Set(aliasesRes.value.flatMap((a) => a.approvedSenders))]
-        .filter((s) => s.toLowerCase().includes(ql))
-        .slice(0, 4)
-    : []
+  // Sender suggestions are now managed via /aliases/:address/senders sub-resource;
+  // not aggregated here to avoid N+1 calls
+  suggestions.value.senders = []
 
   suggestions.value.aliases = aliasesRes.isOk()
     ? aliasesRes.value.filter((a) => a.address.toLowerCase().includes(ql)).slice(0, 3)
