@@ -1,4 +1,5 @@
 export const VIEWPORTS = {
+  narrow: { width: 320, height: 568 },
   mobile: { width: 390, height: 844 },
   pixel: { width: 412, height: 915 },
   tablet: { width: 768, height: 1024 },

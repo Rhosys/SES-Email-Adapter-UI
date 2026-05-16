@@ -325,7 +325,7 @@ auto_draft`
   - Onboarding hints that persist until dismissed (not one-shot toasts)
   - No "see docs" or "learn more" links as the primary explanation — docs links are supplementary
 
-- [ ] **Responsive design & mobile optimisation** — every screen must work at all viewport sizes:
+- [x] **Responsive design & mobile optimisation** — every screen must work at all viewport sizes:
   - Mobile-first CSS: design and test at 320 px, 375 px, 390 px before scaling up
   - Sidebar collapses to a bottom tab bar or hamburger drawer on narrow viewports (`< 640 px`)
   - All tables/lists degrade gracefully (no horizontal scroll traps, stack to cards on mobile)
