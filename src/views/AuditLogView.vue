@@ -13,25 +13,70 @@ const loading = ref(false)
 const loadingMore = ref(false)
 const error = ref<string | null>(null)
 const nextCursor = ref<string | undefined>()
+const expandedIds = ref<Set<string>>(new Set())
 
-const EVENT_ICONS: Record<string, string> = {
-  'signal.allowed': '✅',
-  'signal.blocked': '🚫',
-  'signal.quarantined': '🔒',
-  'rule.created': '📋',
-  'rule.updated': '✏️',
-  'rule.deleted': '🗑️',
-  'label.created': '🏷️',
-  'label.updated': '✏️',
-  'label.deleted': '🗑️',
-  'user.invited': '👤',
-  'user.role_changed': '🔑',
-  'user.removed': '👤',
-  'account.updated': '⚙️',
+const RESOURCE_ICONS: Record<string, string> = {
+  rule: '📋',
+  alias: '📧',
+  domain: '🌐',
+  account: '⚙️',
+  label: '🏷️',
+  view: '👁️',
+  template: '📄',
+  forwarding_address: '↗️',
+}
+
+interface DiffEntry {
+  key: string
+  before: unknown
+  after: unknown
+  status: 'added' | 'removed' | 'changed' | 'unchanged'
+}
+
+function toRecord(v: unknown): Record<string, unknown> {
+  return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : {}
+}
+
+function diffEntries(before: unknown, after: unknown): DiffEntry[] {
+  const b = toRecord(before)
+  const a = toRecord(after)
+  const keys = new Set([...Object.keys(b), ...Object.keys(a)])
+  return [...keys]
+    .map((key) => {
+      const inBefore = key in b
+      const inAfter = key in a
+      let status: DiffEntry['status']
+      if (!inBefore) status = 'added'
+      else if (!inAfter) status = 'removed'
+      else if (JSON.stringify(b[key]) !== JSON.stringify(a[key])) status = 'changed'
+      else status = 'unchanged'
+      return { key, before: b[key], after: a[key], status }
+    })
+    .sort((x, y) => {
+      const order = { changed: 0, added: 0, removed: 0, unchanged: 1 }
+      return order[x.status] - order[y.status]
+    })
 }
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString()
+}
+
+function formatValue(v: unknown): string {
+  if (v === undefined || v === null) return '—'
+  if (typeof v === 'object') return JSON.stringify(v)
+  return String(v)
+}
+
+function hasDiff(event: AuditEvent) {
+  return event.before !== undefined || event.after !== undefined
+}
+
+function toggleExpand(id: string) {
+  const next = new Set(expandedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  expandedIds.value = next
 }
 
 async function load(cursor?: string) {
@@ -52,8 +97,6 @@ async function load(cursor?: string) {
     events.value = result.value.items
   }
   nextCursor.value = result.value.nextCursor
-  // Track the cursor used for this load so the URL reflects the current page position.
-  // Navigating to /audit-log?cursor=X starts from that position in the log.
   void router.replace({ query: cursor ? { cursor } : {} })
 }
 
@@ -86,26 +129,163 @@ onMounted(async () => {
       </div>
 
       <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
-        <div v-for="event in events" :key="event.id" class="flex gap-3 px-4 py-3">
-          <span class="mt-0.5 shrink-0 text-base">{{ EVENT_ICONS[event.type] ?? '📝' }}</span>
-          <div class="min-w-0 flex-1">
-            <div class="flex items-start justify-between gap-2">
-              <div class="min-w-0 overflow-hidden">
-                <span class="truncate font-mono text-xs text-ctp-subtext0">{{ event.type }}</span>
-                <span
-                  v-if="event.resourceId"
-                  class="ml-2 truncate font-mono text-xs text-ctp-subtext0"
-                >
-                  {{ event.resourceId }}
-                </span>
+        <div v-for="event in events" :key="event.id">
+          <!-- Row -->
+          <button
+            class="flex w-full gap-3 px-4 py-3 text-left transition-colors"
+            :class="hasDiff(event) ? 'cursor-pointer hover:bg-ctp-surface0/40' : 'cursor-default'"
+            @click="hasDiff(event) && toggleExpand(event.id)"
+          >
+            <span class="mt-0.5 shrink-0 text-base">
+              {{ RESOURCE_ICONS[event.resourceType] ?? '📝' }}
+            </span>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex min-w-0 items-center gap-1.5">
+                  <span class="text-xs font-medium text-ctp-text">{{ event.resourceType }}</span>
+                  <span
+                    class="rounded px-1 py-0.5 font-mono text-xs"
+                    :class="{
+                      'bg-ctp-green/15 text-ctp-green': event.action === 'created',
+                      'bg-ctp-red/15 text-ctp-red': event.action === 'deleted',
+                      'bg-ctp-yellow/15 text-ctp-yellow': event.action === 'updated',
+                      'bg-ctp-blue/15 text-ctp-blue': event.action === 'reordered',
+                    }"
+                  >
+                    {{ event.action }}
+                  </span>
+                  <span
+                    v-if="event.resourceId"
+                    class="truncate font-mono text-xs text-ctp-subtext0"
+                  >
+                    {{ event.resourceId }}
+                  </span>
+                </div>
+                <div class="flex shrink-0 items-center gap-1.5">
+                  <span v-if="hasDiff(event)" class="text-xs text-ctp-subtext0">
+                    {{ expandedIds.has(event.id) ? '▲' : '▼' }}
+                  </span>
+                  <span class="text-xs text-ctp-subtext0">{{ formatDate(event.timestamp) }}</span>
+                </div>
               </div>
-              <span class="shrink-0 text-xs text-ctp-subtext0">{{
-                formatDate(event.createdAt)
-              }}</span>
+              <p class="mt-0.5 truncate text-xs text-ctp-subtext0">
+                {{ event.actorEmail ?? event.userId }}
+              </p>
             </div>
-            <p class="mt-0.5 truncate text-xs text-ctp-subtext0">
-              {{ event.actorEmail ?? event.actorId }}
-            </p>
+          </button>
+
+          <!-- Expanded diff -->
+          <div
+            v-if="expandedIds.has(event.id) && hasDiff(event)"
+            class="border-t border-ctp-surface0 bg-ctp-base px-4 py-3"
+          >
+            <!-- updated: side-by-side before / after diff -->
+            <template
+              v-if="
+                event.action === 'updated' &&
+                event.before !== undefined &&
+                event.after !== undefined
+              "
+            >
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-ctp-subtext0">
+                    Before
+                  </p>
+                  <div class="space-y-1">
+                    <div
+                      v-for="entry in diffEntries(event.before, event.after)"
+                      :key="entry.key"
+                      class="flex gap-2 rounded px-2 py-1 font-mono text-xs"
+                      :class="{
+                        'bg-ctp-red/10':
+                          entry.status === 'changed' || entry.status === 'removed',
+                        'opacity-40': entry.status === 'unchanged',
+                      }"
+                    >
+                      <span class="shrink-0 text-ctp-subtext0">{{ entry.key }}:</span>
+                      <span
+                        v-if="entry.status !== 'added'"
+                        class="truncate"
+                        :class="
+                          entry.status === 'changed' || entry.status === 'removed'
+                            ? 'text-ctp-red'
+                            : 'text-ctp-text'
+                        "
+                      >
+                        {{ formatValue(entry.before) }}
+                      </span>
+                      <span v-else class="text-ctp-surface1">—</span>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-ctp-subtext0">
+                    After
+                  </p>
+                  <div class="space-y-1">
+                    <div
+                      v-for="entry in diffEntries(event.before, event.after)"
+                      :key="entry.key"
+                      class="flex gap-2 rounded px-2 py-1 font-mono text-xs"
+                      :class="{
+                        'bg-ctp-green/10':
+                          entry.status === 'changed' || entry.status === 'added',
+                        'opacity-40': entry.status === 'unchanged',
+                      }"
+                    >
+                      <span class="shrink-0 text-ctp-subtext0">{{ entry.key }}:</span>
+                      <span
+                        v-if="entry.status !== 'removed'"
+                        class="truncate"
+                        :class="
+                          entry.status === 'changed' || entry.status === 'added'
+                            ? 'text-ctp-green'
+                            : 'text-ctp-text'
+                        "
+                      >
+                        {{ formatValue(entry.after) }}
+                      </span>
+                      <span v-else class="text-ctp-surface1">—</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- created / reordered: show after snapshot -->
+            <template v-else-if="event.after !== undefined">
+              <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-ctp-subtext0">
+                Snapshot
+              </p>
+              <div class="space-y-1">
+                <div
+                  v-for="[key, val] in Object.entries(toRecord(event.after))"
+                  :key="key"
+                  class="flex gap-2 rounded bg-ctp-green/10 px-2 py-1 font-mono text-xs"
+                >
+                  <span class="shrink-0 text-ctp-subtext0">{{ key }}:</span>
+                  <span class="truncate text-ctp-text">{{ formatValue(val) }}</span>
+                </div>
+              </div>
+            </template>
+
+            <!-- deleted: show before snapshot -->
+            <template v-else-if="event.before !== undefined">
+              <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-ctp-subtext0">
+                Deleted record
+              </p>
+              <div class="space-y-1">
+                <div
+                  v-for="[key, val] in Object.entries(toRecord(event.before))"
+                  :key="key"
+                  class="flex gap-2 rounded bg-ctp-red/10 px-2 py-1 font-mono text-xs"
+                >
+                  <span class="shrink-0 text-ctp-subtext0">{{ key }}:</span>
+                  <span class="truncate text-ctp-text">{{ formatValue(val) }}</span>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
       </div>

@@ -572,34 +572,28 @@ export interface TeamMember {
 
 // ─── Audit log (Phase 10) ────────────────────────────────────────────────────
 
-export type AuditEventType =
-  | 'signal.quarantined'
-  | 'signal.allowed'
-  | 'signal.blocked'
-  | 'rule.created'
-  | 'rule.updated'
-  | 'rule.deleted'
-  | 'label.created'
-  | 'label.updated'
-  | 'label.deleted'
-  | 'alias.created'
-  | 'alias.updated'
-  | 'alias.deleted'
-  | 'user.invited'
-  | 'user.role_changed'
-  | 'user.removed'
-  | 'account.updated'
+export type AuditAction = 'created' | 'updated' | 'deleted' | 'reordered'
+export type AuditResourceType =
+  | 'rule'
+  | 'alias'
+  | 'domain'
+  | 'account'
+  | 'label'
+  | 'view'
+  | 'template'
+  | 'forwarding_address'
 
 export interface AuditEvent {
   id: string
   accountId: string
-  actorId: string
+  userId: string
   actorEmail?: string
-  type: AuditEventType
-  resourceType: string
+  action: AuditAction
+  resourceType: AuditResourceType
   resourceId?: string
-  metadata?: Record<string, unknown>
-  createdAt: string
+  before?: unknown
+  after?: unknown
+  timestamp: string
 }
 
 // ─── Billing ──────────────────────────────────────────────────────────────────

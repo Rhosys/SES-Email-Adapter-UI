@@ -41,7 +41,7 @@ These are all `// TODO(backend)` items in `src/lib/api.ts`, consolidated here so
 ### Forwarding addresses (`/accounts/:id/forwarding-addresses`)
 
 - `GET` — list forwarding addresses
-- `POST` — create `{ address, label? }`
+- `POST` — create `{ address }`
 - `DELETE /:id` — delete
 
 ### Team members (`/accounts/:id/users`)
@@ -51,7 +51,7 @@ These are all `// TODO(backend)` items in `src/lib/api.ts`, consolidated here so
 - `PATCH /:userId` — update role
 - `DELETE /:userId` — remove
 
-### Audit log (`/accounts/:id/audit-log`)
+### Audit log (`/accounts/:id/audit`)
 
 - `GET` — cursor-paginated event list; response shape: `{ events: AuditEvent[], pagination: { cursor: string | null } }`
 
@@ -185,7 +185,7 @@ an empty placeholder in production so the email still goes out).
   - Template picker in the rule editor for `auto_reply` and `auto_draft` action types
     (searchable dropdown populated from the templates store)
 
-- [ ] **Audit log — expandable rows with before/after diff**
+- [x] **Audit log — expandable rows with before/after diff**
   - Update `AuditEvent` in `src/types/server.ts` to match the backend shape:
     replace `metadata?: Record<string, unknown>` with `before?: unknown; after?: unknown`;
     also align field names (`actorId` → `userId`, `createdAt` → `timestamp`,
