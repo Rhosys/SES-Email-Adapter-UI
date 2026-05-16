@@ -152,7 +152,7 @@ router.beforeEach(async (to) => {
   const authenticated = await loginClient.userSessionExists()
   if (!authenticated) return { name: 'login', query: { redirect: to.fullPath } }
 
-  // Onboarding creates the account — skip the account check there
+  // Onboarding manages its own account creation — let it through always
   if (to.name === 'onboarding') return true
 
   // For all other authenticated routes: ensure an account is loaded
@@ -160,7 +160,9 @@ router.beforeEach(async (to) => {
   if (!accountStore.fetched) {
     await accountStore.fetchAccount()
   }
-  if (!accountStore.accountId) {
+
+  // Redirect to onboarding if no account exists or onboarding hasn't been completed
+  if (!accountStore.accountId || !accountStore.account?.onboarding?.completed) {
     return { name: 'onboarding' }
   }
   return true

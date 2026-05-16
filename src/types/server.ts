@@ -87,6 +87,14 @@ export interface AliasSender {
   addedAt: string
 }
 
+export interface OnboardingState {
+  domainAdded?: boolean
+  testEmailReceived?: boolean
+  senderConfigured?: boolean
+  filterModeSet?: boolean
+  completed: boolean
+}
+
 export interface Account {
   id: string
   name: string
@@ -94,6 +102,7 @@ export interface Account {
   notifications?: NotificationSettings
   filtering?: AccountFilteringConfig
   emailConfigs?: Record<string, EmailAddressConfig>
+  onboarding?: OnboardingState
   createdAt: string
   updatedAt: string
 }

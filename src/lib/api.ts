@@ -325,7 +325,7 @@ export const api = {
 
   updateAccount(
     accountId: string,
-    body: { name?: string; deletionRetentionDays?: number; notifications?: NotificationSettings },
+    body: { name?: string; deletionRetentionDays?: number; notifications?: NotificationSettings; onboarding?: Partial<import('@/types/server').OnboardingState> },
   ): Promise<Result<Account, ApiError>> {
     return request<Account>(`/accounts/${accountId}`, {
       method: 'PATCH',

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter, RouterLink } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import type { SenderFilterMode } from '@/types/server'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const router = useRouter()
 const accountStore = useAccountStore()
@@ -31,6 +32,7 @@ async function submitDomain() {
   }
   dnsRecords.value = result.value.dnsRecords
   domainAdded.value = true
+  await persistProgress({ domainAdded: true })
 }
 
 // Step 2 – Test email
@@ -54,6 +56,7 @@ function startPolling() {
     if (result.isOk() && result.value.items.length > 0) {
       signalArrived.value = true
       clearInterval(pollInterval!)
+      await persistProgress({ testEmailReceived: true })
     }
   }, 3000)
 }
@@ -74,7 +77,10 @@ async function saveSender() {
     address: senderAddress.value.trim(),
   })
   senderPending.value = false
-  if (result.isOk()) senderDone.value = true
+  if (result.isOk()) {
+    senderDone.value = true
+    await persistProgress({ senderConfigured: true })
+  }
 }
 
 // Step 4 – Filter mode
@@ -109,12 +115,29 @@ const FILTER_OPTIONS: {
   },
 ]
 
+// Persist onboarding progress to the account
+async function persistProgress(patch: Partial<{
+  domainAdded: boolean
+  testEmailReceived: boolean
+  senderConfigured: boolean
+  filterModeSet: boolean
+  completed: boolean
+}>) {
+  if (!accountStore.accountId) return
+  const result = await api.updateAccount(accountStore.accountId, { onboarding: patch })
+  if (result.isOk()) {
+    // Keep local account store in sync
+    accountStore.account = result.value
+  }
+}
+
 // Navigation
 async function next() {
   if (step.value === 4 && senderDone.value) {
     await api.updateAlias(accountStore.accountId!, senderAddress.value.trim(), {
       filterMode: filterMode.value,
     })
+    await persistProgress({ filterModeSet: true })
   }
   if (step.value < TOTAL_STEPS) step.value++
 }
@@ -123,7 +146,8 @@ function prev() {
   if (step.value > 1) step.value--
 }
 
-function finish() {
+async function finish() {
+  await persistProgress({ completed: true })
   void router.push('/')
 }
 
@@ -132,14 +156,31 @@ const stepDone = computed(() => {
   if (step.value === 1) return domainAdded.value
   if (step.value === 2) return signalArrived.value
   if (step.value === 3) return senderDone.value
-  return true // filter mode always has a value selected
+  return true
 })
 
 onMounted(async () => {
   if (!accountStore.fetched) await accountStore.fetchAccount()
+
   // Auto-create account if none exists; name can be set later in Settings
   if (!accountStore.accountId) {
     await accountStore.createAccount('')
+  }
+
+  // Restore progress from the account's onboarding state so the user can
+  // resume where they left off if they close the tab mid-flow
+  const ob = accountStore.account?.onboarding
+  if (ob) {
+    if (ob.domainAdded) domainAdded.value = true
+    if (ob.testEmailReceived) signalArrived.value = true
+    if (ob.senderConfigured) senderDone.value = true
+
+    // Jump to the furthest incomplete step
+    if (!ob.domainAdded) step.value = 1
+    else if (!ob.testEmailReceived) step.value = 2
+    else if (!ob.senderConfigured) step.value = 3
+    else if (!ob.filterModeSet) step.value = 4
+    else step.value = 5
   }
 })
 </script>
@@ -149,15 +190,7 @@ onMounted(async () => {
     <!-- Top nav bar: logo + profile -->
     <div class="flex items-center justify-between border-b border-ctp-surface0 bg-ctp-mantle px-6 py-3">
       <span class="text-sm font-semibold text-ctp-text">SES Adapter</span>
-      <RouterLink
-        to="/profile"
-        class="flex h-8 w-8 items-center justify-center rounded-full text-ctp-subtext1 transition-colors hover:bg-ctp-surface0 hover:text-ctp-text"
-        title="Profile"
-      >
-        <svg class="h-5 w-5" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm2-3a2 2 0 11-4 0 2 2 0 014 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.029 10 8 10c-2.029 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z" />
-        </svg>
-      </RouterLink>
+      <UserAvatar />
     </div>
 
     <!-- Progress header -->
