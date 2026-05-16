@@ -3,15 +3,14 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
-import type { SenderFilterMode } from '@/types/server'
 import UserAvatar from '@/components/UserAvatar.vue'
 
 const router = useRouter()
 const accountStore = useAccountStore()
 
 const step = ref(1)
-const TOTAL_STEPS = 5
-const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Filter mode', 'Done']
+const TOTAL_STEPS = 4
+const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Done']
 
 // Step 1 – Domain
 const domain = ref('')
@@ -83,38 +82,6 @@ async function saveSender() {
   }
 }
 
-// Step 4 – Filter mode
-const filterMode = ref<SenderFilterMode>('notify_new')
-
-const FILTER_OPTIONS: {
-  value: SenderFilterMode
-  label: string
-  description: string
-  recommended?: boolean
-}[] = [
-  {
-    value: 'allow_all',
-    label: 'Allow all',
-    description: 'All senders get through. No filtering.',
-  },
-  {
-    value: 'notify_new',
-    label: 'Notify new senders',
-    description: 'First email from an unknown sender goes to quarantine once.',
-    recommended: true,
-  },
-  {
-    value: 'sender_match',
-    label: 'Sender match',
-    description: 'Only senders on your approved list get through.',
-  },
-  {
-    value: 'strict',
-    label: 'Strict',
-    description: 'Approved senders only; all others are blocked.',
-  },
-]
-
 // Persist onboarding progress to the account
 async function persistProgress(patch: Partial<{
   domainAdded: boolean
@@ -132,13 +99,7 @@ async function persistProgress(patch: Partial<{
 }
 
 // Navigation
-async function next() {
-  if (step.value === 4 && senderDone.value) {
-    await api.updateAlias(accountStore.accountId!, senderAddress.value.trim(), {
-      filterMode: filterMode.value,
-    })
-    await persistProgress({ filterModeSet: true })
-  }
+function next() {
   if (step.value < TOTAL_STEPS) step.value++
 }
 
@@ -156,7 +117,7 @@ const stepDone = computed(() => {
   if (step.value === 1) return domainAdded.value
   if (step.value === 2) return signalArrived.value
   if (step.value === 3) return senderDone.value
-  return true
+  return true // step 4 = Done, no action required
 })
 
 onMounted(async () => {
@@ -179,8 +140,7 @@ onMounted(async () => {
     if (!ob.domainAdded) step.value = 1
     else if (!ob.testEmailReceived) step.value = 2
     else if (!ob.senderConfigured) step.value = 3
-    else if (!ob.filterModeSet) step.value = 4
-    else step.value = 5
+    else step.value = 4
   }
 })
 </script>
@@ -333,41 +293,8 @@ onMounted(async () => {
         </form>
       </section>
 
-      <!-- ── Step 4: Filter mode ────────────────────────────────────────────── -->
-      <section v-else-if="step === 4">
-        <h2 class="mb-1 text-xl font-semibold">Choose your default filter mode</h2>
-        <p class="mb-6 text-sm text-ctp-subtext0">
-          This controls how new unknown senders are handled by default.
-        </p>
-
-        <div class="space-y-2">
-          <button
-            v-for="opt in FILTER_OPTIONS"
-            :key="opt.value"
-            class="w-full rounded-lg border px-4 py-3 text-left transition-colors"
-            :class="
-              filterMode === opt.value
-                ? 'border-ctp-mauve bg-ctp-mauve/10'
-                : 'border-ctp-surface1 hover:border-ctp-surface2'
-            "
-            @click="filterMode = opt.value"
-          >
-            <div class="flex items-center justify-between">
-              <span class="text-sm font-medium text-ctp-text">{{ opt.label }}</span>
-              <span
-                v-if="opt.recommended"
-                class="rounded-full bg-ctp-mauve/20 px-2 py-0.5 text-xs text-ctp-mauve"
-              >
-                Recommended
-              </span>
-            </div>
-            <p class="mt-0.5 text-xs text-ctp-subtext0">{{ opt.description }}</p>
-          </button>
-        </div>
-      </section>
-
-      <!-- ── Step 5: Done ───────────────────────────────────────────────────── -->
-      <section v-else-if="step === 5" class="text-center">
+      <!-- ── Step 4: Done ───────────────────────────────────────────────────── -->
+      <section v-else-if="step === 4" class="text-center">
         <p class="mb-3 text-4xl">🎉</p>
         <h2 class="mb-1 text-xl font-semibold">You're all set!</h2>
         <p class="mb-6 text-sm text-ctp-subtext0">
@@ -395,12 +322,6 @@ onMounted(async () => {
             </span>
             <span class="text-ctp-subtext1">Sender address {{ senderDone ? 'configured' : '(skipped)' }}</span>
           </div>
-          <div class="flex items-center gap-2">
-            <span class="text-ctp-green">✓</span>
-            <span class="text-ctp-subtext1"
-              >Filter mode: <strong class="text-ctp-text">{{ filterMode }}</strong></span
-            >
-          </div>
         </div>
 
         <button
@@ -413,10 +334,8 @@ onMounted(async () => {
 
       <!-- ── Navigation ─────────────────────────────────────────────────────── -->
       <!--
-        Rules:
-        - Filter mode (step 4) always shows Continue — there's always a selection, no skip.
-        - All other steps show Skip until the step action is done, then Continue.
-        - This ensures Continue never appears alongside an in-step action button.
+        Steps 1–3: show Skip until the step action is done, then Continue.
+        This ensures Continue never appears alongside an in-step action button.
       -->
       <div v-if="step < TOTAL_STEPS" class="mt-10 flex items-center justify-between">
         <button
@@ -428,32 +347,20 @@ onMounted(async () => {
         </button>
         <span v-else />
 
-        <!-- Filter mode: always ready, no skip -->
         <button
-          v-if="step === 4"
+          v-if="!stepDone"
+          class="text-sm text-ctp-subtext0 hover:text-ctp-text"
+          @click="next"
+        >
+          Skip
+        </button>
+        <button
+          v-else
           class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
           @click="next"
         >
           Continue →
         </button>
-
-        <!-- All other steps: Skip before done, Continue after done -->
-        <template v-else>
-          <button
-            v-if="!stepDone"
-            class="text-sm text-ctp-subtext0 hover:text-ctp-text"
-            @click="next"
-          >
-            Skip
-          </button>
-          <button
-            v-else
-            class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
-            @click="next"
-          >
-            Continue →
-          </button>
-        </template>
       </div>
     </main>
   </div>

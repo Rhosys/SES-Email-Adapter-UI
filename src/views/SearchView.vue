@@ -244,7 +244,7 @@ if (query.value) {
             class="flex items-center justify-between px-4 py-3 transition-colors hover:bg-ctp-surface0/50"
           >
             <p class="text-sm text-ctp-text">{{ alias.address }}</p>
-            <span class="text-xs text-ctp-subtext0">{{ alias.filterMode }}</span>
+            <span class="text-xs text-ctp-subtext0">{{ alias.unknownSenderPolicy }}</span>
           </RouterLink>
         </div>
       </section>

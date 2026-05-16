@@ -3,6 +3,7 @@ import { loginClient } from './auth'
 import type {
   Account,
   AliasSender,
+  SenderPolicy,
   Arc,
   ArcStatus,
   AuditEvent,
@@ -348,7 +349,7 @@ export const api = {
 
   createAlias(
     accountId: string,
-    body: { address: string; filterMode?: string },
+    body: { address: string; unknownSenderPolicy?: string },
   ): Promise<Result<import('@/types/server').EmailAddressConfig, ApiError>> {
     return request(`/accounts/${accountId}/aliases`, {
       method: 'POST',
@@ -359,7 +360,7 @@ export const api = {
   updateAlias(
     accountId: string,
     address: string,
-    body: { filterMode?: string },
+    body: { unknownSenderPolicy?: string },
   ): Promise<Result<import('@/types/server').EmailAddressConfig, ApiError>> {
     return request(`/accounts/${accountId}/aliases/${encodeURIComponent(address)}`, {
       method: 'PATCH',
@@ -378,7 +379,7 @@ export const api = {
   addAliasSender(
     accountId: string,
     address: string,
-    body: { domain: string; mode: 'allow' | 'block' },
+    body: { domain: string; policy: SenderPolicy },
   ): Promise<Result<AliasSender, ApiError>> {
     return request<AliasSender>(
       `/accounts/${accountId}/aliases/${encodeURIComponent(address)}/senders`,

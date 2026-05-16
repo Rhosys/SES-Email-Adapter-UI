@@ -7,7 +7,7 @@ import type {
   Domain,
   EmailAddressConfig,
   ForwardingAddress,
-  SenderFilterMode,
+  UnknownSenderPolicy,
   TeamMember,
   UserRole,
 } from '@/types/server'
@@ -46,11 +46,13 @@ const aliasError = ref('')
 const newAddress = ref('')
 const newAddressPending = ref(false)
 
-const FILTER_MODES: { value: SenderFilterMode; label: string; description: string }[] = [
-  { value: 'allow_all', label: 'Allow all', description: 'All senders allowed' },
-  { value: 'notify_new', label: 'Notify new', description: 'New senders go to quarantine once' },
-  { value: 'sender_match', label: 'Sender match', description: 'Only approved senders pass' },
-  { value: 'strict', label: 'Strict', description: 'Approved senders only, block others' },
+const FILTER_MODES: { value: UnknownSenderPolicy; label: string; description: string }[] = [
+  { value: 'allow_all', label: 'Allow all', description: 'All senders pass through' },
+  { value: 'quarantine_visible', label: 'Quarantine (visible)', description: 'Unknown senders held for review' },
+  { value: 'quarantine_hidden', label: 'Quarantine (hidden)', description: 'Unknown senders silently held' },
+  { value: 'block_hidden', label: 'Block silently', description: 'Unknown senders silently discarded' },
+  { value: 'block_reject', label: 'Block & reject', description: 'Unknown senders receive a bounce' },
+  { value: 'violate_report', label: 'Violation report', description: 'Report as a policy violation' },
 ]
 
 async function loadAliases() {
@@ -75,9 +77,9 @@ async function addAddress() {
   }
 }
 
-async function updateAliasMode(address: string, filterMode: SenderFilterMode) {
+async function updateAliasMode(address: string, unknownSenderPolicy: UnknownSenderPolicy) {
   if (!accountStore.accountId) return
-  const result = await api.updateAlias(accountStore.accountId, address, { filterMode })
+  const result = await api.updateAlias(accountStore.accountId, address, { unknownSenderPolicy })
   if (result.isOk()) {
     aliases.value = aliases.value.map((a) => (a.address === address ? result.value : a))
   }
@@ -389,7 +391,7 @@ const TABS: { key: TabKey; label: string }[] = [
                 :key="mode.value"
                 class="rounded-full border px-2.5 py-0.5 text-xs transition-colors"
                 :class="
-                  alias.filterMode === mode.value
+                  alias.unknownSenderPolicy === mode.value
                     ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
                     : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
                 "
@@ -399,7 +401,7 @@ const TABS: { key: TabKey; label: string }[] = [
               </button>
             </div>
             <p class="mt-1 text-xs text-ctp-subtext0">
-              {{ FILTER_MODES.find((m) => m.value === alias.filterMode)?.description }}
+              {{ FILTER_MODES.find((m) => m.value === alias.unknownSenderPolicy)?.description }}
             </p>
           </div>
         </div>

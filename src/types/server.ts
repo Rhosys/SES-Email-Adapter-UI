@@ -65,25 +65,33 @@ export interface NotificationSettings {
   push?: PushNotificationSettings
 }
 
-export type SenderFilterMode = 'strict' | 'sender_match' | 'notify_new' | 'allow_all'
+export type UnknownSenderPolicy =
+  | 'allow_all'
+  | 'quarantine_visible'
+  | 'quarantine_hidden'
+  | 'block_hidden'
+  | 'block_reject'
+  | 'violate_report'
+
+export type SenderPolicy = 'allow' | 'block_hidden' | 'block_reject' | 'violate_report'
 
 export interface AccountFilteringConfig {
-  defaultFilterMode: SenderFilterMode
+  defaultUnknownSenderPolicy: UnknownSenderPolicy
 }
 
 export interface EmailAddressConfig {
   id: string
   accountId: string
   address: string
-  filterMode: SenderFilterMode
+  unknownSenderPolicy: UnknownSenderPolicy
   createdAt: string
   updatedAt: string
 }
 
-// Approved/blocked senders for an alias — managed via /aliases/:address/senders sub-resource
+// Per-sender disposition — managed via /aliases/:address/senders sub-resource
 export interface AliasSender {
   domain: string
-  mode: 'allow' | 'block'
+  policy: SenderPolicy
   addedAt: string
 }
 
@@ -91,7 +99,6 @@ export interface OnboardingState {
   domainAdded?: boolean
   testEmailReceived?: boolean
   senderConfigured?: boolean
-  filterModeSet?: boolean
   completed: boolean
 }
 

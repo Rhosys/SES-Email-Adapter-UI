@@ -386,7 +386,7 @@ onMounted(async () => {
                       @mousedown.prevent="selectAlias"
                     >
                       <span class="flex-1 truncate text-sm text-ctp-text">{{ alias.address }}</span>
-                      <span class="shrink-0 text-xs text-ctp-subtext0">{{ alias.filterMode }}</span>
+                      <span class="shrink-0 text-xs text-ctp-subtext0">{{ alias.unknownSenderPolicy }}</span>
                     </button>
                   </template>
 
