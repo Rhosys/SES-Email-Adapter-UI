@@ -1,171 +1,241 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
+import type { DnsRecord } from '@/types/server'
+import CopyInput from '@/components/CopyInput.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 
 const router = useRouter()
 const accountStore = useAccountStore()
 
-// DNS copy-to-clipboard
-const copiedDns = ref<Set<number>>(new Set())
+// ── Pronounceable word pairs for test email username ──────────────────────
+const WORDS = [
+  'acorn', 'amber', 'atlas', 'azure', 'birch', 'blaze', 'bloom', 'cedar',
+  'chess', 'cider', 'cloak', 'cloud', 'coral', 'crane', 'crisp', 'daisy',
+  'delta', 'drake', 'drift', 'ember', 'fable', 'finch', 'flare', 'flask',
+  'flora', 'flute', 'forge', 'frost', 'gavel', 'gleam', 'globe', 'grace',
+  'grain', 'grove', 'haven', 'hazel', 'heron', 'holly', 'ivory', 'jewel',
+  'kayak', 'label', 'lance', 'lemon', 'lodge', 'lumen', 'maple', 'march',
+  'merit', 'mocha', 'noble', 'nomad', 'north', 'oasis', 'ocean', 'olive',
+  'orbit', 'otter', 'panda', 'panel', 'pearl', 'perch', 'piano', 'pilot',
+  'pixel', 'plain', 'plume', 'polar', 'poppy', 'prism', 'prose', 'pulse',
+  'raven', 'realm', 'ridge', 'rival', 'river', 'robin', 'rocky', 'rouge',
+  'royal', 'ruler', 'saint', 'scout', 'shade', 'shark', 'shell', 'shine',
+  'shore', 'sigma', 'silky', 'siren', 'slate', 'slick', 'smart', 'solar',
+  'sonic', 'south', 'spark', 'spell', 'spire', 'stone', 'storm', 'story',
+  'straw', 'sugar', 'surge', 'swift', 'swirl', 'synth', 'talon', 'tempo',
+  'tenor', 'theta', 'tiger', 'topaz', 'torch', 'totem', 'tower', 'trade',
+  'trail', 'train', 'trout', 'trove', 'ultra', 'union', 'vigor', 'viola',
+  'vista', 'vital', 'vivid', 'vogue', 'voice', 'vault', 'waltz', 'water',
+  'weave', 'whale', 'wheat', 'wheel', 'white', 'world', 'wrath', 'yacht',
+  'yield', 'young', 'zesty', 'zippy',
+]
+function pick() { return WORDS[Math.floor(Math.random() * WORDS.length)] }
+const testEmailUser = `${pick()}.${pick()}`
 
-function copyDnsValue(i: number, value: string) {
-  void navigator.clipboard.writeText(value).then(() => {
-    copiedDns.value = new Set([...copiedDns.value, i])
-    setTimeout(() => {
-      copiedDns.value = new Set([...copiedDns.value].filter((k) => k !== i))
-    }, 1500)
-  })
+import { isValidDomain } from '@/lib/validation'
+
+// ── Steps ────────────────────────────────────────────────────────────────────
+const TOTAL_STEPS = 3
+const STEP_LABELS = ['Account', 'Domain', 'Test email']
+const step = ref(1)
+
+function goToStep(n: number) {
+  // Only allow navigating back to an already-reached step (not step 1 — it's auto)
+  if (n >= 2 && n < step.value) step.value = n
 }
 
-const step = ref(1)
-const TOTAL_STEPS = 4
-const STEP_LABELS = ['Domain', 'Test email', 'Sender', 'Done']
+// ── Step 1: Account creation ─────────────────────────────────────────────────
+const CREATION_MSGS = [
+  'Setting up your workspace…',
+  'Initialising your email adapter…',
+  'Configuring your environment…',
+  'Warming up the servers…',
+  'Almost ready…',
+]
+const creatingAccount = ref(true)
+const creationMsgIdx = ref(0)
+let msgInterval: ReturnType<typeof setInterval> | null = null
 
-// Step 1 – Domain
-const domain = ref('')
-const addingDomain = ref(false)
-const domainAdded = ref(false)
-const domainError = ref('')
-const dnsRecords = ref<{ type: string; host: string; value: string }[]>([])
+async function createAndAdvance() {
+  creatingAccount.value = true
+  msgInterval = setInterval(() => {
+    creationMsgIdx.value = (creationMsgIdx.value + 1) % CREATION_MSGS.length
+  }, 700)
 
-async function submitDomain() {
-  if (!accountStore.accountId || !domain.value.trim()) return
-  addingDomain.value = true
-  domainError.value = ''
-  const result = await api.addDomain(accountStore.accountId, { domain: domain.value.trim() })
-  addingDomain.value = false
-  if (result.isErr()) {
-    domainError.value = result.error.message
+  await Promise.all([
+    (async () => {
+      if (!accountStore.fetched) await accountStore.fetchAccount()
+      if (!accountStore.accountId) await accountStore.createAccount('')
+    })(),
+    new Promise<void>((res) => setTimeout(res, 2000)),
+  ])
+
+  if (msgInterval) { clearInterval(msgInterval); msgInterval = null }
+  creatingAccount.value = false
+
+  // Restore progress
+  const ob = accountStore.account?.onboarding
+  if (ob?.testEmailReceived) {
+    await persistProgress({ completed: true })
+    void router.replace('/inbox')
     return
   }
+  if (ob?.domainAdded) {
+    domainAdded.value = true
+    step.value = 3
+    return
+  }
+  step.value = 2
+}
+
+// ── Step 2: Domain ────────────────────────────────────────────────────────────
+const domain = ref('')
+const domainTouched = ref(false)
+const domainId = ref('')
+const addingDomain = ref(false)
+const domainAdded = ref(false)
+const domainApiError = ref('')
+const dnsRecords = ref<DnsRecord[]>([])
+const recheckingDns = ref(false)
+const mxVerifiedByClient = ref(false)
+
+const domainFieldError = computed(() => {
+  if (!domainTouched.value) return ''
+  if (!domain.value.trim()) return 'Domain is required'
+  if (!isValidDomain(domain.value)) return 'Enter a valid domain (e.g. example.com)'
+  return ''
+})
+
+const mxIsVerified = computed(() =>
+  mxVerifiedByClient.value || dnsRecords.value.some((r) => r.type === 'MX' && r.status === 'verified'),
+)
+
+async function submitDomain() {
+  domainTouched.value = true
+  if (!isValidDomain(domain.value) || !accountStore.accountId) return
+  addingDomain.value = true
+  domainApiError.value = ''
+  const result = await api.addDomain(accountStore.accountId, { domain: domain.value.trim() })
+  addingDomain.value = false
+  if (result.isErr()) { domainApiError.value = result.error.message; return }
+  domainId.value = result.value.id
   dnsRecords.value = result.value.dnsRecords
   domainAdded.value = true
   await persistProgress({ domainAdded: true })
 }
 
-// Step 2 – Test email
-const testEmailSent = ref(false)
+async function verifyWithGoogleDns(type: string, host: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `https://dns.google/resolve?name=${encodeURIComponent(host)}&type=${encodeURIComponent(type)}`,
+    )
+    if (!res.ok) return false
+    const data = (await res.json()) as { Answer?: unknown[] }
+    return (data.Answer?.length ?? 0) > 0
+  } catch {
+    return false
+  }
+}
+
+async function recheckDns() {
+  if (!accountStore.accountId || !domainId.value) return
+  recheckingDns.value = true
+  const result = await api.recheckDomain(accountStore.accountId, domainId.value)
+  if (result.isOk()) dnsRecords.value = result.value.dnsRecords
+  const mxRec = dnsRecords.value.find((r) => r.type === 'MX')
+  if (mxRec) mxVerifiedByClient.value = await verifyWithGoogleDns('MX', mxRec.host)
+  recheckingDns.value = false
+}
+
+const DNS_STATUS_COLORS: Record<string, string> = {
+  verified: 'text-ctp-green',
+  failed:   'text-ctp-red',
+  pending:  'text-ctp-subtext0',
+}
+
+// ── Step 3: Test email ────────────────────────────────────────────────────────
+const testEmailAddress = computed(() => `${testEmailUser}@${domain.value || 'yourdomain.com'}`)
+const emailSentClicked = ref(false)
 const signalArrived = ref(false)
+let ws: WebSocket | null = null
 let pollInterval: ReturnType<typeof setInterval> | null = null
 
-function startPolling() {
-  testEmailSent.value = true
-  if (!accountStore.accountId) return
+function startPolling(accountId: string) {
   let attempts = 0
   pollInterval = setInterval(async () => {
     attempts++
-    if (attempts > 30) {
-      clearInterval(pollInterval!)
-      return
-    }
-    const result = await api.listQuarantinedSignals(accountStore.accountId!, 'quarantine_visible', {
-      limit: 1,
-    })
+    if (attempts > 60) { clearInterval(pollInterval!); return }
+    const result = await api.listQuarantinedSignals(accountId, 'quarantine_visible', { limit: 1 })
     if (result.isOk() && result.value.items.length > 0) {
-      signalArrived.value = true
       clearInterval(pollInterval!)
-      await persistProgress({ testEmailReceived: true })
+      void onSignalArrived()
     }
   }, 3000)
 }
 
-onUnmounted(() => {
-  if (pollInterval) clearInterval(pollInterval)
-})
-
-// Step 3 – Sender address
-const senderAddress = ref('')
-const senderPending = ref(false)
-const senderDone = ref(false)
-
-async function saveSender() {
-  if (!accountStore.accountId || !senderAddress.value.trim()) return
-  senderPending.value = true
-  const result = await api.createAlias(accountStore.accountId, {
-    address: senderAddress.value.trim(),
-  })
-  senderPending.value = false
-  if (result.isOk()) {
-    senderDone.value = true
-    await persistProgress({ senderConfigured: true })
+function connectWs(accountId: string) {
+  const base = import.meta.env.VITE_API_BASE_URL as string
+  const wsBase = base.startsWith('https://')
+    ? base.replace('https://', 'wss://')
+    : base.replace('http://', 'ws://')
+  try {
+    ws = new WebSocket(`${wsBase}/accounts/${accountId}/signals/stream`)
+    ws.onmessage = () => void onSignalArrived()
+    ws.onerror = () => startPolling(accountId)
+  } catch {
+    startPolling(accountId)
   }
 }
 
-// Persist onboarding progress to the account
+async function onSignalArrived() {
+  if (signalArrived.value) return
+  signalArrived.value = true
+  await persistProgress({ testEmailReceived: true, completed: true })
+  void router.push('/inbox')
+}
+
+function markEmailSent() {
+  emailSentClicked.value = true
+}
+
+// Connect WebSocket as soon as step 3 is shown
+watch(step, (s) => {
+  if (s === 3 && accountStore.accountId) connectWs(accountStore.accountId)
+})
+
+// ── Persistence ───────────────────────────────────────────────────────────────
 async function persistProgress(patch: Partial<{
   domainAdded: boolean
   testEmailReceived: boolean
-  senderConfigured: boolean
-  filterModeSet: boolean
   completed: boolean
 }>) {
   if (!accountStore.accountId) return
   const result = await api.updateAccount(accountStore.accountId, { onboarding: patch })
-  if (result.isOk()) {
-    // Keep local account store in sync
-    accountStore.account = result.value
-  }
+  if (result.isOk()) accountStore.account = result.value
 }
 
-// Navigation
-function next() {
-  if (step.value < TOTAL_STEPS) step.value++
-}
+// ── Lifecycle ─────────────────────────────────────────────────────────────────
+onMounted(() => { void createAndAdvance() })
 
-function prev() {
-  if (step.value > 1) step.value--
-}
-
-async function finish() {
-  await persistProgress({ completed: true })
-  void router.push('/')
-}
-
-// Whether the current step's primary action has been completed
-const stepDone = computed(() => {
-  if (step.value === 1) return domainAdded.value
-  if (step.value === 2) return signalArrived.value
-  if (step.value === 3) return senderDone.value
-  return true // step 4 = Done, no action required
-})
-
-onMounted(async () => {
-  if (!accountStore.fetched) await accountStore.fetchAccount()
-
-  // Auto-create account if none exists; name can be set later in Settings
-  if (!accountStore.accountId) {
-    await accountStore.createAccount('')
-  }
-
-  // Restore progress from the account's onboarding state so the user can
-  // resume where they left off if they close the tab mid-flow
-  const ob = accountStore.account?.onboarding
-  if (ob) {
-    if (ob.domainAdded) domainAdded.value = true
-    if (ob.testEmailReceived) signalArrived.value = true
-    if (ob.senderConfigured) senderDone.value = true
-
-    // Jump to the furthest incomplete step
-    if (!ob.domainAdded) step.value = 1
-    else if (!ob.testEmailReceived) step.value = 2
-    else if (!ob.senderConfigured) step.value = 3
-    else step.value = 4
-  }
+onUnmounted(() => {
+  if (msgInterval) clearInterval(msgInterval)
+  if (pollInterval) clearInterval(pollInterval)
+  if (ws) { ws.close(); ws = null }
 })
 </script>
 
 <template>
   <div class="flex min-h-screen flex-col bg-ctp-base text-ctp-text">
-    <!-- Top nav bar: logo + profile -->
+    <!-- Top nav -->
     <div class="flex items-center justify-between border-b border-ctp-surface0 bg-ctp-mantle px-6 py-3">
       <span class="text-sm font-semibold text-ctp-text">SES Adapter</span>
       <UserAvatar />
     </div>
 
-    <!-- Progress header -->
+    <!-- Progress pills -->
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-6 py-3">
       <div class="mx-auto max-w-2xl">
         <div class="mb-2 flex items-center justify-between">
@@ -181,40 +251,64 @@ onMounted(async () => {
           />
         </div>
         <div class="mt-2 flex">
-          <span
+          <button
             v-for="(label, i) in STEP_LABELS"
             :key="i"
-            class="flex-1 text-center text-xs"
-            :class="i + 1 === step ? 'font-medium text-ctp-mauve' : 'text-ctp-subtext0'"
-            >{{ label }}</span
+            class="flex-1 text-center text-xs transition-colors"
+            :class="[
+              i + 1 === step ? 'font-medium text-ctp-mauve' : 'text-ctp-subtext0',
+              i + 1 < step && i + 1 >= 2 ? 'cursor-pointer hover:text-ctp-text' : 'cursor-default',
+            ]"
+            :disabled="i + 1 >= step || i + 1 < 2"
+            @click="goToStep(i + 1)"
           >
+            {{ label }}
+          </button>
         </div>
       </div>
     </header>
 
     <main class="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
-      <!-- ── Step 1: Domain ─────────────────────────────────────────────────── -->
-      <section v-if="step === 1">
-        <h2 class="mb-1 text-xl font-semibold">Add your sending domain</h2>
+
+      <!-- ── Step 1: Account creation ─────────────────────────────────────── -->
+      <section v-if="step === 1" class="flex flex-col items-center justify-center py-12 text-center">
+        <div class="mb-6 h-8 w-8 animate-spin rounded-full border-2 border-ctp-surface1 border-t-ctp-mauve" />
+        <p class="text-base font-medium text-ctp-text transition-all">
+          {{ CREATION_MSGS[creationMsgIdx] }}
+        </p>
+        <p class="mt-2 text-xs text-ctp-subtext0">This only takes a moment</p>
+      </section>
+
+      <!-- ── Step 2: Domain ─────────────────────────────────────────────────── -->
+      <section v-else-if="step === 2">
+        <h2 class="mb-1 text-xl font-semibold">Add your receiving domain</h2>
         <p class="mb-6 text-sm text-ctp-subtext0">
-          Enter the domain you'll receive emails at. We'll give you DNS records to configure.
+          Enter the domain you'll receive emails at. We'll generate the DNS records you need to
+          add to your provider.
         </p>
 
+        <!-- API error -->
         <div
-          v-if="domainError"
+          v-if="domainApiError"
           class="mb-4 rounded border border-ctp-red bg-ctp-red/10 px-3 py-2 text-xs text-ctp-red"
         >
-          {{ domainError }}
+          {{ domainApiError }}
         </div>
 
-        <form class="flex flex-wrap gap-2" @submit.prevent="submitDomain">
-          <input
-            v-model="domain"
-            type="text"
-            placeholder="yourdomain.com"
-            :disabled="domainAdded"
-            class="min-w-0 flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-4 py-2.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none disabled:opacity-50"
-          />
+        <!-- Domain input form -->
+        <form class="flex flex-wrap items-start gap-2" @submit.prevent="submitDomain">
+          <div class="flex min-w-0 flex-1 flex-col gap-1">
+            <input
+              v-model="domain"
+              type="text"
+              placeholder="yourdomain.com"
+              :disabled="domainAdded"
+              class="w-full rounded-lg border bg-ctp-mantle px-4 py-2.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:outline-none disabled:opacity-50"
+              :class="domainFieldError ? 'border-ctp-red focus:border-ctp-red' : 'border-ctp-surface1 focus:border-ctp-mauve'"
+              @blur="domainTouched = true"
+            />
+            <p v-if="domainFieldError" class="text-xs text-ctp-red">{{ domainFieldError }}</p>
+          </div>
           <button
             type="submit"
             :disabled="addingDomain || domainAdded || !domain.trim()"
@@ -224,165 +318,118 @@ onMounted(async () => {
           </button>
         </form>
 
-        <div v-if="dnsRecords.length" class="mt-6 space-y-2">
-          <p class="text-sm font-medium text-ctp-subtext1">Add these DNS records to your domain:</p>
+        <!-- DNS records -->
+        <div v-if="dnsRecords.length" class="mt-6 space-y-3">
+          <div class="flex items-center justify-between">
+            <p class="text-sm font-medium text-ctp-subtext1">
+              Add these DNS records to your domain provider:
+            </p>
+            <button
+              :disabled="recheckingDns"
+              class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text disabled:opacity-50"
+              @click="recheckDns"
+            >
+              {{ recheckingDns ? 'Checking…' : 'Re-check DNS' }}
+            </button>
+          </div>
+
           <div
             v-for="(rec, i) in dnsRecords"
             :key="i"
             class="rounded-lg border border-ctp-surface1 p-3"
           >
-            <div class="mb-1 flex items-center justify-between gap-2">
-              <div class="flex min-w-0 items-center gap-2">
-                <span class="shrink-0 rounded bg-ctp-surface1 px-1.5 py-0.5 font-mono text-xs text-ctp-subtext0">{{ rec.type }}</span>
+            <div class="mb-2 flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="rounded bg-ctp-surface1 px-1.5 py-0.5 font-mono text-xs text-ctp-subtext0">
+                  {{ rec.type }}
+                </span>
                 <span class="truncate font-mono text-xs text-ctp-text">{{ rec.host }}</span>
               </div>
-              <button
-                class="shrink-0 rounded border border-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
-                :title="`Copy ${rec.type} value`"
-                @click="copyDnsValue(i, rec.value)"
+              <span
+                class="shrink-0 text-xs font-medium"
+                :class="DNS_STATUS_COLORS[rec.status] ?? 'text-ctp-subtext0'"
               >
-                {{ copiedDns.has(i) ? '✓' : 'Copy' }}
-              </button>
+                {{ rec.status }}
+              </span>
             </div>
-            <p class="break-all font-mono text-xs text-ctp-subtext0">{{ rec.value }}</p>
+            <CopyInput :value="rec.value" mono />
           </div>
+
           <p class="text-xs text-ctp-subtext0">
-            DNS changes can take up to 48 hours to propagate. You can continue setup while they verify.
+            DNS changes can take up to 48 hours to propagate globally. Click
+            <strong>Re-check DNS</strong> after adding records to your provider.
           </p>
+
+          <!-- Continue once MX is verified -->
+          <div v-if="mxIsVerified" class="pt-2">
+            <button
+              class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
+              @click="step = 3"
+            >
+              Continue to test email →
+            </button>
+          </div>
+          <div v-else class="rounded-lg border border-dashed border-ctp-surface1 px-4 py-3 text-xs text-ctp-subtext0">
+            Waiting for the <strong>MX</strong> record to be verified before you can continue.
+            Click <strong>Re-check DNS</strong> after adding the records.
+          </div>
         </div>
       </section>
 
-      <!-- ── Step 2: Test email ─────────────────────────────────────────────── -->
-      <section v-else-if="step === 2">
-        <h2 class="mb-1 text-xl font-semibold">Send a test email</h2>
+      <!-- ── Step 3: Test email ──────────────────────────────────────────────── -->
+      <section v-else-if="step === 3">
+        <h2 class="mb-1 text-xl font-semibold">Send us a test email</h2>
         <p class="mb-6 text-sm text-ctp-subtext0">
-          Send any email to an address at your domain. We'll detect it here in real time.
+          Send an email to the address below to validate your setup. We'll detect it in real time.
         </p>
 
-        <div
-          v-if="!testEmailSent"
-          class="rounded-lg border border-dashed border-ctp-surface1 py-10 text-center"
-        >
-          <p class="mb-4 text-sm text-ctp-subtext0">
-            Send to:
-            <span class="font-mono text-ctp-text">inbox@{{ domain || 'yourdomain.com' }}</span>
-          </p>
+        <div v-if="!emailSentClicked" class="space-y-5">
+          <!-- Step-by-step instructions -->
+          <div class="rounded-lg border border-ctp-surface1 p-4 text-sm">
+            <p class="mb-3 font-medium text-ctp-text">Two quick steps:</p>
+            <ol class="space-y-3 text-ctp-subtext0">
+              <li class="flex gap-3">
+                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ctp-mauve/20 text-xs font-semibold text-ctp-mauve">1</span>
+                <span>Open your email client and compose a new email</span>
+              </li>
+              <li class="flex gap-3">
+                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ctp-mauve/20 text-xs font-semibold text-ctp-mauve">2</span>
+                <span>Send it to the address below — subject and body don't matter</span>
+              </li>
+            </ol>
+          </div>
+
+          <div>
+            <p class="mb-1.5 text-xs font-medium text-ctp-subtext0">Send to:</p>
+            <CopyInput :value="testEmailAddress" mono />
+          </div>
+
           <button
-            class="rounded-lg bg-ctp-mauve px-5 py-2.5 text-sm font-medium text-ctp-base hover:opacity-90"
-            @click="startPolling"
+            class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
+            @click="markEmailSent"
           >
-            I've sent it — start watching
+            I've sent the email
           </button>
         </div>
 
+        <!-- Watching state -->
         <div v-else class="rounded-lg border border-ctp-surface1 p-6 text-center">
           <div v-if="signalArrived" class="text-ctp-green">
-            <p class="text-2xl">✓</p>
-            <p class="mt-2 text-sm font-medium">Email received!</p>
-            <p class="mt-1 text-xs text-ctp-subtext0">Your domain is connected and processing emails.</p>
+            <p class="text-3xl">✓</p>
+            <p class="mt-2 text-sm font-medium">Email received! Taking you to your inbox…</p>
           </div>
           <div v-else>
             <div class="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-ctp-surface1 border-t-ctp-mauve" />
-            <p class="text-sm text-ctp-subtext0">Waiting for your email…</p>
-            <p class="mt-1 text-xs text-ctp-subtext0">Checking every 3 seconds</p>
+            <p class="text-sm font-medium text-ctp-text">Watching for your email…</p>
+            <p class="mt-1 text-xs text-ctp-subtext0">We'll detect it the moment it arrives</p>
+            <div class="mt-4">
+              <p class="mb-1.5 text-xs text-ctp-subtext0">Sent to:</p>
+              <CopyInput :value="testEmailAddress" mono />
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- ── Step 3: Sender address ─────────────────────────────────────────── -->
-      <section v-else-if="step === 3">
-        <h2 class="mb-1 text-xl font-semibold">Set your sender address</h2>
-        <p class="mb-6 text-sm text-ctp-subtext0">
-          Choose the email address that will appear in the "From" field for outgoing emails.
-        </p>
-
-        <form class="flex flex-wrap gap-2" @submit.prevent="saveSender">
-          <input
-            v-model="senderAddress"
-            type="email"
-            placeholder="you@yourdomain.com"
-            :disabled="senderDone"
-            class="min-w-0 flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-4 py-2.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none disabled:opacity-50"
-          />
-          <button
-            type="submit"
-            :disabled="senderPending || senderDone || !senderAddress.trim()"
-            class="shrink-0 rounded-lg bg-ctp-mauve px-5 py-2.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
-          >
-            {{ senderPending ? 'Saving…' : senderDone ? 'Saved ✓' : 'Save' }}
-          </button>
-        </form>
-      </section>
-
-      <!-- ── Step 4: Done ───────────────────────────────────────────────────── -->
-      <section v-else-if="step === 4" class="text-center">
-        <p class="mb-3 text-4xl">🎉</p>
-        <h2 class="mb-1 text-xl font-semibold">You're all set!</h2>
-        <p class="mb-6 text-sm text-ctp-subtext0">
-          Your email adapter is configured and ready to process incoming emails.
-        </p>
-
-        <div class="mb-6 space-y-2 rounded-lg border border-ctp-surface1 p-4 text-left text-sm">
-          <div class="flex items-center gap-2">
-            <span :class="domainAdded ? 'text-ctp-green' : 'text-ctp-subtext0'">
-              {{ domainAdded ? '✓' : '○' }}
-            </span>
-            <span class="text-ctp-subtext1"
-              >Domain: <strong class="text-ctp-text">{{ domain || '(skipped)' }}</strong></span
-            >
-          </div>
-          <div class="flex items-center gap-2">
-            <span :class="signalArrived ? 'text-ctp-green' : 'text-ctp-subtext0'">
-              {{ signalArrived ? '✓' : '○' }}
-            </span>
-            <span class="text-ctp-subtext1">Test email {{ signalArrived ? 'received' : '(skipped)' }}</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <span :class="senderDone ? 'text-ctp-green' : 'text-ctp-subtext0'">
-              {{ senderDone ? '✓' : '○' }}
-            </span>
-            <span class="text-ctp-subtext1">Sender address {{ senderDone ? 'configured' : '(skipped)' }}</span>
-          </div>
-        </div>
-
-        <button
-          class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
-          @click="finish"
-        >
-          Go to inbox →
-        </button>
-      </section>
-
-      <!-- ── Navigation ─────────────────────────────────────────────────────── -->
-      <!--
-        Steps 1–3: show Skip until the step action is done, then Continue.
-        This ensures Continue never appears alongside an in-step action button.
-      -->
-      <div v-if="step < TOTAL_STEPS" class="mt-10 flex items-center justify-between">
-        <button
-          v-if="step > 1"
-          class="text-sm text-ctp-subtext0 hover:text-ctp-text"
-          @click="prev"
-        >
-          ← Back
-        </button>
-        <span v-else />
-
-        <button
-          v-if="!stepDone"
-          class="text-sm text-ctp-subtext0 hover:text-ctp-text"
-          @click="next"
-        >
-          Skip
-        </button>
-        <button
-          v-else
-          class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
-          @click="next"
-        >
-          Continue →
-        </button>
-      </div>
     </main>
   </div>
 </template>

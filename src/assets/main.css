@@ -167,3 +167,12 @@
     scrollbar-color: var(--color-overlay0) var(--color-base);
   }
 }
+
+@layer base {
+  button,
+  a,
+  [role='button'],
+  summary {
+    cursor: pointer;
+  }
+}
