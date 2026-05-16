@@ -57,15 +57,13 @@ const CREATION_MSGS = [
 ]
 const creatingAccount = ref(true)
 const creationMsgIdx = ref(0)
-const creationRetryMsg = ref('')
 let msgInterval: ReturnType<typeof setInterval> | null = null
 
 async function createAndAdvance() {
   creatingAccount.value = true
-  creationRetryMsg.value = ''
   msgInterval = setInterval(() => {
     creationMsgIdx.value = (creationMsgIdx.value + 1) % CREATION_MSGS.length
-  }, 700)
+  }, 2000)
 
   // Minimum display time for UX polish
   await new Promise<void>((res) => setTimeout(res, 2000))
@@ -79,8 +77,6 @@ async function createAndAdvance() {
     const ok = await accountStore.createAccount('')
     if (ok) break
 
-    creationRetryMsg.value =
-      'Lots of spirits attempting to flow at the moment — will take a bit more time…'
     await new Promise<void>((res) => setTimeout(res, retryDelay))
     retryDelay = Math.min(retryDelay * 1.5, 15_000)
     // Re-fetch in case the account was created server-side but the response was lost
@@ -90,7 +86,6 @@ async function createAndAdvance() {
 
   if (msgInterval) { clearInterval(msgInterval); msgInterval = null }
   creatingAccount.value = false
-  creationRetryMsg.value = ''
 
   // Restore progress
   const ob = accountStore.account?.onboarding
@@ -285,20 +280,15 @@ onUnmounted(() => {
       </div>
     </header>
 
-    <main class="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
+    <main class="mx-auto flex w-full max-w-2xl flex-1 flex-col px-6 py-10">
 
       <!-- ── Step 1: Account creation ─────────────────────────────────────── -->
-      <section v-if="step === 1" class="flex flex-col items-center justify-center py-12 text-center">
+      <section v-if="step === 1" class="flex flex-1 flex-col items-center justify-center text-center">
         <div class="mb-6 h-8 w-8 animate-spin rounded-full border-2 border-ctp-surface1 border-t-ctp-mauve" />
-        <p class="text-base font-medium text-ctp-text transition-all">
+        <p class="text-base font-medium text-ctp-text">
           {{ CREATION_MSGS[creationMsgIdx] }}
         </p>
-        <Transition name="fade" mode="out-in">
-          <p v-if="creationRetryMsg" class="mt-3 max-w-xs text-sm text-ctp-subtext1">
-            {{ creationRetryMsg }}
-          </p>
-          <p v-else class="mt-2 text-xs text-ctp-subtext0">This only takes a moment</p>
-        </Transition>
+        <p class="mt-2 text-xs text-ctp-subtext0">This only takes a moment</p>
       </section>
 
       <!-- ── Step 2: Domain ─────────────────────────────────────────────────── -->
