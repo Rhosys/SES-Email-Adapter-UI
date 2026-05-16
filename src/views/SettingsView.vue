@@ -337,9 +337,10 @@ const TABS: { key: TabKey; label: string }[] = [
       <!-- ── Account tab ─────────────────────────────────────────────────── -->
       <section v-if="activeTab === 'account'" class="space-y-6">
         <div>
-          <label class="mb-1 block text-xs font-medium text-ctp-subtext0">Account name</label>
+          <label for="account-name" class="mb-1 block text-xs font-medium text-ctp-subtext0">Account name</label>
           <div class="flex gap-2">
             <input
+              id="account-name"
               v-model="accountName"
               type="text"
               class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
@@ -687,8 +688,9 @@ const TABS: { key: TabKey; label: string }[] = [
 
           <div v-if="emailNotifEnabled" class="mt-4 space-y-3">
             <div>
-              <label class="mb-1 block text-xs text-ctp-subtext0">Notification address</label>
+              <label for="notif-address" class="mb-1 block text-xs text-ctp-subtext0">Notification address</label>
               <input
+                id="notif-address"
                 v-model="emailNotifAddress"
                 type="email"
                 placeholder="you@example.com"

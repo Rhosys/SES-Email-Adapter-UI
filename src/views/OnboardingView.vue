@@ -302,6 +302,7 @@ onUnmounted(() => {
             <input
               v-model="domain"
               type="text"
+              aria-label="Domain name"
               placeholder="yourdomain.com"
               :disabled="domainAdded"
               class="w-full rounded-lg border bg-ctp-mantle px-4 py-2.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:outline-none disabled:opacity-50"

@@ -203,6 +203,7 @@ onMounted(async () => {
         tag="div"
         class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
       >
+        <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -- drag is a mouse enhancement; keyboard reorder uses the ▲/▼ buttons -->
         <div
           v-for="(rule, idx) in rulesStore.items"
           :key="rule.id"

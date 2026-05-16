@@ -222,6 +222,7 @@ onMounted(async () => {
     <!-- Backdrop for mobile sidebar -->
     <div
       v-if="sidebarOpen"
+      role="presentation"
       class="fixed inset-0 z-30 bg-black/50 sm:hidden"
       @click="sidebarOpen = false"
     />

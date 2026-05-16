@@ -89,6 +89,7 @@ function copyUserId() {
   <!-- ── Shared wrapper: handles hover stickiness and focusout ─────────────── -->
   <div
     class="relative"
+    role="group"
     @mouseenter="show"
     @mouseleave="scheduleHide"
     @focusin="show"
@@ -151,6 +152,7 @@ function copyUserId() {
       aria-label="Profile details"
       @mouseenter="show"
       @mouseleave="scheduleHide"
+      @focusin="show"
     >
       <!-- Header: avatar + name + email -->
       <div class="flex items-center gap-3 bg-ctp-base px-4 py-3">

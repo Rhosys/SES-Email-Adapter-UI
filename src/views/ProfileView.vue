@@ -249,6 +249,7 @@ async function signOut() {
           <input
             v-model="newPasskeyName"
             type="text"
+            aria-label="Passkey device name"
             placeholder="Device name (e.g. MacBook Touch ID)"
             class="flex-1 rounded border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
             autofocus

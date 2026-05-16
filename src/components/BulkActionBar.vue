@@ -36,6 +36,7 @@ function submitLabel() {
       <input
         v-model="labelInput"
         type="text"
+        aria-label="Label name"
         placeholder="Add label…"
         class="w-full rounded border border-ctp-surface1 bg-ctp-surface0 px-2 py-1.5 text-sm text-ctp-text placeholder-ctp-overlay0 focus:outline-none focus:ring-1 focus:ring-ctp-blue sm:w-auto"
       />

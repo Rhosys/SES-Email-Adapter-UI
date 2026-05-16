@@ -121,6 +121,7 @@ if (query.value) {
         <input
           v-model="query"
           type="search"
+          aria-label="Search arcs, signals, aliases, rules"
           placeholder="Search arcs, signals, aliases, rules…"
           class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-4 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           autofocus

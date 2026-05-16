@@ -308,8 +308,9 @@ watch(signalAction, (val) => {
 
       <!-- Name -->
       <section class="mb-6">
-        <label class="mb-1 block text-xs font-medium text-ctp-subtext0">Rule name</label>
+        <label for="rule-name" class="mb-1 block text-xs font-medium text-ctp-subtext0">Rule name</label>
         <input
+          id="rule-name"
           v-model="name"
           type="text"
           placeholder="e.g. Block marketing emails"
@@ -383,6 +384,7 @@ watch(signalAction, (val) => {
               >
                 <select
                   :value="cond.field"
+                  :aria-label="`Condition ${ci + 1} field`"
                   class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                   @change="
                     updateCondition(gi, ci, {
@@ -397,6 +399,7 @@ watch(signalAction, (val) => {
 
                 <select
                   :value="cond.operator"
+                  :aria-label="`Condition ${ci + 1} operator`"
                   class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                   @change="
                     updateCondition(gi, ci, {
@@ -412,6 +415,7 @@ watch(signalAction, (val) => {
                 <input
                   :value="cond.value"
                   type="text"
+                  :aria-label="`Condition ${ci + 1} value`"
                   placeholder="value"
                   class="min-w-0 flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
                   @input="
@@ -571,8 +575,9 @@ watch(signalAction, (val) => {
         <h3 class="mb-3 text-xs font-medium text-ctp-subtext1">Test this rule</h3>
         <div class="grid gap-3 sm:grid-cols-2">
           <div>
-            <label class="mb-1 block text-xs text-ctp-subtext0">Sender address</label>
+            <label for="test-from" class="mb-1 block text-xs text-ctp-subtext0">Sender address</label>
             <input
+              id="test-from"
               v-model="testInput.fromAddress"
               type="email"
               placeholder="user@example.com"
@@ -580,8 +585,9 @@ watch(signalAction, (val) => {
             />
           </div>
           <div>
-            <label class="mb-1 block text-xs text-ctp-subtext0">Subject</label>
+            <label for="test-subject" class="mb-1 block text-xs text-ctp-subtext0">Subject</label>
             <input
+              id="test-subject"
               v-model="testInput.subject"
               type="text"
               placeholder="Email subject"
@@ -589,8 +595,9 @@ watch(signalAction, (val) => {
             />
           </div>
           <div>
-            <label class="mb-1 block text-xs text-ctp-subtext0">Workflow</label>
+            <label for="test-workflow" class="mb-1 block text-xs text-ctp-subtext0">Workflow</label>
             <input
+              id="test-workflow"
               v-model="testInput.workflow"
               type="text"
               placeholder="e.g. conversation"
@@ -598,8 +605,9 @@ watch(signalAction, (val) => {
             />
           </div>
           <div>
-            <label class="mb-1 block text-xs text-ctp-subtext0">Spam score (0–10)</label>
+            <label for="test-spam" class="mb-1 block text-xs text-ctp-subtext0">Spam score (0–10)</label>
             <input
+              id="test-spam"
               v-model="testInput.spamScore"
               type="number"
               min="0"

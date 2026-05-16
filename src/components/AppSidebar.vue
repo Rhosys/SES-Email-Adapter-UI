@@ -110,7 +110,7 @@ const labels = computed(() => labelsStore.items)
       </div>
 
       <!-- Click-outside backdrop -->
-      <div v-if="switcherOpen" class="fixed inset-0 z-40" @click="switcherOpen = false" />
+      <div v-if="switcherOpen" role="presentation" class="fixed inset-0 z-40" @click="switcherOpen = false" />
     </div>
 
     <nav class="flex-1 overflow-y-auto py-2">

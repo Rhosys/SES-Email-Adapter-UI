@@ -232,8 +232,9 @@ onMounted(async () => {
           </h3>
           <div class="space-y-3">
             <div>
-              <label class="mb-1 block text-xs text-ctp-subtext0">Name</label>
+              <label for="label-name" class="mb-1 block text-xs text-ctp-subtext0">Name</label>
               <input
+                id="label-name"
                 v-model="labelName"
                 type="text"
                 placeholder="e.g. Newsletters"
@@ -241,7 +242,7 @@ onMounted(async () => {
               />
             </div>
             <div>
-              <label class="mb-1 block text-xs text-ctp-subtext0">Color</label>
+              <label for="label-color" class="mb-1 block text-xs text-ctp-subtext0">Color</label>
               <div class="flex flex-wrap gap-2">
                 <button
                   v-for="color in PRESET_COLORS"
@@ -249,9 +250,11 @@ onMounted(async () => {
                   class="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
                   :class="labelColor === color ? 'border-ctp-text' : 'border-transparent'"
                   :style="{ backgroundColor: color }"
+                  :aria-label="`Select color ${color}`"
                   @click="labelColor = color"
                 />
                 <input
+                  id="label-color"
                   v-model="labelColor"
                   type="color"
                   class="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0"
@@ -260,8 +263,9 @@ onMounted(async () => {
               </div>
             </div>
             <div>
-              <label class="mb-1 block text-xs text-ctp-subtext0">Icon (emoji, optional)</label>
+              <label for="label-icon" class="mb-1 block text-xs text-ctp-subtext0">Icon (emoji, optional)</label>
               <input
+                id="label-icon"
                 v-model="labelIcon"
                 type="text"
                 placeholder="e.g. 📧"
@@ -351,8 +355,9 @@ onMounted(async () => {
           </h3>
           <div class="space-y-3">
             <div>
-              <label class="mb-1 block text-xs text-ctp-subtext0">Name</label>
+              <label for="view-name" class="mb-1 block text-xs text-ctp-subtext0">Name</label>
               <input
+                id="view-name"
                 v-model="viewName"
                 type="text"
                 placeholder="e.g. Newsletters"
@@ -360,8 +365,9 @@ onMounted(async () => {
               />
             </div>
             <div>
-              <label class="mb-1 block text-xs text-ctp-subtext0">Icon (emoji, optional)</label>
+              <label for="view-icon" class="mb-1 block text-xs text-ctp-subtext0">Icon (emoji, optional)</label>
               <input
+                id="view-icon"
                 v-model="viewIcon"
                 type="text"
                 placeholder="e.g. 📰"
@@ -370,8 +376,9 @@ onMounted(async () => {
             </div>
             <div class="grid gap-3 sm:grid-cols-2">
               <div>
-                <label class="mb-1 block text-xs text-ctp-subtext0">Workflow filter</label>
+                <label for="view-workflow" class="mb-1 block text-xs text-ctp-subtext0">Workflow filter</label>
                 <select
+                  id="view-workflow"
                   v-model="viewWorkflow"
                   class="w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
                 >

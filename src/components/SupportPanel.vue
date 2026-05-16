@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { loginClient } from '@/lib/auth'
@@ -18,10 +18,12 @@ const userId = ref<string | null>(null)
 
 const form = ref({ category: '', subject: '', description: '' })
 const submitted = ref(false)
+const panelEl = ref<HTMLElement | null>(null)
 
 watch(
   () => props.open,
   (open) => {
+    if (open) void nextTick(() => panelEl.value?.focus())
     if (open && !userId.value) {
       try {
         const identity = loginClient.getUserIdentity()
@@ -140,14 +142,16 @@ function resetContact() {
   <Teleport to="body">
     <!-- Backdrop -->
     <Transition name="backdrop">
-      <div v-if="open" class="fixed inset-0 z-40 bg-black/40" @click="emit('close')" />
+      <div v-if="open" role="presentation" class="fixed inset-0 z-40 bg-black/40" @click="emit('close')" />
     </Transition>
 
     <!-- Panel -->
     <Transition name="panel">
       <div
         v-if="open"
-        class="fixed inset-y-0 right-0 z-50 flex w-96 max-w-full flex-col border-l border-ctp-surface0 bg-ctp-mantle shadow-2xl"
+        ref="panelEl"
+        tabindex="-1"
+        class="fixed inset-y-0 right-0 z-50 flex w-96 max-w-full flex-col border-l border-ctp-surface0 bg-ctp-mantle shadow-2xl focus:outline-none"
         role="dialog"
         aria-label="Support"
         @keydown.escape="emit('close')"
@@ -241,8 +245,9 @@ function resetContact() {
 
             <form v-else class="space-y-3" @submit.prevent="submitForm">
               <div>
-                <label class="mb-1 block text-xs font-medium text-ctp-subtext1">Category</label>
+                <label for="support-category" class="mb-1 block text-xs font-medium text-ctp-subtext1">Category</label>
                 <select
+                  id="support-category"
                   v-model="form.category"
                   class="h-8 w-full rounded-md border border-ctp-surface1 bg-ctp-base px-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
                 >
@@ -252,8 +257,9 @@ function resetContact() {
               </div>
 
               <div>
-                <label class="mb-1 block text-xs font-medium text-ctp-subtext1">Subject</label>
+                <label for="support-subject" class="mb-1 block text-xs font-medium text-ctp-subtext1">Subject</label>
                 <input
+                  id="support-subject"
                   v-model="form.subject"
                   type="text"
                   placeholder="Brief summary of your issue"
@@ -262,8 +268,9 @@ function resetContact() {
               </div>
 
               <div>
-                <label class="mb-1 block text-xs font-medium text-ctp-subtext1">Description</label>
+                <label for="support-description" class="mb-1 block text-xs font-medium text-ctp-subtext1">Description</label>
                 <textarea
+                  id="support-description"
                   v-model="form.description"
                   rows="5"
                   placeholder="Describe your issue in detail…"

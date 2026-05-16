@@ -145,11 +145,12 @@ async function discard() {
           </div>
         </template>
         <template v-else>
-          <label class="mb-1 block text-xs text-ctp-subtext0">From</label>
+          <label for="draft-from-local" class="mb-1 block text-xs text-ctp-subtext0">From</label>
           <div
             class="flex items-center rounded border border-ctp-surface1 bg-ctp-base focus-within:border-ctp-mauve"
           >
             <input
+              id="draft-from-local"
               v-model="localPart"
               type="text"
               placeholder="you"
@@ -158,6 +159,7 @@ async function discard() {
             <span class="shrink-0 text-xs text-ctp-subtext0">@</span>
             <select
               v-model="selectedDomain"
+              aria-label="Domain"
               class="shrink-0 bg-transparent py-1.5 pr-2 text-xs text-ctp-text focus:outline-none"
             >
               <option v-for="d in verifiedDomains" :key="d.id" :value="d.domain">
@@ -170,8 +172,9 @@ async function discard() {
 
       <!-- Subject -->
       <div class="mb-3">
-        <label class="mb-1 block text-xs text-ctp-subtext0">Subject</label>
+        <label for="draft-subject" class="mb-1 block text-xs text-ctp-subtext0">Subject</label>
         <input
+          id="draft-subject"
           v-model="subject"
           type="text"
           class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
@@ -181,7 +184,7 @@ async function discard() {
       <!-- Body: edit / preview tabs -->
       <div class="mb-3">
         <div class="mb-1 flex items-center gap-3">
-          <label class="text-xs text-ctp-subtext0">Body (markdown)</label>
+          <label for="draft-body" class="text-xs text-ctp-subtext0">Body (markdown)</label>
           <div class="ml-auto flex gap-1">
             <button
               class="rounded px-2 py-0.5 text-xs transition-colors"
@@ -211,6 +214,7 @@ async function discard() {
         <!-- Edit mode -->
         <textarea
           v-if="!showPreview"
+          id="draft-body"
           v-model="body"
           rows="8"
           placeholder="Write your reply in markdown…"
