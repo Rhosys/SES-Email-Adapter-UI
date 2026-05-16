@@ -139,8 +139,8 @@ an empty placeholder in production so the email still goes out).
 - [x] Implement Phase 9 — Settings
 - [x] Implement Phase 10 — Secondary screens
 - [x] Implement Phase 2 — Onboarding flow
-- [ ] Set up favicon and Open Graph meta tags
-- [ ] **CSP audit** — add `https://dns.google` to the Content-Security-Policy `connect-src`
+- [x] Set up favicon and Open Graph meta tags
+- [x] **CSP audit** — add `https://dns.google` to the Content-Security-Policy `connect-src`
       directive (used for client-side DNS verification in the onboarding domain step); also add a
       Playwright test that loads each view and asserts no CSP violations in the console, and that
       all domains referenced in the app's fetch/XHR calls are present in the CSP allowlist
