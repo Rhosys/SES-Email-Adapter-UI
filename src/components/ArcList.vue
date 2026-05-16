@@ -40,12 +40,14 @@ function handleSelectAll(event: Event) {
     </div>
 
     <!-- Arc rows -->
-    <ArcRow
-      v-for="arc in arcs"
-      :key="arc.id"
-      :arc="arc"
-      :selected="selectedIds.has(arc.id)"
-      @toggle-select="emit('toggle-select', $event)"
-    />
+    <TransitionGroup name="list" tag="div" class="relative">
+      <ArcRow
+        v-for="arc in arcs"
+        :key="arc.id"
+        :arc="arc"
+        :selected="selectedIds.has(arc.id)"
+        @toggle-select="emit('toggle-select', $event)"
+      />
+    </TransitionGroup>
   </div>
 </template>

@@ -57,24 +57,40 @@ const CREATION_MSGS = [
 ]
 const creatingAccount = ref(true)
 const creationMsgIdx = ref(0)
+const creationRetryMsg = ref('')
 let msgInterval: ReturnType<typeof setInterval> | null = null
 
 async function createAndAdvance() {
   creatingAccount.value = true
+  creationRetryMsg.value = ''
   msgInterval = setInterval(() => {
     creationMsgIdx.value = (creationMsgIdx.value + 1) % CREATION_MSGS.length
   }, 700)
 
-  await Promise.all([
-    (async () => {
-      if (!accountStore.fetched) await accountStore.fetchAccount()
-      if (!accountStore.accountId) await accountStore.createAccount('')
-    })(),
-    new Promise<void>((res) => setTimeout(res, 2000)),
-  ])
+  // Minimum display time for UX polish
+  await new Promise<void>((res) => setTimeout(res, 2000))
+
+  // Fetch existing accounts once
+  if (!accountStore.fetched) await accountStore.fetchAccount()
+
+  // Retry loop — keep trying until we have an account
+  let retryDelay = 3_000
+  while (!accountStore.accountId) {
+    const ok = await accountStore.createAccount('')
+    if (ok) break
+
+    creationRetryMsg.value =
+      'Lots of spirits attempting to flow at the moment — will take a bit more time…'
+    await new Promise<void>((res) => setTimeout(res, retryDelay))
+    retryDelay = Math.min(retryDelay * 1.5, 15_000)
+    // Re-fetch in case the account was created server-side but the response was lost
+    accountStore.fetched = false
+    await accountStore.fetchAccount()
+  }
 
   if (msgInterval) { clearInterval(msgInterval); msgInterval = null }
   creatingAccount.value = false
+  creationRetryMsg.value = ''
 
   // Restore progress
   const ob = accountStore.account?.onboarding
@@ -277,7 +293,12 @@ onUnmounted(() => {
         <p class="text-base font-medium text-ctp-text transition-all">
           {{ CREATION_MSGS[creationMsgIdx] }}
         </p>
-        <p class="mt-2 text-xs text-ctp-subtext0">This only takes a moment</p>
+        <Transition name="fade" mode="out-in">
+          <p v-if="creationRetryMsg" class="mt-3 max-w-xs text-sm text-ctp-subtext1">
+            {{ creationRetryMsg }}
+          </p>
+          <p v-else class="mt-2 text-xs text-ctp-subtext0">This only takes a moment</p>
+        </Transition>
       </section>
 
       <!-- ── Step 2: Domain ─────────────────────────────────────────────────── -->

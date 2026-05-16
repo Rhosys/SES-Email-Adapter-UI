@@ -147,6 +147,7 @@ function resetContact() {
 
     <!-- Panel -->
     <Transition name="panel">
+      <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -->
       <div
         v-if="open"
         ref="panelEl"

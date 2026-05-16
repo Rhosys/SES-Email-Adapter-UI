@@ -108,7 +108,7 @@ async function loadMore() {
               {{ store.quarantineVisible.length }}
             </span>
           </div>
-          <div role="list" aria-label="Emails needing review">
+          <TransitionGroup name="list" tag="div" role="list" aria-label="Emails needing review" class="relative">
             <QuarantineRow
               v-for="signal in store.quarantineVisible"
               :key="signal.id"
@@ -118,7 +118,7 @@ async function loadMore() {
               @reject="onReject"
               @reject-for-alias="onRejectForAlias"
             />
-          </div>
+          </TransitionGroup>
         </section>
 
         <!-- Silently held (quarantine_hidden) -->
@@ -142,7 +142,7 @@ async function loadMore() {
             These arrived from senders whose domain matched a block rule. They were accepted
             silently so the sender doesn't know they were filtered.
           </p>
-          <div role="list" aria-label="Silently held emails">
+          <TransitionGroup name="list" tag="div" role="list" aria-label="Silently held emails" class="relative">
             <QuarantineRow
               v-for="signal in store.quarantineHidden"
               :key="signal.id"
@@ -152,7 +152,7 @@ async function loadMore() {
               @reject="onReject"
               @reject-for-alias="onRejectForAlias"
             />
-          </div>
+          </TransitionGroup>
         </section>
 
         <!-- Load more — fetches remaining visible pages first, then hidden -->

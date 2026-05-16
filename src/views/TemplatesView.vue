@@ -367,8 +367,9 @@ onMounted(async () => {
 
         <!-- Name -->
         <div>
-          <label class="mb-1 block text-xs text-ctp-subtext0">Template name</label>
+          <label for="template-name" class="mb-1 block text-xs text-ctp-subtext0">Template name</label>
           <input
+            id="template-name"
             v-model="draftName"
             type="text"
             placeholder="e.g. Order confirmation reply"
@@ -394,11 +395,12 @@ onMounted(async () => {
 
         <!-- Subject -->
         <div>
-          <label class="mb-1 block text-xs text-ctp-subtext0">
+          <label for="template-subject" class="mb-1 block text-xs text-ctp-subtext0">
             Subject
             <span class="text-ctp-surface2 font-normal"> — type <code class="font-mono">&#123;&#123;&#125;&#125;</code> for variables</span>
           </label>
           <input
+            id="template-subject"
             v-model="draftSubject"
             type="text"
             placeholder="Re: {{sender.name}}'s enquiry"
@@ -412,7 +414,7 @@ onMounted(async () => {
         <!-- Body with edit/preview tabs -->
         <div>
           <div class="mb-1 flex items-center justify-between">
-            <label class="text-xs text-ctp-subtext0">
+            <label for="template-body" class="text-xs text-ctp-subtext0">
               Body
               <span class="font-normal text-ctp-surface2"> — type <code class="font-mono">&#123;&#123;&#125;&#125;</code> for variables</span>
             </label>
@@ -438,6 +440,7 @@ onMounted(async () => {
 
           <textarea
             v-if="!showPreview"
+            id="template-body"
             v-model="draftBody"
             rows="10"
             placeholder="Hi {{sender.name}},&#10;&#10;Thanks for reaching out. {{fn.greeting}}&#10;&#10;Best regards"
@@ -523,8 +526,10 @@ onMounted(async () => {
               <div class="mb-2 flex items-center gap-2">
                 <code class="text-xs text-ctp-subtext0">fn.</code>
                 <input
+                  :id="`fn-name-${idx}`"
                   :value="fn.name"
                   type="text"
+                  :aria-label="`Function name ${idx + 1}`"
                   placeholder="functionName"
                   class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 font-mono text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
                   @input="updateFnName(idx, ($event.target as HTMLInputElement).value)"
@@ -580,10 +585,13 @@ onMounted(async () => {
         class="fixed z-50 min-w-56 overflow-hidden rounded-lg border border-ctp-surface1 bg-ctp-base shadow-xl"
         :style="{ left: ac.popupLeft.value + 'px', top: ac.popupTop.value + 'px' }"
       >
-        <ul>
+        <ul role="listbox">
           <li
             v-for="(c, i) in ac.filtered.value"
             :key="c.token"
+            role="option"
+            tabindex="-1"
+            :aria-selected="i === ac.selectedIdx.value"
             class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs"
             :class="i === ac.selectedIdx.value ? 'bg-ctp-surface1 text-ctp-text' : 'text-ctp-subtext1 hover:bg-ctp-surface0'"
             @mousedown.prevent="ac.accept(c)"

@@ -321,7 +321,7 @@ watch(signalAction, (val) => {
       <!-- Conditions -->
       <section class="mb-6">
         <div class="mb-2 flex items-center justify-between">
-          <label class="text-xs font-medium text-ctp-subtext0">Conditions</label>
+          <span class="text-xs font-medium text-ctp-subtext0">Conditions</span>
           <button class="text-xs text-ctp-mauve hover:underline" @click="addGroup">
             + Add group
           </button>
@@ -442,7 +442,7 @@ watch(signalAction, (val) => {
 
       <!-- Actions -->
       <section class="mb-6">
-        <label class="mb-2 block text-xs font-medium text-ctp-subtext0">Actions</label>
+        <span class="mb-2 block text-xs font-medium text-ctp-subtext0">Actions</span>
 
         <div class="space-y-2">
           <div
@@ -459,6 +459,7 @@ watch(signalAction, (val) => {
             <template v-if="act.type === 'assign_label'">
               <select
                 :value="act.labelId ?? ''"
+                aria-label="Label"
                 class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                 @change="updateAction(idx, { labelId: ($event.target as HTMLSelectElement).value })"
               >
@@ -472,6 +473,7 @@ watch(signalAction, (val) => {
             <template v-else-if="act.type === 'assign_workflow'">
               <select
                 :value="act.workflow ?? ''"
+                aria-label="Workflow"
                 class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                 @change="
                   updateAction(idx, {
@@ -487,6 +489,7 @@ watch(signalAction, (val) => {
             <template v-else-if="act.type === 'set_urgency'">
               <select
                 :value="act.urgency ?? ''"
+                aria-label="Urgency level"
                 class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                 @change="
                   updateAction(idx, {
@@ -503,6 +506,7 @@ watch(signalAction, (val) => {
               <input
                 :value="act.forwardTo ?? ''"
                 type="email"
+                aria-label="Forward to address"
                 placeholder="forward@example.com"
                 class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
                 @input="updateAction(idx, { forwardTo: ($event.target as HTMLInputElement).value })"
@@ -512,6 +516,7 @@ watch(signalAction, (val) => {
             <template v-else-if="act.type === 'auto_reply' || act.type === 'auto_draft'">
               <select
                 :value="act.templateId ?? ''"
+                aria-label="Template"
                 class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                 @change="updateAction(idx, { templateId: ($event.target as HTMLSelectElement).value || undefined })"
               >
@@ -542,6 +547,7 @@ watch(signalAction, (val) => {
         <div v-if="addingAction" class="mt-2 flex items-center gap-2">
           <select
             v-model="actionTypeToAdd"
+            aria-label="Action type to add"
             class="flex-1 rounded border border-ctp-surface1 bg-ctp-mantle px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
           >
             <option v-for="m in ACTION_META" :key="m.type" :value="m.type">

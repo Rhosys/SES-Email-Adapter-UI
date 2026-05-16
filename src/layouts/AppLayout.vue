@@ -9,6 +9,7 @@ import type { Arc, Rule, EmailAddressConfig } from '@/types/server'
 import AppSidebar from '@/components/AppSidebar.vue'
 import SupportPanel from '@/components/SupportPanel.vue'
 import { useSupportPanel } from '@/composables/useSupportPanel'
+import { useRealtime } from '@/composables/useRealtime'
 
 const accountStore = useAccountStore()
 const labelsStore = useLabelsStore()
@@ -17,6 +18,7 @@ const router = useRouter()
 const route = useRoute()
 
 const { open: supportOpen } = useSupportPanel()
+useRealtime()
 
 const searchQuery = ref('')
 const inputFocused = ref(false)

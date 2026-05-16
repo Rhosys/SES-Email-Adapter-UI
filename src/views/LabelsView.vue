@@ -303,7 +303,7 @@ onMounted(async () => {
             Labels make it easy to group and filter arcs at a glance. Create one and start attaching it in rules.
           </p>
         </div>
-        <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
+        <TransitionGroup v-else name="list" tag="div" class="relative divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div
             v-for="label in labelsStore.items"
             :key="label.id"
@@ -325,7 +325,7 @@ onMounted(async () => {
               Delete
             </button>
           </div>
-        </div>
+        </TransitionGroup>
       </section>
 
       <!-- ── Views tab ──────────────────────────────────────────────────────── -->
@@ -423,7 +423,7 @@ onMounted(async () => {
             one click away from exactly what you need.
           </p>
         </div>
-        <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
+        <TransitionGroup v-else name="list" tag="div" class="relative divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div v-for="view in sortedViews" :key="view.id" class="flex items-center gap-3 px-4 py-3">
             <span class="shrink-0 text-base">{{ view.icon ?? '📋' }}</span>
             <div class="flex-1">
@@ -443,7 +443,7 @@ onMounted(async () => {
               Delete
             </button>
           </div>
-        </div>
+        </TransitionGroup>
       </section>
     </main>
   </div>

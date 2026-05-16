@@ -355,7 +355,7 @@ const TABS: { key: TabKey; label: string }[] = [
           </div>
         </div>
         <div>
-          <label class="mb-1 block text-xs font-medium text-ctp-subtext0">Account ID</label>
+          <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Account ID</span>
           <p class="font-mono text-xs text-ctp-subtext0">{{ accountStore.accountId }}</p>
         </div>
       </section>
@@ -373,6 +373,7 @@ const TABS: { key: TabKey; label: string }[] = [
           <input
             v-model="newAddress"
             type="email"
+            aria-label="New email address"
             placeholder="you@domain.com"
             class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           />
@@ -435,6 +436,7 @@ const TABS: { key: TabKey; label: string }[] = [
           <input
             v-model="newDomain"
             type="text"
+            aria-label="Domain name"
             placeholder="yourdomain.com"
             class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           />
@@ -532,6 +534,7 @@ const TABS: { key: TabKey; label: string }[] = [
           <input
             v-model="newForwardAddress"
             type="email"
+            aria-label="Forwarding address"
             placeholder="forward@example.com"
             class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           />
@@ -591,12 +594,14 @@ const TABS: { key: TabKey; label: string }[] = [
           <input
             v-model="inviteEmail"
             type="email"
+            aria-label="Invite email address"
             placeholder="colleague@example.com"
             class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           />
           <div class="flex flex-col gap-1">
             <select
               v-model="inviteRole"
+              aria-label="Role"
               class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
             >
               <option v-for="role in ROLES" :key="role" :value="role">{{ role }}</option>
@@ -641,6 +646,7 @@ const TABS: { key: TabKey; label: string }[] = [
             </div>
             <select
               :value="member.role"
+              :aria-label="`Role for ${member.userId}`"
               class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
               @change="
                 updateMemberRole(
@@ -698,7 +704,7 @@ const TABS: { key: TabKey; label: string }[] = [
               />
             </div>
             <div>
-              <label class="mb-1 block text-xs text-ctp-subtext0">Frequency</label>
+              <span class="mb-1 block text-xs text-ctp-subtext0">Frequency</span>
               <div class="flex gap-2">
                 <button
                   v-for="freq in ['instant', 'hourly', 'daily'] as const"

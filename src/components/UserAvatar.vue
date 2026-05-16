@@ -87,6 +87,7 @@ function copyUserId() {
 
 <template>
   <!-- ── Shared wrapper: handles hover stickiness and focusout ─────────────── -->
+  <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -->
   <div
     class="relative"
     role="group"
@@ -144,6 +145,7 @@ function copyUserId() {
     </button>
 
     <!-- ── Popup — v-show keeps the img in the DOM so it only loads once ─── -->
+    <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -->
     <div
       v-show="open"
       class="absolute z-50 w-72 overflow-hidden rounded-xl border border-ctp-surface1 bg-ctp-mantle shadow-xl"
@@ -153,6 +155,7 @@ function copyUserId() {
       @mouseenter="show"
       @mouseleave="scheduleHide"
       @focusin="show"
+      @focusout="scheduleHide"
     >
       <!-- Header: avatar + name + email -->
       <div class="flex items-center gap-3 bg-ctp-base px-4 py-3">

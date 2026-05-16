@@ -201,7 +201,7 @@ onMounted(async () => {
         v-else
         name="rule-row"
         tag="div"
-        class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+        class="relative divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
       >
         <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -- drag is a mouse enhancement; keyboard reorder uses the ▲/▼ buttons -->
         <div
@@ -288,6 +288,22 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.rule-row-enter-active {
+  transition: opacity 250ms ease, transform 250ms ease;
+}
+.rule-row-enter-from {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+.rule-row-leave-active {
+  transition: opacity 180ms ease;
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+.rule-row-leave-to {
+  opacity: 0;
+}
 .rule-row-move {
   transition: transform 250ms ease;
 }

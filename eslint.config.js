@@ -37,6 +37,8 @@ export default [
       'vue/first-attribute-linebreak': 'off',
       // autofocus on a page's primary input (search, first field) is acceptable per WCAG
       'vuejs-accessibility/no-autofocus': 'off',
+      // Standard HTML allows associating labels via `for`/`id` OR by wrapping; require either one
+      'vuejs-accessibility/label-has-for': ['error', { required: { some: ['nesting', 'id'] } }],
     },
   },
   {
