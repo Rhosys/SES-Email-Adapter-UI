@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { loginClient } from '@/lib/auth'
-import CopyInput from '@/components/CopyInput.vue'
 
 defineProps<{ sidebar?: boolean }>()
+
+const router = useRouter()
 
 interface Identity {
   userId?: string
@@ -16,6 +17,8 @@ interface Identity {
 
 const identity = ref<Identity | null>(null)
 const open = ref(false)
+const emailCopied = ref(false)
+const userIdCopied = ref(false)
 let closeTimer: ReturnType<typeof setTimeout> | null = null
 
 onMounted(() => {
@@ -59,6 +62,27 @@ function handleFocusout(e: FocusEvent) {
     open.value = false
   }
 }
+
+function navigateToProfile() {
+  open.value = false
+  void router.push('/profile')
+}
+
+function copyEmail() {
+  if (!email.value) return
+  void navigator.clipboard.writeText(email.value).then(() => {
+    emailCopied.value = true
+    setTimeout(() => { emailCopied.value = false }, 1500)
+  })
+}
+
+function copyUserId() {
+  if (!userId.value) return
+  void navigator.clipboard.writeText(userId.value).then(() => {
+    userIdCopied.value = true
+    setTimeout(() => { userIdCopied.value = false }, 1500)
+  })
+}
 </script>
 
 <template>
@@ -71,10 +95,11 @@ function handleFocusout(e: FocusEvent) {
     @focusout="handleFocusout"
   >
     <!-- ── Sidebar mode: full-width row ──────────────────────────────────── -->
-    <RouterLink
+    <button
       v-if="sidebar"
-      to="/profile"
+      type="button"
       class="flex w-full items-center gap-2.5 rounded-lg py-1.5 text-sm text-ctp-subtext1 transition-colors hover:bg-ctp-surface0/50 hover:text-ctp-text"
+      @click="navigateToProfile"
     >
       <span class="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full">
         <img
@@ -91,14 +116,15 @@ function handleFocusout(e: FocusEvent) {
           {{ initials }}
         </span>
       </span>
-      <span class="flex-1 truncate">{{ displayName ?? 'Profile' }}</span>
-    </RouterLink>
+      <span class="flex-1 truncate text-left">{{ displayName ?? 'Profile' }}</span>
+    </button>
 
     <!-- ── Compact mode: avatar circle ───────────────────────────────────── -->
-    <RouterLink
+    <button
       v-else
-      to="/profile"
+      type="button"
       class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full ring-2 ring-transparent transition-all hover:ring-ctp-mauve/50"
+      @click="navigateToProfile"
     >
       <img
         v-if="picture"
@@ -113,11 +139,11 @@ function handleFocusout(e: FocusEvent) {
       >
         {{ initials }}
       </span>
-    </RouterLink>
+    </button>
 
-    <!-- ── Popup (shared, positioned above in sidebar / below in compact) ── -->
+    <!-- ── Popup — v-show keeps the img in the DOM so it only loads once ─── -->
     <div
-      v-if="open"
+      v-show="open"
       class="absolute z-50 w-72 overflow-hidden rounded-xl border border-ctp-surface1 bg-ctp-mantle shadow-xl"
       :class="sidebar ? 'bottom-full left-0 mb-2' : 'right-0 top-full mt-2'"
       role="dialog"
@@ -125,7 +151,7 @@ function handleFocusout(e: FocusEvent) {
       @mouseenter="show"
       @mouseleave="scheduleHide"
     >
-      <!-- Header: avatar + name -->
+      <!-- Header: avatar + name + email -->
       <div class="flex items-center gap-3 bg-ctp-base px-4 py-3">
         <span class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-ctp-surface1">
           <img
@@ -152,28 +178,65 @@ function handleFocusout(e: FocusEvent) {
         </div>
       </div>
 
-      <!-- Body: copyable fields -->
-      <div class="space-y-3 px-4 py-3">
-        <div v-if="email">
-          <p class="mb-1 text-xs font-medium text-ctp-subtext0">Email</p>
-          <CopyInput :value="email" />
+      <!-- Body: copyable fields — plain text + clipboard icon, no input box -->
+      <div class="space-y-2 px-4 py-3">
+        <div v-if="email" class="flex items-center justify-between gap-2">
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-medium text-ctp-subtext0">Email</p>
+            <p class="truncate text-sm text-ctp-text">{{ email }}</p>
+          </div>
+          <button
+            type="button"
+            class="shrink-0 transition-colors"
+            :class="emailCopied ? 'text-ctp-green' : 'text-ctp-subtext0 hover:text-ctp-text'"
+            :title="emailCopied ? 'Copied!' : 'Copy email'"
+            @click.stop="copyEmail"
+          >
+            <!-- Checkmark when copied -->
+            <svg v-if="emailCopied" class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2.5 8.5l4 4 7-7"/>
+            </svg>
+            <!-- Clipboard (two stacked pages) when not copied -->
+            <svg v-else class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M5 2h7a1 1 0 011 1v9" stroke-linecap="round"/>
+              <rect x="2" y="4" width="9" height="10" rx="1"/>
+            </svg>
+          </button>
         </div>
-        <div v-if="userId">
-          <p class="mb-1 text-xs font-medium text-ctp-subtext0">User ID</p>
-          <CopyInput :value="userId" mono />
+
+        <div v-if="userId" class="flex items-center justify-between gap-2">
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-medium text-ctp-subtext0">User ID</p>
+            <p class="truncate font-mono text-sm text-ctp-text">{{ userId }}</p>
+          </div>
+          <button
+            type="button"
+            class="shrink-0 transition-colors"
+            :class="userIdCopied ? 'text-ctp-green' : 'text-ctp-subtext0 hover:text-ctp-text'"
+            :title="userIdCopied ? 'Copied!' : 'Copy user ID'"
+            @click.stop="copyUserId"
+          >
+            <svg v-if="userIdCopied" class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2.5 8.5l4 4 7-7"/>
+            </svg>
+            <svg v-else class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M5 2h7a1 1 0 011 1v9" stroke-linecap="round"/>
+              <rect x="2" y="4" width="9" height="10" rx="1"/>
+            </svg>
+          </button>
         </div>
       </div>
 
-      <!-- Footer: navigate link -->
+      <!-- Footer: navigate to full profile -->
       <div class="border-t border-ctp-surface0 px-4 py-2.5">
-        <RouterLink
-          to="/profile"
-          class="flex items-center justify-between text-xs text-ctp-subtext0 transition-colors hover:text-ctp-mauve"
-          @click="open = false"
+        <button
+          type="button"
+          class="flex w-full items-center justify-between text-xs text-ctp-subtext0 transition-colors hover:text-ctp-mauve"
+          @click="navigateToProfile"
         >
           <span>View full profile</span>
           <span>→</span>
-        </RouterLink>
+        </button>
       </div>
     </div>
   </div>

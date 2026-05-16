@@ -39,7 +39,7 @@ import { isValidDomain } from '@/lib/validation'
 
 // ── Steps ────────────────────────────────────────────────────────────────────
 const TOTAL_STEPS = 3
-const STEP_LABELS = ['Account', 'Domain', 'Test email']
+const STEP_LABELS = ['Create Account', 'Configure Domain', 'Test Email']
 const step = ref(1)
 
 function goToStep(n: number) {
