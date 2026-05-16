@@ -36,6 +36,7 @@ function onKeydown(e: KeyboardEvent, index: number) {
       role="tab"
       :aria-selected="activeTab === tab.key"
       :aria-label="tab.description"
+      :title="tab.description"
       :tabindex="activeTab === tab.key ? 0 : -1"
       class="px-4 py-2.5 text-sm transition-colors"
       :class="
