@@ -50,7 +50,7 @@ function goToStep(n: number) {
 // ── Step 1: Account creation ─────────────────────────────────────────────────
 const CREATION_MSGS = [
   'Setting up your workspace…',
-  'Initialising your email adapter…',
+  'Initializing your email adapter…',
   'Configuring your environment…',
   'Warming up the servers…',
   'Almost ready…',
