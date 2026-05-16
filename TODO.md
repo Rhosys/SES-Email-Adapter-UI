@@ -317,26 +317,8 @@ auto_draft`
 
 ---
 
-- [ ] **Accessibility audit and remediation** — the app must be usable by keyboard-only users and
-      screen reader users, and should meet WCAG 2.1 AA:
-  - **Audit phase**: run axe-core (via `@axe-core/playwright`) against every route in the Playwright
-    suite and capture the violations report; also do a manual keyboard-tab walkthrough of each view
-  - **Keyboard navigation**: every interactive element (buttons, links, selects, custom toggles,
-    modal dialogs, drawer, drag-reorder handles) must be reachable and operable by keyboard alone;
-    focus must be trapped inside modals/drawers while open and restored on close
-  - **Focus indicators**: remove any `outline: none` overrides that aren't paired with a visible
-    custom focus ring; use `focus-visible:ring` Tailwind utilities consistently
-  - **ARIA semantics**: all icon-only buttons need `aria-label`; status badges need `role` or
-    `aria-label` if the colour is the only signal; live regions (`aria-live`) on loading states and
-    error banners so screen readers announce them without user action
-  - **Form labels**: every input must have an explicit `<label>` or `aria-label`; error messages
-    must be associated with their field via `aria-describedby`
-  - **Colour contrast**: verify all text/background combos in Catppuccin Mocha palette meet 4.5:1
-    (normal text) and 3:1 (large text / UI components); fix any failures
-  - **Motion**: wrap any CSS animations in `@media (prefers-reduced-motion: reduce)` so users who
-    opt out of motion see instant transitions
-  - **Playwright a11y regression tests**: add an `axe` snapshot test per route that fails the build
-    if new violations are introduced (zero-violation baseline after remediation)
+- [ ] **Accessibility** — audit the app against WCAG 2.1 AA and fix violations (keyboard nav,
+      focus indicators, ARIA labels, colour contrast, screen reader support)
 
 
       without redirecting to external documentation:
