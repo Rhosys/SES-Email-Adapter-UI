@@ -6,7 +6,7 @@
 
 - [x] **Toast / undo notification system** — global snackbar for destructive actions (archive, block, delete) with a 5-second undo window. No global toast system exists today; errors and successes are either silent or surfaced inline per-view only.
 
-- [ ] **Keyboard shortcuts for inbox navigation** — Gmail/Superhuman-style bindings: `j/k` move between arcs, `e` archive, `r` reply, `?` opens a shortcut reference overlay. Currently only Escape is wired anywhere; power users can't navigate at speed without a mouse.
+- [x] **Keyboard shortcuts for inbox navigation** — Gmail/Superhuman-style bindings: `j/k` move between arcs, `e` archive, `r` reply, `?` opens a shortcut reference overlay. Currently only Escape is wired anywhere; power users can't navigate at speed without a mouse.
 
 - [ ] **Browser push notifications** — the SharedWorker already holds a live WSS connection. Hook `Notification.requestPermission()` into realtime events so high-urgency arcs surface as desktop alerts when the tab is in the background. Respect the existing notification-frequency preference from Settings.
 
