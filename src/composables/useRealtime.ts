@@ -1,6 +1,7 @@
 import { watch } from 'vue'
 import { useAccountStore } from '@/stores/account'
 import { useArcsStore } from '@/stores/arcs'
+import { useSignalsStore } from '@/stores/signals'
 import { loginClient } from '@/lib/auth'
 import type { ArcUrgency } from '@/types/server'
 import type { RealtimeEvent, SignalCreatedEvent } from '@/types/realtime'
@@ -37,15 +38,26 @@ function fireNotification(event: SignalCreatedEvent) {
 export function useRealtime() {
   const accountStore = useAccountStore()
   const arcsStore = useArcsStore()
+  const signalsStore = useSignalsStore()
 
   function handleEvent(event: RealtimeEvent) {
     switch (event.type) {
       case 'signal:created':
-        void arcsStore.fetchArcs(true)
+        // Update the arc in the inbox list
+        void arcsStore.refreshArc(event.arcId)
+        // If the detail view for this arc is open, pull the updated arc + its signals
+        if (signalsStore.arc?.id === event.arcId) {
+          void signalsStore.fetchAll(event.arcId)
+        }
         fireNotification(event)
         break
       case 'arc:updated':
-        void arcsStore.fetchArcs(true)
+        // Update just this arc in the inbox list
+        void arcsStore.refreshArc(event.arcId)
+        // If the detail view for this arc is open, refresh it too
+        if (signalsStore.arc?.id === event.arcId) {
+          void signalsStore.fetchAll(event.arcId)
+        }
         break
     }
   }
