@@ -127,6 +127,34 @@ jobs:
           VITE_AUTHRESS_LOGIN_URL: https://login.rhosys.cloud
           VITE_AUTHRESS_APPLICATION_ID: app_2EAWGEdtzaeCj7b45DsDtt
 
+      # ── Bundle size check (advisory — never fails the build) ───────────────
+
+      - name: Bundle size check (advisory)
+        continue-on-error: true
+        run: |
+          WARN_CHUNK_KB=400
+          WARN_TOTAL_KB=1000
+          total=0
+          warned=false
+          while IFS= read -r -d '' f; do
+            size=$(wc -c < "$f")
+            kb=$((size / 1024))
+            total=$((total + size))
+            if [ "$kb" -gt "$WARN_CHUNK_KB" ]; then
+              echo "::warning::Large chunk: $(basename "$f") is ${kb} KB (limit ${WARN_CHUNK_KB} KB)"
+              warned=true
+            fi
+          done < <(find dist/assets -name "*.js" -print0)
+          total_kb=$((total / 1024))
+          chunk_count=$(find dist/assets -name "*.js" | wc -l)
+          echo "Total JS: ${total_kb} KB across ${chunk_count} chunks"
+          if [ "$total_kb" -gt "$WARN_TOTAL_KB" ]; then
+            echo "::warning::Total JS bundle is ${total_kb} KB (limit ${WARN_TOTAL_KB} KB)"
+            warned=true
+          fi
+          [ "$warned" = "true" ] && echo "::notice::Review bundle size warnings above before merging." || echo "All chunks within size limits."
+        shell: bash
+
       # ── Deploy to S3 ────────────────────────────────────────────────────────
 
       - name: Publish website to S3
