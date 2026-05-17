@@ -1,37 +1,37 @@
 import { ref } from 'vue'
 
-const coachActive = ref(false)
-const armed = ref(false)
-let armTimer: ReturnType<typeof setTimeout> | null = null
+const coachVisible = ref(false)
+const countdownRunning = ref(false)
+let arcViewCountdown: ReturnType<typeof setTimeout> | null = null
 
 export function useOnboardingCoach() {
-  function arm() {
-    if (armed.value || coachActive.value) return
-    armed.value = true
-    armTimer = setTimeout(() => {
-      armTimer = null
-      coachActive.value = true
+  function startArcViewCountdown() {
+    if (countdownRunning.value || coachVisible.value) return
+    countdownRunning.value = true
+    arcViewCountdown = setTimeout(() => {
+      arcViewCountdown = null
+      coachVisible.value = true
     }, 20_000)
   }
 
-  function trigger() {
-    if (coachActive.value) return
-    if (armTimer) {
-      clearTimeout(armTimer)
-      armTimer = null
+  function showCoachNow() {
+    if (coachVisible.value) return
+    if (arcViewCountdown) {
+      clearTimeout(arcViewCountdown)
+      arcViewCountdown = null
     }
-    armed.value = false
-    coachActive.value = true
+    countdownRunning.value = false
+    coachVisible.value = true
   }
 
-  function dismissCoach() {
-    coachActive.value = false
-    armed.value = false
-    if (armTimer) {
-      clearTimeout(armTimer)
-      armTimer = null
+  function hideCoach() {
+    coachVisible.value = false
+    countdownRunning.value = false
+    if (arcViewCountdown) {
+      clearTimeout(arcViewCountdown)
+      arcViewCountdown = null
     }
   }
 
-  return { coachActive, armed, arm, trigger, dismissCoach }
+  return { coachVisible, countdownRunning, startArcViewCountdown, showCoachNow, hideCoach }
 }

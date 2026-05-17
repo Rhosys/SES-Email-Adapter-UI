@@ -7,7 +7,7 @@ import { api } from '@/lib/api'
 
 const accountStore = useAccountStore()
 const { startTour } = useFeatureTour()
-const { dismissCoach } = useOnboardingCoach()
+const { hideCoach } = useOnboardingCoach()
 
 type Step = 'notifications' | 'tour'
 const step = ref<Step>('notifications')
@@ -66,7 +66,7 @@ async function startTourAndClose() {
   completing.value = true
   await persist()
   completing.value = false
-  dismissCoach()
+  hideCoach()
   startTour()
 }
 
@@ -74,7 +74,7 @@ async function skipTour() {
   completing.value = true
   await persist()
   completing.value = false
-  dismissCoach()
+  hideCoach()
 }
 </script>
 

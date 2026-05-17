@@ -16,7 +16,7 @@ const route = useRoute()
 const router = useRouter()
 const accountStore = useAccountStore()
 const arcsStore = useArcsStore()
-const { armed, arm, trigger } = useOnboardingCoach()
+const { countdownRunning, startArcViewCountdown, showCoachNow } = useOnboardingCoach()
 
 useRelativeTime()
 
@@ -33,13 +33,13 @@ onMounted(async () => {
   if (tab && (VALID_TABS as readonly string[]).includes(tab)) arcsStore.setTab(tab)
   await accountStore.fetchAccount()
   await arcsStore.fetchArcs(true)
-  // If armed (timer was started when user left for arc-detail), fire now
-  if (coachShouldRun() && armed.value) trigger()
+  // If the countdown was started when user left for arc-detail, show now that they're back
+  if (coachShouldRun() && countdownRunning.value) showCoachNow()
 })
 
 onUnmounted(() => {
-  // User leaving inbox (most likely to view an arc) — start the 20s timer
-  if (coachShouldRun()) arm()
+  // User leaving inbox (most likely to view an arc) — start the 20s countdown
+  if (coachShouldRun()) startArcViewCountdown()
 })
 
 function handleTabChange(tab: TabKey) {

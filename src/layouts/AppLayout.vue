@@ -24,7 +24,7 @@ const route = useRoute()
 
 const { open: supportOpen } = useSupportPanel()
 const { startTour } = useFeatureTour()
-const { coachActive } = useOnboardingCoach()
+const { coachVisible } = useOnboardingCoach()
 useRealtime()
 
 const searchQuery = ref('')
@@ -476,5 +476,5 @@ onMounted(async () => {
   <SupportPanel :open="supportOpen" @close="supportOpen = false" />
   <ToastStack />
   <FeatureTour />
-  <OnboardingCoach v-if="coachActive" />
+  <OnboardingCoach v-if="coachVisible" />
 </template>
