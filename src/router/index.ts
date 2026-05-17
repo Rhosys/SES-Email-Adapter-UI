@@ -169,8 +169,13 @@ router.beforeEach(async (to) => {
     await accountStore.fetchAccount()
   }
 
-  // Redirect to onboarding if no account exists or onboarding hasn't been completed
-  if (!accountStore.accountId || !accountStore.account?.onboarding?.completed) {
+  // Redirect to onboarding if no account exists or onboarding hasn't been completed.
+  // Profile and billing are exempt — users can navigate there any time they're authenticated.
+  const exemptFromOnboardingRedirect = new Set(['profile', 'billing'])
+  if (
+    !exemptFromOnboardingRedirect.has(String(to.name)) &&
+    (!accountStore.accountId || !accountStore.account?.onboarding?.completed)
+  ) {
     return { name: 'onboarding' }
   }
   return true
