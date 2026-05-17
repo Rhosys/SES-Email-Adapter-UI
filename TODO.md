@@ -16,21 +16,29 @@
 
 - [x] **Error tracking integration** — PostHog + relay logger (`src/lib/logger.ts`). Vue error handler, unhandled promise rejections, and router errors all flow to the logger. Session flushed on `beforeunload`. Set `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` env vars to enable PostHog in production.
 
-- [ ] **Bundle-size budget in CI** — `vite build` already prints chunk sizes. Add a build step that fails if any chunk regresses beyond a defined limit, catching accidental heavy imports before they ship.
-
 - [x] **Axe-core automated a11y tests (baseline)** — WCAG 2.x AA audit on the 6 main routes (`/`, `/search`, `/quarantine`, `/labels`, `/rules`, `/settings`) in `tests/e2e/a11y.test.ts`.
-
-- [ ] **Axe-core — extend to full route list** — once views are stable, add: `/onboarding`, `/invite`, `/billing`, `/profile`, `/rules/new`, `/rules/:id`, `/arcs/:id`, `/templates`, `/audit-log`, `/terms`, `/privacy`. Also consider adding `wcag21a`, `wcag21aa`, `best-practice` tags on top of the current `wcag2a`/`wcag2aa` set.
-
-- [ ] **Test coverage backfill** — the following have no tests at all:
-  - Stores: `templates`, `theme`, `account`, `signals`, `views`
-  - Views: `SettingsView`, `TemplatesView`, `OnboardingView`, `QuarantineView`, `ArcDetailView`
 
 ### Extensibility & integrations
 
 - [ ] **Webhooks UI in Settings** — outbound webhook subscriptions so users can pipe arc events into Slack, Discord, or Linear without writing custom code. New tab in the Settings view. Requires backend (see Backend TODOs — Webhooks).
 
 - [ ] **API keys management** — list, create (with one-time secret reveal), and revoke keys. New tab in Settings or Profile. Requires backend (see Backend TODOs — API keys).
+
+---
+
+## V2 — Blocked pending app release
+
+These are solid ideas but intentionally deferred until V1 is shipped and in users' hands.
+
+- [ ] **Bundle-size budget in CI** — harden the existing advisory bundle-size check into a hard build failure with defined chunk and total KB limits.
+
+- [ ] **Axe-core — extend to full route list** — extend `tests/e2e/a11y.test.ts` to cover: `/onboarding`, `/invite`, `/billing`, `/profile`, `/rules/new`, `/rules/:id`, `/arcs/:id`, `/templates`, `/audit-log`, `/terms`, `/privacy`. Add `wcag21a`, `wcag21aa`, `best-practice` tags.
+
+- [ ] **Test coverage backfill** — the following have no tests at all:
+  - Stores: `templates`, `theme`, `account`, `signals`, `views`
+  - Views: `SettingsView`, `TemplatesView`, `OnboardingView`, `QuarantineView`, `ArcDetailView`
+
+- [ ] **Modular component system + LLM-composable layouts** — decompose every view into a registry of self-describing, slot-composable components so that an LLM can produce a valid layout tree for any view and users can save a custom layout per view.
 
 ### Onboarding & engagement
 
@@ -404,88 +412,7 @@ auto_draft`
   - This screen is user-scoped (not account/org scoped) — all calls go to the identity provider via `@authress/login` SDK methods, not to the `ses-email-adapter` backend
   - Extend the existing `/profile` view; keep `/settings` strictly org-scoped
 
-- [ ] **Modular component system + LLM-composable layouts** — decompose every view into a registry of self-describing, slot-composable components so that an LLM can produce a valid layout tree for any view and users can save a custom layout per view:
-
-  ### Component registry & descriptor format
-  - Every leaf UI component (arc row, signal card, stat chip, filter bar, label chip, DNS record row, etc.) must be registered in a central `src/components/registry.ts` with a machine-readable descriptor:
-    ```ts
-    export interface ComponentDescriptor {
-      id: string // e.g. 'arc-row', 'signal-card', 'stat-chip'
-      displayName: string
-      description: string // plain-English purpose, consumed by LLM prompts
-      props: PropDescriptor[] // name, type, required, default, enum values
-      slots?: string[] // named slots the component exposes
-      accepts?: string[] // component IDs that can be placed in its slots
-    }
-    ```
-  - Components declare their own descriptor via a `defineComponentMeta()` helper so the registry is always in sync with the component file — no separate manifest to maintain
-  - Serve `public/component-registry.json` (generated at build time from the registry) so an LLM running entirely in the browser can read the available components without any server round-trip
-
-  ### Layout schema
-  - Each view has exactly one layout. A layout is a serialisable tree of component instances:
-    ```ts
-    export interface LayoutNode {
-      componentId: string // must match a registered descriptor ID
-      props?: Record<string, unknown>
-      slots?: Record<string, LayoutNode[]> // named slot → child nodes
-    }
-    export interface ViewLayout {
-      viewId: string // 'system:inbox' | 'system:all' | 'system:quarantine' | SavedView.id
-      nodes: LayoutNode[] // top-level component tree
-      updatedAt: string
-    }
-    ```
-  - Validate every `LayoutNode` against the registry before rendering (unknown `componentId` → fallback placeholder, type-mismatched props → stripped with console warning)
-  - Add `ViewLayout` and `LayoutNode` to `src/types/server.ts`
-
-  ### LLM layout suggestion flow (browser-only)
-  - "Customise this view" button opens a prompt textarea: user describes the layout they want in plain English
-  - The browser fetches `public/component-registry.json` and passes it alongside the prompt to the browser's built-in LLM (`window.LanguageModel ?? window.ai?.languageModel`); **if no browser LLM is available the feature is not shown** — there is no server-side generation fallback
-  - The LLM is prompted to return a JSON `LayoutNode[]` tree; the frontend validates it against the registry and renders a live preview
-  - User can accept (saves via `PUT .../layout`) or cancel
-  - If the suggested layout references unknown components, surface a diff UI showing what was ignored
-
-  ### Layout persistence API (backend TODOs)
-
-  > **Sync required:** copy these TODOs into `rhosys/ses-email-adapter` (`TODO.md`) under a "Modular layout persistence" section.
-  - Each view has exactly one layout record; use PUT (upsert) to create or replace it:
-    - `GET  /accounts/:id/views/:viewId/layout` → `ViewLayout` (404 if not yet customised — frontend falls back to hard-coded render)
-    - `PUT  /accounts/:id/views/:viewId/layout` → upsert layout → `ViewLayout`
-    - `DELETE /accounts/:id/views/:viewId/layout` → 204, resets view to the hard-coded default
-  - No backend involvement in generation — the backend stores and returns the `nodes: LayoutNode[]` tree as an opaque JSON blob; no validation of component IDs server-side (that is the frontend's job)
-  - **Hard-coded system views** (`inbox`, `all`, `quarantine`) must become first-class view records in the DB so they can own a layout; seed them as undeletable rows:
-    - `{ id: 'system:inbox',      name: 'Inbox',      type: 'system', filter: { status: 'active' } }`
-    - `{ id: 'system:all',        name: 'All',        type: 'system', filter: {} }`
-    - `{ id: 'system:quarantine', name: 'Quarantine', type: 'system', filter: { status: 'quarantined' } }`
-  - `DELETE` on a system view record must return 403; `DELETE` on its layout is allowed (resets to hard-coded render)
-
-  ### Frontend rendering engine
-  - `<DynamicLayout :nodes="layout.nodes" />` — recursive renderer that looks up each `componentId` in the registry, resolves the Vue component, passes `props`, and fills named slots with child `<DynamicLayout>` calls
-  - Wrap in an `<ErrorBoundary>` so a bad node crashes only its subtree, not the whole view
-  - If no layout exists for a view (404 from the API), fall back to the hard-coded Vue template (zero regression for current users)
-  - "Customise" / "Reset to default" buttons in the view header
-
-  ### Decomposition work (prerequisite)
-  - Audit every view and extract repeated or independently useful markup into registered components; target components include (non-exhaustive):
-    - `ArcRow`, `ArcRowCompact`, `SignalCard`, `SignalCardCollapsed`
-    - `LabelChip`, `ActionBadge`, `UrgencyStripe`, `WorkflowIcon`
-    - `FilterBar`, `SenderFilter`, `DateRangeFilter`, `StatusTabBar`
-    - `StatChip`, `PaginationBar`, `EmptyState`, `LoadingSpinner`
-    - `DnsRecordRow`, `TeamMemberRow`, `AuditEventRow`
-    - `RuleConditionBuilder`, `RuleActionSelector`
-  - Each extracted component must have a `defineComponentMeta()` call and appear in the registry before the layout engine can use it
-
-- [ ] **AI-powered "code" rule action** — let users describe rule logic in plain language; the browser's built-in LLM generates the JavaScript predicate that is stored and executed at match time. **If the browser has no built-in LLM the feature is not shown — there is no server-side generation fallback.**
-  - **New action type:** add `'code'` to `RuleAction` union; add `code?: string` (generated JS predicate) to `Rule`, `CreateRuleBody`, and `UpdateRuleBody` — the human-language prompt is a transient frontend-only value, never persisted
-  - **UI in `RuleEditorView.vue`:** when action = `'code'`, show a textarea for the natural-language prompt and a "Generate" button; show the generated JS in a read-only code block for review before saving; if `window.LanguageModel ?? window.ai?.languageModel` is absent, hide the action option entirely
-  - **Browser LLM check:** `window.LanguageModel ?? window.ai?.languageModel` (Chrome 127+ Gemini Nano); the same API surface works on Chrome for Android / Samsung Internet so no UA sniffing is needed — the capability check is sufficient
-  - **Generated JS predicate shape:** a single-argument arrow function `(signal) => boolean`; example: `(signal) => signal.from.address.endsWith('@example.com') && signal.subject.includes('invoice')`
-  - **Security — sandbox generated code before execution:** NEVER `eval()` or `new Function()` in the main thread; run inside a `Worker` with a strict `postMessage` interface; document this constraint in a code comment
-  - **Auto-label:** after saving a code rule, automatically apply (or create) an `ai-generated` system label on the rule so it is visually distinct in the Rules list
-  - **Backend TODOs for this feature:**
-    - Add `code?: string` to the Rule schema in the DB and API response (no `prompt` field — that is frontend-only)
-    - Validate/sandbox the `code` field server-side before storing (parse to AST, reject unsafe nodes)
-    - Ensure the rule executor runs `code` predicates in an isolated VM context (not raw `eval`)
+- [ ] **AI-powered "code" rule action** — user describes a filter rule in plain English; the browser's built-in LLM (`window.LanguageModel`, Chrome 127+ Gemini Nano) generates a `(signal) => boolean` JS predicate shown for review before saving. Hidden if no browser LLM is available. Requires backend to sandbox and execute the predicate server-side.
 
 ---
 
