@@ -1,11 +1,9 @@
 import { watch } from 'vue'
 import { useAccountStore } from '@/stores/account'
 import { useArcsStore } from '@/stores/arcs'
-import { useQuarantineStore } from '@/stores/quarantine'
-import { useRulesStore } from '@/stores/rules'
 import { loginClient } from '@/lib/auth'
 import type { ArcUrgency } from '@/types/server'
-import type { RealtimeEvent } from '@/types/realtime'
+import type { RealtimeEvent, SignalCreatedEvent } from '@/types/realtime'
 
 // Module-level singleton — one SharedWorker port for the whole page lifetime.
 let worker: SharedWorker | null = null
@@ -21,22 +19,13 @@ function notifTitle(urgency: ArcUrgency): string {
   return 'New email'
 }
 
-function fireNotification(event: RealtimeEvent) {
+function fireNotification(event: SignalCreatedEvent) {
   if (typeof window === 'undefined') return
   if (!('Notification' in window) || Notification.permission !== 'granted') return
-
-  // Only signal:created and arc:created carry enough info for a useful notification
-  if (event.type !== 'signal:created' && event.type !== 'arc:created') return
   if (!shouldNotify(event.urgency)) return
-
-  const body =
-    event.type === 'signal:created'
-      ? `From: ${event.from.name ?? event.from.address}\n${event.subject}`
-      : event.summary
-
   try {
     new Notification(notifTitle(event.urgency), {
-      body,
+      body: `From: ${event.from.name ?? event.from.address}\n${event.subject}`,
       icon: '/favicon.ico',
       tag: event.arcId, // collapses duplicate OS notifications for the same arc
     })
@@ -48,26 +37,15 @@ function fireNotification(event: RealtimeEvent) {
 export function useRealtime() {
   const accountStore = useAccountStore()
   const arcsStore = useArcsStore()
-  const quarantineStore = useQuarantineStore()
-  const rulesStore = useRulesStore()
 
   function handleEvent(event: RealtimeEvent) {
     switch (event.type) {
-      case 'arc:created':
-      case 'arc:updated':
-      case 'arc:archived':
       case 'signal:created':
-      case 'signal:updated':
         void arcsStore.fetchArcs(true)
         fireNotification(event)
         break
-      case 'quarantine:created':
-        void quarantineStore.fetchSignals(true)
-        break
-      case 'rule:created':
-      case 'rule:updated':
-      case 'rule:deleted':
-        void rulesStore.fetchRules()
+      case 'arc:updated':
+        void arcsStore.fetchArcs(true)
         break
     }
   }

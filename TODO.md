@@ -677,6 +677,20 @@ endpoints being available.
 - `GET/POST/DELETE /accounts/:id/forwarding-addresses`
 - `GET/POST/PATCH/DELETE /accounts/:id/users`
 
+### Backend TODOs — WebSocket realtime events
+
+Frontend schema: `src/types/realtime.ts`. Backend broadcasts on
+`wss://…/accounts/:accountId?token=…`. Only two events are needed:
+
+- [ ] **`signal:created`** — broadcast when a new inbound signal is processed and
+  attached to an arc. Payload: `{ arcId, signalId, urgency, from: { address, name? }, subject }`.
+  The frontend uses `urgency` to decide whether to fire a browser push notification,
+  and refreshes the inbox list either way.
+
+- [ ] **`arc:updated`** — broadcast when any arc field changes (status, labels, summary,
+  urgency, etc.). Payload: `{ arcId }` only — the client re-fetches the full arc list.
+  No browser notification is fired for this event.
+
 ## Phase 10 — Secondary screens ✓ DONE
 
 - `/profile` — account name, ID, sign-out
