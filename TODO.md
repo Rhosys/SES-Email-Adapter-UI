@@ -36,6 +36,8 @@
 
 ### Onboarding & engagement
 
+- [ ] **Invite accept screen** — `/invite?inviteId=<id>` route that lets a newly invited team member accept their invitation. Should show the account name and inviter, confirm the user's identity, and call the accept-invite API endpoint. Redirect to the inbox (or onboarding if the user has no account yet) on success.
+
 - [ ] **First-run feature tour** — coachmark overlay (Shepherd.js or equivalent) triggered once after onboarding completes, highlighting key UI elements (rules, quarantine, labels, search). Permanently dismissible.
 
 - [ ] **"What's new" changelog badge** — show a dot badge on the help `?` button when there are unread changelog entries. Clears when the user opens the changelog. Surfaces feature announcements without email spam.
