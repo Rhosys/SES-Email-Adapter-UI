@@ -36,12 +36,16 @@ async function startDraft() {
   await signalsStore.createDraft(arcId.value)
 }
 
-function onDraftDiscard(signalId: string) {
-  signalsStore.removeSignal(signalId)
+function onDraftDiscard() {
+  void signalsStore.fetchAll(arcId.value)
 }
 
-function onDraftSent(signalId: string) {
-  signalsStore.removeSignal(signalId)
+function onDraftSent() {
+  void signalsStore.fetchAll(arcId.value)
+}
+
+function onSignalUndo() {
+  void signalsStore.fetchAll(arcId.value)
 }
 
 async function archive() {
@@ -156,10 +160,10 @@ async function loadMore() {
           <DraftSignalCard
             v-if="signal.status === 'draft'"
             :signal="signal"
-            @discard="onDraftDiscard(signal.id)"
-            @sent="onDraftSent(signal.id)"
+            @discard="onDraftDiscard"
+            @sent="onDraftSent"
           />
-          <SignalCard v-else :signal="signal" />
+          <SignalCard v-else :signal="signal" @undo="onSignalUndo" />
         </template>
       </div>
 

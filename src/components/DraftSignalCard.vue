@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { marked } from 'marked'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
-import { useToast, undoWindowMs } from '@/composables/useToast'
+import { useToast } from '@/composables/useToast'
 import type { Signal, Domain } from '@/types/server'
 
 const props = defineProps<{ signal: Signal }>()
@@ -98,17 +98,17 @@ async function send() {
     return
   }
 
-  const ms = undoWindowMs(body.value)
   sendState.value = 'cancellable'
 
   const id = deferAction(
     'Email sent',
     async () => {
+      // Toast expired — signal is now live. Parent re-fetches to show SignalCard with undo button.
       sendState.value = 'idle'
       toastId.value = null
       emit('sent')
     },
-    ms,
+    30_000,
     {
       submessage: `To: ${toLabel.value}`,
       undoLabel: 'Cancel send',
