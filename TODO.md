@@ -8,7 +8,7 @@
 
 - [x] **Keyboard shortcuts for inbox navigation** — Gmail/Superhuman-style bindings: `j/k` move between arcs, `e` archive, `r` reply, `?` opens a shortcut reference overlay. Currently only Escape is wired anywhere; power users can't navigate at speed without a mouse.
 
-- [ ] **Browser push notifications** — the SharedWorker already holds a live WSS connection. Hook `Notification.requestPermission()` into realtime events so high-urgency arcs surface as desktop alerts when the tab is in the background. Respect the existing notification-frequency preference from Settings.
+- [x] **Browser push notifications** — frontend fully implemented: `useRealtime.ts` fires `new Notification()` on `signal:created` events, filtered by urgency. Blocked on backend WebSocket implementation (see Backend TODOs — WebSocket realtime events).
 
 - [x] **Skeleton loaders** — every view shows plain `"Loading…"` text. Replace with layout-matching skeleton placeholders to reduce perceived load time.
 
@@ -26,13 +26,9 @@
 
 ### Extensibility & integrations
 
-- [ ] **Import / export for rules, templates, and labels** — JSON download and upload. Lets users back up their configuration, share rule sets, migrate between accounts, or version-control their setup in git.
+- [ ] **Webhooks UI in Settings** — outbound webhook subscriptions so users can pipe arc events into Slack, Discord, or Linear without writing custom code. New tab in the Settings view. Requires backend (see Backend TODOs — Webhooks).
 
-- [ ] **Webhooks UI in Settings** — outbound webhook subscriptions so users can pipe arc events into Slack, Discord, or Linear without writing custom code. New tab in the Settings view.
-
-- [ ] **API keys management** — for users who want to script against the API directly. List, create (with one-time secret reveal), and revoke keys. New tab in Settings or Profile.
-
-- [ ] **CSV export on audit log and quarantine** — for compliance reviews and incident investigation. Single button downloads a CSV of the currently visible rows.
+- [ ] **API keys management** — list, create (with one-time secret reveal), and revoke keys. New tab in Settings or Profile. Requires backend (see Backend TODOs — API keys).
 
 ### Onboarding & engagement
 
@@ -46,8 +42,6 @@
   - Add `invite` to `ROUTE_TITLES` in the router.
 
 - [x] **First-run feature tour** — coachmark overlay (Shepherd.js or equivalent) triggered once after onboarding completes, highlighting key UI elements (rules, quarantine, labels, search). Permanently dismissible.
-
-- [ ] **"What's new" changelog badge** — show a dot badge on the help `?` button when there are unread changelog entries. Clears when the user opens the changelog. Surfaces feature announcements without email spam.
 
 - [x] **Inbox-zero celebration** — small visual flourish (similar to the fireworks on the onboarding done screen) when the last arc in the inbox is archived. Cheap engagement moment.
 
@@ -676,6 +670,46 @@ endpoints being available.
 - `GET/POST /accounts/:id/domains`
 - `GET/POST/DELETE /accounts/:id/forwarding-addresses`
 - `GET/POST/PATCH/DELETE /accounts/:id/users`
+
+### Backend TODOs — Webhooks
+
+Outbound webhook subscriptions — users configure a URL to receive arc events.
+
+- [ ] `GET /accounts/:id/webhooks` → `{ webhooks: Webhook[] }`
+- [ ] `POST /accounts/:id/webhooks` — body `{ url, events: string[], secret? }` → `Webhook` (201)
+- [ ] `PATCH /accounts/:id/webhooks/:webhookId` — update url/events/enabled → `Webhook`
+- [ ] `DELETE /accounts/:id/webhooks/:webhookId` → 204
+
+```ts
+interface Webhook {
+  id: string
+  accountId: string
+  url: string
+  events: string[]   // e.g. ['signal:created', 'arc:updated']
+  enabled: boolean
+  secret?: string    // HMAC signing secret, write-only after creation
+  createdAt: string
+}
+```
+
+### Backend TODOs — API keys
+
+Per-account API keys for direct API scripting. Secret is revealed once on creation, never again.
+
+- [ ] `GET /accounts/:id/api-keys` → `{ apiKeys: ApiKey[] }`
+- [ ] `POST /accounts/:id/api-keys` — body `{ name }` → `{ apiKey: ApiKey, secret: string }` (201, secret only in this response)
+- [ ] `DELETE /accounts/:id/api-keys/:keyId` → 204
+
+```ts
+interface ApiKey {
+  id: string
+  accountId: string
+  name: string
+  prefix: string     // first 8 chars of key shown in UI for identification
+  createdAt: string
+  lastUsedAt?: string
+}
+```
 
 ### Backend TODOs — WebSocket realtime events
 
