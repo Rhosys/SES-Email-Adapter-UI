@@ -100,6 +100,7 @@ export interface OnboardingState {
   testEmailReceived?: boolean
   senderConfigured?: boolean
   completed: boolean
+  notificationCoachCompleted?: boolean
   featureTourCompleted?: boolean
 }
 

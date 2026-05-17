@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useArcsStore } from '@/stores/arcs'
+import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
 import { useRelativeTime } from '@/composables/useRelativeTime'
 import StatusTabs from '@/components/StatusTabs.vue'
 import BulkActionBar from '@/components/BulkActionBar.vue'
@@ -15,17 +16,30 @@ const route = useRoute()
 const router = useRouter()
 const accountStore = useAccountStore()
 const arcsStore = useArcsStore()
+const { armed, arm, trigger } = useOnboardingCoach()
 
 useRelativeTime()
 
 const VALID_TABS = ['active', 'archived', 'all'] as const
 type TabKey = (typeof VALID_TABS)[number]
 
+function coachShouldRun() {
+  const ob = accountStore.account?.onboarding
+  return ob?.completed && !ob.notificationCoachCompleted
+}
+
 onMounted(async () => {
   const tab = route.query.tab as TabKey | undefined
   if (tab && (VALID_TABS as readonly string[]).includes(tab)) arcsStore.setTab(tab)
   await accountStore.fetchAccount()
   await arcsStore.fetchArcs(true)
+  // If armed (timer was started when user left for arc-detail), fire now
+  if (coachShouldRun() && armed.value) trigger()
+})
+
+onUnmounted(() => {
+  // User leaving inbox (most likely to view an arc) — start the 20s timer
+  if (coachShouldRun()) arm()
 })
 
 function handleTabChange(tab: TabKey) {

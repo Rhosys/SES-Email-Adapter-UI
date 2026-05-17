@@ -10,9 +10,11 @@ import AppSidebar from '@/components/AppSidebar.vue'
 import SupportPanel from '@/components/SupportPanel.vue'
 import ToastStack from '@/components/ToastStack.vue'
 import FeatureTour from '@/components/FeatureTour.vue'
+import OnboardingCoach from '@/components/OnboardingCoach.vue'
 import { useSupportPanel } from '@/composables/useSupportPanel'
 import { useRealtime } from '@/composables/useRealtime'
 import { useFeatureTour } from '@/composables/useFeatureTour'
+import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
 
 const accountStore = useAccountStore()
 const labelsStore = useLabelsStore()
@@ -22,6 +24,7 @@ const route = useRoute()
 
 const { open: supportOpen } = useSupportPanel()
 const { startTour } = useFeatureTour()
+const { coachActive } = useOnboardingCoach()
 useRealtime()
 
 const searchQuery = ref('')
@@ -215,9 +218,10 @@ onMounted(async () => {
   }
   await Promise.all([labelsStore.fetchLabels(), viewsStore.fetchViews()])
 
-  // Auto-start the feature tour once after onboarding completes
+  // Auto-start the feature tour only after the notification coach has been shown
+  // (the coach itself starts the tour as its final step for fresh users)
   const ob = accountStore.account?.onboarding
-  if (ob?.completed && !ob.featureTourCompleted) {
+  if (ob?.completed && ob.notificationCoachCompleted && !ob.featureTourCompleted) {
     startTour()
   }
 })
@@ -472,4 +476,5 @@ onMounted(async () => {
   <SupportPanel :open="supportOpen" @close="supportOpen = false" />
   <ToastStack />
   <FeatureTour />
+  <OnboardingCoach v-if="coachActive" />
 </template>
