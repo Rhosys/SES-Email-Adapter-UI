@@ -1,5 +1,49 @@
 # SES Email Adapter UI — Build Plan
 
+## Recommendations
+
+### Power-user / interaction polish
+
+- [ ] **Toast / undo notification system** — global snackbar for destructive actions (archive, block, delete) with a 5-second undo window. No global toast system exists today; errors and successes are either silent or surfaced inline per-view only.
+
+- [ ] **Keyboard shortcuts for inbox navigation** — Gmail/Superhuman-style bindings: `j/k` move between arcs, `e` archive, `r` reply, `?` opens a shortcut reference overlay. Currently only Escape is wired anywhere; power users can't navigate at speed without a mouse.
+
+- [ ] **Browser push notifications** — the SharedWorker already holds a live WSS connection. Hook `Notification.requestPermission()` into realtime events so high-urgency arcs surface as desktop alerts when the tab is in the background. Respect the existing notification-frequency preference from Settings.
+
+- [ ] **Skeleton loaders** — every view shows plain `"Loading…"` text. Replace with layout-matching skeleton placeholders to reduce perceived load time.
+
+### Trust & reliability
+
+- [ ] **Error tracking integration** — no Sentry / Bugsnag / similar. Production errors are invisible. Add a ~50-line `errorHandler` in `main.ts` that captures Vue errors, unhandled promise rejections, and routing failures and ships them to an error tracking service.
+
+- [ ] **Bundle-size budget in CI** — `vite build` already prints chunk sizes. Add a build step that fails if any chunk regresses beyond a defined limit, catching accidental heavy imports before they ship.
+
+- [ ] **Axe-core automated a11y tests** — `@axe-core/playwright` is already a dev dependency but is not used in any test. Wire it into the existing Playwright E2E suite so accessibility regressions block CI automatically.
+
+- [ ] **Test coverage backfill** — the following have no tests at all:
+  - Stores: `templates`, `theme`, `account`, `signals`, `views`
+  - Views: `SettingsView`, `TemplatesView`, `OnboardingView`, `QuarantineView`, `ArcDetailView`
+
+### Extensibility & integrations
+
+- [ ] **Import / export for rules, templates, and labels** — JSON download and upload. Lets users back up their configuration, share rule sets, migrate between accounts, or version-control their setup in git.
+
+- [ ] **Webhooks UI in Settings** — outbound webhook subscriptions so users can pipe arc events into Slack, Discord, or Linear without writing custom code. New tab in the Settings view.
+
+- [ ] **API keys management** — for users who want to script against the API directly. List, create (with one-time secret reveal), and revoke keys. New tab in Settings or Profile.
+
+- [ ] **CSV export on audit log and quarantine** — for compliance reviews and incident investigation. Single button downloads a CSV of the currently visible rows.
+
+### Onboarding & engagement
+
+- [ ] **First-run feature tour** — coachmark overlay (Shepherd.js or equivalent) triggered once after onboarding completes, highlighting key UI elements (rules, quarantine, labels, search). Permanently dismissible.
+
+- [ ] **"What's new" changelog badge** — show a dot badge on the help `?` button when there are unread changelog entries. Clears when the user opens the changelog. Surfaces feature announcements without email spam.
+
+- [ ] **Inbox-zero celebration** — small visual flourish (similar to the fireworks on the onboarding done screen) when the last arc in the inbox is archived. Cheap engagement moment.
+
+---
+
 ## Open tasks
 
 - [x] Reconcile API client against backend breaking changes (see "API Breaking Changes" below)
