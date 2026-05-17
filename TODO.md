@@ -18,7 +18,9 @@
 
 - [ ] **Bundle-size budget in CI** — `vite build` already prints chunk sizes. Add a build step that fails if any chunk regresses beyond a defined limit, catching accidental heavy imports before they ship.
 
-- [ ] **Axe-core automated a11y tests** — `@axe-core/playwright` is already a dev dependency but is not used in any test. Wire it into the existing Playwright E2E suite so accessibility regressions block CI automatically.
+- [x] **Axe-core automated a11y tests (baseline)** — WCAG 2.x AA audit on the 6 main routes (`/`, `/search`, `/quarantine`, `/labels`, `/rules`, `/settings`) in `tests/e2e/a11y.test.ts`.
+
+- [ ] **Axe-core — extend to full route list** — once views are stable, add: `/onboarding`, `/invite`, `/billing`, `/profile`, `/rules/new`, `/rules/:id`, `/arcs/:id`, `/templates`, `/audit-log`, `/terms`, `/privacy`. Also consider adding `wcag21a`, `wcag21aa`, `best-practice` tags on top of the current `wcag2a`/`wcag2aa` set.
 
 - [ ] **Test coverage backfill** — the following have no tests at all:
   - Stores: `templates`, `theme`, `account`, `signals`, `views`
@@ -710,6 +712,22 @@ interface ApiKey {
   lastUsedAt?: string
 }
 ```
+
+### Backend TODOs — JMAP support
+
+JMAP (RFC 8620 / RFC 8621) is the modern replacement for IMAP. Implementing it would allow
+the frontend to connect to any standards-compliant mail server directly, not just the
+SES adapter backend.
+
+- [ ] **JMAP Core** (RFC 8620) — session endpoint, `Core/echo`, capability negotiation
+- [ ] **JMAP Mail** (RFC 8621) — `Mailbox/get`, `Email/query`, `Email/get`, `Email/set`,
+  `Thread/get`, `EmailSubmission/set` (send), `Mailbox/set` (create/rename/delete folders)
+- [ ] **JMAP Push** (RFC 8620 §7) — `EventSource` or WebSocket push channel for live updates,
+  replaces the current custom `signal:created` / `arc:updated` WebSocket protocol once JMAP
+  is available
+- [ ] **Frontend adapter** — once backend exposes JMAP, add `src/lib/jmap.ts` client and
+  a feature flag so the app can switch between the current REST API and JMAP without a full
+  rewrite; arc/signal store actions become thin wrappers over whichever transport is active
 
 ### Backend TODOs — WebSocket realtime events
 
