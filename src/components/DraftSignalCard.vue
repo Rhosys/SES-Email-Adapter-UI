@@ -29,8 +29,7 @@ const showPreview = ref(false)
 const domains = ref<Domain[]>([])
 const domainsLoaded = ref(false)
 const saving = ref(false)
-const sending = ref(false)
-const queued = ref(false)
+const sendState = ref<'idle' | 'sending' | 'cancellable'>('idle')
 const toastId = ref<string | null>(null)
 const error = ref<string | null>(null)
 
@@ -43,7 +42,11 @@ const fromAddress = computed(() =>
 const previewHtml = computed(() => (body.value ? (marked.parse(body.value) as string) : ''))
 
 const canSend = computed(
-  () => !!fromAddress.value && subject.value.trim().length > 0 && body.value.trim().length > 0,
+  () =>
+    sendState.value === 'idle' &&
+    !!fromAddress.value &&
+    subject.value.trim().length > 0 &&
+    body.value.trim().length > 0,
 )
 
 const toLabel = computed(() => props.signal.to?.map((e) => e.address).join(', ') ?? '')
@@ -80,34 +83,46 @@ async function persistDraft() {
 }
 
 async function send() {
-  if (!accountStore.accountId || !canSend.value || sending.value || queued.value) return
+  if (!accountStore.accountId || !canSend.value) return
   error.value = null
   await persistDraft()
 
   const accountId = accountStore.accountId
   const signalId = props.signal.id
+
+  sendState.value = 'sending'
+  const result = await api.sendSignal(accountId, signalId)
+  if (result.isErr()) {
+    sendState.value = 'idle'
+    error.value = result.error.message
+    return
+  }
+
   const ms = undoWindowMs(body.value)
-  queued.value = true
+  sendState.value = 'cancellable'
 
   const id = deferAction(
-    'Email queued to send',
+    'Email sent',
     async () => {
-      queued.value = false
+      sendState.value = 'idle'
       toastId.value = null
-      sending.value = true
-      const result = await api.sendSignal(accountId, signalId)
-      sending.value = false
-      if (result.isErr()) {
-        error.value = result.error.message
-      } else {
-        emit('sent')
-      }
+      emit('sent')
     },
     ms,
     {
       submessage: `To: ${toLabel.value}`,
       undoLabel: 'Cancel send',
-      onUndo: () => { queued.value = false; toastId.value = null },
+      onUndo: async () => {
+        const cancelResult = await api.patchSignal(accountId, signalId, { status: 'draft' })
+        sendState.value = 'idle'
+        toastId.value = null
+        if (cancelResult.isOk()) {
+          emit('discard')
+        } else {
+          error.value = 'Email already delivered — cancel was too late'
+          emit('sent')
+        }
+      },
     },
   )
   toastId.value = id
@@ -265,19 +280,19 @@ async function discard() {
 
       <!-- Actions -->
       <div class="flex items-center gap-3">
-        <template v-if="queued">
-          <span class="text-sm text-ctp-subtext0">Queued to send…</span>
+        <template v-if="sendState === 'cancellable'">
+          <span class="text-sm text-ctp-subtext0">Sent — cancellable via toast…</span>
           <button class="text-sm text-ctp-red hover:opacity-80" @click="cancelSend">
             Cancel send
           </button>
         </template>
         <template v-else>
           <button
-            :disabled="!canSend || sending"
+            :disabled="!canSend"
             class="rounded bg-ctp-mauve px-4 py-1.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             @click="send"
           >
-            {{ sending ? 'Sending…' : 'Send' }}
+            {{ sendState === 'sending' ? 'Sending…' : 'Send' }}
           </button>
           <button class="text-sm text-ctp-subtext0 hover:text-ctp-red" @click="discard">
             Discard draft

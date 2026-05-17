@@ -20,6 +20,7 @@ import type {
   Rule,
   SavedView,
   Signal,
+  SignalStatus,
   TeamMember,
   TemplateFunction,
   UpdateDraftSignalBody,
@@ -220,6 +221,17 @@ export const api = {
 
   sendSignal(accountId: string, signalId: string): Promise<Result<Signal, ApiError>> {
     return request<Signal>(`/accounts/${accountId}/signals/${signalId}/send`, { method: 'POST' })
+  },
+
+  patchSignal(
+    accountId: string,
+    signalId: string,
+    body: { status: SignalStatus },
+  ): Promise<Result<Signal, ApiError>> {
+    return request<Signal>(`/accounts/${accountId}/signals/${signalId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
   },
 
   deleteDraftSignal(accountId: string, signalId: string): Promise<Result<void, ApiError>> {
