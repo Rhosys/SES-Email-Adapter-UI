@@ -65,7 +65,22 @@ function handleBulkLabel(label: string) {
         @clear="arcsStore.clearSelection()"
       />
 
-      <div v-if="arcsStore.loading" role="status" aria-live="polite" class="py-16 text-center text-ctp-subtext0">Loading…</div>
+      <div
+        v-if="arcsStore.loading"
+        role="status"
+        aria-label="Loading inbox…"
+        class="animate-pulse divide-y divide-ctp-surface0"
+      >
+        <div v-for="i in 8" :key="i" class="flex items-center gap-3 px-3 py-3">
+          <div class="ml-2 h-4 w-4 shrink-0 rounded bg-ctp-surface1" />
+          <div class="h-5 w-5 shrink-0 rounded bg-ctp-surface1" />
+          <div class="flex-1 space-y-1.5">
+            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${48 + (i * 11) % 38}%` }" />
+            <div class="h-3 w-24 rounded bg-ctp-surface1" />
+          </div>
+          <div class="h-3 w-10 shrink-0 rounded bg-ctp-surface1" />
+        </div>
+      </div>
 
       <InboxEmpty
         v-else-if="!arcsStore.loading && arcsStore.sortedItems.length === 0"

@@ -291,8 +291,18 @@ onMounted(async () => {
         </div>
 
         <!-- Label list -->
-        <div v-if="labelsStore.loading" class="py-12 text-center text-sm text-ctp-subtext0">
-          Loading…
+        <div
+          v-if="labelsStore.loading"
+          role="status"
+          aria-label="Loading labels…"
+          class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+        >
+          <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-4 py-3">
+            <div class="h-5 w-5 shrink-0 rounded-full bg-ctp-surface1" />
+            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${35 + (i * 23) % 40}%` }" />
+            <div class="ml-auto h-6 w-14 shrink-0 rounded bg-ctp-surface1" />
+            <div class="h-6 w-14 shrink-0 rounded bg-ctp-surface1" />
+          </div>
         </div>
         <div
           v-else-if="labelsStore.items.length === 0 && !showLabelForm"
@@ -410,8 +420,21 @@ onMounted(async () => {
         </div>
 
         <!-- Views list -->
-        <div v-if="viewsStore.loading" class="py-12 text-center text-sm text-ctp-subtext0">
-          Loading…
+        <div
+          v-if="viewsStore.loading"
+          role="status"
+          aria-label="Loading saved views…"
+          class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+        >
+          <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-4 py-3">
+            <div class="h-5 w-5 shrink-0 rounded bg-ctp-surface1" />
+            <div class="flex-1 space-y-1">
+              <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${30 + (i * 21) % 45}%` }" />
+              <div class="h-3 w-24 rounded bg-ctp-surface1" />
+            </div>
+            <div class="h-6 w-14 shrink-0 rounded bg-ctp-surface1" />
+            <div class="h-6 w-14 shrink-0 rounded bg-ctp-surface1" />
+          </div>
         </div>
         <div
           v-else-if="sortedViews.length === 0 && !showViewForm"

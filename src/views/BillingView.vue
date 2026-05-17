@@ -136,7 +136,35 @@ async function openPortal() {
       </div>
 
       <!-- Loading -->
-      <div v-if="loading" class="py-12 text-center text-sm text-ctp-subtext0">Loading…</div>
+      <div
+        v-if="loading"
+        role="status"
+        aria-label="Loading billing…"
+        class="animate-pulse space-y-4"
+      >
+        <div class="rounded-lg border border-ctp-surface1 p-4">
+          <div class="flex items-start justify-between gap-4">
+            <div class="space-y-1.5">
+              <div class="h-3 w-16 rounded bg-ctp-surface1" />
+              <div class="h-4 w-40 rounded bg-ctp-surface1" />
+              <div class="h-3 w-24 rounded bg-ctp-surface1" />
+            </div>
+            <div class="space-y-1.5 text-right">
+              <div class="h-3 w-20 rounded bg-ctp-surface1" />
+              <div class="h-4 w-16 rounded bg-ctp-surface1" />
+            </div>
+          </div>
+        </div>
+        <div class="rounded-lg border border-ctp-surface1 p-4">
+          <div class="h-4 w-32 rounded bg-ctp-surface1" />
+          <div class="mt-3 space-y-2">
+            <div v-for="i in 3" :key="i" class="flex justify-between">
+              <div class="h-3 w-28 rounded bg-ctp-surface1" />
+              <div class="h-3 w-16 rounded bg-ctp-surface1" />
+            </div>
+          </div>
+        </div>
+      </div>
 
       <template v-else>
         <!-- Account + current plan -->

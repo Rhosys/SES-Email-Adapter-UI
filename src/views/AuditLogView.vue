@@ -122,7 +122,21 @@ onMounted(async () => {
         {{ error }}
       </div>
 
-      <div v-if="loading" class="py-20 text-center text-sm text-ctp-subtext0">Loading…</div>
+      <div
+        v-if="loading"
+        role="status"
+        aria-label="Loading audit log…"
+        class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+      >
+        <div v-for="i in 6" :key="i" class="flex items-start gap-3 px-4 py-3">
+          <div class="mt-0.5 h-3 w-20 shrink-0 rounded bg-ctp-surface1" />
+          <div class="flex-1 space-y-1.5">
+            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${40 + (i * 13) % 45}%` }" />
+            <div class="h-3 w-28 rounded bg-ctp-surface1" />
+          </div>
+          <div class="h-5 w-16 shrink-0 rounded-full bg-ctp-surface1" />
+        </div>
+      </div>
 
       <div v-else-if="events.length === 0" class="py-20 text-center text-sm text-ctp-subtext0">
         <p class="font-medium text-ctp-text">No activity yet</p>

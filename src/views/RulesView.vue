@@ -174,8 +174,21 @@ onMounted(async () => {
       </div>
 
       <!-- Loading -->
-      <div v-if="rulesStore.loading" class="py-20 text-center text-sm text-ctp-subtext0">
-        Loading…
+      <div
+        v-if="rulesStore.loading"
+        role="status"
+        aria-label="Loading rules…"
+        class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+      >
+        <div v-for="i in 5" :key="i" class="flex items-center gap-3 px-4 py-3">
+          <div class="h-4 w-4 shrink-0 rounded bg-ctp-surface1" />
+          <div class="flex-1 space-y-1.5">
+            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${45 + (i * 17) % 40}%` }" />
+            <div class="h-3 w-40 rounded bg-ctp-surface1" />
+          </div>
+          <div class="h-6 w-6 shrink-0 rounded bg-ctp-surface1" />
+          <div class="h-6 w-6 shrink-0 rounded bg-ctp-surface1" />
+        </div>
       </div>
 
       <!-- Empty -->

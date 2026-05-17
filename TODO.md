@@ -10,7 +10,7 @@
 
 - [ ] **Browser push notifications** — the SharedWorker already holds a live WSS connection. Hook `Notification.requestPermission()` into realtime events so high-urgency arcs surface as desktop alerts when the tab is in the background. Respect the existing notification-frequency preference from Settings.
 
-- [ ] **Skeleton loaders** — every view shows plain `"Loading…"` text. Replace with layout-matching skeleton placeholders to reduce perceived load time.
+- [x] **Skeleton loaders** — every view shows plain `"Loading…"` text. Replace with layout-matching skeleton placeholders to reduce perceived load time.
 
 ### Trust & reliability
 
@@ -36,7 +36,14 @@
 
 ### Onboarding & engagement
 
-- [ ] **Invite accept screen** — `/invite?inviteId=<id>` route that lets a newly invited team member accept their invitation. Should show the account name and inviter, confirm the user's identity, and call the accept-invite API endpoint. Redirect to the inbox (or onboarding if the user has no account yet) on success.
+- [ ] **Invite accept screen** — `/invite?inviteId=<id>` route that lets a newly invited team member accept their invitation. Spec:
+  - Extract `inviteId` from the URL query string; if missing or empty display "invite link is invalid" and make no SDK call.
+  - When `inviteId` is present: call `loginClient.userSessionExists()` to process any OAuth callback tokens; if a session now exists the invite was accepted — redirect to `/`.
+  - If no session yet: call `loginClient.authenticate({ inviteId, redirectUrl: window.location.href })` which redirects the user through the Authress login + invite-acceptance flow and returns them to this URL.
+  - If `error` / `error_description` query params appear in the URL (OAuth failure return), display a specific message: "expired", "already used", or "not found" based on the `error_description` text — do not redirect.
+  - If `authenticate()` throws a 4xx: display the same categorised error — do not redirect.
+  - Route must be unauthenticated (no `requiresAuth` guard) so the guard doesn't redirect the user away before they can log in via the invite.
+  - Add `invite` to `ROUTE_TITLES` in the router.
 
 - [ ] **First-run feature tour** — coachmark overlay (Shepherd.js or equivalent) triggered once after onboarding completes, highlighting key UI elements (rules, quarantine, labels, search). Permanently dismissible.
 

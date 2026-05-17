@@ -85,7 +85,21 @@ async function loadMore() {
       </div>
 
       <!-- Loading -->
-      <div v-if="store.loading" class="py-20 text-center text-sm text-ctp-subtext0">Loading…</div>
+      <div
+        v-if="store.loading"
+        role="status"
+        aria-label="Loading quarantine…"
+        class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+      >
+        <div v-for="i in 5" :key="i" class="flex items-center gap-3 px-4 py-3">
+          <div class="flex-1 space-y-1.5">
+            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${50 + (i * 13) % 35}%` }" />
+            <div class="h-3 w-32 rounded bg-ctp-surface1" />
+          </div>
+          <div class="h-7 w-16 shrink-0 rounded bg-ctp-surface1" />
+          <div class="h-7 w-14 shrink-0 rounded bg-ctp-surface1" />
+        </div>
+      </div>
 
       <!-- Empty -->
       <div v-else-if="isEmpty" class="py-20 text-center text-ctp-subtext0">

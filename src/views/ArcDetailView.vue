@@ -78,8 +78,28 @@ async function loadMore() {
     </RouterLink>
 
     <!-- Loading -->
-    <div v-if="signalsStore.loading" class="py-12 text-center text-sm text-ctp-subtext0">
-      Loading…
+    <div
+      v-if="signalsStore.loading"
+      role="status"
+      aria-label="Loading thread…"
+      class="animate-pulse"
+    >
+      <div class="mb-6 space-y-2">
+        <div class="h-6 w-2/3 rounded bg-ctp-surface1" />
+        <div class="h-3 w-32 rounded bg-ctp-surface1" />
+      </div>
+      <div class="space-y-4">
+        <div v-for="i in 3" :key="i" class="rounded-lg border border-ctp-surface0 bg-ctp-mantle p-4">
+          <div class="mb-3 flex items-center gap-2">
+            <div class="h-3 w-28 rounded bg-ctp-surface1" />
+            <div class="ml-auto h-3 w-16 rounded bg-ctp-surface1" />
+          </div>
+          <div class="space-y-2">
+            <div class="h-4 w-full rounded bg-ctp-surface1" />
+            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${60 + i * 12}%` }" />
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Error -->

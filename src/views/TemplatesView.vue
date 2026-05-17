@@ -299,7 +299,21 @@ onMounted(async () => {
       </div>
 
       <!-- Loading -->
-      <div v-if="store.loading" class="py-20 text-center text-sm text-ctp-subtext0">Loading…</div>
+      <div
+        v-if="store.loading"
+        role="status"
+        aria-label="Loading templates…"
+        class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+      >
+        <div v-for="i in 4" :key="i" class="flex items-center gap-3 px-4 py-4">
+          <div class="flex-1 space-y-1.5">
+            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${40 + (i * 19) % 45}%` }" />
+            <div class="h-3 w-48 rounded bg-ctp-surface1" />
+          </div>
+          <div class="h-7 w-14 shrink-0 rounded bg-ctp-surface1" />
+          <div class="h-7 w-14 shrink-0 rounded bg-ctp-surface1" />
+        </div>
+      </div>
 
       <!-- Empty -->
       <div v-else-if="!showEditor && store.templates.length === 0" class="py-20 text-center">

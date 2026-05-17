@@ -180,7 +180,20 @@ async function signOut() {
           {{ profileError }}
         </div>
 
-        <div v-if="profileLoading" class="py-4 text-center text-sm text-ctp-subtext0">Loading…</div>
+        <div
+          v-if="profileLoading"
+          role="status"
+          aria-label="Loading identities…"
+          class="animate-pulse divide-y divide-ctp-surface0"
+        >
+          <div v-for="i in 2" :key="i" class="flex items-center gap-3 py-3">
+            <div class="h-8 w-8 shrink-0 rounded-full bg-ctp-surface1" />
+            <div class="flex-1 space-y-1">
+              <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${90 + i * 50}px` }" />
+              <div class="h-3 w-24 rounded bg-ctp-surface1" />
+            </div>
+          </div>
+        </div>
 
         <div
           v-else-if="linkedIdentities.length === 0"
@@ -270,7 +283,20 @@ async function signOut() {
           {{ deviceError }}
         </div>
 
-        <div v-if="devicesLoading" class="py-4 text-center text-sm text-ctp-subtext0">Loading…</div>
+        <div
+          v-if="devicesLoading"
+          role="status"
+          aria-label="Loading devices…"
+          class="animate-pulse divide-y divide-ctp-surface0"
+        >
+          <div v-for="i in 2" :key="i" class="flex items-center gap-3 py-3">
+            <div class="flex-1 space-y-1">
+              <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${80 + i * 60}px` }" />
+              <div class="h-3 w-32 rounded bg-ctp-surface1" />
+            </div>
+            <div class="h-7 w-16 shrink-0 rounded bg-ctp-surface1" />
+          </div>
+        </div>
 
         <div
           v-else-if="devices.length === 0"

@@ -386,7 +386,21 @@ const TABS: { key: TabKey; label: string }[] = [
           </button>
         </form>
 
-        <div v-if="aliasesLoading" class="py-8 text-center text-sm text-ctp-subtext0">Loading…</div>
+        <div
+          v-if="aliasesLoading"
+          role="status"
+          aria-label="Loading addresses…"
+          class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+        >
+          <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-4 py-3">
+            <div class="flex-1 space-y-1">
+              <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${40 + (i * 19) % 40}%` }" />
+              <div class="h-3 w-20 rounded bg-ctp-surface1" />
+            </div>
+            <div class="h-6 w-16 shrink-0 rounded-full bg-ctp-surface1" />
+            <div class="h-6 w-6 shrink-0 rounded bg-ctp-surface1" />
+          </div>
+        </div>
         <div
           v-else-if="aliases.length === 0"
           class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
@@ -449,7 +463,22 @@ const TABS: { key: TabKey; label: string }[] = [
           </button>
         </form>
 
-        <div v-if="domainsLoading" class="py-8 text-center text-sm text-ctp-subtext0">Loading…</div>
+        <div
+          v-if="domainsLoading"
+          role="status"
+          aria-label="Loading domains…"
+          class="animate-pulse space-y-3"
+        >
+          <div v-for="i in 2" :key="i" class="rounded-lg border border-ctp-surface1 p-4">
+            <div class="flex items-center justify-between">
+              <div class="space-y-1.5">
+                <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${120 + i * 40}px` }" />
+                <div class="h-3 w-20 rounded bg-ctp-surface1" />
+              </div>
+              <div class="h-6 w-20 shrink-0 rounded-full bg-ctp-surface1" />
+            </div>
+          </div>
+        </div>
         <div
           v-else-if="domains.length === 0"
           class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
@@ -547,8 +576,16 @@ const TABS: { key: TabKey; label: string }[] = [
           </button>
         </form>
 
-        <div v-if="forwardingLoading" class="py-8 text-center text-sm text-ctp-subtext0">
-          Loading…
+        <div
+          v-if="forwardingLoading"
+          role="status"
+          aria-label="Loading forwarding addresses…"
+          class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+        >
+          <div v-for="i in 2" :key="i" class="flex items-center gap-3 px-4 py-3">
+            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${130 + i * 50}px` }" />
+            <div class="ml-auto h-6 w-6 shrink-0 rounded bg-ctp-surface1" />
+          </div>
         </div>
         <div
           v-else-if="forwarding.length === 0"
@@ -617,7 +654,21 @@ const TABS: { key: TabKey; label: string }[] = [
           </button>
         </form>
 
-        <div v-if="teamLoading" class="py-8 text-center text-sm text-ctp-subtext0">Loading…</div>
+        <div
+          v-if="teamLoading"
+          role="status"
+          aria-label="Loading team…"
+          class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+        >
+          <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-4 py-3">
+            <div class="h-8 w-8 shrink-0 rounded-full bg-ctp-surface1" />
+            <div class="flex-1 space-y-1">
+              <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${100 + i * 40}px` }" />
+              <div class="h-3 w-28 rounded bg-ctp-surface1" />
+            </div>
+            <div class="h-5 w-16 shrink-0 rounded-full bg-ctp-surface1" />
+          </div>
+        </div>
         <div
           v-else-if="team.length === 0"
           class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
