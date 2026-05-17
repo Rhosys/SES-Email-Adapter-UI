@@ -3,6 +3,8 @@ import { onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useSignalsStore } from '@/stores/signals'
 import { useAccountStore } from '@/stores/account'
+import { useToast } from '@/composables/useToast'
+import { api } from '@/lib/api'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
 import SignalCard from '@/components/SignalCard.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
@@ -11,6 +13,7 @@ import ReplyComposer from '@/components/ReplyComposer.vue'
 const route = useRoute()
 const signalsStore = useSignalsStore()
 const accountStore = useAccountStore()
+const { showUndo } = useToast()
 
 const arcId = computed(() => route.params.id as string)
 
@@ -42,7 +45,21 @@ function onDraftSent(signalId: string) {
 }
 
 async function archive() {
-  await signalsStore.archiveArc(arcId.value)
+  const ok = await signalsStore.archiveArc(arcId.value)
+  if (!ok) return
+  const id = arcId.value
+  const summary = signalsStore.arc?.summary
+  showUndo(
+    'Thread archived',
+    async () => {
+      const accountId = accountStore.accountId
+      if (!accountId) return
+      await api.patchArc(accountId, id, { status: 'active' })
+      await signalsStore.fetchAll(id)
+    },
+    8_000,
+    { submessage: summary ? summary.slice(0, 70) : undefined },
+  )
 }
 
 async function loadMore() {

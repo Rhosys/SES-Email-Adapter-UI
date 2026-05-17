@@ -8,6 +8,7 @@ import { api } from '@/lib/api'
 import type { Arc, Rule, EmailAddressConfig } from '@/types/server'
 import AppSidebar from '@/components/AppSidebar.vue'
 import SupportPanel from '@/components/SupportPanel.vue'
+import ToastStack from '@/components/ToastStack.vue'
 import { useSupportPanel } from '@/composables/useSupportPanel'
 import { useRealtime } from '@/composables/useRealtime'
 
@@ -460,4 +461,5 @@ onMounted(async () => {
   </div>
 
   <SupportPanel :open="supportOpen" @close="supportOpen = false" />
+  <ToastStack />
 </template>

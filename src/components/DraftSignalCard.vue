@@ -3,12 +3,14 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { marked } from 'marked'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
+import { useToast, undoWindowMs } from '@/composables/useToast'
 import type { Signal, Domain } from '@/types/server'
 
 const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ discard: []; sent: [] }>()
 
 const accountStore = useAccountStore()
+const { deferAction, undo: undoToast } = useToast()
 
 // Parse existing from address (empty for brand-new drafts)
 function splitAddress(address: string): [string, string] {
@@ -28,6 +30,8 @@ const domains = ref<Domain[]>([])
 const domainsLoaded = ref(false)
 const saving = ref(false)
 const sending = ref(false)
+const queued = ref(false)
+const toastId = ref<string | null>(null)
 const error = ref<string | null>(null)
 
 const verifiedDomains = computed(() => domains.value.filter((d) => d.status === 'verified'))
@@ -76,17 +80,41 @@ async function persistDraft() {
 }
 
 async function send() {
-  if (!accountStore.accountId || !canSend.value || sending.value) return
-  sending.value = true
+  if (!accountStore.accountId || !canSend.value || sending.value || queued.value) return
   error.value = null
   await persistDraft()
-  const result = await api.sendSignal(accountStore.accountId, props.signal.id)
-  sending.value = false
-  if (result.isErr()) {
-    error.value = result.error.message
-  } else {
-    emit('sent')
-  }
+
+  const accountId = accountStore.accountId
+  const signalId = props.signal.id
+  const ms = undoWindowMs(body.value)
+  queued.value = true
+
+  const id = deferAction(
+    'Email queued to send',
+    async () => {
+      queued.value = false
+      toastId.value = null
+      sending.value = true
+      const result = await api.sendSignal(accountId, signalId)
+      sending.value = false
+      if (result.isErr()) {
+        error.value = result.error.message
+      } else {
+        emit('sent')
+      }
+    },
+    ms,
+    {
+      submessage: `To: ${toLabel.value}`,
+      undoLabel: 'Cancel send',
+      onUndo: () => { queued.value = false; toastId.value = null },
+    },
+  )
+  toastId.value = id
+}
+
+function cancelSend() {
+  if (toastId.value) undoToast(toastId.value)
 }
 
 async function discard() {
@@ -237,16 +265,24 @@ async function discard() {
 
       <!-- Actions -->
       <div class="flex items-center gap-3">
-        <button
-          :disabled="!canSend || sending"
-          class="rounded bg-ctp-mauve px-4 py-1.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          @click="send"
-        >
-          {{ sending ? 'Sending…' : 'Send' }}
-        </button>
-        <button class="text-sm text-ctp-subtext0 hover:text-ctp-red" @click="discard">
-          Discard draft
-        </button>
+        <template v-if="queued">
+          <span class="text-sm text-ctp-subtext0">Queued to send…</span>
+          <button class="text-sm text-ctp-red hover:opacity-80" @click="cancelSend">
+            Cancel send
+          </button>
+        </template>
+        <template v-else>
+          <button
+            :disabled="!canSend || sending"
+            class="rounded bg-ctp-mauve px-4 py-1.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            @click="send"
+          >
+            {{ sending ? 'Sending…' : 'Send' }}
+          </button>
+          <button class="text-sm text-ctp-subtext0 hover:text-ctp-red" @click="discard">
+            Discard draft
+          </button>
+        </template>
       </div>
     </div>
   </div>
