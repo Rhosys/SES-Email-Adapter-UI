@@ -4,8 +4,10 @@ import { useAccountStore } from '@/stores/account'
 import { loginClient } from '@/lib/auth'
 import { UserConfigurationScreen } from '@authress/login'
 import type { DeviceType, Device, LinkedIdentity } from '@authress/login'
+import { useFeatureTour } from '@/composables/useFeatureTour'
 
 const accountStore = useAccountStore()
+const { startTour } = useFeatureTour()
 
 const profile = ref<{ linkedIdentities: LinkedIdentity[] } | null>(null)
 const devices = ref<Device[]>([])
@@ -155,6 +157,24 @@ async function signOut() {
     </header>
 
     <main class="mx-auto max-w-lg space-y-5 px-4 py-6">
+      <!-- Feature tour -->
+      <section class="rounded-lg border border-ctp-surface1 p-4">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-sm font-medium text-ctp-text">Feature tour</h2>
+            <p class="mt-0.5 text-xs text-ctp-subtext0">
+              Replay the guided walkthrough of the key areas of the app.
+            </p>
+          </div>
+          <button
+            class="shrink-0 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
+            @click="startTour"
+          >
+            Start tour
+          </button>
+        </div>
+      </section>
+
       <!-- Identity connections -->
       <section class="rounded-lg border border-ctp-surface1 p-4">
         <div class="mb-3 flex items-start justify-between gap-3">

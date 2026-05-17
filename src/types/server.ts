@@ -100,6 +100,7 @@ export interface OnboardingState {
   testEmailReceived?: boolean
   senderConfigured?: boolean
   completed: boolean
+  featureTourCompleted?: boolean
 }
 
 export interface Account {

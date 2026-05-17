@@ -45,11 +45,11 @@
   - Route must be unauthenticated (no `requiresAuth` guard) so the guard doesn't redirect the user away before they can log in via the invite.
   - Add `invite` to `ROUTE_TITLES` in the router.
 
-- [ ] **First-run feature tour** — coachmark overlay (Shepherd.js or equivalent) triggered once after onboarding completes, highlighting key UI elements (rules, quarantine, labels, search). Permanently dismissible.
+- [x] **First-run feature tour** — coachmark overlay (Shepherd.js or equivalent) triggered once after onboarding completes, highlighting key UI elements (rules, quarantine, labels, search). Permanently dismissible.
 
 - [ ] **"What's new" changelog badge** — show a dot badge on the help `?` button when there are unread changelog entries. Clears when the user opens the changelog. Surfaces feature announcements without email spam.
 
-- [ ] **Inbox-zero celebration** — small visual flourish (similar to the fireworks on the onboarding done screen) when the last arc in the inbox is archived. Cheap engagement moment.
+- [x] **Inbox-zero celebration** — small visual flourish (similar to the fireworks on the onboarding done screen) when the last arc in the inbox is archived. Cheap engagement moment.
 
 ---
 

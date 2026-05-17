@@ -118,6 +118,7 @@ const labels = computed(() => labelsStore.items)
       <div class="px-2">
         <RouterLink
           to="/"
+          data-tour="nav-inbox"
           class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
           :class="
             exactActive('/')
@@ -136,6 +137,7 @@ const labels = computed(() => labelsStore.items)
 
         <RouterLink
           to="/quarantine"
+          data-tour="nav-quarantine"
           class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
           :class="
             isActive('/quarantine')
@@ -231,6 +233,7 @@ const labels = computed(() => labelsStore.items)
     <div class="border-t border-ctp-surface0 px-2 py-2">
       <RouterLink
         to="/rules"
+        data-tour="nav-rules"
         class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
         :class="
           isActive('/rules')
@@ -266,6 +269,7 @@ const labels = computed(() => labelsStore.items)
 
       <RouterLink
         to="/labels"
+        data-tour="nav-labels"
         class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
         :class="
           isActive('/labels')
@@ -284,6 +288,7 @@ const labels = computed(() => labelsStore.items)
 
       <RouterLink
         to="/settings"
+        data-tour="nav-settings"
         class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
         :class="
           isActive('/settings')

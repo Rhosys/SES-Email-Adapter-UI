@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useArcsStore } from '@/stores/arcs'
@@ -9,6 +9,7 @@ import BulkActionBar from '@/components/BulkActionBar.vue'
 import ArcList from '@/components/ArcList.vue'
 import InboxError from '@/components/InboxError.vue'
 import InboxEmpty from '@/components/InboxEmpty.vue'
+import InboxZeroCelebration from '@/components/InboxZeroCelebration.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,6 +44,23 @@ function handleBulkArchive() {
 function handleBulkLabel(label: string) {
   void arcsStore.bulkLabel(label)
 }
+
+// Inbox zero celebration — fires only when active tab transitions from items → 0
+const showCelebration = ref(false)
+let prevActiveCount = -1
+
+watch(
+  [() => arcsStore.loading, () => arcsStore.sortedItems.length, () => arcsStore.activeTab],
+  ([loading, count, tab]) => {
+    if (loading) return
+    if (tab === 'active') {
+      if (prevActiveCount > 0 && count === 0) showCelebration.value = true
+      prevActiveCount = count
+    } else {
+      prevActiveCount = -1
+    }
+  },
+)
 </script>
 
 <template>
@@ -108,4 +126,6 @@ function handleBulkLabel(label: string) {
       </div>
     </main>
   </div>
+
+  <InboxZeroCelebration :show="showCelebration" @done="showCelebration = false" />
 </template>
