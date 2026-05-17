@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { ref } from 'vue'
 import { mount, RouterLinkStub } from '@vue/test-utils'
+import { setActivePinia, createPinia } from 'pinia'
 import ArcRow from '@/components/ArcRow.vue'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import type { Arc } from '@/types/server'
@@ -31,6 +32,10 @@ function mountArc(arc: Arc, selected = false) {
 }
 
 describe('ArcRow', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
   it('renders summary text', () => {
     const wrapper = mountArc(baseArc)
     expect(wrapper.text()).toContain('Hello from the team')

@@ -170,6 +170,15 @@ export const useArcsStore = defineStore('arcs', () => {
     await fetchArcs(true)
   }
 
+  function removeArc(id: string) {
+    const accId = accountStore.accountId
+    if (!accId || !_byAccount.value[accId]) return
+    _byAccount.value[accId] = {
+      ..._byAccount.value[accId],
+      items: _byAccount.value[accId].items.filter((a) => a.id !== id),
+    }
+  }
+
   return {
     items,
     sortedItems,
@@ -190,5 +199,6 @@ export const useArcsStore = defineStore('arcs', () => {
     clearSelection,
     bulkArchive,
     bulkLabel,
+    removeArc,
   }
 })
