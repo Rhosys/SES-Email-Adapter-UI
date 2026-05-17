@@ -5,9 +5,11 @@ import { loginClient } from '@/lib/auth'
 import { UserConfigurationScreen } from '@authress/login'
 import type { DeviceType, Device, LinkedIdentity } from '@authress/login'
 import { useFeatureTour } from '@/composables/useFeatureTour'
+import ShortcutHelpOverlay from '@/components/ShortcutHelpOverlay.vue'
 
 const accountStore = useAccountStore()
 const { startTour } = useFeatureTour()
+const shortcutHelpOpen = ref(false)
 
 const profile = ref<{ linkedIdentities: LinkedIdentity[] } | null>(null)
 const devices = ref<Device[]>([])
@@ -173,6 +175,27 @@ async function signOut() {
             Start tour
           </button>
         </div>
+      </section>
+
+      <!-- Keyboard shortcuts -->
+      <section class="rounded-lg border border-ctp-surface1 p-4">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-sm font-medium text-ctp-text">Keyboard shortcuts</h2>
+            <p class="mt-0.5 text-xs text-ctp-subtext0">
+              Press
+              <kbd class="rounded bg-ctp-surface1 px-1 py-0.5 font-mono text-xs">?</kbd>
+              anywhere to see all shortcuts and customize them.
+            </p>
+          </div>
+          <button
+            class="shrink-0 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
+            @click="shortcutHelpOpen = true"
+          >
+            Customize
+          </button>
+        </div>
+        <ShortcutHelpOverlay v-model:open="shortcutHelpOpen" />
       </section>
 
       <!-- Identity connections -->

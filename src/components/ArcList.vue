@@ -6,6 +6,7 @@ defineProps<{
   arcs: Arc[]
   selectedIds: Set<string>
   allSelected: boolean
+  focusedArcId?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -46,6 +47,7 @@ function handleSelectAll(event: Event) {
         :key="arc.id"
         :arc="arc"
         :selected="selectedIds.has(arc.id)"
+        :focused="arc.id === focusedArcId"
         @toggle-select="emit('toggle-select', $event)"
       />
     </TransitionGroup>

@@ -11,10 +11,12 @@ import SupportPanel from '@/components/SupportPanel.vue'
 import ToastStack from '@/components/ToastStack.vue'
 import FeatureTour from '@/components/FeatureTour.vue'
 import OnboardingCoach from '@/components/OnboardingCoach.vue'
+import ShortcutHelpOverlay from '@/components/ShortcutHelpOverlay.vue'
 import { useSupportPanel } from '@/composables/useSupportPanel'
 import { useRealtime } from '@/composables/useRealtime'
 import { useFeatureTour } from '@/composables/useFeatureTour'
 import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 
 const accountStore = useAccountStore()
 const labelsStore = useLabelsStore()
@@ -25,10 +27,13 @@ const route = useRoute()
 const { open: supportOpen } = useSupportPanel()
 const { startTour } = useFeatureTour()
 const { coachVisible } = useOnboardingCoach()
+const { init: initShortcuts, onAction, setBlocked } = useKeyboardShortcuts()
 useRealtime()
 
 const searchQuery = ref('')
 const inputFocused = ref(false)
+const shortcutHelpOpen = ref(false)
+const searchInput = ref<HTMLInputElement | null>(null)
 const hasSearched = ref(false)
 const sidebarOpen = ref(false)
 
@@ -204,6 +209,13 @@ function submitSearch() {
   void router.push({ path: '/search', query: { q } })
 }
 
+watch(shortcutHelpOpen, (open) => setBlocked(open))
+
+function focusSearch() {
+  searchInput.value?.focus()
+  searchInput.value?.select()
+}
+
 onMounted(async () => {
   if (!accountStore.account) {
     const fromUrl = route.query.accountId as string | undefined
@@ -224,6 +236,19 @@ onMounted(async () => {
   if (ob?.completed && ob.notificationCoachCompleted && !ob.featureTourCompleted) {
     startTour()
   }
+
+  // Initialize global keyboard shortcut listener
+  initShortcuts()
+  onAction('shortcut_help', () => {
+    shortcutHelpOpen.value = !shortcutHelpOpen.value
+  })
+  onAction('search', focusSearch)
+  onAction('go_inbox', () => void router.push({ name: 'inbox' }))
+  onAction('go_quarantine', () => void router.push({ name: 'quarantine' }))
+  onAction('go_labels', () => void router.push({ name: 'labels' }))
+  onAction('go_rules', () => void router.push({ name: 'rules' }))
+  onAction('go_settings', () => void router.push({ name: 'settings' }))
+  onAction('go_profile', () => void router.push({ name: 'profile' }))
 })
 </script>
 
@@ -292,6 +317,7 @@ onMounted(async () => {
               />
             </svg>
             <input
+              ref="searchInput"
               v-model="searchQuery"
               type="search"
               aria-label="Search arcs, rules, aliases"
@@ -477,4 +503,5 @@ onMounted(async () => {
   <ToastStack />
   <FeatureTour />
   <OnboardingCoach v-if="coachVisible" />
+  <ShortcutHelpOverlay v-model:open="shortcutHelpOpen" />
 </template>

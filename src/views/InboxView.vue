@@ -5,6 +5,7 @@ import { useAccountStore } from '@/stores/account'
 import { useArcsStore } from '@/stores/arcs'
 import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
 import { useRelativeTime } from '@/composables/useRelativeTime'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import StatusTabs from '@/components/StatusTabs.vue'
 import BulkActionBar from '@/components/BulkActionBar.vue'
 import ArcList from '@/components/ArcList.vue'
@@ -17,15 +18,61 @@ const router = useRouter()
 const accountStore = useAccountStore()
 const arcsStore = useArcsStore()
 const { countdownRunning, startArcViewCountdown, showCoachNow } = useOnboardingCoach()
+const { onAction, offAction } = useKeyboardShortcuts()
 
 useRelativeTime()
 
 const VALID_TABS = ['active', 'archived', 'all'] as const
 type TabKey = (typeof VALID_TABS)[number]
 
+// Keyboard-navigable cursor through the arc list
+const focusedArcId = ref<string | null>(null)
+
 function coachShouldRun() {
   const ob = accountStore.account?.onboarding
   return ob?.completed && !ob.notificationCoachCompleted
+}
+
+function scrollFocusedIntoView() {
+  if (!focusedArcId.value) return
+  document
+    .querySelector(`[data-arc-id="${focusedArcId.value}"]`)
+    ?.scrollIntoView({ block: 'nearest' })
+}
+
+function moveNext() {
+  const items = arcsStore.sortedItems
+  if (!items.length) return
+  const idx = items.findIndex((a) => a.id === focusedArcId.value)
+  focusedArcId.value = items[Math.min(idx + 1, items.length - 1)].id
+  scrollFocusedIntoView()
+}
+
+function movePrev() {
+  const items = arcsStore.sortedItems
+  if (!items.length) return
+  const idx = items.findIndex((a) => a.id === focusedArcId.value)
+  focusedArcId.value = items[Math.max(idx <= 0 ? 0 : idx - 1, 0)].id
+  scrollFocusedIntoView()
+}
+
+function openFocused() {
+  if (!focusedArcId.value) return
+  void router.push({ name: 'arc-detail', params: { id: focusedArcId.value } })
+}
+
+async function archiveFocused() {
+  if (!focusedArcId.value) return
+  const accountId = accountStore.accountId
+  if (!accountId) return
+  const { api } = await import('@/lib/api')
+  const result = await api.patchArc(accountId, focusedArcId.value, { status: 'archived' })
+  if (result.isOk()) arcsStore.removeArc(focusedArcId.value)
+}
+
+function selectFocused() {
+  if (!focusedArcId.value) return
+  arcsStore.toggleSelect(focusedArcId.value)
 }
 
 onMounted(async () => {
@@ -35,11 +82,23 @@ onMounted(async () => {
   await arcsStore.fetchArcs(true)
   // If the countdown was started when user left for arc-detail, show now that they're back
   if (coachShouldRun() && countdownRunning.value) showCoachNow()
+
+  onAction('navigate_next', moveNext)
+  onAction('navigate_prev', movePrev)
+  onAction('open_thread', openFocused)
+  onAction('archive', archiveFocused)
+  onAction('select_toggle', selectFocused)
 })
 
 onUnmounted(() => {
   // User leaving inbox (most likely to view an arc) — start the 20s countdown
   if (coachShouldRun()) startArcViewCountdown()
+
+  offAction('navigate_next', moveNext)
+  offAction('navigate_prev', movePrev)
+  offAction('open_thread', openFocused)
+  offAction('archive', archiveFocused)
+  offAction('select_toggle', selectFocused)
 })
 
 function handleTabChange(tab: TabKey) {
@@ -124,6 +183,7 @@ watch(
         :arcs="arcsStore.sortedItems"
         :selected-ids="arcsStore.selectedIds"
         :all-selected="arcsStore.allSelected"
+        :focused-arc-id="focusedArcId"
         @toggle-select="arcsStore.toggleSelect"
         @select-all="arcsStore.selectAll()"
         @clear-selection="arcsStore.clearSelection()"

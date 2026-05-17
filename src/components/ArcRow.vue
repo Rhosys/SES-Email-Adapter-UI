@@ -13,7 +13,7 @@ import LabelChip from './LabelChip.vue'
 import UrgencyBadge from './UrgencyBadge.vue'
 import SignalRow from './SignalRow.vue'
 
-const props = defineProps<{ arc: Arc; selected: boolean }>()
+const props = defineProps<{ arc: Arc; selected: boolean; focused?: boolean }>()
 const emit = defineEmits<{ 'toggle-select': [id: string] }>()
 
 const now = inject(NOW_KEY)
@@ -63,11 +63,11 @@ function onSignalUndo() {
 </script>
 
 <template>
-  <div>
+  <div :data-arc-id="arc.id">
     <!-- Arc row line -->
     <div
       class="group relative flex items-center gap-2 border-b border-ctp-surface0 px-3 py-3 transition-colors hover:bg-ctp-surface0"
-      :class="isUnread ? 'bg-ctp-surface0' : 'bg-ctp-base'"
+      :class="[isUnread ? 'bg-ctp-surface0' : 'bg-ctp-base', focused && 'ring-1 ring-inset ring-ctp-mauve']"
       role="row"
     >
       <!-- Urgency stripe -->
