@@ -92,6 +92,17 @@ async function remove(tpl: EmailTemplate) {
   await store.deleteTemplate(tpl.id)
 }
 
+function openClone(tpl: EmailTemplate) {
+  editingId.value = null
+  draftName.value = `Copy of ${tpl.name}`
+  draftSubject.value = tpl.subject
+  draftBody.value = tpl.body
+  draftFunctions.value = tpl.functions.map((f) => ({ ...f }))
+  fnErrors.value = {}
+  showPreview.value = false
+  showEditor.value = true
+}
+
 // ─── Function editor ──────────────────────────────────────────────────────────
 
 function addFunction() {
@@ -353,6 +364,13 @@ onMounted(async () => {
               @click="openEdit(tpl)"
             >
               Edit
+            </button>
+            <button
+              class="rounded border border-ctp-surface1 px-2.5 py-1 text-xs text-ctp-subtext1 hover:text-ctp-text"
+              title="Duplicate this template"
+              @click="openClone(tpl)"
+            >
+              Clone
             </button>
             <button class="text-xs text-ctp-red hover:opacity-80" @click="remove(tpl)">
               Delete

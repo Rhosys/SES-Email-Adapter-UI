@@ -2,6 +2,17 @@ import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath, URL } from 'node:url'
+import { execSync } from 'node:child_process'
+
+function getBuildCommit(): string {
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim()
+  } catch {
+    return 'unknown'
+  }
+}
 
 /** Injects %VITE_API_WS_URL% into index.html — derived from VITE_API_BASE_URL at build time. */
 function apiWsUrlPlugin(): Plugin {
@@ -20,6 +31,18 @@ function apiWsUrlPlugin(): Plugin {
 export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? '/',
   plugins: [vue(), tailwindcss(), apiWsUrlPlugin()],
+  define: {
+    VERSION_INFO: JSON.stringify({
+      releaseDate: new Date().toISOString(),
+      buildNumber: process.env.BUILD_NUMBER ?? 'local',
+      buildRef: process.env.BUILD_REF ?? 'local',
+      buildCommit: getBuildCommit(),
+    }),
+    DEPLOYMENT_INFO: JSON.stringify({
+      FDQN: process.env.VITE_DEPLOYMENT_FDQN ?? 'localhost',
+      LOG_TARGET: process.env.VITE_LOG_TARGET ?? 'LOCAL',
+    }),
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

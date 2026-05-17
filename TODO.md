@@ -14,7 +14,7 @@
 
 ### Trust & reliability
 
-- [ ] **Error tracking integration** — no Sentry / Bugsnag / similar. Production errors are invisible. Add a ~50-line `errorHandler` in `main.ts` that captures Vue errors, unhandled promise rejections, and routing failures and ships them to an error tracking service.
+- [x] **Error tracking integration** — PostHog + relay logger (`src/lib/logger.ts`). Vue error handler, unhandled promise rejections, and router errors all flow to the logger. Session flushed on `beforeunload`. Set `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` env vars to enable PostHog in production.
 
 - [ ] **Bundle-size budget in CI** — `vite build` already prints chunk sizes. Add a build step that fails if any chunk regresses beyond a defined limit, catching accidental heavy imports before they ship.
 
@@ -36,7 +36,7 @@
 
 ### Onboarding & engagement
 
-- [ ] **Invite accept screen** — `/invite?inviteId=<id>` route that lets a newly invited team member accept their invitation. Spec:
+- [x] **Invite accept screen** — `/invite?inviteId=<id>` route that lets a newly invited team member accept their invitation. Spec:
   - Extract `inviteId` from the URL query string; if missing or empty display "invite link is invalid" and make no SDK call.
   - When `inviteId` is present: call `loginClient.userSessionExists()` to process any OAuth callback tokens; if a session now exists the invite was accepted — redirect to `/`.
   - If no session yet: call `loginClient.authenticate({ inviteId, redirectUrl: window.location.href })` which redirects the user through the Authress login + invite-acceptance flow and returns them to this URL.
