@@ -8,11 +8,12 @@ import environment from './environment'
 
 const key = import.meta.env.VITE_POSTHOG_KEY
 const host = import.meta.env.VITE_POSTHOG_HOST ?? 'https://eu.posthog.com'
+const uiHost = host.includes('posthog.com') ? host : 'https://eu.posthog.com'
 
 if (environment === 'production' && key) {
   posthog.init(key, {
     api_host: host,
-    ui_host: 'https://eu.posthog.com',
+    ui_host: uiHost,
     person_profiles: 'identified_only',
     disable_external_dependency_loading: true,
     persistence: 'localStorage',

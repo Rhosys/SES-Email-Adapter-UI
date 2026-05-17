@@ -68,6 +68,11 @@ function navigateToProfile() {
   void router.push('/profile')
 }
 
+async function signOut() {
+  open.value = false
+  await loginClient.logout()
+}
+
 function copyEmail() {
   if (!email.value) return
   void navigator.clipboard.writeText(email.value).then(() => {
@@ -233,15 +238,22 @@ function copyUserId() {
         </div>
       </div>
 
-      <!-- Footer: navigate to full profile -->
-      <div class="border-t border-ctp-surface0 px-4 py-2.5">
+      <!-- Footer: profile link + sign out -->
+      <div class="border-t border-ctp-surface0 px-4 py-2.5 flex items-center justify-between gap-2">
         <button
           type="button"
-          class="flex w-full items-center justify-between text-xs text-ctp-subtext0 transition-colors hover:text-ctp-mauve"
+          class="flex items-center gap-1 text-xs text-ctp-subtext0 transition-colors hover:text-ctp-mauve"
           @click="navigateToProfile"
         >
           <span>View full profile</span>
           <span>→</span>
+        </button>
+        <button
+          type="button"
+          class="text-xs text-ctp-subtext0 transition-colors hover:text-ctp-red"
+          @click="signOut"
+        >
+          Sign out
         </button>
       </div>
     </div>
