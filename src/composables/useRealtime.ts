@@ -16,16 +16,9 @@ interface RealtimeEventPayload {
   signal?: { from?: { address?: string; name?: string }; subject?: string }
 }
 
-// urgency → minimum urgency required to notify, based on the user's email digest preference.
-// critical/high always break through; normal only fires on instant; low/silent never fire.
-function shouldNotify(
-  urgency: ArcUrgency | undefined,
-  frequency: 'instant' | 'hourly' | 'daily' | undefined,
-): boolean {
-  if (!urgency || urgency === 'silent' || urgency === 'low') return false
-  if (frequency === 'daily') return urgency === 'critical'
-  if (frequency === 'hourly') return urgency === 'critical' || urgency === 'high'
-  return true // instant or unset: critical, high, normal all qualify
+// critical / high / normal → notify; low / silent → skip
+function shouldNotify(urgency: ArcUrgency | undefined): boolean {
+  return !!urgency && urgency !== 'low' && urgency !== 'silent'
 }
 
 function notifTitle(urgency: ArcUrgency): string {
@@ -45,8 +38,7 @@ export function useRealtime() {
     if (!('Notification' in window) || Notification.permission !== 'granted') return
 
     const urgency = payload.arc?.urgency
-    const frequency = accountStore.account?.notifications?.email?.frequency
-    if (!shouldNotify(urgency, frequency)) return
+    if (!shouldNotify(urgency)) return
 
     const from =
       payload.signal?.from?.name ?? payload.signal?.from?.address ?? 'Unknown sender'
