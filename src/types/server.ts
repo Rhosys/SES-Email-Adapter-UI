@@ -574,7 +574,7 @@ export interface ForwardingAddress {
 
 // ─── Team members (Phase 9) ──────────────────────────────────────────────────
 
-export type UserRole = 'owner' | 'admin' | 'member' | 'viewer'
+export type UserRole = 'admin' | 'member' | 'viewer'
 
 export interface TeamMember {
   id: string

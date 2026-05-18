@@ -175,11 +175,10 @@ const inviteRole = ref<UserRole>('member')
 const invitePending = ref(false)
 const teamError = ref('')
 
-const ROLES: UserRole[] = ['owner', 'admin', 'member', 'viewer']
+const ROLES: UserRole[] = ['admin', 'member', 'viewer']
 
 const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
-  owner: 'Full access including billing and account deletion',
-  admin: 'Manage everything except billing',
+  admin: 'Full access including billing and account deletion',
   member: 'Process emails and manage rules',
   viewer: 'Read-only access',
 }
