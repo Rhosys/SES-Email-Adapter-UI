@@ -17,7 +17,7 @@ export type Workflow =
   | 'support'
   | 'test'
 
-export type ArcStatus = 'active' | 'archived' | 'deleted'
+export type ArcStatus = 'active' | 'archived' | 'deleted' | 'violate_report'
 
 export type ArcUrgency = 'critical' | 'high' | 'normal' | 'low' | 'silent'
 
