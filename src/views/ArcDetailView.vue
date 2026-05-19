@@ -3,6 +3,8 @@ import { onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useSignalsStore } from '@/stores/signals'
 import { useAccountStore } from '@/stores/account'
+import { useToast } from '@/composables/useToast'
+import { api } from '@/lib/api'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
 import SignalCard from '@/components/SignalCard.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
@@ -11,6 +13,7 @@ import ReplyComposer from '@/components/ReplyComposer.vue'
 const route = useRoute()
 const signalsStore = useSignalsStore()
 const accountStore = useAccountStore()
+const { showUndo } = useToast()
 
 const arcId = computed(() => route.params.id as string)
 
@@ -33,16 +36,34 @@ async function startDraft() {
   await signalsStore.createDraft(arcId.value)
 }
 
-function onDraftDiscard(signalId: string) {
-  signalsStore.removeSignal(signalId)
+function onDraftDiscard() {
+  void signalsStore.fetchAll(arcId.value)
 }
 
-function onDraftSent(signalId: string) {
-  signalsStore.removeSignal(signalId)
+function onDraftSent() {
+  void signalsStore.fetchAll(arcId.value)
+}
+
+function onSignalUndo() {
+  void signalsStore.fetchAll(arcId.value)
 }
 
 async function archive() {
-  await signalsStore.archiveArc(arcId.value)
+  const ok = await signalsStore.archiveArc(arcId.value)
+  if (!ok) return
+  const id = arcId.value
+  const summary = signalsStore.arc?.summary
+  showUndo(
+    'Thread archived',
+    async () => {
+      const accountId = accountStore.accountId
+      if (!accountId) return
+      await api.patchArc(accountId, id, { status: 'active' })
+      await signalsStore.fetchAll(id)
+    },
+    8_000,
+    { submessage: summary ? summary.slice(0, 70) : undefined },
+  )
 }
 
 async function loadMore() {
@@ -61,13 +82,34 @@ async function loadMore() {
     </RouterLink>
 
     <!-- Loading -->
-    <div v-if="signalsStore.loading" class="py-12 text-center text-sm text-ctp-subtext0">
-      Loading…
+    <div
+      v-if="signalsStore.loading"
+      role="status"
+      aria-label="Loading thread…"
+      class="animate-pulse"
+    >
+      <div class="mb-6 space-y-2">
+        <div class="h-6 w-2/3 rounded bg-ctp-surface1" />
+        <div class="h-3 w-32 rounded bg-ctp-surface1" />
+      </div>
+      <div class="space-y-4">
+        <div v-for="i in 3" :key="i" class="rounded-lg border border-ctp-surface0 bg-ctp-mantle p-4">
+          <div class="mb-3 flex items-center gap-2">
+            <div class="h-3 w-28 rounded bg-ctp-surface1" />
+            <div class="ml-auto h-3 w-16 rounded bg-ctp-surface1" />
+          </div>
+          <div class="space-y-2">
+            <div class="h-4 w-full rounded bg-ctp-surface1" />
+            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${60 + i * 12}%` }" />
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Error -->
     <div
       v-else-if="signalsStore.error"
+      role="alert"
       class="rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
     >
       {{ signalsStore.error }}
@@ -76,7 +118,31 @@ async function loadMore() {
     <template v-else-if="signalsStore.arc">
       <!-- Arc header -->
       <div class="mb-6">
-        <h1 class="text-xl font-semibold text-ctp-text">{{ signalsStore.arc.summary }}</h1>
+        <div class="flex items-start justify-between gap-4">
+          <h1 class="text-xl font-semibold text-ctp-text">{{ signalsStore.arc.summary }}</h1>
+          <div class="flex shrink-0 items-center gap-2">
+            <button
+              v-if="showReply"
+              class="flex h-8 items-center gap-1.5 rounded border border-ctp-surface1 px-3 text-sm text-ctp-subtext1 transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
+              @click="startDraft"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M6 3.5L1 8l5 4.5V9.5c4.5 0 7.5 1.5 9 4.5-.5-4.5-3-8-9-8V3.5z"/>
+              </svg>
+              Reply
+            </button>
+            <button
+              v-if="signalsStore.arc.status === 'active'"
+              class="flex h-8 items-center gap-1.5 rounded border border-ctp-surface1 px-3 text-sm text-ctp-subtext1 transition-colors hover:border-ctp-red hover:text-ctp-red"
+              @click="archive"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M1.5 2h13l-1 2H2.5L1.5 2zm.5 3h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V5zm4 2v5h5V7H6z"/>
+              </svg>
+              Archive
+            </button>
+          </div>
+        </div>
         <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-ctp-subtext0">
           <span class="capitalize">{{ signalsStore.arc.workflow }}</span>
           <span>·</span>
@@ -118,26 +184,16 @@ async function loadMore() {
           <DraftSignalCard
             v-if="signal.status === 'draft'"
             :signal="signal"
-            @discard="onDraftDiscard(signal.id)"
-            @sent="onDraftSent(signal.id)"
+            @discard="onDraftDiscard"
+            @sent="onDraftSent"
           />
-          <SignalCard v-else :signal="signal" />
+          <SignalCard v-else :signal="signal" @undo="onSignalUndo" />
         </template>
       </div>
 
-      <!-- New reply trigger -->
+      <!-- Reply composer (opened from header Reply button) -->
       <div v-if="showReply" class="mt-6">
         <ReplyComposer @reply="startDraft" />
-      </div>
-
-      <!-- Archive action -->
-      <div v-if="signalsStore.arc.status === 'active'" class="mt-6 flex justify-end">
-        <button
-          class="rounded border border-ctp-surface1 px-4 py-2 text-sm text-ctp-subtext0 transition-colors hover:bg-ctp-surface1 hover:text-ctp-text"
-          @click="archive"
-        >
-          Archive
-        </button>
       </div>
     </template>
   </div>

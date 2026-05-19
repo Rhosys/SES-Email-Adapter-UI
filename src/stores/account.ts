@@ -13,6 +13,7 @@ export const useAccountStore = defineStore('account', () => {
   const accounts = ref<Account[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const fetched = ref(false)
 
   const accountId = computed(() => account.value?.id ?? null)
 
@@ -24,6 +25,7 @@ export const useAccountStore = defineStore('account', () => {
     loading.value = false
     if (result.isErr()) {
       error.value = result.error.message
+      fetched.value = true
       return
     }
     accounts.value = result.value
@@ -37,6 +39,25 @@ export const useAccountStore = defineStore('account', () => {
       null
 
     if (account.value) sessionStorage.setItem(TAB_KEY, account.value.id)
+    fetched.value = true
+  }
+
+  async function createAccount(name: string): Promise<boolean> {
+    loading.value = true
+    error.value = null
+    const result = await api.createAccount({ name })
+    loading.value = false
+    if (result.isErr()) {
+      error.value = result.error.message
+      return false
+    }
+    const newAccount = result.value
+    accounts.value = [newAccount, ...accounts.value]
+    account.value = newAccount
+    fetched.value = true
+    sessionStorage.setItem(TAB_KEY, newAccount.id)
+    localStorage.setItem(LAST_KEY, newAccount.id)
+    return true
   }
 
   function switchAccount(id: string) {
@@ -49,5 +70,15 @@ export const useAccountStore = defineStore('account', () => {
     window.location.assign('/')
   }
 
-  return { account, accounts, loading, error, accountId, fetchAccount, switchAccount }
+  return {
+    account,
+    accounts,
+    loading,
+    error,
+    accountId,
+    fetched,
+    fetchAccount,
+    createAccount,
+    switchAccount,
+  }
 })

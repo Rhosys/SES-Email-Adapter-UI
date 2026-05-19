@@ -4,6 +4,8 @@ import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useLabelsStore } from '@/stores/labels'
 import { useViewsStore } from '@/stores/views'
 import { useAccountStore } from '@/stores/account'
+import { useSupportPanel } from '@/composables/useSupportPanel'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 defineProps<{ open: boolean }>()
 
@@ -14,6 +16,7 @@ const viewsStore = useViewsStore()
 const accountStore = useAccountStore()
 
 const switcherOpen = ref(false)
+const { open: supportOpen } = useSupportPanel()
 
 const isActive = (path: string) => route.path === path || route.path.startsWith(path + '/')
 const exactActive = (path: string) => route.path === path
@@ -35,14 +38,10 @@ function onDragOver(e: DragEvent) {
   e.preventDefault()
 }
 
-function navigateToView(v: {
-  filters: { workflow?: string; labelId?: string; sender?: string; status?: string }
-}) {
+function navigateToView(v: { workflow?: string; labels?: string[] }) {
   const query: Record<string, string> = {}
-  if (v.filters.workflow) query.workflow = v.filters.workflow
-  if (v.filters.labelId) query.label = v.filters.labelId
-  if (v.filters.sender) query.sender = v.filters.sender
-  if (v.filters.status) query.status = v.filters.status
+  if (v.workflow) query.workflow = v.workflow
+  if (v.labels?.[0]) query.label = v.labels[0]
   void router.push({ path: '/', query })
 }
 
@@ -66,6 +65,8 @@ const labels = computed(() => labelsStore.items)
       <button
         class="flex h-12 w-full items-center gap-2 px-4 text-left transition-colors hover:bg-ctp-surface0/50"
         :class="{ 'cursor-default hover:bg-transparent': accountStore.accounts.length <= 1 }"
+        :aria-expanded="accountStore.accounts.length > 1 ? switcherOpen : undefined"
+        :aria-haspopup="accountStore.accounts.length > 1 ? 'listbox' : undefined"
         @click="accountStore.accounts.length > 1 && (switcherOpen = !switcherOpen)"
       >
         <span class="flex-1 truncate text-sm font-semibold text-ctp-text">
@@ -109,7 +110,7 @@ const labels = computed(() => labelsStore.items)
       </div>
 
       <!-- Click-outside backdrop -->
-      <div v-if="switcherOpen" class="fixed inset-0 z-40" @click="switcherOpen = false" />
+      <div v-if="switcherOpen" role="presentation" class="fixed inset-0 z-40" @click="switcherOpen = false" />
     </div>
 
     <nav class="flex-1 overflow-y-auto py-2">
@@ -117,6 +118,7 @@ const labels = computed(() => labelsStore.items)
       <div class="px-2">
         <RouterLink
           to="/"
+          data-tour="nav-inbox"
           class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
           :class="
             exactActive('/')
@@ -125,7 +127,7 @@ const labels = computed(() => labelsStore.items)
           "
         >
           <!-- Inbox icon -->
-          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path
               d="M1 2.5A1.5 1.5 0 012.5 1h11A1.5 1.5 0 0115 2.5v11a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 13.5v-11zM2.5 2a.5.5 0 00-.5.5V9h2.5a.5.5 0 01.5.5 2.5 2.5 0 005 0 .5.5 0 01.5-.5H13V2.5a.5.5 0 00-.5-.5h-10z"
             />
@@ -135,6 +137,7 @@ const labels = computed(() => labelsStore.items)
 
         <RouterLink
           to="/quarantine"
+          data-tour="nav-quarantine"
           class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
           :class="
             isActive('/quarantine')
@@ -143,7 +146,7 @@ const labels = computed(() => labelsStore.items)
           "
         >
           <!-- Shield icon -->
-          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path
               d="M8 1l6 2v4c0 3.5-2.5 6.3-6 7.5C2.5 13.3 0 10.5 0 7V3l8-2zm0 1.5L1.5 4.3V7c0 2.8 2 5.1 6.5 6.3C12.5 12.1 14.5 9.8 14.5 7V4.3L8 2.5z"
             />
@@ -161,7 +164,7 @@ const labels = computed(() => labelsStore.items)
           "
         >
           <!-- Search icon -->
-          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path
               d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 001.415-1.414l-3.85-3.85a1.007 1.007 0 00-.115-.099zm-5.242 1.156a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"
             />
@@ -182,19 +185,21 @@ const labels = computed(() => labelsStore.items)
             Manage
           </RouterLink>
         </div>
-        <div
+        <button
           v-for="view in sortedViews"
           :key="view.id"
+          type="button"
           draggable="true"
-          class="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-ctp-subtext1 transition-colors hover:bg-ctp-surface0/50 hover:text-ctp-text"
+          class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-ctp-subtext1 transition-colors hover:bg-ctp-surface0/50 hover:text-ctp-text"
           @click="navigateToView(view)"
+          @keydown.enter="navigateToView(view)"
           @dragstart="onDragStart(view.id)"
           @dragover="onDragOver"
           @drop="onDrop(view.id)"
         >
-          <span class="shrink-0 text-xs">{{ view.icon ?? '📋' }}</span>
+          <span class="shrink-0 text-xs" aria-hidden="true">{{ view.icon ?? '📋' }}</span>
           <span class="truncate">{{ view.name }}</span>
-        </div>
+        </button>
       </div>
 
       <!-- Labels -->
@@ -228,6 +233,7 @@ const labels = computed(() => labelsStore.items)
     <div class="border-t border-ctp-surface0 px-2 py-2">
       <RouterLink
         to="/rules"
+        data-tour="nav-rules"
         class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
         :class="
           isActive('/rules')
@@ -236,7 +242,7 @@ const labels = computed(() => labelsStore.items)
         "
       >
         <!-- List icon -->
-        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path
             fill-rule="evenodd"
             d="M2.5 12a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5z"
@@ -246,7 +252,24 @@ const labels = computed(() => labelsStore.items)
       </RouterLink>
 
       <RouterLink
+        to="/templates"
+        class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
+        :class="
+          isActive('/templates')
+            ? 'bg-ctp-surface0 text-ctp-text font-medium'
+            : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
+        "
+      >
+        <!-- Document icon -->
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M4 0a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4.5L9.5 0H4zm5 1v3.5H12L9 1zM4 7h8v1H4V7zm0 2h8v1H4V9zm0 2h5v1H4v-1z"/>
+        </svg>
+        Templates
+      </RouterLink>
+
+      <RouterLink
         to="/labels"
+        data-tour="nav-labels"
         class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
         :class="
           isActive('/labels')
@@ -255,7 +278,7 @@ const labels = computed(() => labelsStore.items)
         "
       >
         <!-- Tag icon -->
-        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path
             d="M1 1h6.5a1 1 0 01.707.293l6 6a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-6-6A1 1 0 011 7.5V1zm1.5 1.5v5l5.5 5.5 4-4L7 3.5H2.5zM4 4.5a.5.5 0 100 1 .5.5 0 000-1z"
           />
@@ -265,6 +288,7 @@ const labels = computed(() => labelsStore.items)
 
       <RouterLink
         to="/settings"
+        data-tour="nav-settings"
         class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
         :class="
           isActive('/settings')
@@ -273,7 +297,7 @@ const labels = computed(() => labelsStore.items)
         "
       >
         <!-- Gear icon -->
-        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path
             d="M8 4.754a3.246 3.246 0 100 6.492 3.246 3.246 0 000-6.492zM5.754 8a2.246 2.246 0 114.492 0 2.246 2.246 0 01-4.492 0z"
           />
@@ -284,25 +308,27 @@ const labels = computed(() => labelsStore.items)
         Settings
       </RouterLink>
 
+      <!-- Help / Support — hidden on mobile (shown in header bar instead) -->
+      <button
+        class="hidden w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors sm:flex"
+        :class="
+          supportOpen
+            ? 'bg-ctp-surface0 text-ctp-text font-medium'
+            : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
+        "
+        @click="supportOpen = true"
+      >
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+          <path
+            d="M5.255 5.786a.237.237 0 00.241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217a.25.25 0 00.25.246h.811a.25.25 0 00.25-.25v-.105c0-.718.273-.927 1.01-1.486.609-.463 1.244-.977 1.244-2.056 0-1.511-1.276-2.241-2.673-2.241-1.267 0-2.655.59-2.75 2.286zm1.557 5.763c0 .533.425.927 1.01.927.609 0 1.028-.394 1.028-.927 0-.552-.42-.94-1.029-.94-.584 0-1.009.388-1.009.94z"
+          />
+        </svg>
+        Help &amp; Support
+      </button>
+
       <!-- Account / Profile -->
-      <div class="mt-2 border-t border-ctp-surface0 pt-2">
-        <RouterLink
-          to="/profile"
-          class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
-          :class="
-            isActive('/profile')
-              ? 'bg-ctp-surface0 text-ctp-text font-medium'
-              : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
-          "
-        >
-          <!-- User icon -->
-          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">
-            <path
-              d="M8 8a3 3 0 100-6 3 3 0 000 6zm2-3a2 2 0 11-4 0 2 2 0 014 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.029 10 8 10c-2.029 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"
-            />
-          </svg>
-          <span class="flex-1 truncate">{{ accountStore.account?.name ?? 'Profile' }}</span>
-        </RouterLink>
+      <div class="mt-2 border-t border-ctp-surface0 px-3 pt-3">
+        <UserAvatar sidebar />
       </div>
     </div>
   </aside>

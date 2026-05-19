@@ -1,8 +1,194 @@
 # SES Email Adapter UI — Build Plan
 
+## Recommendations
+
+### Power-user / interaction polish
+
+- [x] **Toast / undo notification system** — global snackbar for destructive actions (archive, block, delete) with a 5-second undo window. No global toast system exists today; errors and successes are either silent or surfaced inline per-view only.
+
+- [x] **Keyboard shortcuts for inbox navigation** — Gmail/Superhuman-style bindings: `j/k` move between arcs, `e` archive, `r` reply, `?` opens a shortcut reference overlay. Currently only Escape is wired anywhere; power users can't navigate at speed without a mouse.
+
+- [x] **Browser push notifications** — frontend fully implemented: `useRealtime.ts` fires `new Notification()` on `signal:created` events, filtered by urgency. Blocked on backend WebSocket implementation (see Backend TODOs — WebSocket realtime events).
+
+- [x] **Skeleton loaders** — every view shows plain `"Loading…"` text. Replace with layout-matching skeleton placeholders to reduce perceived load time.
+
+### Trust & reliability
+
+- [x] **Error tracking integration** — PostHog + relay logger (`src/lib/logger.ts`). Vue error handler, unhandled promise rejections, and router errors all flow to the logger. Session flushed on `beforeunload`. Set `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` env vars to enable PostHog in production.
+
+- [x] **Axe-core automated a11y tests (baseline)** — WCAG 2.x AA audit on the 6 main routes (`/`, `/search`, `/quarantine`, `/labels`, `/rules`, `/settings`) in `tests/e2e/a11y.test.ts`.
+
+### Extensibility & integrations
+
+- [ ] **Webhooks UI in Settings** — outbound webhook subscriptions so users can pipe arc events into Slack, Discord, or Linear without writing custom code. New tab in the Settings view. Requires backend (see Backend TODOs — Webhooks).
+
+- [ ] **API keys management** — list, create (with one-time secret reveal), and revoke keys. New tab in Settings or Profile. Requires backend (see Backend TODOs — API keys).
+
+---
+
+## V2 — Blocked pending app release
+
+These are solid ideas but intentionally deferred until V1 is shipped and in users' hands.
+
+- [ ] **Bundle-size budget in CI** — harden the existing advisory bundle-size check into a hard build failure with defined chunk and total KB limits.
+
+- [ ] **Axe-core — extend to full route list** — extend `tests/e2e/a11y.test.ts` to cover: `/onboarding`, `/invite`, `/billing`, `/profile`, `/rules/new`, `/rules/:id`, `/arcs/:id`, `/templates`, `/audit-log`, `/terms`, `/privacy`. Add `wcag21a`, `wcag21aa`, `best-practice` tags.
+
+- [ ] **Test coverage backfill** — the following have no tests at all:
+  - Stores: `templates`, `theme`, `account`, `signals`, `views`
+  - Views: `SettingsView`, `TemplatesView`, `OnboardingView`, `QuarantineView`, `ArcDetailView`
+
+- [ ] **Modular component system + LLM-composable layouts** — decompose every view into a registry of self-describing, slot-composable components so that an LLM can produce a valid layout tree for any view and users can save a custom layout per view.
+
+### Onboarding & engagement
+
+- [x] **Invite accept screen** — `/invite?inviteId=<id>` route that lets a newly invited team member accept their invitation. Spec:
+  - Extract `inviteId` from the URL query string; if missing or empty display "invite link is invalid" and make no SDK call.
+  - When `inviteId` is present: call `loginClient.userSessionExists()` to process any OAuth callback tokens; if a session now exists the invite was accepted — redirect to `/`.
+  - If no session yet: call `loginClient.authenticate({ inviteId, redirectUrl: window.location.href })` which redirects the user through the Authress login + invite-acceptance flow and returns them to this URL.
+  - If `error` / `error_description` query params appear in the URL (OAuth failure return), display a specific message: "expired", "already used", or "not found" based on the `error_description` text — do not redirect.
+  - If `authenticate()` throws a 4xx: display the same categorised error — do not redirect.
+  - Route must be unauthenticated (no `requiresAuth` guard) so the guard doesn't redirect the user away before they can log in via the invite.
+  - Add `invite` to `ROUTE_TITLES` in the router.
+
+- [x] **First-run feature tour** — coachmark overlay (Shepherd.js or equivalent) triggered once after onboarding completes, highlighting key UI elements (rules, quarantine, labels, search). Permanently dismissible.
+
+- [x] **Inbox-zero celebration** — small visual flourish (similar to the fireworks on the onboarding done screen) when the last arc in the inbox is archived. Cheap engagement moment.
+
+---
+
 ## Open tasks
 
 - [x] Reconcile API client against backend breaking changes (see "API Breaking Changes" below)
+
+## Backend routes the frontend calls that must be implemented
+
+These are all `// TODO(backend)` items in `src/lib/api.ts`, consolidated here so they can be ported to `rhosys/ses-email-adapter`.
+
+### Account management
+
+- `POST /accounts` — create a new account (required for self-service onboarding; Step 1 of the onboarding wizard calls this before any domain/alias setup can proceed)
+- `GET /accounts` — list all accounts the authenticated user belongs to (needed for account switcher)
+
+### Labels (`/accounts/:id/labels`)
+
+- `GET` — list labels
+- `POST` — create label `{ name, color?, icon? }`
+- `PATCH /:labelId` — update label
+- `DELETE /:labelId` — delete label
+
+### Saved views (`/accounts/:id/views`)
+
+- `GET` — list views
+- `POST` — create view
+- `PATCH /:viewId` — update view
+- `DELETE /:viewId` — delete view
+
+### Rules (`/accounts/:id/rules`)
+
+- `GET` — list rules
+- `POST` — create rule
+- `PATCH /:ruleId` — update rule
+- `DELETE /:ruleId` — delete rule
+
+### Domains (`/accounts/:id/domains`)
+
+- `GET` — list domains (POST and PATCH already implemented)
+
+### Forwarding addresses (`/accounts/:id/forwarding-addresses`)
+
+- `GET` — list forwarding addresses
+- `POST` — create `{ address }`
+- `DELETE /:id` — delete
+
+### Team members (`/accounts/:id/users`)
+
+- `GET` — list team members
+- `POST` — invite `{ email, role }`
+- `PATCH /:userId` — update role
+- `DELETE /:userId` — remove
+
+### Audit log (`/accounts/:id/audit`)
+
+- `GET` — cursor-paginated event list; response shape: `{ events: AuditEvent[], pagination: { cursor: string | null } }`
+
+### Email templates (`/accounts/:id/templates`)
+
+**Resource shapes:**
+```ts
+interface TemplateFunction {
+  name: string  // JS identifier — referenced in body as {{fn.name}}
+  code: string  // full JS expression: (signal, arc) => string
+}
+
+interface EmailTemplate {
+  id: string
+  accountId: string
+  name: string               // display name, e.g. "Order confirmation reply"
+  subject: string            // email subject, may contain {{sender.name}}, {{sender.address}}, {{fn.*}}
+  body: string               // markdown body, same variable set
+  functions: TemplateFunction[]
+  createdAt: string          // ISO 8601
+  updatedAt: string          // ISO 8601
+}
+```
+
+**Static variables** (always available, resolved server-side):
+- `{{sender.name}}` — display name of the incoming signal's sender
+- `{{sender.address}}` — email address of the sender
+
+**Custom function outputs** (`{{fn.<name>}}`): each `TemplateFunction` is an arrow function
+expression that receives `(signal, arc)` and returns a string. The backend evaluates each
+function in a sandboxed VM against the live signal and arc at send time, collects the outputs
+into a `fn` namespace, then performs the Handlebars pass over subject and body. Functions may
+access any field on the full signal and arc objects.
+
+**Endpoints:**
+- `GET /accounts/:id/templates` → `{ templates: EmailTemplate[] }` — full list, no pagination needed initially
+- `POST /accounts/:id/templates` — body `{ name, subject, body, functions }` → `EmailTemplate` (201)
+- `PUT /accounts/:id/templates/:templateId` — full replace, same body shape → `EmailTemplate`
+- `DELETE /accounts/:id/templates/:templateId` → 204 No Content
+
+**Security:** user-supplied `functions[].code` must be executed in an isolated VM context
+server-side (e.g. Node.js `vm.runInNewContext` with a timeout), never via raw `eval`. Validate
+that each `name` is a valid JS identifier before storing.
+
+**VM execution context:** the sandboxed VM must expose the full `signal` and `arc` objects,
+including all optional fields (`signal.workflowData`, `signal.attachments`, `signal.matchedRules`,
+`signal.textBody`, `signal.htmlBody`, `signal.spamScore`, `arc.urgency`, `arc.labels`, etc.).
+Fields that are absent for a given signal must be `undefined` (not omitted), so user code can
+safely test `signal.workflowData?.orderNumber` without a property-access error.
+
+**Function error handling at send time:** if a function throws or times out during execution
+against live data, substitute an empty string for that `fn.*` token and continue rendering —
+do not abort the send/draft action. Log the error (function name + message + signal ID) for
+observability. This matches what users see in the browser preview (`[Error: ...]` renders as
+an empty placeholder in production so the email still goes out).
+
+**Rule integration:** when a rule action has `type: 'auto_reply'` or `type: 'auto_draft'` and a
+`templateId`, the backend:
+1. Loads the template
+2. Runs each function against the live signal/arc in a sandboxed VM, collecting `fn.*` outputs
+   (errors substitute empty string — see above)
+3. Performs a Handlebars pass over subject and body with `{ sender, fn }` context
+4. Renders the markdown body to HTML (or passes raw markdown to SES depending on your pipeline)
+5. Either sends immediately (`auto_reply`) or creates a draft signal (`auto_draft`) for user review
+
+### Quarantine response
+
+- `POST /accounts/:id/signals/:signalId/quarantineResponse` — body `{ status: 'active' | 'block_hidden' | 'block_reject' }`:
+  - `active` — approve: find or create arc, deliver signal
+  - `block_hidden` — silently discard; sender gets 250 OK but signal is dropped
+  - `block_reject` — return SMTP 5xx to sender's mail server ("nuclear unsubscribe")
+
+### Billing / Stripe
+
+- `POST /accounts/:id/billing/checkout-session` — create Stripe Checkout session, return `{ url }` so frontend can redirect
+- `GET /accounts/:id/billing` — return current plan/subscription status so BillingView can display it
+- `POST /accounts/:id/billing/portal-session` — create Stripe Customer Portal session, return `{ url }` so frontend can redirect (needed for managing subscriptions from BillingView)
+
+---
+
 - [x] Implement Phase 5 — Quarantine view
 - [x] Implement Phase 6 — Labels & views
 - [x] Implement Phase 7 — Rules engine
@@ -10,7 +196,11 @@
 - [x] Implement Phase 9 — Settings
 - [x] Implement Phase 10 — Secondary screens
 - [x] Implement Phase 2 — Onboarding flow
-- [ ] Set up favicon and Open Graph meta tags
+- [x] Set up favicon and Open Graph meta tags
+- [x] **CSP audit** — add `https://dns.google` to the Content-Security-Policy `connect-src`
+      directive (used for client-side DNS verification in the onboarding domain step); also add a
+      Playwright test that loads each view and asserts no CSP violations in the console, and that
+      all domains referenced in the app's fetch/XHR calls are present in the CSP allowlist
 
 - [x] **Reply composer — wire up draft signal API and complete From field UX**
 
@@ -29,7 +219,7 @@
   - Update `listQuarantinedSignals` in `src/lib/api.ts` to accept the specific status param and
     update the store to issue both calls in parallel and merge results
 
-- [ ] **Email templates** — new entity for reusable reply/draft content:
+- [x] **Email templates** — new entity for reusable reply/draft content:
   - Add `EmailTemplate` to `src/types/server.ts`:
     ```ts
     interface EmailTemplate {
@@ -56,7 +246,7 @@
   - Template picker in the rule editor for `auto_reply` and `auto_draft` action types
     (searchable dropdown populated from the templates store)
 
-- [ ] **Audit log — expandable rows with before/after diff**
+- [x] **Audit log — expandable rows with before/after diff**
   - Update `AuditEvent` in `src/types/server.ts` to match the backend shape:
     replace `metadata?: Record<string, unknown>` with `before?: unknown; after?: unknown`;
     also align field names (`actorId` → `userId`, `createdAt` → `timestamp`,
@@ -69,7 +259,7 @@ view | template | forwarding_address`)
   - Only render the expand affordance on rows where `before` or `after` is present (i.e. `updated`
     events); `created` / `deleted` / `reordered` events can show the snapshot in a single column
 
-- [ ] **Account switcher** — let users move between accounts they belong to without signing out:
+- [x] **Account switcher** — let users move between accounts they belong to without signing out:
   - Displayed in the sidebar below the brand name: show the current account name with a
     chevron/dropdown indicator; clicking opens an account list popover
   - List all accounts the authenticated user has access to; selecting one reloads the app
@@ -79,7 +269,7 @@ view | template | forwarding_address`)
     token introspection is needed to enumerate accessible accounts before this can be built.
     Add a corresponding TODO in `rhosys/ses-email-adapter`.
 
-- [ ] **Support panel** — persistent help affordance built into the app shell:
+- [x] **Support panel** — persistent help affordance built into the app shell:
   - `?` icon button fixed in the bottom-left corner of the sidebar (always visible, above the
     profile link); opens a slide-over or modal panel without navigating away
   - Panel sections:
@@ -188,7 +378,10 @@ auto_draft`
 
 ---
 
-- [ ] **Inline feature explanations** — every view and complex UI element must explain itself
+- [x] **Accessibility** — audit the app against WCAG 2.1 AA and fix violations (keyboard nav,
+      focus indicators, ARIA labels, colour contrast, screen reader support)
+
+
       without redirecting to external documentation:
   - Empty states describe what the feature does and how to get started (not just "nothing here")
   - Tooltip or `<details>` disclosure on every non-obvious control (filter mode options, DNS record
@@ -196,7 +389,7 @@ auto_draft`
   - Onboarding hints that persist until dismissed (not one-shot toasts)
   - No "see docs" or "learn more" links as the primary explanation — docs links are supplementary
 
-- [ ] **Responsive design & mobile optimisation** — every screen must work at all viewport sizes:
+- [x] **Responsive design & mobile optimisation** — every screen must work at all viewport sizes:
   - Mobile-first CSS: design and test at 320 px, 375 px, 390 px before scaling up
   - Sidebar collapses to a bottom tab bar or hamburger drawer on narrow viewports (`< 640 px`)
   - All tables/lists degrade gracefully (no horizontal scroll traps, stack to cards on mobile)
@@ -219,88 +412,7 @@ auto_draft`
   - This screen is user-scoped (not account/org scoped) — all calls go to the identity provider via `@authress/login` SDK methods, not to the `ses-email-adapter` backend
   - Extend the existing `/profile` view; keep `/settings` strictly org-scoped
 
-- [ ] **Modular component system + LLM-composable layouts** — decompose every view into a registry of self-describing, slot-composable components so that an LLM can produce a valid layout tree for any view and users can save a custom layout per view:
-
-  ### Component registry & descriptor format
-  - Every leaf UI component (arc row, signal card, stat chip, filter bar, label chip, DNS record row, etc.) must be registered in a central `src/components/registry.ts` with a machine-readable descriptor:
-    ```ts
-    export interface ComponentDescriptor {
-      id: string // e.g. 'arc-row', 'signal-card', 'stat-chip'
-      displayName: string
-      description: string // plain-English purpose, consumed by LLM prompts
-      props: PropDescriptor[] // name, type, required, default, enum values
-      slots?: string[] // named slots the component exposes
-      accepts?: string[] // component IDs that can be placed in its slots
-    }
-    ```
-  - Components declare their own descriptor via a `defineComponentMeta()` helper so the registry is always in sync with the component file — no separate manifest to maintain
-  - Serve `public/component-registry.json` (generated at build time from the registry) so an LLM running entirely in the browser can read the available components without any server round-trip
-
-  ### Layout schema
-  - Each view has exactly one layout. A layout is a serialisable tree of component instances:
-    ```ts
-    export interface LayoutNode {
-      componentId: string // must match a registered descriptor ID
-      props?: Record<string, unknown>
-      slots?: Record<string, LayoutNode[]> // named slot → child nodes
-    }
-    export interface ViewLayout {
-      viewId: string // 'system:inbox' | 'system:all' | 'system:quarantine' | SavedView.id
-      nodes: LayoutNode[] // top-level component tree
-      updatedAt: string
-    }
-    ```
-  - Validate every `LayoutNode` against the registry before rendering (unknown `componentId` → fallback placeholder, type-mismatched props → stripped with console warning)
-  - Add `ViewLayout` and `LayoutNode` to `src/types/server.ts`
-
-  ### LLM layout suggestion flow (browser-only)
-  - "Customise this view" button opens a prompt textarea: user describes the layout they want in plain English
-  - The browser fetches `public/component-registry.json` and passes it alongside the prompt to the browser's built-in LLM (`window.LanguageModel ?? window.ai?.languageModel`); **if no browser LLM is available the feature is not shown** — there is no server-side generation fallback
-  - The LLM is prompted to return a JSON `LayoutNode[]` tree; the frontend validates it against the registry and renders a live preview
-  - User can accept (saves via `PUT .../layout`) or cancel
-  - If the suggested layout references unknown components, surface a diff UI showing what was ignored
-
-  ### Layout persistence API (backend TODOs)
-
-  > **Sync required:** copy these TODOs into `rhosys/ses-email-adapter` (`TODO.md`) under a "Modular layout persistence" section.
-  - Each view has exactly one layout record; use PUT (upsert) to create or replace it:
-    - `GET  /accounts/:id/views/:viewId/layout` → `ViewLayout` (404 if not yet customised — frontend falls back to hard-coded render)
-    - `PUT  /accounts/:id/views/:viewId/layout` → upsert layout → `ViewLayout`
-    - `DELETE /accounts/:id/views/:viewId/layout` → 204, resets view to the hard-coded default
-  - No backend involvement in generation — the backend stores and returns the `nodes: LayoutNode[]` tree as an opaque JSON blob; no validation of component IDs server-side (that is the frontend's job)
-  - **Hard-coded system views** (`inbox`, `all`, `quarantine`) must become first-class view records in the DB so they can own a layout; seed them as undeletable rows:
-    - `{ id: 'system:inbox',      name: 'Inbox',      type: 'system', filter: { status: 'active' } }`
-    - `{ id: 'system:all',        name: 'All',        type: 'system', filter: {} }`
-    - `{ id: 'system:quarantine', name: 'Quarantine', type: 'system', filter: { status: 'quarantined' } }`
-  - `DELETE` on a system view record must return 403; `DELETE` on its layout is allowed (resets to hard-coded render)
-
-  ### Frontend rendering engine
-  - `<DynamicLayout :nodes="layout.nodes" />` — recursive renderer that looks up each `componentId` in the registry, resolves the Vue component, passes `props`, and fills named slots with child `<DynamicLayout>` calls
-  - Wrap in an `<ErrorBoundary>` so a bad node crashes only its subtree, not the whole view
-  - If no layout exists for a view (404 from the API), fall back to the hard-coded Vue template (zero regression for current users)
-  - "Customise" / "Reset to default" buttons in the view header
-
-  ### Decomposition work (prerequisite)
-  - Audit every view and extract repeated or independently useful markup into registered components; target components include (non-exhaustive):
-    - `ArcRow`, `ArcRowCompact`, `SignalCard`, `SignalCardCollapsed`
-    - `LabelChip`, `ActionBadge`, `UrgencyStripe`, `WorkflowIcon`
-    - `FilterBar`, `SenderFilter`, `DateRangeFilter`, `StatusTabBar`
-    - `StatChip`, `PaginationBar`, `EmptyState`, `LoadingSpinner`
-    - `DnsRecordRow`, `TeamMemberRow`, `AuditEventRow`
-    - `RuleConditionBuilder`, `RuleActionSelector`
-  - Each extracted component must have a `defineComponentMeta()` call and appear in the registry before the layout engine can use it
-
-- [ ] **AI-powered "code" rule action** — let users describe rule logic in plain language; the browser's built-in LLM generates the JavaScript predicate that is stored and executed at match time. **If the browser has no built-in LLM the feature is not shown — there is no server-side generation fallback.**
-  - **New action type:** add `'code'` to `RuleAction` union; add `code?: string` (generated JS predicate) to `Rule`, `CreateRuleBody`, and `UpdateRuleBody` — the human-language prompt is a transient frontend-only value, never persisted
-  - **UI in `RuleEditorView.vue`:** when action = `'code'`, show a textarea for the natural-language prompt and a "Generate" button; show the generated JS in a read-only code block for review before saving; if `window.LanguageModel ?? window.ai?.languageModel` is absent, hide the action option entirely
-  - **Browser LLM check:** `window.LanguageModel ?? window.ai?.languageModel` (Chrome 127+ Gemini Nano); the same API surface works on Chrome for Android / Samsung Internet so no UA sniffing is needed — the capability check is sufficient
-  - **Generated JS predicate shape:** a single-argument arrow function `(signal) => boolean`; example: `(signal) => signal.from.address.endsWith('@example.com') && signal.subject.includes('invoice')`
-  - **Security — sandbox generated code before execution:** NEVER `eval()` or `new Function()` in the main thread; run inside a `Worker` with a strict `postMessage` interface; document this constraint in a code comment
-  - **Auto-label:** after saving a code rule, automatically apply (or create) an `ai-generated` system label on the rule so it is visually distinct in the Rules list
-  - **Backend TODOs for this feature:**
-    - Add `code?: string` to the Rule schema in the DB and API response (no `prompt` field — that is frontend-only)
-    - Validate/sandbox the `code` field server-side before storing (parse to AST, reject unsafe nodes)
-    - Ensure the rule executor runs `code` predicates in an isolated VM context (not raw `eval`)
+- [ ] **AI-powered "code" rule action** — user describes a filter rule in plain English; the browser's built-in LLM (`window.LanguageModel`, Chrome 127+ Gemini Nano) generates a `(signal) => boolean` JS predicate shown for review before saving. Hidden if no browser LLM is available. Requires backend to sandbox and execute the predicate server-side.
 
 ---
 
@@ -487,6 +599,76 @@ endpoints being available.
 - `GET/POST /accounts/:id/domains`
 - `GET/POST/DELETE /accounts/:id/forwarding-addresses`
 - `GET/POST/PATCH/DELETE /accounts/:id/users`
+
+### Backend TODOs — Webhooks
+
+Outbound webhook subscriptions — users configure a URL to receive arc events.
+
+- [ ] `GET /accounts/:id/webhooks` → `{ webhooks: Webhook[] }`
+- [ ] `POST /accounts/:id/webhooks` — body `{ url, events: string[], secret? }` → `Webhook` (201)
+- [ ] `PATCH /accounts/:id/webhooks/:webhookId` — update url/events/enabled → `Webhook`
+- [ ] `DELETE /accounts/:id/webhooks/:webhookId` → 204
+
+```ts
+interface Webhook {
+  id: string
+  accountId: string
+  url: string
+  events: string[]   // e.g. ['signal:created', 'arc:updated']
+  enabled: boolean
+  secret?: string    // HMAC signing secret, write-only after creation
+  createdAt: string
+}
+```
+
+### Backend TODOs — API keys
+
+Per-account API keys for direct API scripting. Secret is revealed once on creation, never again.
+
+- [ ] `GET /accounts/:id/api-keys` → `{ apiKeys: ApiKey[] }`
+- [ ] `POST /accounts/:id/api-keys` — body `{ name }` → `{ apiKey: ApiKey, secret: string }` (201, secret only in this response)
+- [ ] `DELETE /accounts/:id/api-keys/:keyId` → 204
+
+```ts
+interface ApiKey {
+  id: string
+  accountId: string
+  name: string
+  prefix: string     // first 8 chars of key shown in UI for identification
+  createdAt: string
+  lastUsedAt?: string
+}
+```
+
+### Backend TODOs — JMAP support
+
+JMAP (RFC 8620 / RFC 8621) is the modern replacement for IMAP. Implementing it would allow
+the frontend to connect to any standards-compliant mail server directly, not just the
+SES adapter backend.
+
+- [ ] **JMAP Core** (RFC 8620) — session endpoint, `Core/echo`, capability negotiation
+- [ ] **JMAP Mail** (RFC 8621) — `Mailbox/get`, `Email/query`, `Email/get`, `Email/set`,
+  `Thread/get`, `EmailSubmission/set` (send), `Mailbox/set` (create/rename/delete folders)
+- [ ] **JMAP Push** (RFC 8620 §7) — `EventSource` or WebSocket push channel for live updates,
+  replaces the current custom `signal:created` / `arc:updated` WebSocket protocol once JMAP
+  is available
+- [ ] **Frontend adapter** — once backend exposes JMAP, add `src/lib/jmap.ts` client and
+  a feature flag so the app can switch between the current REST API and JMAP without a full
+  rewrite; arc/signal store actions become thin wrappers over whichever transport is active
+
+### Backend TODOs — WebSocket realtime events
+
+Frontend schema: `src/types/realtime.ts`. Backend broadcasts on
+`wss://…/accounts/:accountId?token=…`. Only two events are needed:
+
+- [ ] **`signal:created`** — broadcast when a new inbound signal is processed and
+  attached to an arc. Payload: `{ arcId, signalId, urgency, from: { address, name? }, subject }`.
+  The frontend uses `urgency` to decide whether to fire a browser push notification,
+  and refreshes the inbox list either way.
+
+- [ ] **`arc:updated`** — broadcast when any arc field changes (status, labels, summary,
+  urgency, etc.). Payload: `{ arcId }` only — the client re-fetches the full arc list.
+  No browser notification is fired for this event.
 
 ## Phase 10 — Secondary screens ✓ DONE
 

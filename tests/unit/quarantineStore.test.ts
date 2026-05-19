@@ -12,7 +12,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
     api: {
       listQuarantinedSignals: vi.fn(),
       quarantineResponse: vi.fn(),
-      updateAlias: vi.fn(),
+      addAliasSender: vi.fn(),
     },
   }
 })
@@ -55,21 +55,18 @@ describe('quarantineStore', () => {
     accountStore.account = { id: 'acc_1', name: 'Test' } as Account
   })
 
-  it('fetchSignals merges visible and hidden items sorted by receivedAt desc', async () => {
-    const visible = mockSignal({ id: 'v1', receivedAt: '2025-01-01T10:00:00Z' })
-    const hidden = mockSignal({
-      id: 'h1',
-      status: 'quarantine_hidden',
-      receivedAt: '2025-01-01T12:00:00Z',
-    })
-    mockBothCalls([visible], [hidden])
+  it('fetchSignals keeps visible and hidden in separate buckets, each sorted by receivedAt desc', async () => {
+    const vis1 = mockSignal({ id: 'v1', receivedAt: '2025-01-01T10:00:00Z' })
+    const vis2 = mockSignal({ id: 'v2', receivedAt: '2025-01-01T08:00:00Z' })
+    const hid1 = mockSignal({ id: 'h1', status: 'quarantine_hidden', receivedAt: '2025-01-01T12:00:00Z' })
+    mockBothCalls([vis2, vis1], [hid1])
 
     const store = useQuarantineStore()
     await store.fetchSignals(true)
 
-    expect(store.items).toHaveLength(2)
-    expect(store.items[0].id).toBe('h1')
-    expect(store.items[1].id).toBe('v1')
+    // visible-first ordering is maintained; each bucket sorted by receivedAt desc
+    expect(store.quarantineVisible.map((s) => s.id)).toEqual(['v1', 'v2'])
+    expect(store.quarantineHidden.map((s) => s.id)).toEqual(['h1'])
     expect(store.loading).toBe(false)
     expect(store.error).toBeNull()
   })
@@ -82,7 +79,8 @@ describe('quarantineStore', () => {
     const store = useQuarantineStore()
     await store.fetchSignals(true)
 
-    expect(store.items).toHaveLength(0)
+    expect(store.quarantineVisible).toHaveLength(0)
+    expect(store.quarantineHidden).toHaveLength(0)
     expect(store.error).toBe('Server error')
   })
 
@@ -97,15 +95,16 @@ describe('quarantineStore', () => {
     expect(store.error).toBe('Hidden fetch failed')
   })
 
-  it('fetchSignals resets items when reset=true', async () => {
+  it('fetchSignals resets both buckets when reset=true', async () => {
     mockBothCalls([mockSignal()], [])
     const store = useQuarantineStore()
     await store.fetchSignals(true)
-    expect(store.items).toHaveLength(1)
+    expect(store.quarantineVisible).toHaveLength(1)
 
     mockBothCalls([], [])
     await store.fetchSignals(true)
-    expect(store.items).toHaveLength(0)
+    expect(store.quarantineVisible).toHaveLength(0)
+    expect(store.quarantineHidden).toHaveLength(0)
   })
 
   it('hasMore is true when either cursor is set', async () => {
@@ -122,7 +121,47 @@ describe('quarantineStore', () => {
     expect(store.hasMore).toBe(false)
   })
 
-  it('allow removes signal from list on success', async () => {
+  it('fetchMore loads next visible page before hidden pages', async () => {
+    mockBothCalls([mockSignal({ id: 'v1' })], [mockSignal({ id: 'h1', status: 'quarantine_hidden' })], 'cur_v', 'cur_h')
+    const store = useQuarantineStore()
+    await store.fetchSignals(true)
+
+    // fetchMore should request the visible cursor next
+    vi.mocked(api.listQuarantinedSignals).mockResolvedValueOnce(
+      ok({ items: [mockSignal({ id: 'v2' })], nextCursor: undefined }),
+    )
+    await store.fetchMore()
+
+    expect(vi.mocked(api.listQuarantinedSignals)).toHaveBeenLastCalledWith(
+      'acc_1',
+      'quarantine_visible',
+      expect.objectContaining({ cursor: 'cur_v' }),
+    )
+    expect(store.quarantineVisible.map((s) => s.id)).toContain('v2')
+    // hidden cursor still pending
+    expect(store.hasMore).toBe(true)
+  })
+
+  it('fetchMore loads hidden page once visible is exhausted', async () => {
+    mockBothCalls([], [mockSignal({ id: 'h1', status: 'quarantine_hidden' })], undefined, 'cur_h')
+    const store = useQuarantineStore()
+    await store.fetchSignals(true)
+
+    vi.mocked(api.listQuarantinedSignals).mockResolvedValueOnce(
+      ok({ items: [mockSignal({ id: 'h2', status: 'quarantine_hidden' })], nextCursor: undefined }),
+    )
+    await store.fetchMore()
+
+    expect(vi.mocked(api.listQuarantinedSignals)).toHaveBeenLastCalledWith(
+      'acc_1',
+      'quarantine_hidden',
+      expect.objectContaining({ cursor: 'cur_h' }),
+    )
+    expect(store.quarantineHidden.map((s) => s.id)).toContain('h2')
+    expect(store.hasMore).toBe(false)
+  })
+
+  it('allow removes signal from visible items on success', async () => {
     mockBothCalls([mockSignal({ id: 'sig_1' }), mockSignal({ id: 'sig_2' })], [])
     const store = useQuarantineStore()
     await store.fetchSignals(true)
@@ -130,7 +169,7 @@ describe('quarantineStore', () => {
     vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockSignal({ status: 'active' })))
     const result = await store.allow('sig_1')
     expect(result).toBe(true)
-    expect(store.items.map((s) => s.id)).toEqual(['sig_2'])
+    expect(store.quarantineVisible.map((s) => s.id)).toEqual(['sig_2'])
     expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'active')
   })
 
@@ -143,7 +182,7 @@ describe('quarantineStore', () => {
     const result = await store.allow('sig_1')
     expect(result).toBe(false)
     expect(store.error).toBe('Failed')
-    expect(store.items).toHaveLength(1)
+    expect(store.quarantineVisible).toHaveLength(1)
   })
 
   it('reject removes signal from list on success', async () => {
@@ -154,7 +193,7 @@ describe('quarantineStore', () => {
     vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockSignal({ status: 'block_hidden' })))
     const result = await store.reject('sig_1')
     expect(result).toBe(true)
-    expect(store.items).toHaveLength(0)
+    expect(store.quarantineVisible).toHaveLength(0)
     expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'block_hidden')
   })
 
@@ -167,36 +206,37 @@ describe('quarantineStore', () => {
     const result = await store.reject('sig_1')
     expect(result).toBe(false)
     expect(store.error).toBe('Failed')
-    expect(store.items).toHaveLength(1)
+    expect(store.quarantineVisible).toHaveLength(1)
   })
 
-  it('rejectForAlias calls updateAlias and quarantineResponse then removes signal', async () => {
+  it('rejectForAlias calls addAliasSender and quarantineResponse then removes signal', async () => {
     mockBothCalls([mockSignal({ id: 'sig_1' })], [])
     const store = useQuarantineStore()
     await store.fetchSignals(true)
 
-    vi.mocked(api.updateAlias).mockResolvedValue(ok({} as never))
+    vi.mocked(api.addAliasSender).mockResolvedValue(ok({} as never))
     vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockSignal({ status: 'block_hidden' })))
     const result = await store.rejectForAlias('sig_1', 'inbox@example.com', 'sender@example.com')
     expect(result).toBe(true)
-    expect(store.items).toHaveLength(0)
-    expect(vi.mocked(api.updateAlias)).toHaveBeenCalledWith('acc_1', 'inbox@example.com', {
-      blockedSenders: ['sender@example.com'],
+    expect(store.quarantineVisible).toHaveLength(0)
+    expect(vi.mocked(api.addAliasSender)).toHaveBeenCalledWith('acc_1', 'inbox@example.com', {
+      domain: 'example.com',
+      policy: 'block_hidden',
     })
     expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'block_hidden')
   })
 
-  it('rejectForAlias sets error and returns false when alias update fails', async () => {
+  it('rejectForAlias sets error and returns false when alias sender add fails', async () => {
     mockBothCalls([mockSignal()], [])
     const store = useQuarantineStore()
     await store.fetchSignals(true)
 
-    vi.mocked(api.updateAlias).mockResolvedValue(err(new ApiError(500, 'Alias error')))
+    vi.mocked(api.addAliasSender).mockResolvedValue(err(new ApiError(500, 'Alias error')))
     vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockSignal({ status: 'block_reject' })))
     const result = await store.rejectForAlias('sig_1', 'inbox@example.com', 'sender@example.com')
     expect(result).toBe(false)
     expect(store.error).toBe('Alias error')
-    expect(store.items).toHaveLength(1)
+    expect(store.quarantineVisible).toHaveLength(1)
   })
 
   it('rejectForAlias sets error and returns false when quarantineResponse fails', async () => {
@@ -204,12 +244,12 @@ describe('quarantineStore', () => {
     const store = useQuarantineStore()
     await store.fetchSignals(true)
 
-    vi.mocked(api.updateAlias).mockResolvedValue(ok({} as never))
+    vi.mocked(api.addAliasSender).mockResolvedValue(ok({} as never))
     vi.mocked(api.quarantineResponse).mockResolvedValue(err(new ApiError(500, 'Response error')))
     const result = await store.rejectForAlias('sig_1', 'inbox@example.com', 'sender@example.com')
     expect(result).toBe(false)
     expect(store.error).toBe('Response error')
-    expect(store.items).toHaveLength(1)
+    expect(store.quarantineVisible).toHaveLength(1)
   })
 
   it('actionPending tracks in-flight signal ids', async () => {

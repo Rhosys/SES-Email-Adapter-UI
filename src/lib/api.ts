@@ -2,20 +2,27 @@ import { ok, err, type Result } from 'neverthrow'
 import { loginClient } from './auth'
 import type {
   Account,
+  AliasSender,
+  SenderPolicy,
   Arc,
   ArcStatus,
   AuditEvent,
+  BillingInfo,
   CreateDraftSignalBody,
   CreateRuleBody,
   CreateSavedViewBody,
   Domain,
+  EmailTemplate,
   ForwardingAddress,
   Label,
+  NotificationSettings,
   Page,
   Rule,
   SavedView,
   Signal,
+  SignalStatus,
   TeamMember,
+  TemplateFunction,
   UpdateDraftSignalBody,
   UpdateRuleBody,
   UserRole,
@@ -102,6 +109,14 @@ export const api = {
     return request<Account>(`/accounts/${accountId}`)
   },
 
+  // TODO(backend): POST /accounts
+  createAccount(body: { name: string }): Promise<Result<Account, ApiError>> {
+    return request<Account>('/accounts', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  },
+
   async listArcs(accountId: string, params: ArcListParams): Promise<Result<Page<Arc>, ApiError>> {
     const qs = new URLSearchParams()
     if (params.workflow) qs.set('workflow', params.workflow)
@@ -184,9 +199,10 @@ export const api = {
 
   createDraftSignal(
     accountId: string,
+    arcId: string,
     body: CreateDraftSignalBody,
   ): Promise<Result<Signal, ApiError>> {
-    return request<Signal>(`/accounts/${accountId}/signals`, {
+    return request<Signal>(`/accounts/${accountId}/arcs/${arcId}/signals`, {
       method: 'POST',
       body: JSON.stringify(body),
     })
@@ -207,6 +223,17 @@ export const api = {
     return request<Signal>(`/accounts/${accountId}/signals/${signalId}/send`, { method: 'POST' })
   },
 
+  patchSignal(
+    accountId: string,
+    signalId: string,
+    body: { status: SignalStatus },
+  ): Promise<Result<Signal, ApiError>> {
+    return request<Signal>(`/accounts/${accountId}/signals/${signalId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
+  },
+
   deleteDraftSignal(accountId: string, signalId: string): Promise<Result<void, ApiError>> {
     return request<void>(`/accounts/${accountId}/signals/${signalId}`, { method: 'DELETE' })
   },
@@ -215,9 +242,7 @@ export const api = {
 
   // TODO(backend): GET/POST/PATCH/DELETE /accounts/:id/rules (Phase 7)
   async listRules(accountId: string): Promise<Result<Rule[], ApiError>> {
-    interface RuleListWire {
-      rules: Rule[]
-    }
+    interface RuleListWire { rules: Rule[]; pagination: { cursor: string | null } }
     const result = await request<RuleListWire>(`/accounts/${accountId}/rules`)
     return result.map((w) => w.rules)
   },
@@ -248,9 +273,7 @@ export const api = {
 
   // TODO(backend): GET/POST/PATCH/DELETE /accounts/:id/labels (Phase 6)
   async listLabels(accountId: string): Promise<Result<Label[], ApiError>> {
-    interface LabelListWire {
-      labels: Label[]
-    }
+    interface LabelListWire { labels: Label[]; pagination: { cursor: string | null } }
     const result = await request<LabelListWire>(`/accounts/${accountId}/labels`)
     return result.map((w) => w.labels)
   },
@@ -284,9 +307,7 @@ export const api = {
 
   // TODO(backend): GET/POST/PATCH/DELETE /accounts/:id/views (Phase 6)
   async listViews(accountId: string): Promise<Result<SavedView[], ApiError>> {
-    interface ViewListWire {
-      views: SavedView[]
-    }
+    interface ViewListWire { views: SavedView[]; pagination: { cursor: string | null } }
     const result = await request<ViewListWire>(`/accounts/${accountId}/views`)
     return result.map((w) => w.views)
   },
@@ -317,7 +338,7 @@ export const api = {
 
   updateAccount(
     accountId: string,
-    body: { name?: string; deletionRetentionDays?: number },
+    body: { name?: string; deletionRetentionDays?: number; notifications?: NotificationSettings; onboarding?: Partial<import('@/types/server').OnboardingState> },
   ): Promise<Result<Account, ApiError>> {
     return request<Account>(`/accounts/${accountId}`, {
       method: 'PATCH',
@@ -332,6 +353,7 @@ export const api = {
   ): Promise<Result<import('@/types/server').EmailAddressConfig[], ApiError>> {
     interface AliasListWire {
       aliases: import('@/types/server').EmailAddressConfig[]
+      pagination: { cursor: string | null }
     }
     const result = await request<AliasListWire>(`/accounts/${accountId}/aliases`)
     return result.map((w) => w.aliases)
@@ -339,7 +361,7 @@ export const api = {
 
   createAlias(
     accountId: string,
-    body: { address: string; filterMode?: string },
+    body: { address: string; unknownSenderPolicy?: string },
   ): Promise<Result<import('@/types/server').EmailAddressConfig, ApiError>> {
     return request(`/accounts/${accountId}/aliases`, {
       method: 'POST',
@@ -350,16 +372,38 @@ export const api = {
   updateAlias(
     accountId: string,
     address: string,
-    body: {
-      filterMode?: string
-      approvedSenders?: string[]
-      blockedSenders?: string[]
-    },
+    body: { unknownSenderPolicy?: string },
   ): Promise<Result<import('@/types/server').EmailAddressConfig, ApiError>> {
     return request(`/accounts/${accountId}/aliases/${encodeURIComponent(address)}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     })
+  },
+
+  // ─── Alias senders sub-resource ──────────────────────────────────────────────
+
+  async listAliasSenders(accountId: string, address: string): Promise<Result<AliasSender[], ApiError>> {
+    interface Wire { senders: AliasSender[] }
+    const result = await request<Wire>(`/accounts/${accountId}/aliases/${encodeURIComponent(address)}/senders`)
+    return result.map((w) => w.senders)
+  },
+
+  addAliasSender(
+    accountId: string,
+    address: string,
+    body: { domain: string; policy: SenderPolicy },
+  ): Promise<Result<AliasSender, ApiError>> {
+    return request<AliasSender>(
+      `/accounts/${accountId}/aliases/${encodeURIComponent(address)}/senders`,
+      { method: 'POST', body: JSON.stringify(body) },
+    )
+  },
+
+  removeAliasSender(accountId: string, address: string, domain: string): Promise<Result<void, ApiError>> {
+    return request<void>(
+      `/accounts/${accountId}/aliases/${encodeURIComponent(address)}/senders/${encodeURIComponent(domain)}`,
+      { method: 'DELETE' },
+    )
   },
 
   deleteAlias(accountId: string, address: string): Promise<Result<void, ApiError>> {
@@ -372,9 +416,7 @@ export const api = {
 
   // TODO(backend): GET /accounts/:id/domains (Phase 9)
   async listDomains(accountId: string): Promise<Result<Domain[], ApiError>> {
-    interface DomainListWire {
-      domains: Domain[]
-    }
+    interface DomainListWire { domains: Domain[]; pagination: { cursor: string | null } }
     const result = await request<DomainListWire>(`/accounts/${accountId}/domains`)
     return result.map((w) => w.domains)
   },
@@ -394,16 +436,14 @@ export const api = {
 
   // TODO(backend): GET/POST/DELETE /accounts/:id/forwarding-addresses (Phase 9)
   async listForwardingAddresses(accountId: string): Promise<Result<ForwardingAddress[], ApiError>> {
-    interface FwdListWire {
-      forwardingAddresses: ForwardingAddress[]
-    }
+    interface FwdListWire { forwardingAddresses: ForwardingAddress[]; pagination: { cursor: string | null } }
     const result = await request<FwdListWire>(`/accounts/${accountId}/forwarding-addresses`)
     return result.map((w) => w.forwardingAddresses)
   },
 
   createForwardingAddress(
     accountId: string,
-    body: { address: string; label?: string },
+    body: { address: string },
   ): Promise<Result<ForwardingAddress, ApiError>> {
     return request<ForwardingAddress>(`/accounts/${accountId}/forwarding-addresses`, {
       method: 'POST',
@@ -421,9 +461,7 @@ export const api = {
 
   // TODO(backend): GET/POST/PATCH/DELETE /accounts/:id/users (Phase 9)
   async listTeamMembers(accountId: string): Promise<Result<TeamMember[], ApiError>> {
-    interface TeamListWire {
-      users: TeamMember[]
-    }
+    interface TeamListWire { users: TeamMember[]; pagination: { cursor: string | null } }
     const result = await request<TeamListWire>(`/accounts/${accountId}/users`)
     return result.map((w) => w.users)
   },
@@ -455,7 +493,7 @@ export const api = {
 
   // ─── Audit log ────────────────────────────────────────────────────────────
 
-  // TODO(backend): GET /accounts/:id/audit-log (Phase 10)
+  // TODO(backend): GET /accounts/:id/audit (Phase 10)
   async listAuditEvents(
     accountId: string,
     params: { cursor?: string; limit?: number } = {},
@@ -469,11 +507,74 @@ export const api = {
     if (params.limit) qs.set('limit', String(params.limit))
     const query = qs.toString()
     const result = await request<AuditListWire>(
-      `/accounts/${accountId}/audit-log${query ? `?${query}` : ''}`,
+      `/accounts/${accountId}/audit${query ? `?${query}` : ''}`,
     )
     return result.map(({ events, pagination }) => ({
       items: events,
       nextCursor: pagination.cursor ?? undefined,
     }))
+  },
+
+  // ─── Billing ─────────────────────────────────────────────────────────────────
+
+  // TODO(backend): GET /accounts/:id/billing
+  getBilling(accountId: string): Promise<Result<BillingInfo, ApiError>> {
+    return request<BillingInfo>(`/accounts/${accountId}/billing`)
+  },
+
+  // TODO(backend): POST /accounts/:id/billing/checkout-session
+  createCheckoutSession(
+    accountId: string,
+    body: { priceId: string; successUrl: string; cancelUrl: string },
+  ): Promise<Result<{ url: string }, ApiError>> {
+    return request<{ url: string }>(`/accounts/${accountId}/billing/checkout-session`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  },
+
+  // TODO(backend): POST /accounts/:id/billing/portal-session
+  createBillingPortalSession(
+    accountId: string,
+    body: { returnUrl: string },
+  ): Promise<Result<{ url: string }, ApiError>> {
+    return request<{ url: string }>(`/accounts/${accountId}/billing/portal-session`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  },
+
+  // ─── Email templates ────────────────────────────────────────────────────────
+  // TODO(backend): implement GET/POST/PUT/DELETE /accounts/:id/templates
+
+  listTemplates(accountId: string): Promise<Result<EmailTemplate[], ApiError>> {
+    return request<{ templates: EmailTemplate[] }>(`/accounts/${accountId}/templates`).then((r) =>
+      r.map((d) => d.templates),
+    )
+  },
+
+  createTemplate(
+    accountId: string,
+    body: { name: string; subject: string; body: string; functions: TemplateFunction[] },
+  ): Promise<Result<EmailTemplate, ApiError>> {
+    return request<EmailTemplate>(`/accounts/${accountId}/templates`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  },
+
+  updateTemplate(
+    accountId: string,
+    templateId: string,
+    body: { name: string; subject: string; body: string; functions: TemplateFunction[] },
+  ): Promise<Result<EmailTemplate, ApiError>> {
+    return request<EmailTemplate>(`/accounts/${accountId}/templates/${templateId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    })
+  },
+
+  deleteTemplate(accountId: string, templateId: string): Promise<Result<void, ApiError>> {
+    return request<void>(`/accounts/${accountId}/templates/${templateId}`, { method: 'DELETE' })
   },
 }

@@ -121,6 +121,7 @@ if (query.value) {
         <input
           v-model="query"
           type="search"
+          aria-label="Search arcs, signals, aliases, rules"
           placeholder="Search arcs, signals, aliases, rules…"
           class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-4 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           autofocus
@@ -159,6 +160,7 @@ if (query.value) {
               ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
               : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
           "
+          :aria-pressed="visibleSections.has(key)"
           :disabled="visibleSections.has(key) && visibleSections.size === 1"
           @click="toggleSection(key)"
         >
@@ -181,7 +183,11 @@ if (query.value) {
         v-if="searched && !hasResults && !searching"
         class="py-16 text-center text-sm text-ctp-subtext0"
       >
-        No results for "{{ query }}"
+        <p class="font-medium text-ctp-text">No results for "{{ query }}"</p>
+        <p class="mt-1">
+          Try a sender address, part of a subject line, or a rule name — search checks across all
+          of them.
+        </p>
       </div>
 
       <!-- Arcs section -->
@@ -240,7 +246,7 @@ if (query.value) {
             class="flex items-center justify-between px-4 py-3 transition-colors hover:bg-ctp-surface0/50"
           >
             <p class="text-sm text-ctp-text">{{ alias.address }}</p>
-            <span class="text-xs text-ctp-subtext0">{{ alias.filterMode }}</span>
+            <span class="text-xs text-ctp-subtext0">{{ alias.unknownSenderPolicy }}</span>
           </RouterLink>
         </div>
       </section>

@@ -65,22 +65,43 @@ export interface NotificationSettings {
   push?: PushNotificationSettings
 }
 
-export type SenderFilterMode = 'strict' | 'sender_match' | 'notify_new' | 'allow_all'
+export type UnknownSenderPolicy =
+  | 'allow_all'
+  | 'quarantine_visible'
+  | 'quarantine_hidden'
+  | 'block_hidden'
+  | 'block_reject'
+  | 'violate_report'
+
+export type SenderPolicy = 'allow' | 'block_hidden' | 'block_reject' | 'violate_report'
 
 export interface AccountFilteringConfig {
-  defaultFilterMode: SenderFilterMode
+  defaultUnknownSenderPolicy: UnknownSenderPolicy
 }
 
 export interface EmailAddressConfig {
   id: string
   accountId: string
   address: string
-  filterMode: SenderFilterMode
-  approvedSenders: string[]
-  // TODO(backend): add blockedSenders field to EmailAddressConfig and PATCH /aliases/:address support
-  blockedSenders?: string[]
+  unknownSenderPolicy: UnknownSenderPolicy
   createdAt: string
   updatedAt: string
+}
+
+// Per-sender disposition — managed via /aliases/:address/senders sub-resource
+export interface AliasSender {
+  domain: string
+  policy: SenderPolicy
+  addedAt: string
+}
+
+export interface OnboardingState {
+  domainAdded?: boolean
+  testEmailReceived?: boolean
+  senderConfigured?: boolean
+  completed: boolean
+  notificationCoachCompleted?: boolean
+  featureTourCompleted?: boolean
 }
 
 export interface Account {
@@ -90,6 +111,7 @@ export interface Account {
   notifications?: NotificationSettings
   filtering?: AccountFilteringConfig
   emailConfigs?: Record<string, EmailAddressConfig>
+  onboarding?: OnboardingState
   createdAt: string
   updatedAt: string
 }
@@ -477,13 +499,10 @@ export type WorkflowData =
 // ─── Draft signal (Reply composer) ───────────────────────────────────────────
 
 export interface CreateDraftSignalBody {
-  status: 'draft'
-  source: 'user'
   from: EmailAddress
   to: EmailAddress[]
   subject: string
   textBody?: string
-  arcId?: string
 }
 
 export interface UpdateDraftSignalBody {
@@ -494,20 +513,17 @@ export interface UpdateDraftSignalBody {
 
 // ─── Saved views (Phase 6) ────────────────────────────────────────────────────
 
-export interface SavedViewFilters {
-  workflow?: string
-  labelId?: string
-  sender?: string
-  status?: string
-}
-
 export interface SavedView {
   id: string
   accountId: string
   name: string
   icon?: string
+  color?: string
   position: number
-  filters: SavedViewFilters
+  workflow?: string
+  labels?: string[]
+  sortField?: string
+  sortDirection?: string
   createdAt: string
   updatedAt: string
 }
@@ -515,8 +531,12 @@ export interface SavedView {
 export interface CreateSavedViewBody {
   name: string
   icon?: string
+  color?: string
   position?: number
-  filters: SavedViewFilters
+  workflow?: string
+  labels?: string[]
+  sortField?: string
+  sortDirection?: string
 }
 
 // ─── Domains (Phase 9) ────────────────────────────────────────────────────────
@@ -548,7 +568,7 @@ export interface ForwardingAddress {
   id: string
   accountId: string
   address: string
-  label?: string
+  status: 'pending' | 'verified'
   createdAt: string
 }
 
@@ -570,32 +590,57 @@ export interface TeamMember {
 
 // ─── Audit log (Phase 10) ────────────────────────────────────────────────────
 
-export type AuditEventType =
-  | 'signal.quarantined'
-  | 'signal.allowed'
-  | 'signal.blocked'
-  | 'rule.created'
-  | 'rule.updated'
-  | 'rule.deleted'
-  | 'label.created'
-  | 'label.updated'
-  | 'label.deleted'
-  | 'alias.created'
-  | 'alias.updated'
-  | 'alias.deleted'
-  | 'user.invited'
-  | 'user.role_changed'
-  | 'user.removed'
-  | 'account.updated'
+export type AuditAction = 'created' | 'updated' | 'deleted' | 'reordered'
+export type AuditResourceType =
+  | 'rule'
+  | 'alias'
+  | 'domain'
+  | 'account'
+  | 'label'
+  | 'view'
+  | 'template'
+  | 'forwarding_address'
 
 export interface AuditEvent {
   id: string
   accountId: string
-  actorId: string
+  userId: string
   actorEmail?: string
-  type: AuditEventType
-  resourceType: string
+  action: AuditAction
+  resourceType: AuditResourceType
   resourceId?: string
-  metadata?: Record<string, unknown>
+  before?: unknown
+  after?: unknown
+  timestamp: string
+}
+
+// ─── Billing ──────────────────────────────────────────────────────────────────
+
+export type BillingPlan = 'free' | 'starter' | 'pro'
+export type BillingStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete'
+
+export interface BillingInfo {
+  plan: BillingPlan
+  status: BillingStatus
+  currentPeriodEnd?: string
+  cancelAtPeriodEnd?: boolean
+  trialEnd?: string
+}
+
+// ─── Email templates ──────────────────────────────────────────────────────────
+
+export interface TemplateFunction {
+  name: string  // identifier used as {{fn.name}} in the template
+  code: string  // JS expression: (signal, arc) => string
+}
+
+export interface EmailTemplate {
+  id: string
+  accountId: string
+  name: string
+  subject: string
+  body: string
+  functions: TemplateFunction[]
   createdAt: string
+  updatedAt: string
 }

@@ -20,13 +20,15 @@ vi.mock('@/lib/api', async (importOriginal) => {
       updateRule: vi.fn(),
       deleteRule: vi.fn(),
       listLabels: vi.fn(),
+      listTemplates: vi.fn().mockResolvedValue(ok([])),
     },
   }
 })
 
 vi.mock('@/stores/quarantine', () => ({
   useQuarantineStore: () => ({
-    items: [],
+    quarantineVisible: [],
+    quarantineHidden: [],
     allow: vi.fn(),
     reject: vi.fn(),
   }),

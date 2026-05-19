@@ -174,8 +174,21 @@ onMounted(async () => {
       </div>
 
       <!-- Loading -->
-      <div v-if="rulesStore.loading" class="py-20 text-center text-sm text-ctp-subtext0">
-        Loading…
+      <div
+        v-if="rulesStore.loading"
+        role="status"
+        aria-label="Loading rules…"
+        class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+      >
+        <div v-for="i in 5" :key="i" class="flex items-center gap-3 px-4 py-3">
+          <div class="h-4 w-4 shrink-0 rounded bg-ctp-surface1" />
+          <div class="flex-1 space-y-1.5">
+            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${45 + (i * 17) % 40}%` }" />
+            <div class="h-3 w-40 rounded bg-ctp-surface1" />
+          </div>
+          <div class="h-6 w-6 shrink-0 rounded bg-ctp-surface1" />
+          <div class="h-6 w-6 shrink-0 rounded bg-ctp-surface1" />
+        </div>
       </div>
 
       <!-- Empty -->
@@ -183,9 +196,10 @@ onMounted(async () => {
         v-else-if="rulesStore.items.length === 0"
         class="rounded-lg border border-dashed border-ctp-surface1 py-20 text-center"
       >
-        <p class="text-sm text-ctp-subtext1">No rules yet</p>
+        <p class="text-sm font-medium text-ctp-text">Every email handled on autopilot</p>
         <p class="mt-1 text-xs text-ctp-subtext0">
-          Rules automatically process incoming emails based on conditions you define.
+          Rules run the moment a message arrives — label it, archive it, forward it, or block the
+          sender. Create your first rule to stop doing it manually.
         </p>
         <RouterLink
           to="/rules/new"
@@ -200,8 +214,9 @@ onMounted(async () => {
         v-else
         name="rule-row"
         tag="div"
-        class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+        class="relative divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
       >
+        <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -- drag is a mouse enhancement; keyboard reorder uses the ▲/▼ buttons -->
         <div
           v-for="(rule, idx) in rulesStore.items"
           :key="rule.id"
@@ -222,7 +237,7 @@ onMounted(async () => {
             <button
               :disabled="idx === 0"
               class="text-ctp-subtext0 hover:text-ctp-text disabled:opacity-20"
-              title="Move up"
+              aria-label="Move rule up"
               @click="moveUp(rule)"
             >
               ▲
@@ -231,7 +246,7 @@ onMounted(async () => {
             <button
               :disabled="idx === rulesStore.items.length - 1"
               class="text-ctp-subtext0 hover:text-ctp-text disabled:opacity-20"
-              title="Move down"
+              aria-label="Move rule down"
               @click="moveDown(rule)"
             >
               ▼
@@ -286,6 +301,22 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.rule-row-enter-active {
+  transition: opacity 250ms ease, transform 250ms ease;
+}
+.rule-row-enter-from {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+.rule-row-leave-active {
+  transition: opacity 180ms ease;
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+.rule-row-leave-to {
+  opacity: 0;
+}
 .rule-row-move {
   transition: transform 250ms ease;
 }

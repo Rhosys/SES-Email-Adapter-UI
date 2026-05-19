@@ -26,23 +26,24 @@ function submitLabel() {
 
     <button
       :disabled="pending"
-      class="rounded bg-ctp-surface0 px-3 py-1 text-ctp-text hover:bg-ctp-surface1 disabled:opacity-50"
+      class="rounded bg-ctp-surface0 px-3 py-1.5 text-ctp-text hover:bg-ctp-surface1 disabled:opacity-50"
       @click="emit('archive')"
     >
       Archive
     </button>
 
-    <form class="flex items-center gap-1" @submit.prevent="submitLabel">
+    <form class="flex flex-wrap items-center gap-1" @submit.prevent="submitLabel">
       <input
         v-model="labelInput"
         type="text"
+        aria-label="Label name"
         placeholder="Add label…"
-        class="rounded border border-ctp-surface1 bg-ctp-surface0 px-2 py-1 text-sm text-ctp-text placeholder-ctp-overlay0 focus:outline-none focus:ring-1 focus:ring-ctp-blue"
+        class="w-full rounded border border-ctp-surface1 bg-ctp-surface0 px-2 py-1.5 text-sm text-ctp-text placeholder-ctp-overlay0 focus:outline-none focus:ring-1 focus:ring-ctp-blue sm:w-auto"
       />
       <button
         type="submit"
         :disabled="pending || !labelInput.trim()"
-        class="rounded bg-ctp-surface0 px-2 py-1 text-ctp-subtext0 hover:bg-ctp-surface1 disabled:opacity-50"
+        class="rounded bg-ctp-surface0 px-2 py-1.5 text-ctp-subtext0 hover:bg-ctp-surface1 disabled:opacity-50"
       >
         Add
       </button>

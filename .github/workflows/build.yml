@@ -74,7 +74,7 @@ jobs:
             -backend-config="key=SES-Email-Adapter/terraform.tfstate" \
             -backend-config="region=eu-west-1"
 
-          SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name)
+          SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name | sed 's/eu-west-1/eu-central-1/g')
           CF_ID=$(tofu -chdir=deploy output -raw cloudfront_distribution_id)
 
           [ -n "$SITE_BUCKET" ] || { echo "::error::site_bucket_name output is empty"; exit 1; }
@@ -84,10 +84,38 @@ jobs:
           echo "CLOUDFRONT_DISTRIBUTION_ID=${CF_ID}" >> "$GITHUB_ENV"
         shell: bash
 
+      - name: Debug infra outputs
+        run: |
+          echo "=== Infra outputs from OpenTofu state ==="
+          echo "SITE_BUCKET_NAME   : ${{ env.SITE_BUCKET_NAME }}"
+          echo "CF_DISTRIBUTION_ID : ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}"
+          echo "AWS_DEFAULT_REGION : $AWS_DEFAULT_REGION"
+          echo "AWS_REGION         : $AWS_REGION"
+          echo ""
+          echo "=== ALL available OpenTofu outputs ==="
+          tofu -chdir=/tmp/ses-backend/deploy output -json 2>&1 || echo "(tofu output -json failed)"
+          echo ""
+          echo "=== AWS caller identity ==="
+          aws sts get-caller-identity
+          echo ""
+          echo "=== S3 bucket existence check ==="
+          aws s3api head-bucket --bucket "${{ env.SITE_BUCKET_NAME }}" 2>&1 \
+            && echo "Bucket EXISTS and is accessible" \
+            || echo "Bucket NOT found or no access (see error above)"
+          echo ""
+          echo "=== S3 buckets in account (first 20) ==="
+          aws s3api list-buckets --query 'Buckets[*].Name' --output text 2>&1 | tr '\t' '\n' | head -20
+        shell: bash
+
       # ── Lint / type-check / test ────────────────────────────────────────────
 
       - name: Check
         run: npm run check
+
+      - name: Format check (advisory)
+        continue-on-error: true
+        run: npm run format:check || true
+        shell: bash
 
       # ── Build ─────────────────────────────────────────
 
@@ -95,9 +123,38 @@ jobs:
         run: npm run build
         env:
           VITE_BASE_PATH: ${{ env.VITE_BASE_PATH }}
-          VITE_API_BASE_URL: https://api.email.rhosys.cloud
+          VITE_API_BASE_URL: https://email.rhosys.cloud/api
           VITE_AUTHRESS_LOGIN_URL: https://login.rhosys.cloud
           VITE_AUTHRESS_APPLICATION_ID: app_2EAWGEdtzaeCj7b45DsDtt
+          VITE_POSTHOG_HOST: ${{ secrets.POSTHOG_URL }}
+
+      # ── Bundle size check (advisory — never fails the build) ───────────────
+
+      - name: Bundle size check (advisory)
+        continue-on-error: true
+        run: |
+          WARN_CHUNK_KB=400
+          WARN_TOTAL_KB=1000
+          total=0
+          warned=false
+          while IFS= read -r -d '' f; do
+            size=$(wc -c < "$f")
+            kb=$((size / 1024))
+            total=$((total + size))
+            if [ "$kb" -gt "$WARN_CHUNK_KB" ]; then
+              echo "::warning::Large chunk: $(basename "$f") is ${kb} KB (limit ${WARN_CHUNK_KB} KB)"
+              warned=true
+            fi
+          done < <(find dist/assets -name "*.js" -print0)
+          total_kb=$((total / 1024))
+          chunk_count=$(find dist/assets -name "*.js" | wc -l)
+          echo "Total JS: ${total_kb} KB across ${chunk_count} chunks"
+          if [ "$total_kb" -gt "$WARN_TOTAL_KB" ]; then
+            echo "::warning::Total JS bundle is ${total_kb} KB (limit ${WARN_TOTAL_KB} KB)"
+            warned=true
+          fi
+          [ "$warned" = "true" ] && echo "::notice::Review bundle size warnings above before merging." || echo "All chunks within size limits."
+        shell: bash
 
       # ── Deploy to S3 ────────────────────────────────────────────────────────
 
@@ -224,7 +281,7 @@ jobs:
             -backend-config="key=SES-Email-Adapter/terraform.tfstate" \
             -backend-config="region=eu-west-1"
 
-          SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name)
+          SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name | sed 's/eu-west-1/eu-central-1/g')
           CF_ID=$(tofu -chdir=deploy output -raw cloudfront_distribution_id)
 
           [ -n "$SITE_BUCKET" ] || { echo "::error::site_bucket_name output is empty"; exit 1; }

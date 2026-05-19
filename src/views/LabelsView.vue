@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useLabelsStore } from '@/stores/labels'
 import { useViewsStore } from '@/stores/views'
 import type { Label, SavedView } from '@/types/server'
 
+const route = useRoute()
+const router = useRouter()
 const accountStore = useAccountStore()
 const labelsStore = useLabelsStore()
 const viewsStore = useViewsStore()
@@ -79,7 +82,6 @@ const editingView = ref<SavedView | null>(null)
 const viewName = ref('')
 const viewIcon = ref('')
 const viewWorkflow = ref('')
-const viewSender = ref('')
 const viewPending = ref(false)
 
 const WORKFLOWS = [
@@ -104,7 +106,6 @@ function openNewView() {
   viewName.value = ''
   viewIcon.value = ''
   viewWorkflow.value = ''
-  viewSender.value = ''
   showViewForm.value = true
 }
 
@@ -112,8 +113,7 @@ function openEditView(view: SavedView) {
   editingView.value = view
   viewName.value = view.name
   viewIcon.value = view.icon ?? ''
-  viewWorkflow.value = view.filters.workflow ?? ''
-  viewSender.value = view.filters.sender ?? ''
+  viewWorkflow.value = view.workflow ?? ''
   showViewForm.value = true
 }
 
@@ -128,10 +128,7 @@ async function saveView() {
   const body = {
     name: viewName.value.trim(),
     icon: viewIcon.value.trim() || undefined,
-    filters: {
-      workflow: viewWorkflow.value || undefined,
-      sender: viewSender.value.trim() || undefined,
-    },
+    workflow: viewWorkflow.value || undefined,
   }
   if (editingView.value) {
     await viewsStore.updateView(editingView.value.id, body)
@@ -154,7 +151,13 @@ function clearErrors() {
   viewsStore.clearError()
 }
 
+function selectTab(tab: 'labels' | 'views') {
+  activeTab.value = tab
+  void router.replace({ query: tab === 'views' ? { tab: 'views' } : {} })
+}
+
 onMounted(async () => {
+  if (route.query.tab === 'views') activeTab.value = 'views'
   await accountStore.fetchAccount()
   await Promise.all([labelsStore.fetchLabels(), viewsStore.fetchViews()])
 })
@@ -179,7 +182,7 @@ onMounted(async () => {
               ? 'border-ctp-mauve text-ctp-text'
               : 'border-transparent text-ctp-subtext0 hover:text-ctp-text'
           "
-          @click="activeTab = 'labels'"
+          @click="selectTab('labels')"
         >
           Labels
         </button>
@@ -190,7 +193,7 @@ onMounted(async () => {
               ? 'border-ctp-mauve text-ctp-text'
               : 'border-transparent text-ctp-subtext0 hover:text-ctp-text'
           "
-          @click="activeTab = 'views'"
+          @click="selectTab('views')"
         >
           Views
         </button>
@@ -229,8 +232,9 @@ onMounted(async () => {
           </h3>
           <div class="space-y-3">
             <div>
-              <label class="mb-1 block text-xs text-ctp-subtext0">Name</label>
+              <label for="label-name" class="mb-1 block text-xs text-ctp-subtext0">Name</label>
               <input
+                id="label-name"
                 v-model="labelName"
                 type="text"
                 placeholder="e.g. Newsletters"
@@ -238,7 +242,7 @@ onMounted(async () => {
               />
             </div>
             <div>
-              <label class="mb-1 block text-xs text-ctp-subtext0">Color</label>
+              <label for="label-color" class="mb-1 block text-xs text-ctp-subtext0">Color</label>
               <div class="flex flex-wrap gap-2">
                 <button
                   v-for="color in PRESET_COLORS"
@@ -246,9 +250,11 @@ onMounted(async () => {
                   class="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
                   :class="labelColor === color ? 'border-ctp-text' : 'border-transparent'"
                   :style="{ backgroundColor: color }"
+                  :aria-label="`Select color ${color}`"
                   @click="labelColor = color"
                 />
                 <input
+                  id="label-color"
                   v-model="labelColor"
                   type="color"
                   class="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0"
@@ -257,8 +263,9 @@ onMounted(async () => {
               </div>
             </div>
             <div>
-              <label class="mb-1 block text-xs text-ctp-subtext0">Icon (emoji, optional)</label>
+              <label for="label-icon" class="mb-1 block text-xs text-ctp-subtext0">Icon (emoji, optional)</label>
               <input
+                id="label-icon"
                 v-model="labelIcon"
                 type="text"
                 placeholder="e.g. 📧"
@@ -284,16 +291,29 @@ onMounted(async () => {
         </div>
 
         <!-- Label list -->
-        <div v-if="labelsStore.loading" class="py-12 text-center text-sm text-ctp-subtext0">
-          Loading…
+        <div
+          v-if="labelsStore.loading"
+          role="status"
+          aria-label="Loading labels…"
+          class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+        >
+          <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-4 py-3">
+            <div class="h-5 w-5 shrink-0 rounded-full bg-ctp-surface1" />
+            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${35 + (i * 23) % 40}%` }" />
+            <div class="ml-auto h-6 w-14 shrink-0 rounded bg-ctp-surface1" />
+            <div class="h-6 w-14 shrink-0 rounded bg-ctp-surface1" />
+          </div>
         </div>
         <div
           v-else-if="labelsStore.items.length === 0 && !showLabelForm"
           class="rounded-lg border border-dashed border-ctp-surface1 py-12 text-center text-sm text-ctp-subtext0"
         >
-          No labels yet. Create one to categorize your arcs.
+          <p class="font-medium text-ctp-text">No labels yet</p>
+          <p class="mx-auto mt-1 max-w-xs text-xs">
+            Labels make it easy to group and filter arcs at a glance. Create one and start attaching it in rules.
+          </p>
         </div>
-        <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
+        <TransitionGroup v-else name="list" tag="div" class="relative divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div
             v-for="label in labelsStore.items"
             :key="label.id"
@@ -315,7 +335,7 @@ onMounted(async () => {
               Delete
             </button>
           </div>
-        </div>
+        </TransitionGroup>
       </section>
 
       <!-- ── Views tab ──────────────────────────────────────────────────────── -->
@@ -345,8 +365,9 @@ onMounted(async () => {
           </h3>
           <div class="space-y-3">
             <div>
-              <label class="mb-1 block text-xs text-ctp-subtext0">Name</label>
+              <label for="view-name" class="mb-1 block text-xs text-ctp-subtext0">Name</label>
               <input
+                id="view-name"
                 v-model="viewName"
                 type="text"
                 placeholder="e.g. Newsletters"
@@ -354,33 +375,30 @@ onMounted(async () => {
               />
             </div>
             <div>
-              <label class="mb-1 block text-xs text-ctp-subtext0">Icon (emoji, optional)</label>
+              <label for="view-icon" class="mb-1 block text-xs text-ctp-subtext0">Icon (emoji, optional)</label>
               <input
+                id="view-icon"
                 v-model="viewIcon"
                 type="text"
                 placeholder="e.g. 📰"
                 class="w-24 rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
               />
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid gap-3 sm:grid-cols-2">
               <div>
-                <label class="mb-1 block text-xs text-ctp-subtext0">Workflow filter</label>
+                <label for="view-workflow" class="mb-1 block text-xs text-ctp-subtext0">Workflow filter</label>
                 <select
+                  id="view-workflow"
                   v-model="viewWorkflow"
                   class="w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
                 >
                   <option value="">Any workflow</option>
                   <option v-for="wf in WORKFLOWS" :key="wf" :value="wf">{{ wf }}</option>
                 </select>
-              </div>
-              <div>
-                <label class="mb-1 block text-xs text-ctp-subtext0">Sender filter</label>
-                <input
-                  v-model="viewSender"
-                  type="text"
-                  placeholder="e.g. @company.com"
-                  class="w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-                />
+                <p class="mt-1 text-xs text-ctp-subtext0">
+                  Limit this view to arcs from a specific automation workflow. Leave blank to show
+                  all workflows.
+                </p>
               </div>
             </div>
           </div>
@@ -402,25 +420,40 @@ onMounted(async () => {
         </div>
 
         <!-- Views list -->
-        <div v-if="viewsStore.loading" class="py-12 text-center text-sm text-ctp-subtext0">
-          Loading…
+        <div
+          v-if="viewsStore.loading"
+          role="status"
+          aria-label="Loading saved views…"
+          class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+        >
+          <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-4 py-3">
+            <div class="h-5 w-5 shrink-0 rounded bg-ctp-surface1" />
+            <div class="flex-1 space-y-1">
+              <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${30 + (i * 21) % 45}%` }" />
+              <div class="h-3 w-24 rounded bg-ctp-surface1" />
+            </div>
+            <div class="h-6 w-14 shrink-0 rounded bg-ctp-surface1" />
+            <div class="h-6 w-14 shrink-0 rounded bg-ctp-surface1" />
+          </div>
         </div>
         <div
           v-else-if="sortedViews.length === 0 && !showViewForm"
           class="rounded-lg border border-dashed border-ctp-surface1 py-12 text-center text-sm text-ctp-subtext0"
         >
-          No custom views yet. Create one to get a shortcut in the sidebar.
+          <p class="font-medium text-ctp-text">No saved views yet</p>
+          <p class="mx-auto mt-1 max-w-xs text-xs">
+            Save a filtered view of your inbox as a shortcut — it appears in the sidebar so you're
+            one click away from exactly what you need.
+          </p>
         </div>
-        <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
+        <TransitionGroup v-else name="list" tag="div" class="relative divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div v-for="view in sortedViews" :key="view.id" class="flex items-center gap-3 px-4 py-3">
             <span class="shrink-0 text-base">{{ view.icon ?? '📋' }}</span>
             <div class="flex-1">
               <p class="text-sm font-medium">{{ view.name }}</p>
               <p class="text-xs text-ctp-subtext0">
-                <span v-if="view.filters.workflow">workflow: {{ view.filters.workflow }}</span>
-                <span v-if="view.filters.workflow && view.filters.sender"> · </span>
-                <span v-if="view.filters.sender">sender: {{ view.filters.sender }}</span>
-                <span v-if="!view.filters.workflow && !view.filters.sender"> No filters </span>
+                <span v-if="view.workflow">workflow: {{ view.workflow }}</span>
+                <span v-if="!view.workflow">No filters</span>
               </p>
             </div>
             <button
@@ -433,7 +466,7 @@ onMounted(async () => {
               Delete
             </button>
           </div>
-        </div>
+        </TransitionGroup>
       </section>
     </main>
   </div>

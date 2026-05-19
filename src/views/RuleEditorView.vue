@@ -5,6 +5,7 @@ import { useAccountStore } from '@/stores/account'
 import { useRulesStore } from '@/stores/rules'
 import { useLabelsStore } from '@/stores/labels'
 import { useQuarantineStore } from '@/stores/quarantine'
+import { useTemplatesStore } from '@/stores/templates'
 import type {
   ConditionField,
   ConditionGroup,
@@ -28,6 +29,7 @@ const accountStore = useAccountStore()
 const rulesStore = useRulesStore()
 const labelsStore = useLabelsStore()
 const quarantineStore = useQuarantineStore()
+const templatesStore = useTemplatesStore()
 
 const signalId = computed(() => (route.query.signalId as string) ?? null)
 const signalAction = computed(
@@ -216,7 +218,7 @@ async function save() {
 
 onMounted(async () => {
   await accountStore.fetchAccount()
-  await labelsStore.fetchLabels()
+  await Promise.all([labelsStore.fetchLabels(), templatesStore.fetchTemplates()])
 
   if (isEditing.value) {
     if (rulesStore.items.length === 0) await rulesStore.fetchRules()
@@ -232,7 +234,7 @@ onMounted(async () => {
       actions.value = [{ type: signalAction.value === 'allow' ? 'approve_sender' : 'block' }]
     }
     if (signalId.value) {
-      const signal = quarantineStore.items.find((s) => s.id === signalId.value)
+      const signal = [...quarantineStore.quarantineVisible, ...quarantineStore.quarantineHidden].find((s) => s.id === signalId.value)
       if (signal) {
         groups.value = [
           {
@@ -274,7 +276,9 @@ watch(signalAction, (val) => {
 
         <!-- Enabled/disabled toggle -->
         <button
-          class="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors"
+          role="switch"
+          :aria-checked="status === 'enabled'"
+          class="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
           :class="
             status === 'enabled'
               ? 'bg-ctp-green/15 text-ctp-green'
@@ -295,6 +299,7 @@ watch(signalAction, (val) => {
       <!-- Error -->
       <div
         v-if="rulesStore.error"
+        role="alert"
         class="mb-4 rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
       >
         {{ rulesStore.error }}
@@ -303,8 +308,9 @@ watch(signalAction, (val) => {
 
       <!-- Name -->
       <section class="mb-6">
-        <label class="mb-1 block text-xs font-medium text-ctp-subtext0">Rule name</label>
+        <label for="rule-name" class="mb-1 block text-xs font-medium text-ctp-subtext0">Rule name</label>
         <input
+          id="rule-name"
           v-model="name"
           type="text"
           placeholder="e.g. Block marketing emails"
@@ -315,7 +321,7 @@ watch(signalAction, (val) => {
       <!-- Conditions -->
       <section class="mb-6">
         <div class="mb-2 flex items-center justify-between">
-          <label class="text-xs font-medium text-ctp-subtext0">Conditions</label>
+          <span class="text-xs font-medium text-ctp-subtext0">Conditions</span>
           <button class="text-xs text-ctp-mauve hover:underline" @click="addGroup">
             + Add group
           </button>
@@ -331,6 +337,7 @@ watch(signalAction, (val) => {
             <div class="mb-2 flex items-center justify-between">
               <div class="flex items-center gap-1 rounded-full bg-ctp-surface0 p-0.5">
                 <button
+                  :aria-pressed="group.mode === 'and'"
                   class="rounded-full px-2.5 py-0.5 text-xs transition-colors"
                   :class="
                     group.mode === 'and'
@@ -342,6 +349,7 @@ watch(signalAction, (val) => {
                   AND
                 </button>
                 <button
+                  :aria-pressed="group.mode === 'or'"
                   class="rounded-full px-2.5 py-0.5 text-xs transition-colors"
                   :class="
                     group.mode === 'or'
@@ -353,13 +361,18 @@ watch(signalAction, (val) => {
                   OR
                 </button>
               </div>
-              <button
-                v-if="groups.length > 1"
-                class="text-xs text-ctp-subtext0 hover:text-ctp-red"
-                @click="removeGroup(gi)"
-              >
-                Remove group
-              </button>
+              <div class="flex items-center gap-3">
+                <p class="text-xs text-ctp-subtext0">
+                  {{ group.mode === 'and' ? 'All conditions must match' : 'Any one condition is enough' }}
+                </p>
+                <button
+                  v-if="groups.length > 1"
+                  class="text-xs text-ctp-subtext0 hover:text-ctp-red"
+                  @click="removeGroup(gi)"
+                >
+                  Remove group
+                </button>
+              </div>
             </div>
 
             <!-- Condition rows -->
@@ -371,7 +384,8 @@ watch(signalAction, (val) => {
               >
                 <select
                   :value="cond.field"
-                  class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                  :aria-label="`Condition ${ci + 1} field`"
+                  class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                   @change="
                     updateCondition(gi, ci, {
                       field: ($event.target as HTMLSelectElement).value as ConditionField,
@@ -385,7 +399,8 @@ watch(signalAction, (val) => {
 
                 <select
                   :value="cond.operator"
-                  class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                  :aria-label="`Condition ${ci + 1} operator`"
+                  class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                   @change="
                     updateCondition(gi, ci, {
                       operator: ($event.target as HTMLSelectElement).value as ConditionOperator,
@@ -400,8 +415,9 @@ watch(signalAction, (val) => {
                 <input
                   :value="cond.value"
                   type="text"
+                  :aria-label="`Condition ${ci + 1} value`"
                   placeholder="value"
-                  class="min-w-0 flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+                  class="min-w-0 flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
                   @input="
                     updateCondition(gi, ci, { value: ($event.target as HTMLInputElement).value })
                   "
@@ -426,7 +442,7 @@ watch(signalAction, (val) => {
 
       <!-- Actions -->
       <section class="mb-6">
-        <label class="mb-2 block text-xs font-medium text-ctp-subtext0">Actions</label>
+        <span class="mb-2 block text-xs font-medium text-ctp-subtext0">Actions</span>
 
         <div class="space-y-2">
           <div
@@ -443,6 +459,7 @@ watch(signalAction, (val) => {
             <template v-if="act.type === 'assign_label'">
               <select
                 :value="act.labelId ?? ''"
+                aria-label="Label"
                 class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                 @change="updateAction(idx, { labelId: ($event.target as HTMLSelectElement).value })"
               >
@@ -456,6 +473,7 @@ watch(signalAction, (val) => {
             <template v-else-if="act.type === 'assign_workflow'">
               <select
                 :value="act.workflow ?? ''"
+                aria-label="Workflow"
                 class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                 @change="
                   updateAction(idx, {
@@ -471,6 +489,7 @@ watch(signalAction, (val) => {
             <template v-else-if="act.type === 'set_urgency'">
               <select
                 :value="act.urgency ?? ''"
+                aria-label="Urgency level"
                 class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                 @change="
                   updateAction(idx, {
@@ -487,6 +506,7 @@ watch(signalAction, (val) => {
               <input
                 :value="act.forwardTo ?? ''"
                 type="email"
+                aria-label="Forward to address"
                 placeholder="forward@example.com"
                 class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
                 @input="updateAction(idx, { forwardTo: ($event.target as HTMLInputElement).value })"
@@ -494,15 +514,24 @@ watch(signalAction, (val) => {
             </template>
 
             <template v-else-if="act.type === 'auto_reply' || act.type === 'auto_draft'">
-              <input
+              <select
                 :value="act.templateId ?? ''"
-                type="text"
-                placeholder="Template ID"
-                class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-                @input="
-                  updateAction(idx, { templateId: ($event.target as HTMLInputElement).value })
-                "
-              />
+                aria-label="Template"
+                class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                @change="updateAction(idx, { templateId: ($event.target as HTMLSelectElement).value || undefined })"
+              >
+                <option value="">— Select template —</option>
+                <option v-for="tpl in templatesStore.templates" :key="tpl.id" :value="tpl.id">
+                  {{ tpl.name }}
+                </option>
+              </select>
+              <RouterLink
+                to="/templates"
+                class="shrink-0 text-xs text-ctp-mauve hover:opacity-80"
+                title="Manage templates"
+              >
+                Manage
+              </RouterLink>
             </template>
 
             <button
@@ -518,14 +547,15 @@ watch(signalAction, (val) => {
         <div v-if="addingAction" class="mt-2 flex items-center gap-2">
           <select
             v-model="actionTypeToAdd"
-            class="flex-1 rounded border border-ctp-surface1 bg-ctp-mantle px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+            aria-label="Action type to add"
+            class="flex-1 rounded border border-ctp-surface1 bg-ctp-mantle px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
           >
             <option v-for="m in ACTION_META" :key="m.type" :value="m.type">
               {{ m.label }} — {{ m.description }}
             </option>
           </select>
           <button
-            class="rounded bg-ctp-mauve px-3 py-1 text-xs font-medium text-ctp-base hover:opacity-90"
+            class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
             @click="addAction"
           >
             Add
@@ -549,10 +579,11 @@ watch(signalAction, (val) => {
       <!-- Rule tester -->
       <section class="mb-6 rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
         <h3 class="mb-3 text-xs font-medium text-ctp-subtext1">Test this rule</h3>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid gap-3 sm:grid-cols-2">
           <div>
-            <label class="mb-1 block text-xs text-ctp-subtext0">Sender address</label>
+            <label for="test-from" class="mb-1 block text-xs text-ctp-subtext0">Sender address</label>
             <input
+              id="test-from"
               v-model="testInput.fromAddress"
               type="email"
               placeholder="user@example.com"
@@ -560,8 +591,9 @@ watch(signalAction, (val) => {
             />
           </div>
           <div>
-            <label class="mb-1 block text-xs text-ctp-subtext0">Subject</label>
+            <label for="test-subject" class="mb-1 block text-xs text-ctp-subtext0">Subject</label>
             <input
+              id="test-subject"
               v-model="testInput.subject"
               type="text"
               placeholder="Email subject"
@@ -569,8 +601,9 @@ watch(signalAction, (val) => {
             />
           </div>
           <div>
-            <label class="mb-1 block text-xs text-ctp-subtext0">Workflow</label>
+            <label for="test-workflow" class="mb-1 block text-xs text-ctp-subtext0">Workflow</label>
             <input
+              id="test-workflow"
               v-model="testInput.workflow"
               type="text"
               placeholder="e.g. conversation"
@@ -578,8 +611,9 @@ watch(signalAction, (val) => {
             />
           </div>
           <div>
-            <label class="mb-1 block text-xs text-ctp-subtext0">Spam score (0–10)</label>
+            <label for="test-spam" class="mb-1 block text-xs text-ctp-subtext0">Spam score (0–10)</label>
             <input
+              id="test-spam"
               v-model="testInput.spamScore"
               type="number"
               min="0"

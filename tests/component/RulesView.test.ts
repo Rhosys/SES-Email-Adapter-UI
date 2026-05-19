@@ -104,7 +104,7 @@ describe('RulesView', () => {
   it('shows empty state when no rules', async () => {
     const wrapper = mountView()
     await flushPromises()
-    expect(wrapper.text()).toContain('No rules yet')
+    expect(wrapper.text()).toContain('Every email handled on autopilot')
   })
 
   it('shows error banner when store has error', async () => {
@@ -138,7 +138,7 @@ describe('RulesView', () => {
     )
     const wrapper = mountView()
     await flushPromises()
-    const upButtons = wrapper.findAll('button[title="Move up"]')
+    const upButtons = wrapper.findAll('button[aria-label="Move rule up"]')
     expect((upButtons[0].element as HTMLButtonElement).disabled).toBe(true)
     expect((upButtons[1].element as HTMLButtonElement).disabled).toBe(false)
   })
@@ -149,7 +149,7 @@ describe('RulesView', () => {
     )
     const wrapper = mountView()
     await flushPromises()
-    const downButtons = wrapper.findAll('button[title="Move down"]')
+    const downButtons = wrapper.findAll('button[aria-label="Move rule down"]')
     expect((downButtons[0].element as HTMLButtonElement).disabled).toBe(false)
     expect((downButtons[1].element as HTMLButtonElement).disabled).toBe(true)
   })
@@ -161,7 +161,7 @@ describe('RulesView', () => {
     vi.mocked(api.updateRule).mockResolvedValue(ok(mockRule({ id: 'r2', priorityOrder: 1 })))
     const wrapper = mountView()
     await flushPromises()
-    const upButtons = wrapper.findAll('button[title="Move up"]')
+    const upButtons = wrapper.findAll('button[aria-label="Move rule up"]')
     await upButtons[1].trigger('click')
     expect(api.updateRule).toHaveBeenCalled()
   })

@@ -7,6 +7,16 @@ import { useViewsStore } from '@/stores/views'
 import { api } from '@/lib/api'
 import type { Arc, Rule, EmailAddressConfig } from '@/types/server'
 import AppSidebar from '@/components/AppSidebar.vue'
+import SupportPanel from '@/components/SupportPanel.vue'
+import ToastStack from '@/components/ToastStack.vue'
+import FeatureTour from '@/components/FeatureTour.vue'
+import OnboardingCoach from '@/components/OnboardingCoach.vue'
+import ShortcutHelpOverlay from '@/components/ShortcutHelpOverlay.vue'
+import { useSupportPanel } from '@/composables/useSupportPanel'
+import { useRealtime } from '@/composables/useRealtime'
+import { useFeatureTour } from '@/composables/useFeatureTour'
+import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 
 const accountStore = useAccountStore()
 const labelsStore = useLabelsStore()
@@ -14,8 +24,16 @@ const viewsStore = useViewsStore()
 const router = useRouter()
 const route = useRoute()
 
+const { open: supportOpen } = useSupportPanel()
+const { startTour } = useFeatureTour()
+const { coachVisible } = useOnboardingCoach()
+const { init: initShortcuts, onAction, setBlocked } = useKeyboardShortcuts()
+useRealtime()
+
 const searchQuery = ref('')
 const inputFocused = ref(false)
+const shortcutHelpOpen = ref(false)
+const searchInput = ref<HTMLInputElement | null>(null)
 const hasSearched = ref(false)
 const sidebarOpen = ref(false)
 
@@ -120,11 +138,9 @@ async function fetchSuggestions(q: string) {
         .slice(0, 4)
     : []
 
-  suggestions.value.senders = aliasesRes.isOk()
-    ? [...new Set(aliasesRes.value.flatMap((a) => a.approvedSenders))]
-        .filter((s) => s.toLowerCase().includes(ql))
-        .slice(0, 4)
-    : []
+  // Sender suggestions are now managed via /aliases/:address/senders sub-resource;
+  // not aggregated here to avoid N+1 calls
+  suggestions.value.senders = []
 
   suggestions.value.aliases = aliasesRes.isOk()
     ? aliasesRes.value.filter((a) => a.address.toLowerCase().includes(ql)).slice(0, 3)
@@ -193,6 +209,13 @@ function submitSearch() {
   void router.push({ path: '/search', query: { q } })
 }
 
+watch(shortcutHelpOpen, (open) => setBlocked(open))
+
+function focusSearch() {
+  searchInput.value?.focus()
+  searchInput.value?.select()
+}
+
 onMounted(async () => {
   if (!accountStore.account) {
     const fromUrl = route.query.accountId as string | undefined
@@ -206,14 +229,41 @@ onMounted(async () => {
     }
   }
   await Promise.all([labelsStore.fetchLabels(), viewsStore.fetchViews()])
+
+  // Auto-start the feature tour only after the notification coach has been shown
+  // (the coach itself starts the tour as its final step for fresh users)
+  const ob = accountStore.account?.onboarding
+  if (ob?.completed && ob.notificationCoachCompleted && !ob.featureTourCompleted) {
+    startTour()
+  }
+
+  // Initialize global keyboard shortcut listener
+  initShortcuts()
+  onAction('shortcut_help', () => {
+    shortcutHelpOpen.value = !shortcutHelpOpen.value
+  })
+  onAction('search', focusSearch)
+  onAction('go_inbox', () => void router.push({ name: 'inbox' }))
+  onAction('go_quarantine', () => void router.push({ name: 'quarantine' }))
+  onAction('go_labels', () => void router.push({ name: 'labels' }))
+  onAction('go_rules', () => void router.push({ name: 'rules' }))
+  onAction('go_settings', () => void router.push({ name: 'settings' }))
+  onAction('go_profile', () => void router.push({ name: 'profile' }))
 })
 </script>
 
 <template>
   <div class="flex h-screen overflow-hidden bg-ctp-base text-ctp-text">
+    <!-- Skip to main content -->
+    <a
+      href="#main-content"
+      class="absolute left-2 top-2 z-[100] -translate-y-20 rounded bg-ctp-mauve px-3 py-1.5 text-sm font-medium text-ctp-base focus:translate-y-0"
+    >Skip to content</a>
+
     <!-- Backdrop for mobile sidebar -->
     <div
       v-if="sidebarOpen"
+      role="presentation"
       class="fixed inset-0 z-30 bg-black/50 sm:hidden"
       @click="sidebarOpen = false"
     />
@@ -232,10 +282,24 @@ onMounted(async () => {
           aria-label="Toggle menu"
           @click="sidebarOpen = !sidebarOpen"
         >
-          <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+          <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path
               fill-rule="evenodd"
               d="M2.5 12a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5z"
+            />
+          </svg>
+        </button>
+
+        <!-- Help button (mobile only — sidebar shows it on desktop) -->
+        <button
+          type="button"
+          class="flex h-8 w-8 shrink-0 items-center justify-center rounded text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text sm:hidden"
+          aria-label="Help and support"
+          @click="supportOpen = true"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+            <path
+              d="M5.255 5.786a.237.237 0 00.241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217a.25.25 0 00.25.246h.811a.25.25 0 00.25-.25v-.105c0-.718.273-.927 1.01-1.486.609-.463 1.244-.977 1.244-2.056 0-1.511-1.276-2.241-2.673-2.241-1.267 0-2.655.59-2.75 2.286zm1.557 5.763c0 .533.425.927 1.01.927.609 0 1.028-.394 1.028-.927 0-.552-.42-.94-1.029-.94-.584 0-1.009.388-1.009.94z"
             />
           </svg>
         </button>
@@ -246,14 +310,17 @@ onMounted(async () => {
               class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ctp-subtext0"
               viewBox="0 0 16 16"
               fill="currentColor"
+              aria-hidden="true"
             >
               <path
                 d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 001.415-1.414l-3.85-3.85a1.007 1.007 0 00-.115-.099zm-5.242 1.156a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"
               />
             </svg>
             <input
+              ref="searchInput"
               v-model="searchQuery"
               type="search"
+              aria-label="Search arcs, rules, aliases"
               placeholder="Search…"
               class="h-7 w-full rounded-md border border-ctp-surface1 bg-ctp-base pl-8 pr-3 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
               autocomplete="off"
@@ -282,6 +349,7 @@ onMounted(async () => {
                       ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
                       : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
                   "
+                  :aria-pressed="activeCategories.has(cat.key)"
                   :disabled="activeCategories.has(cat.key) && activeCategories.size === 1"
                   @mousedown.prevent="toggleCategory(cat.key)"
                 >
@@ -370,7 +438,7 @@ onMounted(async () => {
                       @mousedown.prevent="selectAlias"
                     >
                       <span class="flex-1 truncate text-sm text-ctp-text">{{ alias.address }}</span>
-                      <span class="shrink-0 text-xs text-ctp-subtext0">{{ alias.filterMode }}</span>
+                      <span class="shrink-0 text-xs text-ctp-subtext0">{{ alias.unknownSenderPolicy }}</span>
                     </button>
                   </template>
 
@@ -425,9 +493,15 @@ onMounted(async () => {
         </form>
       </header>
 
-      <div class="flex-1 overflow-y-auto">
+      <div id="main-content" class="flex-1 overflow-y-auto">
         <RouterView />
       </div>
     </div>
   </div>
+
+  <SupportPanel :open="supportOpen" @close="supportOpen = false" />
+  <ToastStack />
+  <FeatureTour />
+  <OnboardingCoach v-if="coachVisible" />
+  <ShortcutHelpOverlay v-model:open="shortcutHelpOpen" />
 </template>

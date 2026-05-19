@@ -3,12 +3,14 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { marked } from 'marked'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
+import { useToast } from '@/composables/useToast'
 import type { Signal, Domain } from '@/types/server'
 
 const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ discard: []; sent: [] }>()
 
 const accountStore = useAccountStore()
+const { deferAction, undo: undoToast } = useToast()
 
 // Parse existing from address (empty for brand-new drafts)
 function splitAddress(address: string): [string, string] {
@@ -27,7 +29,8 @@ const showPreview = ref(false)
 const domains = ref<Domain[]>([])
 const domainsLoaded = ref(false)
 const saving = ref(false)
-const sending = ref(false)
+const sendState = ref<'idle' | 'sending' | 'cancellable'>('idle')
+const toastId = ref<string | null>(null)
 const error = ref<string | null>(null)
 
 const verifiedDomains = computed(() => domains.value.filter((d) => d.status === 'verified'))
@@ -39,7 +42,11 @@ const fromAddress = computed(() =>
 const previewHtml = computed(() => (body.value ? (marked.parse(body.value) as string) : ''))
 
 const canSend = computed(
-  () => !!fromAddress.value && subject.value.trim().length > 0 && body.value.trim().length > 0,
+  () =>
+    sendState.value === 'idle' &&
+    !!fromAddress.value &&
+    subject.value.trim().length > 0 &&
+    body.value.trim().length > 0,
 )
 
 const toLabel = computed(() => props.signal.to?.map((e) => e.address).join(', ') ?? '')
@@ -76,17 +83,53 @@ async function persistDraft() {
 }
 
 async function send() {
-  if (!accountStore.accountId || !canSend.value || sending.value) return
-  sending.value = true
+  if (!accountStore.accountId || !canSend.value) return
   error.value = null
   await persistDraft()
-  const result = await api.sendSignal(accountStore.accountId, props.signal.id)
-  sending.value = false
+
+  const accountId = accountStore.accountId
+  const signalId = props.signal.id
+
+  sendState.value = 'sending'
+  const result = await api.sendSignal(accountId, signalId)
   if (result.isErr()) {
+    sendState.value = 'idle'
     error.value = result.error.message
-  } else {
-    emit('sent')
+    return
   }
+
+  sendState.value = 'cancellable'
+
+  const id = deferAction(
+    'Email sent',
+    async () => {
+      // Toast expired — signal is now live. Parent re-fetches to show SignalCard with undo button.
+      sendState.value = 'idle'
+      toastId.value = null
+      emit('sent')
+    },
+    30_000,
+    {
+      submessage: `To: ${toLabel.value}`,
+      undoLabel: 'Cancel send',
+      onUndo: async () => {
+        const cancelResult = await api.patchSignal(accountId, signalId, { status: 'draft' })
+        sendState.value = 'idle'
+        toastId.value = null
+        if (cancelResult.isOk()) {
+          emit('discard')
+        } else {
+          error.value = 'Email already delivered — cancel was too late'
+          emit('sent')
+        }
+      },
+    },
+  )
+  toastId.value = id
+}
+
+function cancelSend() {
+  if (toastId.value) undoToast(toastId.value)
 }
 
 async function discard() {
@@ -137,18 +180,20 @@ async function discard() {
           <div
             class="rounded border border-ctp-yellow/40 bg-ctp-yellow/10 px-3 py-2 text-xs text-ctp-yellow"
           >
-            No verified sending domains.
+            <span class="font-medium">No verified sending domain.</span>
+            You need at least one verified domain before you can send replies.
             <router-link to="/settings" class="underline hover:text-ctp-text">
-              Settings → Domains
+              Add one in Settings → Domains.
             </router-link>
           </div>
         </template>
         <template v-else>
-          <label class="mb-1 block text-xs text-ctp-subtext0">From</label>
+          <label for="draft-from-local" class="mb-1 block text-xs text-ctp-subtext0">From</label>
           <div
             class="flex items-center rounded border border-ctp-surface1 bg-ctp-base focus-within:border-ctp-mauve"
           >
             <input
+              id="draft-from-local"
               v-model="localPart"
               type="text"
               placeholder="you"
@@ -157,6 +202,7 @@ async function discard() {
             <span class="shrink-0 text-xs text-ctp-subtext0">@</span>
             <select
               v-model="selectedDomain"
+              aria-label="Domain"
               class="shrink-0 bg-transparent py-1.5 pr-2 text-xs text-ctp-text focus:outline-none"
             >
               <option v-for="d in verifiedDomains" :key="d.id" :value="d.domain">
@@ -169,8 +215,9 @@ async function discard() {
 
       <!-- Subject -->
       <div class="mb-3">
-        <label class="mb-1 block text-xs text-ctp-subtext0">Subject</label>
+        <label for="draft-subject" class="mb-1 block text-xs text-ctp-subtext0">Subject</label>
         <input
+          id="draft-subject"
           v-model="subject"
           type="text"
           class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
@@ -180,7 +227,7 @@ async function discard() {
       <!-- Body: edit / preview tabs -->
       <div class="mb-3">
         <div class="mb-1 flex items-center gap-3">
-          <label class="text-xs text-ctp-subtext0">Body (markdown)</label>
+          <label for="draft-body" class="text-xs text-ctp-subtext0">Body (markdown)</label>
           <div class="ml-auto flex gap-1">
             <button
               class="rounded px-2 py-0.5 text-xs transition-colors"
@@ -210,6 +257,7 @@ async function discard() {
         <!-- Edit mode -->
         <textarea
           v-if="!showPreview"
+          id="draft-body"
           v-model="body"
           rows="8"
           placeholder="Write your reply in markdown…"
@@ -232,16 +280,24 @@ async function discard() {
 
       <!-- Actions -->
       <div class="flex items-center gap-3">
-        <button
-          :disabled="!canSend || sending"
-          class="rounded bg-ctp-mauve px-4 py-1.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          @click="send"
-        >
-          {{ sending ? 'Sending…' : 'Send' }}
-        </button>
-        <button class="text-sm text-ctp-subtext0 hover:text-ctp-red" @click="discard">
-          Discard draft
-        </button>
+        <template v-if="sendState === 'cancellable'">
+          <span class="text-sm text-ctp-subtext0">Sent — cancellable via toast…</span>
+          <button class="text-sm text-ctp-red hover:opacity-80" @click="cancelSend">
+            Cancel send
+          </button>
+        </template>
+        <template v-else>
+          <button
+            :disabled="!canSend"
+            class="rounded bg-ctp-mauve px-4 py-1.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            @click="send"
+          >
+            {{ sendState === 'sending' ? 'Sending…' : 'Send' }}
+          </button>
+          <button class="text-sm text-ctp-subtext0 hover:text-ctp-red" @click="discard">
+            Discard draft
+          </button>
+        </template>
       </div>
     </div>
   </div>

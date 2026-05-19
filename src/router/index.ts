@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { loginClient } from '@/lib/auth'
 import AppLayout from '@/layouts/AppLayout.vue'
+import { useAccountStore } from '@/stores/account'
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.VITE_BASE_PATH ?? '/'),
@@ -15,6 +16,7 @@ export const router = createRouter({
       path: '/onboarding',
       name: 'onboarding',
       component: () => import('@/views/OnboardingView.vue'),
+      meta: { requiresAuth: true },
     },
 
     // Authenticated routes — all rendered inside AppLayout (sidebar)
@@ -44,6 +46,11 @@ export const router = createRouter({
           component: () => import('@/views/SearchView.vue'),
         },
         {
+          path: 'templates',
+          name: 'templates',
+          component: () => import('@/views/TemplatesView.vue'),
+        },
+        {
           path: 'labels',
           name: 'labels',
           component: () => import('@/views/LabelsView.vue'),
@@ -70,8 +77,7 @@ export const router = createRouter({
         },
         {
           path: 'settings/notifications',
-          name: 'settings-notifications',
-          component: () => import('@/views/SettingsView.vue'),
+          redirect: { name: 'settings', query: { tab: 'notifications' } },
         },
         {
           path: 'profile',
@@ -88,7 +94,18 @@ export const router = createRouter({
           name: 'audit-log',
           component: () => import('@/views/AuditLogView.vue'),
         },
+        {
+          path: 'changelog',
+          name: 'changelog',
+          component: () => import('@/views/ChangelogView.vue'),
+        },
       ],
+    },
+
+    // Catch-all — redirect unknown paths to inbox
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: '/',
     },
 
     // Legal pages (no sidebar)
@@ -104,12 +121,67 @@ export const router = createRouter({
       component: () => import('@/views/LegalView.vue'),
       props: { page: 'privacy' },
     },
+
+    // Invite accept — unauthenticated so the nav guard doesn't redirect before login
+    {
+      path: '/invite',
+      name: 'invite',
+      component: () => import('@/views/InviteView.vue'),
+    },
   ],
 })
+
+const ROUTE_TITLES: Record<string, string> = {
+  inbox: 'Inbox',
+  'arc-detail': 'Conversation',
+  quarantine: 'Quarantine',
+  search: 'Search',
+  labels: 'Labels & Views',
+  rules: 'Rules',
+  'rules-new': 'New rule',
+  'rules-edit': 'Edit rule',
+  templates: 'Templates',
+  settings: 'Settings',
+  profile: 'Profile',
+  billing: 'Billing',
+  'audit-log': 'Audit log',
+  changelog: 'Changelog',
+  login: 'Sign in',
+  onboarding: 'Setup',
+  terms: 'Terms of service',
+  privacy: 'Privacy policy',
+  invite: 'Accept invitation',
+}
+
+const APP_NAME = 'SES Email Adapter'
 
 router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return true
   const authenticated = await loginClient.userSessionExists()
-  if (!authenticated) return { name: 'login' }
+  if (!authenticated) return { name: 'login', query: { redirect: to.fullPath } }
+
+  // Onboarding manages its own account creation — let it through always
+  if (to.name === 'onboarding') return true
+
+  // For all other authenticated routes: ensure an account is loaded
+  const accountStore = useAccountStore()
+  if (!accountStore.fetched) {
+    await accountStore.fetchAccount()
+  }
+
+  // Redirect to onboarding if no account exists or onboarding hasn't been completed.
+  // Profile and billing are exempt — users can navigate there any time they're authenticated.
+  const exemptFromOnboardingRedirect = new Set(['profile', 'billing'])
+  if (
+    !exemptFromOnboardingRedirect.has(String(to.name)) &&
+    (!accountStore.accountId || !accountStore.account?.onboarding?.completed)
+  ) {
+    return { name: 'onboarding' }
+  }
   return true
+})
+
+router.afterEach((to) => {
+  const routeTitle = to.name ? ROUTE_TITLES[String(to.name)] : undefined
+  document.title = routeTitle ? `${routeTitle} — ${APP_NAME}` : APP_NAME
 })

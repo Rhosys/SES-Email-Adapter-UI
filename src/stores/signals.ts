@@ -73,13 +73,10 @@ export const useSignalsStore = defineStore('signals', () => {
     if (!accountId) return false
     // Use the latest non-draft signal as the reply target
     const replyTo = items.value.find((s) => s.status !== 'draft') ?? items.value[0]
-    const result = await api.createDraftSignal(accountId, {
-      status: 'draft',
-      source: 'user',
+    const result = await api.createDraftSignal(accountId, arcId, {
       from: { address: '' },
       to: replyTo ? [{ address: replyTo.from.address }] : [],
       subject: replyTo ? `Re: ${replyTo.subject}` : '',
-      arcId,
     })
     if (result.isErr()) {
       error.value = result.error.message

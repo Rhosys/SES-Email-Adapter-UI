@@ -11,9 +11,18 @@ export interface QuarantineFilters {
   before: string
 }
 
-interface QuarantinePageState {
+interface BucketState {
   items: Signal[]
-  nextCursors: { visible?: string; hidden?: string }
+  cursor?: string
+}
+
+interface QuarantinePageState {
+  visible: BucketState
+  hidden: BucketState
+}
+
+function byReceivedDesc(a: Signal, b: Signal) {
+  return new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
 }
 
 export const useQuarantineStore = defineStore('quarantine', () => {
@@ -31,14 +40,22 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     before: '',
   })
 
-  const items = computed<Signal[]>(() =>
-    accountStore.accountId ? (_byAccount.value[accountStore.accountId]?.items ?? []) : [],
+  function _state(id: string): QuarantinePageState {
+    return _byAccount.value[id] ?? { visible: { items: [] }, hidden: { items: [] } }
+  }
+
+  const quarantineVisible = computed<Signal[]>(() =>
+    accountStore.accountId ? _state(accountStore.accountId).visible.items : [],
+  )
+
+  const quarantineHidden = computed<Signal[]>(() =>
+    accountStore.accountId ? _state(accountStore.accountId).hidden.items : [],
   )
 
   const hasMore = computed(() => {
     if (!accountStore.accountId) return false
-    const cursors = _byAccount.value[accountStore.accountId]?.nextCursors
-    return !!(cursors?.visible || cursors?.hidden)
+    const s = _state(accountStore.accountId)
+    return !!(s.visible.cursor || s.hidden.cursor)
   })
 
   function buildParams(cursor?: string): QuarantineSignalListParams {
@@ -50,19 +67,13 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     return p
   }
 
-  function mergeAndSort(a: Signal[], b: Signal[]): Signal[] {
-    return [...a, ...b].sort(
-      (x, y) => new Date(y.receivedAt).getTime() - new Date(x.receivedAt).getTime(),
-    )
-  }
-
   async function fetchSignals(reset = false) {
     const id = accountStore.accountId
     if (!id) return
     if (reset) {
       _byAccount.value = {
         ..._byAccount.value,
-        [id]: { items: [], nextCursors: {} },
+        [id]: { visible: { items: [] }, hidden: { items: [] } },
       }
     }
     loading.value = true
@@ -75,67 +86,80 @@ export const useQuarantineStore = defineStore('quarantine', () => {
 
     loading.value = false
 
-    if (visResult.isErr()) {
-      error.value = visResult.error.message
-      return
-    }
-    if (hidResult.isErr()) {
-      error.value = hidResult.error.message
-      return
-    }
+    if (visResult.isErr()) { error.value = visResult.error.message; return }
+    if (hidResult.isErr()) { error.value = hidResult.error.message; return }
 
     _byAccount.value = {
       ..._byAccount.value,
       [id]: {
-        items: mergeAndSort(visResult.value.items, hidResult.value.items),
-        nextCursors: {
-          visible: visResult.value.nextCursor,
-          hidden: hidResult.value.nextCursor,
+        visible: {
+          items: [...visResult.value.items].sort(byReceivedDesc),
+          cursor: visResult.value.nextCursor,
+        },
+        hidden: {
+          items: [...hidResult.value.items].sort(byReceivedDesc),
+          cursor: hidResult.value.nextCursor,
         },
       },
     }
   }
 
+  // Exhaust all visible pages before moving to hidden pages.
   async function fetchMore() {
     const id = accountStore.accountId
     if (!id || !hasMore.value || loadingMore.value) return
     loadingMore.value = true
 
-    const cursors = _byAccount.value[id]?.nextCursors ?? {}
+    const s = _state(id)
 
-    const pendingVis = cursors.visible
-      ? api.listQuarantinedSignals(id, 'quarantine_visible', buildParams(cursors.visible))
-      : null
-    const pendingHid = cursors.hidden
-      ? api.listQuarantinedSignals(id, 'quarantine_hidden', buildParams(cursors.hidden))
-      : null
-
-    const [visResult, hidResult] = await Promise.all([pendingVis, pendingHid])
-    loadingMore.value = false
-
-    if (visResult?.isErr()) {
-      error.value = visResult.error.message
-      return
+    if (s.visible.cursor) {
+      const result = await api.listQuarantinedSignals(
+        id,
+        'quarantine_visible',
+        buildParams(s.visible.cursor),
+      )
+      loadingMore.value = false
+      if (result.isErr()) { error.value = result.error.message; return }
+      _byAccount.value = {
+        ..._byAccount.value,
+        [id]: {
+          ...s,
+          visible: {
+            items: [...s.visible.items, ...result.value.items].sort(byReceivedDesc),
+            cursor: result.value.nextCursor,
+          },
+        },
+      }
+    } else if (s.hidden.cursor) {
+      const result = await api.listQuarantinedSignals(
+        id,
+        'quarantine_hidden',
+        buildParams(s.hidden.cursor),
+      )
+      loadingMore.value = false
+      if (result.isErr()) { error.value = result.error.message; return }
+      _byAccount.value = {
+        ..._byAccount.value,
+        [id]: {
+          ...s,
+          hidden: {
+            items: [...s.hidden.items, ...result.value.items].sort(byReceivedDesc),
+            cursor: result.value.nextCursor,
+          },
+        },
+      }
+    } else {
+      loadingMore.value = false
     }
-    if (hidResult?.isErr()) {
-      error.value = hidResult.error.message
-      return
-    }
+  }
 
-    const newItems = mergeAndSort(
-      visResult?.isOk() ? visResult.value.items : [],
-      hidResult?.isOk() ? hidResult.value.items : [],
-    )
-
-    const existing = _byAccount.value[id]?.items ?? []
+  function _removeSignal(id: string, signalId: string) {
+    const s = _state(id)
     _byAccount.value = {
       ..._byAccount.value,
       [id]: {
-        items: [...existing, ...newItems],
-        nextCursors: {
-          visible: visResult?.isOk() ? visResult.value.nextCursor : undefined,
-          hidden: hidResult?.isOk() ? hidResult.value.nextCursor : undefined,
-        },
+        visible: { ...s.visible, items: s.visible.items.filter((x) => x.id !== signalId) },
+        hidden: { ...s.hidden, items: s.hidden.items.filter((x) => x.id !== signalId) },
       },
     }
   }
@@ -143,67 +167,38 @@ export const useQuarantineStore = defineStore('quarantine', () => {
   async function allow(signalId: string) {
     const id = accountStore.accountId
     if (!id) return false
-    actionPending.value.add(signalId)
+    actionPending.value = new Set([...actionPending.value, signalId])
     const result = await api.quarantineResponse(id, signalId, 'active')
-    actionPending.value.delete(signalId)
-    if (result.isErr()) {
-      error.value = result.error.message
-      return false
-    }
-    _byAccount.value = {
-      ..._byAccount.value,
-      [id]: {
-        items: (_byAccount.value[id]?.items ?? []).filter((s) => s.id !== signalId),
-        nextCursors: _byAccount.value[id]?.nextCursors ?? {},
-      },
-    }
+    actionPending.value = new Set([...actionPending.value].filter((x) => x !== signalId))
+    if (result.isErr()) { error.value = result.error.message; return false }
+    _removeSignal(id, signalId)
     return true
   }
 
   async function reject(signalId: string) {
     const id = accountStore.accountId
     if (!id) return false
-    actionPending.value.add(signalId)
+    actionPending.value = new Set([...actionPending.value, signalId])
     const result = await api.quarantineResponse(id, signalId, 'block_hidden')
-    actionPending.value.delete(signalId)
-    if (result.isErr()) {
-      error.value = result.error.message
-      return false
-    }
-    _byAccount.value = {
-      ..._byAccount.value,
-      [id]: {
-        items: (_byAccount.value[id]?.items ?? []).filter((s) => s.id !== signalId),
-        nextCursors: _byAccount.value[id]?.nextCursors ?? {},
-      },
-    }
+    actionPending.value = new Set([...actionPending.value].filter((x) => x !== signalId))
+    if (result.isErr()) { error.value = result.error.message; return false }
+    _removeSignal(id, signalId)
     return true
   }
 
   async function rejectForAlias(signalId: string, toAddress: string, fromAddress: string) {
     const id = accountStore.accountId
     if (!id) return false
-    actionPending.value.add(signalId)
+    actionPending.value = new Set([...actionPending.value, signalId])
+    const domain = fromAddress.includes('@') ? fromAddress.split('@')[1] : fromAddress
     const [aliasResult, responseResult] = await Promise.all([
-      api.updateAlias(id, toAddress, { blockedSenders: [fromAddress] }),
+      api.addAliasSender(id, toAddress, { domain, policy: 'block_hidden' }),
       api.quarantineResponse(id, signalId, 'block_hidden'),
     ])
-    actionPending.value.delete(signalId)
-    if (aliasResult.isErr()) {
-      error.value = aliasResult.error.message
-      return false
-    }
-    if (responseResult.isErr()) {
-      error.value = responseResult.error.message
-      return false
-    }
-    _byAccount.value = {
-      ..._byAccount.value,
-      [id]: {
-        items: (_byAccount.value[id]?.items ?? []).filter((s) => s.id !== signalId),
-        nextCursors: _byAccount.value[id]?.nextCursors ?? {},
-      },
-    }
+    actionPending.value = new Set([...actionPending.value].filter((x) => x !== signalId))
+    if (aliasResult.isErr()) { error.value = aliasResult.error.message; return false }
+    if (responseResult.isErr()) { error.value = responseResult.error.message; return false }
+    _removeSignal(id, signalId)
     return true
   }
 
@@ -216,7 +211,8 @@ export const useQuarantineStore = defineStore('quarantine', () => {
   }
 
   return {
-    items,
+    quarantineVisible,
+    quarantineHidden,
     hasMore,
     loading,
     loadingMore,

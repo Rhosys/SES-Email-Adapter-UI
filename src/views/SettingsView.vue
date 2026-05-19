@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import type {
   Domain,
   EmailAddressConfig,
   ForwardingAddress,
-  SenderFilterMode,
+  UnknownSenderPolicy,
   TeamMember,
   UserRole,
 } from '@/types/server'
 
 const route = useRoute()
+const router = useRouter()
 const accountStore = useAccountStore()
 
 type TabKey = 'account' | 'emails' | 'domains' | 'forwarding' | 'team' | 'notifications'
@@ -45,11 +46,13 @@ const aliasError = ref('')
 const newAddress = ref('')
 const newAddressPending = ref(false)
 
-const FILTER_MODES: { value: SenderFilterMode; label: string; description: string }[] = [
-  { value: 'allow_all', label: 'Allow all', description: 'All senders allowed' },
-  { value: 'notify_new', label: 'Notify new', description: 'New senders go to quarantine once' },
-  { value: 'sender_match', label: 'Sender match', description: 'Only approved senders pass' },
-  { value: 'strict', label: 'Strict', description: 'Approved senders only, block others' },
+const FILTER_MODES: { value: UnknownSenderPolicy; label: string; description: string }[] = [
+  { value: 'allow_all', label: 'Allow all', description: 'All senders pass through' },
+  { value: 'quarantine_visible', label: 'Quarantine (visible)', description: 'Unknown senders held for review' },
+  { value: 'quarantine_hidden', label: 'Quarantine (hidden)', description: 'Unknown senders silently held' },
+  { value: 'block_hidden', label: 'Block silently', description: 'Unknown senders silently discarded' },
+  { value: 'block_reject', label: 'Block & reject', description: 'Unknown senders receive a bounce' },
+  { value: 'violate_report', label: 'Violation report', description: 'Report as a policy violation' },
 ]
 
 async function loadAliases() {
@@ -74,9 +77,9 @@ async function addAddress() {
   }
 }
 
-async function updateAliasMode(address: string, filterMode: SenderFilterMode) {
+async function updateAliasMode(address: string, unknownSenderPolicy: UnknownSenderPolicy) {
   if (!accountStore.accountId) return
-  const result = await api.updateAlias(accountStore.accountId, address, { filterMode })
+  const result = await api.updateAlias(accountStore.accountId, address, { unknownSenderPolicy })
   if (result.isOk()) {
     aliases.value = aliases.value.map((a) => (a.address === address ? result.value : a))
   }
@@ -135,7 +138,6 @@ const STATUS_COLORS: Record<string, string> = {
 const forwarding = ref<ForwardingAddress[]>([])
 const forwardingLoading = ref(false)
 const newForwardAddress = ref('')
-const newForwardLabel = ref('')
 const addForwardPending = ref(false)
 
 async function loadForwarding() {
@@ -151,13 +153,11 @@ async function addForwardingAddress() {
   addForwardPending.value = true
   const result = await api.createForwardingAddress(accountStore.accountId, {
     address: newForwardAddress.value.trim(),
-    label: newForwardLabel.value.trim() || undefined,
   })
   addForwardPending.value = false
   if (result.isOk()) {
     forwarding.value = [...forwarding.value, result.value]
     newForwardAddress.value = ''
-    newForwardLabel.value = ''
   }
 }
 
@@ -176,6 +176,25 @@ const invitePending = ref(false)
 const teamError = ref('')
 
 const ROLES: UserRole[] = ['owner', 'admin', 'member', 'viewer']
+
+const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
+  owner: 'Full access including billing and account deletion',
+  admin: 'Manage everything except billing',
+  member: 'Process emails and manage rules',
+  viewer: 'Read-only access',
+}
+
+// ─── DNS copy-to-clipboard ───────────────────────────────────────────────────
+const copiedDns = ref<Set<string>>(new Set())
+
+function copyDnsValue(key: string, value: string) {
+  void navigator.clipboard.writeText(value).then(() => {
+    copiedDns.value = new Set([...copiedDns.value, key])
+    setTimeout(() => {
+      copiedDns.value = new Set([...copiedDns.value].filter((k) => k !== key))
+    }, 1500)
+  })
+}
 
 async function loadTeam() {
   if (!accountStore.accountId) return
@@ -228,8 +247,15 @@ async function saveNotifications() {
   if (!accountStore.accountId) return
   notifPending.value = true
   notifSaved.value = false
-  // PATCH account with notification settings
-  const result = await api.updateAccount(accountStore.accountId, {})
+  const result = await api.updateAccount(accountStore.accountId, {
+    notifications: {
+      email: {
+        enabled: emailNotifEnabled.value,
+        address: emailNotifAddress.value.trim(),
+        frequency: emailNotifFrequency.value,
+      },
+    },
+  })
   notifPending.value = false
   if (result.isOk()) {
     notifSaved.value = true
@@ -242,6 +268,7 @@ async function saveNotifications() {
 // ─── Tab loading ──────────────────────────────────────────────────────────────
 async function switchTab(tab: TabKey) {
   activeTab.value = tab
+  void router.replace({ query: tab === 'account' ? {} : { tab } })
   if (tab === 'emails' && aliases.value.length === 0) await loadAliases()
   if (tab === 'domains' && domains.value.length === 0) await loadDomains()
   if (tab === 'forwarding' && forwarding.value.length === 0) await loadForwarding()
@@ -256,8 +283,17 @@ onMounted(async () => {
     emailNotifEnabled.value = accountStore.account.notifications?.email?.enabled ?? false
     emailNotifFrequency.value = accountStore.account.notifications?.email?.frequency ?? 'daily'
   }
-  // Pre-load tab from route
-  if (route.name === 'settings-notifications') activeTab.value = 'notifications'
+  // Hydrate active tab from URL
+  const VALID_TABS: TabKey[] = [
+    'account',
+    'emails',
+    'domains',
+    'forwarding',
+    'team',
+    'notifications',
+  ]
+  const tab = route.query.tab as TabKey | undefined
+  if (tab && VALID_TABS.includes(tab)) await switchTab(tab)
 })
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -278,10 +314,12 @@ const TABS: { key: TabKey; label: string }[] = [
 
     <!-- Tab bar -->
     <div class="border-b border-ctp-surface0 bg-ctp-mantle px-4">
-      <div class="flex gap-1 overflow-x-auto">
+      <div role="tablist" class="flex gap-1 overflow-x-auto">
         <button
           v-for="tab in TABS"
           :key="tab.key"
+          role="tab"
+          :aria-selected="activeTab === tab.key"
           class="shrink-0 border-b-2 px-3 py-2 text-sm transition-colors"
           :class="
             activeTab === tab.key
@@ -299,9 +337,10 @@ const TABS: { key: TabKey; label: string }[] = [
       <!-- ── Account tab ─────────────────────────────────────────────────── -->
       <section v-if="activeTab === 'account'" class="space-y-6">
         <div>
-          <label class="mb-1 block text-xs font-medium text-ctp-subtext0">Account name</label>
+          <label for="account-name" class="mb-1 block text-xs font-medium text-ctp-subtext0">Account name</label>
           <div class="flex gap-2">
             <input
+              id="account-name"
               v-model="accountName"
               type="text"
               class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
@@ -316,7 +355,7 @@ const TABS: { key: TabKey; label: string }[] = [
           </div>
         </div>
         <div>
-          <label class="mb-1 block text-xs font-medium text-ctp-subtext0">Account ID</label>
+          <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Account ID</span>
           <p class="font-mono text-xs text-ctp-subtext0">{{ accountStore.accountId }}</p>
         </div>
       </section>
@@ -334,6 +373,7 @@ const TABS: { key: TabKey; label: string }[] = [
           <input
             v-model="newAddress"
             type="email"
+            aria-label="New email address"
             placeholder="you@domain.com"
             class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           />
@@ -346,12 +386,30 @@ const TABS: { key: TabKey; label: string }[] = [
           </button>
         </form>
 
-        <div v-if="aliasesLoading" class="py-8 text-center text-sm text-ctp-subtext0">Loading…</div>
+        <div
+          v-if="aliasesLoading"
+          role="status"
+          aria-label="Loading addresses…"
+          class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+        >
+          <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-4 py-3">
+            <div class="flex-1 space-y-1">
+              <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${40 + (i * 19) % 40}%` }" />
+              <div class="h-3 w-20 rounded bg-ctp-surface1" />
+            </div>
+            <div class="h-6 w-16 shrink-0 rounded-full bg-ctp-surface1" />
+            <div class="h-6 w-6 shrink-0 rounded bg-ctp-surface1" />
+          </div>
+        </div>
         <div
           v-else-if="aliases.length === 0"
-          class="rounded-lg border border-dashed border-ctp-surface1 py-10 text-center text-sm text-ctp-subtext0"
+          class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
         >
-          No email addresses configured
+          <p class="font-medium text-ctp-text">No receiving addresses yet</p>
+          <p class="mx-auto mt-1 max-w-sm">
+            Add an address and emails sent to it will start flowing in. Each address gets its own
+            filter mode — so you stay in control of who reaches you.
+          </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div v-for="alias in aliases" :key="alias.id" class="px-4 py-3">
@@ -370,7 +428,7 @@ const TABS: { key: TabKey; label: string }[] = [
                 :key="mode.value"
                 class="rounded-full border px-2.5 py-0.5 text-xs transition-colors"
                 :class="
-                  alias.filterMode === mode.value
+                  alias.unknownSenderPolicy === mode.value
                     ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
                     : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
                 "
@@ -380,7 +438,7 @@ const TABS: { key: TabKey; label: string }[] = [
               </button>
             </div>
             <p class="mt-1 text-xs text-ctp-subtext0">
-              {{ FILTER_MODES.find((m) => m.value === alias.filterMode)?.description }}
+              {{ FILTER_MODES.find((m) => m.value === alias.unknownSenderPolicy)?.description }}
             </p>
           </div>
         </div>
@@ -392,6 +450,7 @@ const TABS: { key: TabKey; label: string }[] = [
           <input
             v-model="newDomain"
             type="text"
+            aria-label="Domain name"
             placeholder="yourdomain.com"
             class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           />
@@ -404,12 +463,31 @@ const TABS: { key: TabKey; label: string }[] = [
           </button>
         </form>
 
-        <div v-if="domainsLoading" class="py-8 text-center text-sm text-ctp-subtext0">Loading…</div>
+        <div
+          v-if="domainsLoading"
+          role="status"
+          aria-label="Loading domains…"
+          class="animate-pulse space-y-3"
+        >
+          <div v-for="i in 2" :key="i" class="rounded-lg border border-ctp-surface1 p-4">
+            <div class="flex items-center justify-between">
+              <div class="space-y-1.5">
+                <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${120 + i * 40}px` }" />
+                <div class="h-3 w-20 rounded bg-ctp-surface1" />
+              </div>
+              <div class="h-6 w-20 shrink-0 rounded-full bg-ctp-surface1" />
+            </div>
+          </div>
+        </div>
         <div
           v-else-if="domains.length === 0"
-          class="rounded-lg border border-dashed border-ctp-surface1 py-10 text-center text-sm text-ctp-subtext0"
+          class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
         >
-          No domains configured. Add your sending domain to get DNS records.
+          <p class="font-medium text-ctp-text">No domain connected yet</p>
+          <p class="mx-auto mt-1 max-w-sm">
+            Add your domain above and we'll generate the DNS records. Once you paste them into your
+            DNS provider, email starts flowing — usually within minutes.
+          </p>
         </div>
         <div v-else class="space-y-4">
           <div
@@ -428,7 +506,7 @@ const TABS: { key: TabKey; label: string }[] = [
               <button
                 v-if="domain.status !== 'verified'"
                 :disabled="recheckPending.has(domain.id)"
-                class="rounded border border-ctp-surface1 px-3 py-1 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-surface2 hover:text-ctp-text disabled:opacity-50"
+                class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-surface2 hover:text-ctp-text disabled:opacity-50"
                 @click="recheckDomain(domain.id)"
               >
                 {{ recheckPending.has(domain.id) ? 'Checking…' : 'Re-check DNS' }}
@@ -454,12 +532,21 @@ const TABS: { key: TabKey; label: string }[] = [
                       {{ rec.value }}
                     </p>
                   </div>
-                  <span
-                    class="shrink-0 text-xs"
-                    :class="STATUS_COLORS[rec.status] ?? 'text-ctp-subtext0'"
-                  >
-                    {{ rec.status }}
-                  </span>
+                  <div class="flex shrink-0 items-center gap-2">
+                    <span
+                      class="text-xs"
+                      :class="STATUS_COLORS[rec.status] ?? 'text-ctp-subtext0'"
+                    >
+                      {{ rec.status }}
+                    </span>
+                    <button
+                      class="rounded border border-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
+                      :title="`Copy ${rec.type} value`"
+                      @click="copyDnsValue(`${domain.id}-${i}`, rec.value)"
+                    >
+                      {{ copiedDns.has(`${domain.id}-${i}`) ? '✓' : 'Copy' }}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -476,13 +563,8 @@ const TABS: { key: TabKey; label: string }[] = [
           <input
             v-model="newForwardAddress"
             type="email"
+            aria-label="Forwarding address"
             placeholder="forward@example.com"
-            class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-          />
-          <input
-            v-model="newForwardLabel"
-            type="text"
-            placeholder="Label (optional)"
             class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           />
           <button
@@ -494,14 +576,27 @@ const TABS: { key: TabKey; label: string }[] = [
           </button>
         </form>
 
-        <div v-if="forwardingLoading" class="py-8 text-center text-sm text-ctp-subtext0">
-          Loading…
+        <div
+          v-if="forwardingLoading"
+          role="status"
+          aria-label="Loading forwarding addresses…"
+          class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+        >
+          <div v-for="i in 2" :key="i" class="flex items-center gap-3 px-4 py-3">
+            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${130 + i * 50}px` }" />
+            <div class="ml-auto h-6 w-6 shrink-0 rounded bg-ctp-surface1" />
+          </div>
         </div>
         <div
           v-else-if="forwarding.length === 0"
-          class="rounded-lg border border-dashed border-ctp-surface1 py-10 text-center text-sm text-ctp-subtext0"
+          class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
         >
-          No forwarding addresses yet
+          <p class="font-medium text-ctp-text">No forwarding addresses yet</p>
+          <p class="mx-auto mt-1 max-w-sm">
+            Forwarding lets you send matched emails to another inbox automatically. Add a
+            destination here, then wire it up in a rule — useful for team handoffs or archiving to
+            a shared mailbox.
+          </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div
@@ -511,7 +606,7 @@ const TABS: { key: TabKey; label: string }[] = [
           >
             <div>
               <p class="text-sm text-ctp-text">{{ fwd.address }}</p>
-              <p v-if="fwd.label" class="text-xs text-ctp-subtext0">{{ fwd.label }}</p>
+              <p class="text-xs text-ctp-subtext0">{{ fwd.status }}</p>
             </div>
             <button
               class="text-xs text-ctp-red hover:text-ctp-red/80"
@@ -536,30 +631,53 @@ const TABS: { key: TabKey; label: string }[] = [
           <input
             v-model="inviteEmail"
             type="email"
+            aria-label="Invite email address"
             placeholder="colleague@example.com"
             class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           />
-          <select
-            v-model="inviteRole"
-            class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
-          >
-            <option v-for="role in ROLES" :key="role" :value="role">{{ role }}</option>
-          </select>
+          <div class="flex flex-col gap-1">
+            <select
+              v-model="inviteRole"
+              aria-label="Role"
+              class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
+            >
+              <option v-for="role in ROLES" :key="role" :value="role">{{ role }}</option>
+            </select>
+            <p class="text-xs text-ctp-subtext0">{{ ROLE_DESCRIPTIONS[inviteRole] }}</p>
+          </div>
           <button
             type="submit"
             :disabled="invitePending || !inviteEmail.trim()"
-            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+            class="self-start rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
           >
             {{ invitePending ? 'Inviting…' : 'Invite' }}
           </button>
         </form>
 
-        <div v-if="teamLoading" class="py-8 text-center text-sm text-ctp-subtext0">Loading…</div>
+        <div
+          v-if="teamLoading"
+          role="status"
+          aria-label="Loading team…"
+          class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+        >
+          <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-4 py-3">
+            <div class="h-8 w-8 shrink-0 rounded-full bg-ctp-surface1" />
+            <div class="flex-1 space-y-1">
+              <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${100 + i * 40}px` }" />
+              <div class="h-3 w-28 rounded bg-ctp-surface1" />
+            </div>
+            <div class="h-5 w-16 shrink-0 rounded-full bg-ctp-surface1" />
+          </div>
+        </div>
         <div
           v-else-if="team.length === 0"
-          class="rounded-lg border border-dashed border-ctp-surface1 py-10 text-center text-sm text-ctp-subtext0"
+          class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
         >
-          No team members yet. Invite someone to collaborate.
+          <p class="font-medium text-ctp-text">Just you for now</p>
+          <p class="mx-auto mt-1 max-w-sm">
+            Invite teammates to share access — each person gets their own role so you control
+            exactly what they can see and do.
+          </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div v-for="member in team" :key="member.id" class="flex items-center gap-3 px-4 py-3">
@@ -579,7 +697,8 @@ const TABS: { key: TabKey; label: string }[] = [
             </div>
             <select
               :value="member.role"
-              class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+              :aria-label="`Role for ${member.userId}`"
+              class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
               @change="
                 updateMemberRole(
                   member.userId,
@@ -610,6 +729,9 @@ const TABS: { key: TabKey; label: string }[] = [
               </p>
             </div>
             <button
+              role="switch"
+              :aria-checked="emailNotifEnabled"
+              :aria-label="emailNotifEnabled ? 'Disable email notifications' : 'Enable email notifications'"
               class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
               :class="emailNotifEnabled ? 'bg-ctp-mauve' : 'bg-ctp-surface1'"
               @click="emailNotifEnabled = !emailNotifEnabled"
@@ -623,8 +745,9 @@ const TABS: { key: TabKey; label: string }[] = [
 
           <div v-if="emailNotifEnabled" class="mt-4 space-y-3">
             <div>
-              <label class="mb-1 block text-xs text-ctp-subtext0">Notification address</label>
+              <label for="notif-address" class="mb-1 block text-xs text-ctp-subtext0">Notification address</label>
               <input
+                id="notif-address"
                 v-model="emailNotifAddress"
                 type="email"
                 placeholder="you@example.com"
@@ -632,11 +755,12 @@ const TABS: { key: TabKey; label: string }[] = [
               />
             </div>
             <div>
-              <label class="mb-1 block text-xs text-ctp-subtext0">Frequency</label>
+              <span class="mb-1 block text-xs text-ctp-subtext0">Frequency</span>
               <div class="flex gap-2">
                 <button
                   v-for="freq in ['instant', 'hourly', 'daily'] as const"
                   :key="freq"
+                  :aria-pressed="emailNotifFrequency === freq"
                   class="rounded-full border px-3 py-1 text-xs transition-colors"
                   :class="
                     emailNotifFrequency === freq
@@ -648,6 +772,11 @@ const TABS: { key: TabKey; label: string }[] = [
                   {{ freq.charAt(0).toUpperCase() + freq.slice(1) }}
                 </button>
               </div>
+              <p class="mt-1 text-xs text-ctp-subtext0">
+                <template v-if="emailNotifFrequency === 'instant'">Sent as each event arrives</template>
+                <template v-else-if="emailNotifFrequency === 'hourly'">One digest per hour if anything new</template>
+                <template v-else>One daily summary at 8 AM UTC</template>
+              </p>
             </div>
           </div>
         </div>

@@ -4,8 +4,12 @@ import { useAccountStore } from '@/stores/account'
 import { loginClient } from '@/lib/auth'
 import { UserConfigurationScreen } from '@authress/login'
 import type { DeviceType, Device, LinkedIdentity } from '@authress/login'
+import { useFeatureTour } from '@/composables/useFeatureTour'
+import ShortcutHelpOverlay from '@/components/ShortcutHelpOverlay.vue'
 
 const accountStore = useAccountStore()
+const { startTour } = useFeatureTour()
+const shortcutHelpOpen = ref(false)
 
 const profile = ref<{ linkedIdentities: LinkedIdentity[] } | null>(null)
 const devices = ref<Device[]>([])
@@ -155,6 +159,45 @@ async function signOut() {
     </header>
 
     <main class="mx-auto max-w-lg space-y-5 px-4 py-6">
+      <!-- Feature tour -->
+      <section class="rounded-lg border border-ctp-surface1 p-4">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-sm font-medium text-ctp-text">Feature tour</h2>
+            <p class="mt-0.5 text-xs text-ctp-subtext0">
+              Replay the guided walkthrough of the key areas of the app.
+            </p>
+          </div>
+          <button
+            class="shrink-0 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
+            @click="startTour"
+          >
+            Start tour
+          </button>
+        </div>
+      </section>
+
+      <!-- Keyboard shortcuts -->
+      <section class="rounded-lg border border-ctp-surface1 p-4">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-sm font-medium text-ctp-text">Keyboard shortcuts</h2>
+            <p class="mt-0.5 text-xs text-ctp-subtext0">
+              Press
+              <kbd class="rounded bg-ctp-surface1 px-1 py-0.5 font-mono text-xs">?</kbd>
+              anywhere to see all shortcuts and customize them.
+            </p>
+          </div>
+          <button
+            class="shrink-0 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
+            @click="shortcutHelpOpen = true"
+          >
+            Customize
+          </button>
+        </div>
+        <ShortcutHelpOverlay v-model:open="shortcutHelpOpen" />
+      </section>
+
       <!-- Identity connections -->
       <section class="rounded-lg border border-ctp-surface1 p-4">
         <div class="mb-3 flex items-start justify-between gap-3">
@@ -180,7 +223,20 @@ async function signOut() {
           {{ profileError }}
         </div>
 
-        <div v-if="profileLoading" class="py-4 text-center text-sm text-ctp-subtext0">Loading…</div>
+        <div
+          v-if="profileLoading"
+          role="status"
+          aria-label="Loading identities…"
+          class="animate-pulse divide-y divide-ctp-surface0"
+        >
+          <div v-for="i in 2" :key="i" class="flex items-center gap-3 py-3">
+            <div class="h-8 w-8 shrink-0 rounded-full bg-ctp-surface1" />
+            <div class="flex-1 space-y-1">
+              <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${90 + i * 50}px` }" />
+              <div class="h-3 w-24 rounded bg-ctp-surface1" />
+            </div>
+          </div>
+        </div>
 
         <div
           v-else-if="linkedIdentities.length === 0"
@@ -243,12 +299,13 @@ async function signOut() {
 
         <form
           v-if="addingPasskey"
-          class="mb-4 flex items-center gap-2 rounded-lg border border-ctp-surface1 bg-ctp-base p-3"
+          class="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-ctp-surface1 bg-ctp-base p-3"
           @submit.prevent="registerPasskey"
         >
           <input
             v-model="newPasskeyName"
             type="text"
+            aria-label="Passkey device name"
             placeholder="Device name (e.g. MacBook Touch ID)"
             class="flex-1 rounded border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
             autofocus
@@ -269,7 +326,20 @@ async function signOut() {
           {{ deviceError }}
         </div>
 
-        <div v-if="devicesLoading" class="py-4 text-center text-sm text-ctp-subtext0">Loading…</div>
+        <div
+          v-if="devicesLoading"
+          role="status"
+          aria-label="Loading devices…"
+          class="animate-pulse divide-y divide-ctp-surface0"
+        >
+          <div v-for="i in 2" :key="i" class="flex items-center gap-3 py-3">
+            <div class="flex-1 space-y-1">
+              <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${80 + i * 60}px` }" />
+              <div class="h-3 w-32 rounded bg-ctp-surface1" />
+            </div>
+            <div class="h-7 w-16 shrink-0 rounded bg-ctp-surface1" />
+          </div>
+        </div>
 
         <div
           v-else-if="devices.length === 0"

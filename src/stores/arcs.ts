@@ -170,6 +170,35 @@ export const useArcsStore = defineStore('arcs', () => {
     await fetchArcs(true)
   }
 
+  async function refreshArc(arcId: string) {
+    const id = accountStore.accountId
+    if (!id) return
+    const result = await api.getArc(id, arcId)
+    if (result.isErr()) return
+    const updated = result.value
+    const existing = _byAccount.value[id]?.items ?? []
+    const idx = existing.findIndex((a) => a.id === arcId)
+    _byAccount.value = {
+      ..._byAccount.value,
+      [id]: {
+        ..._byAccount.value[id],
+        items:
+          idx >= 0
+            ? existing.map((a) => (a.id === arcId ? updated : a))
+            : [updated, ...existing], // new arc — prepend
+      },
+    }
+  }
+
+  function removeArc(id: string) {
+    const accId = accountStore.accountId
+    if (!accId || !_byAccount.value[accId]) return
+    _byAccount.value[accId] = {
+      ..._byAccount.value[accId],
+      items: _byAccount.value[accId].items.filter((a) => a.id !== id),
+    }
+  }
+
   return {
     items,
     sortedItems,
@@ -184,11 +213,13 @@ export const useArcsStore = defineStore('arcs', () => {
     allSelected,
     fetchArcs,
     fetchMoreArcs,
+    refreshArc,
     setTab,
     toggleSelect,
     selectAll,
     clearSelection,
     bulkArchive,
     bulkLabel,
+    removeArc,
   }
 })
