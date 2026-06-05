@@ -74,6 +74,10 @@ jobs:
             -backend-config="key=SES-Email-Adapter/terraform.tfstate" \
             -backend-config="region=eu-west-1"
 
+          echo "=== ALL available OpenTofu outputs ==="
+          tofu -chdir=deploy output -json 2>&1 || echo "(tofu output -json failed)"
+          echo ""
+
           SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name | sed 's/eu-west-1/eu-central-1/g')
           CF_ID=$(tofu -chdir=deploy output -raw cloudfront_distribution_id)
 
@@ -86,14 +90,10 @@ jobs:
 
       - name: Debug infra outputs
         run: |
-          echo "=== Infra outputs from OpenTofu state ==="
+          echo "=== Resolved infra values ==="
           echo "SITE_BUCKET_NAME   : ${{ env.SITE_BUCKET_NAME }}"
           echo "CF_DISTRIBUTION_ID : ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}"
           echo "AWS_DEFAULT_REGION : $AWS_DEFAULT_REGION"
-          echo "AWS_REGION         : $AWS_REGION"
-          echo ""
-          echo "=== ALL available OpenTofu outputs ==="
-          tofu -chdir=/tmp/ses-backend/deploy output -json 2>&1 || echo "(tofu output -json failed)"
           echo ""
           echo "=== AWS caller identity ==="
           aws sts get-caller-identity
@@ -280,6 +280,10 @@ jobs:
             -backend-config="bucket=rhosys-opentofu-${{ secrets.AWS_ACCOUNT_ID }}-eu-west-1" \
             -backend-config="key=SES-Email-Adapter/terraform.tfstate" \
             -backend-config="region=eu-west-1"
+
+          echo "=== ALL available OpenTofu outputs ==="
+          tofu -chdir=deploy output -json 2>&1 || echo "(tofu output -json failed)"
+          echo ""
 
           SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name | sed 's/eu-west-1/eu-central-1/g')
           CF_ID=$(tofu -chdir=deploy output -raw cloudfront_distribution_id)
