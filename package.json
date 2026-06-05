@@ -16,7 +16,8 @@
     "lint": "eslint . --ext .ts,.vue --max-warnings 0",
     "format:check": "prettier --check .",
     "check": "vue-tsc --noEmit && vite build && eslint . --ext .ts,.vue --max-warnings 0 && vitest run",
-    "deploy:website": "tsx scripts/deploy-website.ts"
+    "deploy:website": "tsx scripts/deploy-website.ts",
+    "deploy:landing": "tsx scripts/deploy-landing.ts"
   },
   "dependencies": {
     "@authress/login": "^2.4.0",

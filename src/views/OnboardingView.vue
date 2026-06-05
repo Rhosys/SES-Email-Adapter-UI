@@ -188,7 +188,7 @@ function startPolling(accountId: string) {
 }
 
 function connectWs(accountId: string) {
-  const base = import.meta.env.VITE_API_BASE_URL as string
+  const base = (import.meta.env.VITE_API_BASE_URL as string) ?? 'http://localhost:8787'
   const wsBase = base.startsWith('https://')
     ? base.replace('https://', 'wss://')
     : base.replace('http://', 'ws://')

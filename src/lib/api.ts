@@ -69,7 +69,7 @@ interface SignalListWire {
   pagination: { cursor: string | null }
 }
 
-const BASE = import.meta.env.VITE_API_BASE_URL as string
+const BASE = (import.meta.env.VITE_API_BASE_URL as string) ?? 'http://localhost:8787'
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<Result<T, ApiError>> {
   try {

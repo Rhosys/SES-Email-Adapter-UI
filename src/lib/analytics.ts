@@ -6,7 +6,7 @@ import 'posthog-js/dist/web-vitals'
 import posthog from 'posthog-js'
 import environment from './environment'
 
-const key = import.meta.env.VITE_POSTHOG_KEY
+const key = (import.meta.env.VITE_POSTHOG_KEY as string) ?? 'phc_U2h7kAvWiXEAp0RzyaOxrhFJddQdJGWEWjiEHZhoRzR'
 const host = import.meta.env.VITE_POSTHOG_HOST ?? 'https://eu.posthog.com'
 const uiHost = host.includes('posthog.com') ? host : 'https://eu.posthog.com'
 

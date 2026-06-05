@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en" data-theme="mocha">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compare Numaeel plans — feature by feature</title>
+  <meta name="description" content="Compare every Numaeel plan feature by feature. Toggle between personal plans (Free / Pro / Premium) and business plans (Team / Company / Enterprise)." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%231e1e2e'/><path d='M6 10h20v12H6z' fill='none' stroke='%23cba6f7' stroke-width='2'/><path d='M6 10l10 7 10-7' fill='none' stroke='%23cba6f7' stroke-width='2'/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,wght@1,400;1,500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --base:#1e1e2e; --mantle:#181825; --crust:#11111b;
+      --surface0:#313244; --surface1:#45475a; --surface2:#585b70;
+      --overlay0:#6c7086; --overlay1:#7f849c; --overlay2:#9399b2;
+      --subtext0:#a6adc8; --subtext1:#bac2de; --text:#cdd6f4;
+      --red:#f38ba8; --peach:#fab387; --yellow:#f9e2af; --green:#a6e3a1;
+      --teal:#94e2d5; --sky:#89dceb; --sapphire:#74c7ec; --blue:#89b4fa;
+      --lavender:#b4befe; --mauve:#cba6f7; --pink:#f5c2e7;
+      --swiss-red:#d52b1e; --swiss-white:#f4f1ec;
+      --radius:10px; --maxw:1100px;
+      --font-sans:"Geist",ui-sans-serif,system-ui,-apple-system,sans-serif;
+      --font-mono:"Geist Mono",ui-monospace,Menlo,Consolas,monospace;
+      --font-serif:"Newsreader",Georgia,serif;
+      --accent:var(--mauve);
+    }
+    [data-view="business"] { --accent:var(--blue); }
+    * { box-sizing:border-box; }
+    html,body { margin:0; padding:0; }
+    body { background:var(--base); color:var(--text); font-family:var(--font-sans);
+      font-feature-settings:"ss01","cv11"; font-size:16px; line-height:1.55; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+    a { color:inherit; text-decoration:none; }
+    button { font:inherit; cursor:pointer; }
+    .wrap { max-width:var(--maxw); margin:0 auto; padding:0 28px; }
+
+    .nav { position:sticky; top:0; z-index:50; backdrop-filter:blur(14px);
+      background:color-mix(in oklab, var(--base) 80%, transparent);
+      border-bottom:1px solid color-mix(in oklab, var(--surface0) 80%, transparent); }
+    .nav-inner { display:flex; align-items:center; justify-content:space-between; height:64px; }
+    .brand { display:flex; align-items:center; gap:10px; font-weight:600; letter-spacing:-0.01em; }
+    .brand .mark { width:28px; height:28px; border-radius:7px; background:var(--mantle); border:1px solid var(--surface0); display:grid; place-items:center; }
+    .brand .mark svg { width:18px; height:18px; }
+    .nav ul { list-style:none; padding:0; margin:0; display:flex; gap:28px; align-items:center; }
+    .nav ul a { color:var(--subtext0); font-size:14px; transition:color 150ms ease; white-space:nowrap; }
+    .nav ul a:hover, .nav ul a.active { color:var(--text); }
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border-radius:var(--radius);
+      font-size:14px; font-weight:500; border:1px solid transparent; transition:all 160ms ease; white-space:nowrap; }
+    .btn-ghost { color:var(--subtext1); }
+    .btn-ghost:hover { color:var(--text); }
+    .btn-primary { color:var(--crust); background:var(--accent); font-weight:600; }
+    @media (max-width:780px){ .nav ul { display:none; } }
+
+    header.head { text-align:center; padding:70px 0 26px; }
+    .eyebrow { font-family:var(--font-mono); font-size:12px; letter-spacing:0.06em; text-transform:uppercase; color:var(--accent); }
+    header.head h1 { font-size:clamp(32px,4.6vw,52px); letter-spacing:-0.03em; font-weight:600; margin:14px auto 12px; max-width:20ch; }
+    header.head p { color:var(--subtext0); max-width:54ch; margin:0 auto; font-size:16px; }
+
+    /* View toggle */
+    .view-toggle { display:flex; justify-content:center; margin:30px 0 8px; }
+    .view-toggle .seg { display:inline-flex; padding:4px; gap:4px; background:var(--mantle); border:1px solid var(--surface0); border-radius:999px; }
+    .view-toggle button { border:none; background:transparent; color:var(--subtext0); padding:9px 22px; border-radius:999px; font-size:14px; font-weight:500; transition:all 160ms ease; display:inline-flex; align-items:center; gap:8px; }
+    .view-toggle button.active { background:var(--accent); color:var(--crust); font-weight:600; }
+    .view-toggle button svg { width:15px; height:15px; }
+
+    /* Table */
+    .compare-sec { padding:30px 0 90px; }
+    .ctable { width:100%; border-collapse:collapse; }
+    .ctable col.col-feat { width:34%; }
+    .ctable thead th { position:sticky; top:64px; z-index:10; background:var(--base); }
+    .ctable thead .plan-cell { padding:18px 14px 16px; text-align:center; border-bottom:1px solid var(--surface1); vertical-align:bottom; }
+    .ctable thead .plan-cell.feat-head { text-align:left; }
+    .plan-name { font-size:16px; font-weight:600; letter-spacing:-0.01em; }
+    .plan-name .accent { color:var(--accent); }
+    .plan-price { font-family:var(--font-mono); font-size:12px; color:var(--overlay1); margin-top:3px; }
+    .plan-cell.featured .plan-name { color:var(--text); }
+    .plan-cell.featured { background:linear-gradient(180deg, color-mix(in oklab,var(--accent) 10%,transparent), transparent); border-radius:12px 12px 0 0; }
+    .plan-cta { margin-top:10px; }
+    .plan-cta .btn { padding:7px 14px; font-size:12.5px; }
+
+    .ctable tbody .grp td { padding:26px 14px 10px; font-family:var(--font-mono); font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); border-bottom:1px solid var(--surface0); }
+    .ctable tbody td { padding:13px 14px; border-bottom:1px solid color-mix(in oklab,var(--surface0) 70%,transparent); font-size:14px; vertical-align:middle; }
+    .ctable tbody td.feat { color:var(--subtext1); }
+    .ctable tbody td.feat .hint { display:block; color:var(--overlay1); font-size:11.5px; margin-top:2px; }
+    .ctable tbody td.val { text-align:center; color:var(--text); font-size:13.5px; }
+    .ctable tbody tr:hover td { background:color-mix(in oklab,var(--mantle) 40%,transparent); }
+    .plan-cell.featured, td.val.featured { background:color-mix(in oklab,var(--accent) 5%,transparent); }
+
+    .yes { color:var(--green); display:inline-grid; place-items:center; width:20px; height:20px; }
+    .yes svg { width:13px; height:13px; }
+    .no { color:var(--overlay0); }
+    .val-text { font-family:var(--font-mono); font-size:12.5px; color:var(--subtext1); }
+    .val-text.em { color:var(--text); font-weight:500; }
+
+    .hide { display:none !important; }
+
+    /* Mobile: turn the wide table into horizontally scrollable */
+    .table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    @media (max-width:760px){
+      .ctable thead th { top:0; }
+      .ctable { min-width:620px; }
+      .ctable col.col-feat { width:200px; }
+    }
+
+    footer { background:var(--crust); padding:40px 0 28px; border-top:1px solid var(--surface0); margin-top:20px; }
+    .foot-row { display:flex; justify-content:space-between; align-items:center; gap:20px; flex-wrap:wrap; font-family:var(--font-mono); font-size:11px; color:var(--overlay0); }
+    .foot-row a { color:var(--subtext0); }
+    .foot-row a:hover { color:var(--text); }
+    .flag-mini { display:inline-block; width:12px; height:12px; background:var(--swiss-red); border-radius:2px; position:relative; vertical-align:-2px; margin-right:4px; }
+    .flag-mini::before,.flag-mini::after { content:""; position:absolute; background:var(--swiss-white); }
+    .flag-mini::before { left:50%; top:22%; width:22%; height:56%; transform:translateX(-50%); }
+    .flag-mini::after { top:50%; left:22%; height:22%; width:56%; transform:translateY(-50%); }
+  </style>
+</head>
+<body data-view="personal">
+  <nav class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="/">
+        <span class="mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M6 10h20v12H6z" stroke="#cba6f7" stroke-width="2"/><path d="M6 10l10 7 10-7" stroke="#cba6f7" stroke-width="2" stroke-linejoin="round"/></svg></span>
+        Numaeel
+      </a>
+      <ul>
+        <li><a href="/#pricing">Personal</a></li>
+        <li><a href="/business-email/">Business</a></li>
+        <li><a href="/compare/" class="active">Compare plans</a></li>
+      </ul>
+      <a class="btn btn-primary" href="/#pricing">Open your inbox →</a>
+    </div>
+  </nav>
+
+  <header class="head">
+    <div class="wrap">
+      <span class="eyebrow">Compare plans</span>
+      <h1>Every feature, side by side.</h1>
+      <p>Pick the view that fits you. Personal plans are flat-rate for individuals; business plans bill per organisation with unlimited users.</p>
+
+      <div class="view-toggle">
+        <div class="seg" role="tablist" aria-label="Plan family">
+          <button class="active" data-view="personal" role="tab">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 12 0v1"/></svg>
+            Personal
+          </button>
+          <button data-view="business" role="tab">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V8l7-4 7 4v13M9 21v-5h6v5"/></svg>
+            Business
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="compare-sec">
+    <div class="wrap table-scroll">
+      <!-- PERSONAL TABLE -->
+      <table class="ctable" id="table-personal">
+        <colgroup><col class="col-feat" /><col /><col /><col /></colgroup>
+        <thead>
+          <tr>
+            <th class="plan-cell feat-head"></th>
+            <th class="plan-cell">
+              <div class="plan-name">Numaeel <span class="accent">Free</span></div>
+              <div class="plan-price">€0 / forever</div>
+              <div class="plan-cta"><a class="btn btn-ghost" href="/#pricing">Get started</a></div>
+            </th>
+            <th class="plan-cell featured">
+              <div class="plan-name">Numaeel <span class="accent">Pro</span></div>
+              <div class="plan-price">€2 / month · flat</div>
+              <div class="plan-cta"><a class="btn btn-primary" href="/#pricing">Upgrade</a></div>
+            </th>
+            <th class="plan-cell">
+              <div class="plan-name">Numaeel <span class="accent">Premium</span></div>
+              <div class="plan-price">€6 / month · flat</div>
+              <div class="plan-cta"><a class="btn btn-ghost" href="/#pricing">Go Premium</a></div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="grp"><td colspan="4">Domains &amp; addresses</td></tr>
+          <tr><td class="feat">Custom domains</td><td class="val"><span class="val-text">3</span></td><td class="val featured"><span class="val-text em">Unlimited</span></td><td class="val"><span class="val-text em">Unlimited</span></td></tr>
+          <tr><td class="feat">Catch-all email<span class="hint">anything@yourdomain just works</span></td><td class="val">Y</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">Unlimited aliases + per-site generator</td><td class="val">Y</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">Unlimited labels &amp; saved views</td><td class="val">Y</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+
+          <tr class="grp"><td colspan="4">Triage &amp; automation</td></tr>
+          <tr><td class="feat">Workflow classification (14 workflows)</td><td class="val">Y</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">Quarantine — allow / block / reject</td><td class="val">Y</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">Custom JavaScript rules + templates</td><td class="val">N</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">Outbound webhooks (Slack, Linear, Zapier)</td><td class="val">N</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">No-click DPA filing (35+ jurisdictions)</td><td class="val">N</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+
+          <tr class="grp"><td colspan="4">Clients &amp; protocols</td></tr>
+          <tr><td class="feat">Browser extension + OTP autofill</td><td class="val">Y</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">JMAP (Apple Mail, Thunderbird, Mimestream)</td><td class="val">N</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">GPG-encrypted transport</td><td class="val">N</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+
+          <tr class="grp"><td colspan="4">Storage &amp; retention</td></tr>
+          <tr><td class="feat">Mailbox storage</td><td class="val"><span class="val-text">5 GB</span></td><td class="val featured"><span class="val-text em">100 GB</span></td><td class="val"><span class="val-text em">1 TB</span></td></tr>
+          <tr><td class="feat">Email retention</td><td class="val"><span class="val-text">6 months</span></td><td class="val featured"><span class="val-text em">5 years</span></td><td class="val"><span class="val-text em">Unlimited</span></td></tr>
+          <tr><td class="feat">Full audit trail (exportable)</td><td class="val">N</td><td class="val featured">N</td><td class="val">Y</td></tr>
+
+          <tr class="grp"><td colspan="4">Support</td></tr>
+          <tr><td class="feat">Community &amp; docs</td><td class="val">Y</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">Priority support from a real person</td><td class="val">N</td><td class="val featured">N</td><td class="val">Y</td></tr>
+          <tr><td class="feat">Migration assist + white-glove onboarding</td><td class="val">N</td><td class="val featured">N</td><td class="val">Y</td></tr>
+        </tbody>
+      </table>
+
+      <!-- BUSINESS TABLE -->
+      <table class="ctable hide" id="table-business">
+        <colgroup><col class="col-feat" /><col /><col /><col /></colgroup>
+        <thead>
+          <tr>
+            <th class="plan-cell feat-head"></th>
+            <th class="plan-cell">
+              <div class="plan-name">Numaeel <span class="accent">Team</span></div>
+              <div class="plan-price">€10 / month · flat</div>
+              <div class="plan-cta"><a class="btn btn-ghost" href="/business-email/#pricing">Open your Inbox</a></div>
+            </th>
+            <th class="plan-cell featured">
+              <div class="plan-name">Numaeel <span class="accent">Company</span></div>
+              <div class="plan-price">€100 / month · flat</div>
+              <div class="plan-cta"><a class="btn btn-primary" href="/business-email/#pricing">Open inbox</a></div>
+            </th>
+            <th class="plan-cell">
+              <div class="plan-name">Numaeel <span class="accent">Enterprise</span></div>
+              <div class="plan-price">€1,000 / month · flat</div>
+              <div class="plan-cta"><a class="btn btn-ghost" href="/business-email/#pricing">Talk to sales</a></div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="grp"><td colspan="4">Organisation</td></tr>
+          <tr><td class="feat">Users</td><td class="val"><span class="val-text em">Unlimited</span></td><td class="val featured"><span class="val-text em">Unlimited</span></td><td class="val"><span class="val-text em">Unlimited</span></td></tr>
+          <tr><td class="feat">Company domains</td><td class="val"><span class="val-text em">Unlimited</span></td><td class="val featured"><span class="val-text em">Unlimited</span></td><td class="val"><span class="val-text em">Unlimited</span></td></tr>
+          <tr><td class="feat">Shared &amp; role-based aliases</td><td class="val">Y</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">Admin console + RBAC</td><td class="val">Y</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+
+          <tr class="grp"><td colspan="4">Identity &amp; provisioning</td></tr>
+          <tr><td class="feat">Google / Microsoft SSO</td><td class="val">Y</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">SCIM provisioning + directory sync</td><td class="val">N</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">Custom data residency / private region</td><td class="val">N</td><td class="val featured">N</td><td class="val">Y</td></tr>
+
+          <tr class="grp"><td colspan="4">Everything in personal Pro, org-wide</td></tr>
+          <tr><td class="feat">JMAP, GPG, custom rules &amp; templates</td><td class="val">Y</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">Org-wide rules, templates &amp; workflows</td><td class="val">N</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">No-click DPA filing, org-managed</td><td class="val">N</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+
+          <tr class="grp"><td colspan="4">Compliance &amp; storage</td></tr>
+          <tr><td class="feat">Full audit trail + export API</td><td class="val">N</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">DPA</td><td class="val">N</td><td class="val featured">N</td><td class="val">Y</td></tr>
+          <tr><td class="feat">Pooled storage</td><td class="val"><span class="val-text">100 GB</span></td><td class="val featured"><span class="val-text em">1 TB</span></td><td class="val"><span class="val-text em">Unlimited</span></td></tr>
+
+          <tr class="grp"><td colspan="4">Support</td></tr>
+          <tr><td class="feat">Priority support</td><td class="val">N</td><td class="val featured">Y</td><td class="val">Y</td></tr>
+          <tr><td class="feat">Sponsored development</td><td class="val">N</td><td class="val featured">N</td><td class="val">Y</td></tr>
+          <tr><td class="feat">Custom SLAs &amp; contracts</td><td class="val">N</td><td class="val featured">N</td><td class="val">Y</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap foot-row">
+      <div><span class="flag-mini"></span> Numaeel · Switzerland · © 2026 <a href="https://rhosys.ch" target="_blank" rel="noopener">Rhosys AG</a></div>
+      <div style="display:flex; gap:18px;">
+        <a href="/#pricing">Personal pricing</a>
+        <a href="/business-email/">Business pricing</a>
+      </div>
+      <div>region: europe-1 · status: <span style="color:var(--green);">operational</span></div>
+    </div>
+  </footer>
+
+  <script>
+  (function(){
+    const body = document.body;
+    const personal = document.getElementById('table-personal');
+    const business = document.getElementById('table-business');
+    const seg = document.querySelector('.view-toggle .seg');
+
+    // Render Y/N cells into icons (keeps the markup terse, lets us theme per view)
+    const YES = '<span class="yes"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5l3.2 3.2L12 3.5"/></svg></span>';
+    const NO  = '<span class="no">—</span>';
+    document.querySelectorAll('td.val').forEach(function(td){
+      const t = td.textContent.trim();
+      if (t === 'Y') td.innerHTML = YES;
+      else if (t === 'N') td.innerHTML = NO;
+    });
+
+    function setView(view){
+      body.setAttribute('data-view', view);
+      const biz = view === 'business';
+      personal.classList.toggle('hide', biz);
+      business.classList.toggle('hide', !biz);
+      seg.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.view === view));
+      // reflect in URL without reload
+      try { history.replaceState(null,'', '?view='+view); } catch(e){}
+    }
+    seg.addEventListener('click', function(e){
+      const b = e.target.closest('button[data-view]');
+      if (b) setView(b.dataset.view);
+    });
+    // Honor ?view=business deep-link
+    const params = new URLSearchParams(location.search);
+    if (params.get('view') === 'business') setView('business');
+  })();
+  </script>
+</body>
+</html>

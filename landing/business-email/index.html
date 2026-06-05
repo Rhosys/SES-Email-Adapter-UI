@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en" data-theme="mocha">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Numaeel for Business — Email for your whole company</title>
+  <meta name="description" content="Numaeel Business Email: run your whole organisation on a Swiss-hosted, workflow-aware inbox. Unlimited users on every plan. From €10/month." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%231e1e2e'/><path d='M6 10h20v12H6z' fill='none' stroke='%23cba6f7' stroke-width='2'/><path d='M6 10l10 7 10-7' fill='none' stroke='%23cba6f7' stroke-width='2'/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,wght@1,400;1,500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --base:#1e1e2e; --mantle:#181825; --crust:#11111b;
+      --surface0:#313244; --surface1:#45475a; --surface2:#585b70;
+      --overlay0:#6c7086; --overlay1:#7f849c; --overlay2:#9399b2;
+      --subtext0:#a6adc8; --subtext1:#bac2de; --text:#cdd6f4;
+      --red:#f38ba8; --maroon:#eba0ac; --peach:#fab387; --yellow:#f9e2af;
+      --green:#a6e3a1; --teal:#94e2d5; --sky:#89dceb; --sapphire:#74c7ec;
+      --blue:#89b4fa; --lavender:#b4befe; --mauve:#cba6f7; --pink:#f5c2e7; --flamingo:#f2cdcd;
+      --swiss-red:#d52b1e; --swiss-white:#f4f1ec;
+      --radius:10px; --maxw:1200px;
+      --font-sans:"Geist",ui-sans-serif,system-ui,-apple-system,sans-serif;
+      --font-mono:"Geist Mono",ui-monospace,Menlo,Consolas,monospace;
+      --font-serif:"Newsreader","Iowan Old Style",Georgia,serif;
+    }
+    * { box-sizing:border-box; }
+    html,body { margin:0; padding:0; }
+    html { scroll-behavior:smooth; }
+    body {
+      background:var(--base); color:var(--text);
+      font-family:var(--font-sans); font-feature-settings:"ss01","cv11";
+      font-size:16px; line-height:1.55; -webkit-font-smoothing:antialiased;
+      overflow-x:hidden;
+    }
+    a { color:inherit; text-decoration:none; }
+    button { font:inherit; cursor:pointer; }
+    .wrap { max-width:var(--maxw); margin:0 auto; padding:0 28px; }
+
+    /* Nav */
+    .nav { position:sticky; top:0; z-index:50; backdrop-filter:blur(14px);
+      background:color-mix(in oklab, var(--base) 78%, transparent);
+      border-bottom:1px solid color-mix(in oklab, var(--surface0) 80%, transparent); }
+    .nav-inner { display:flex; align-items:center; justify-content:space-between; height:64px; }
+    .brand { display:flex; align-items:center; gap:10px; font-weight:600; letter-spacing:-0.01em; }
+    .brand .mark { width:28px; height:28px; border-radius:7px; background:var(--mantle);
+      border:1px solid var(--surface0); display:grid; place-items:center; }
+    .brand .mark svg { width:18px; height:18px; }
+    .nav ul { list-style:none; padding:0; margin:0; display:flex; gap:28px; align-items:center; }
+    .nav ul a { color:var(--subtext0); font-size:14px; transition:color 150ms ease; white-space:nowrap; }
+    .nav ul a:hover, .nav ul a.active { color:var(--text); }
+    .nav-cta { display:flex; gap:10px; align-items:center; }
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border-radius:var(--radius);
+      font-size:14px; font-weight:500; border:1px solid transparent; transition:all 160ms ease; white-space:nowrap; }
+    .btn-ghost { color:var(--subtext1); background:transparent; }
+    .btn-ghost:hover { color:var(--text); }
+    .btn-outline { color:var(--text); border-color:var(--surface1); background:rgba(205,214,244,0.02); }
+    .btn-outline:hover { border-color:var(--overlay0); }
+    .btn-primary { color:var(--crust); background:var(--blue); font-weight:600; }
+    .btn-primary:hover { background:var(--sapphire); box-shadow:0 0 0 4px color-mix(in oklab,var(--blue) 22%,transparent); }
+    .btn-lg { padding:12px 22px; font-size:15px; border-radius:12px; }
+    @media (max-width:780px){ .nav ul { display:none; } }
+
+    /* Hero */
+    .biz-hero {
+      position:relative; text-align:center; padding:84px 0 56px;
+      background:
+        radial-gradient(70% 60% at 50% -10%, color-mix(in oklab, var(--blue) 14%, transparent), transparent 60%),
+        var(--base);
+      overflow:hidden;
+    }
+    .biz-hero .grid-bg { position:absolute; inset:0;
+      background-image:
+        linear-gradient(to right, color-mix(in oklab,var(--surface0) 60%,transparent) 1px, transparent 1px),
+        linear-gradient(to bottom, color-mix(in oklab,var(--surface0) 60%,transparent) 1px, transparent 1px);
+      background-size:56px 56px;
+      mask-image:radial-gradient(70% 70% at 50% 20%, black 30%, transparent 80%);
+      opacity:0.5; pointer-events:none; }
+    .eyebrow { font-family:var(--font-mono); font-size:12px; letter-spacing:0.06em;
+      text-transform:uppercase; color:var(--blue); display:inline-flex; gap:8px; align-items:center; position:relative; }
+    .biz-hero h1 { position:relative; font-size:clamp(36px,5.4vw,64px); line-height:1.04;
+      letter-spacing:-0.03em; font-weight:600; margin:18px auto 16px; max-width:18ch; }
+    .biz-hero h1 .accent { font-family:var(--font-serif); font-style:italic; font-weight:500; color:var(--blue); }
+    .biz-hero p { position:relative; max-width:60ch; margin:0 auto 26px; color:var(--subtext0); font-size:clamp(15px,1.4vw,18px); }
+    .biz-meta { position:relative; display:flex; gap:22px; justify-content:center; flex-wrap:wrap;
+      color:var(--overlay1); font-family:var(--font-mono); font-size:12px; }
+    .biz-meta span { display:inline-flex; align-items:center; gap:6px; }
+    .biz-meta .tick { color:var(--green); }
+
+    /* Pricing */
+    .pricing-sec { padding:40px 0 90px; }
+    .billing-toggle { display:flex; justify-content:center; margin-bottom:34px; }
+    .billing-toggle .seg { display:inline-flex; padding:4px; gap:4px; background:var(--mantle);
+      border:1px solid var(--surface0); border-radius:999px; }
+    .billing-toggle button { border:none; background:transparent; color:var(--subtext0);
+      padding:8px 18px; border-radius:999px; font-size:13px; font-weight:500; transition:all 160ms ease; }
+    .billing-toggle button.active { background:var(--blue); color:var(--crust); font-weight:600; }
+    .billing-toggle .save { color:var(--green); font-size:11px; font-family:var(--font-mono); margin-left:6px; }
+
+    .biz-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; align-items:start; }
+    @media (max-width:900px){ .biz-grid { grid-template-columns:1fr; max-width:460px; margin:0 auto; } }
+
+    .tier { background:var(--mantle); border:1px solid var(--surface0); border-radius:18px;
+      padding:28px; display:flex; flex-direction:column; gap:18px; position:relative; }
+    .tier.featured { border-color:color-mix(in oklab,var(--blue) 50%,transparent);
+      background:linear-gradient(180deg, color-mix(in oklab,var(--blue) 6%,var(--mantle)), var(--mantle) 60%);
+      box-shadow:0 30px 80px -30px color-mix(in oklab,var(--blue) 40%,transparent); }
+    .tier-tag { position:absolute; top:-10px; left:24px; font-family:var(--font-mono); font-size:10px;
+      padding:4px 9px; border-radius:999px; letter-spacing:0.06em; background:var(--blue); color:var(--crust); font-weight:600; }
+    .tier h3 { margin:0; font-size:16px; letter-spacing:-0.01em; font-weight:600; color:var(--subtext1); }
+    .tier h3 .accent { color:var(--blue); }
+    .tier .pitch { font-size:14px; color:var(--subtext0); margin:0; min-height:42px; }
+    .tier .price { display:flex; align-items:baseline; gap:6px; letter-spacing:-0.02em; }
+    .tier .price .amt { font-size:44px; font-weight:600; line-height:1; color:var(--text); }
+    .tier .price .unit { font-family:var(--font-mono); color:var(--overlay1); font-size:12px; }
+    .tier .users { font-family:var(--font-mono); font-size:12px; color:var(--blue);
+      background:color-mix(in oklab,var(--blue) 10%,transparent);
+      border:1px solid color-mix(in oklab,var(--blue) 25%,transparent);
+      padding:6px 10px; border-radius:8px; display:inline-flex; align-items:center; gap:7px; align-self:flex-start; }
+    .tier ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; font-size:14px; color:var(--subtext1); }
+    .tier ul li { display:flex; gap:10px; align-items:flex-start; }
+    .tier ul li .check { width:16px; height:16px; flex:none; border-radius:50%;
+      background:color-mix(in oklab,var(--green) 18%,transparent); color:var(--green);
+      display:grid; place-items:center; margin-top:1px; }
+    .tier ul li .check svg { width:9px; height:9px; }
+    .tier ul li b { color:var(--text); font-weight:600; }
+    .tier .cta { margin-top:auto; }
+    .tier .cta .btn { width:100%; justify-content:center; }
+    .tier.enterprise .tier-tag { background:var(--peach); }
+    .tier.enterprise.featured { border-color:color-mix(in oklab,var(--peach) 50%,transparent);
+      background:linear-gradient(180deg, color-mix(in oklab,var(--peach) 6%,var(--mantle)), var(--mantle) 60%);
+      box-shadow:0 30px 80px -30px color-mix(in oklab,var(--peach) 35%,transparent); }
+    .tier.enterprise h3 .accent { color:var(--peach); }
+    .tier.enterprise .users { color:var(--peach); background:color-mix(in oklab,var(--peach) 10%,transparent);
+      border-color:color-mix(in oklab,var(--peach) 25%,transparent); }
+    .tier.enterprise .price .amt { color:var(--text); }
+    .tier.enterprise .cta .btn { background:var(--peach); color:var(--crust); border-color:transparent; }
+    .tier.enterprise .cta .btn:hover { background:color-mix(in oklab,var(--peach) 80%,white); box-shadow:0 0 0 4px color-mix(in oklab,var(--peach) 22%,transparent); }
+
+    .price-foot { margin-top:30px; display:flex; align-items:center; justify-content:center; gap:18px; flex-wrap:wrap; text-align:center; }
+    .compare-link { display:inline-flex; align-items:center; gap:8px; padding:9px 16px;
+      border:1px solid var(--surface1); border-radius:999px; color:var(--text); font-size:13.5px; font-weight:500;
+      transition:border-color 160ms ease, background 160ms ease; }
+    .compare-link:hover { border-color:var(--blue); background:color-mix(in oklab,var(--blue) 8%,transparent); }
+    .compare-link svg { color:var(--blue); }
+    .price-note { font-family:var(--font-mono); font-size:12px; color:var(--overlay1); }
+
+    /* Trust band */
+    .trust-band { border-top:1px solid var(--surface0); border-bottom:1px solid var(--surface0);
+      background:var(--mantle); padding:54px 0; }
+    .trust-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
+    @media (max-width:820px){ .trust-grid { grid-template-columns:1fr 1fr; } }
+    @media (max-width:480px){ .trust-grid { grid-template-columns:1fr; } }
+    .trust-card .tc-ic { width:34px; height:34px; border-radius:8px; display:grid; place-items:center;
+      background:color-mix(in oklab,var(--blue) 14%,var(--base)); color:var(--blue); margin-bottom:12px; }
+    .trust-card .tc-ic svg { width:18px; height:18px; }
+    .trust-card h4 { margin:0 0 6px; font-size:15px; font-weight:600; letter-spacing:-0.005em; }
+    .trust-card p { margin:0; color:var(--subtext0); font-size:13.5px; line-height:1.55; }
+
+    /* CTA */
+    .cta-banner { position:relative; text-align:center; padding:84px 0 100px;
+      background:radial-gradient(60% 80% at 50% 30%, color-mix(in oklab,var(--blue) 16%,transparent), transparent 70%), var(--mantle);
+      border-top:1px solid var(--surface0); }
+    .cta-banner h2 { font-size:clamp(30px,4.2vw,52px); letter-spacing:-0.03em; font-weight:600;
+      margin:0 auto 16px; max-width:20ch; line-height:1.06; }
+    .cta-banner h2 .accent { font-family:var(--font-serif); font-style:italic; font-weight:500; color:var(--blue); }
+    .cta-banner p { color:var(--subtext0); max-width:52ch; margin:0 auto 26px; }
+
+    footer { background:var(--crust); padding:40px 0 28px; border-top:1px solid var(--surface0); }
+    .foot-row { display:flex; justify-content:space-between; align-items:center; gap:20px; flex-wrap:wrap;
+      font-family:var(--font-mono); font-size:11px; color:var(--overlay0); }
+    .foot-row a { color:var(--subtext0); }
+    .foot-row a:hover { color:var(--text); }
+    .flag-mini { display:inline-block; width:12px; height:12px; background:var(--swiss-red); border-radius:2px;
+      position:relative; vertical-align:-2px; margin-right:4px; }
+    .flag-mini::before, .flag-mini::after { content:""; position:absolute; background:var(--swiss-white); }
+    .flag-mini::before { left:50%; top:22%; width:22%; height:56%; transform:translateX(-50%); }
+    .flag-mini::after { top:50%; left:22%; height:22%; width:56%; transform:translateY(-50%); }
+
+    @media (prefers-reduced-motion: reduce) { * { animation:none !important; } }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="/">
+        <span class="mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M6 10h20v12H6z" stroke="#cba6f7" stroke-width="2"/><path d="M6 10l10 7 10-7" stroke="#cba6f7" stroke-width="2" stroke-linejoin="round"/></svg></span>
+        Numaeel
+      </a>
+      <ul>
+        <li><a href="/">Personal</a></li>
+        <li><a href="/business-email/" class="active">Business</a></li>
+        <li><a href="/compare/">Compare plans</a></li>
+        <li><a href="/#jmap">Open standards</a></li>
+      </ul>
+      <div class="nav-cta">
+        <a class="btn btn-ghost" href="#">Sign in</a>
+        <a class="btn btn-primary" href="#pricing">Open your inbox →</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="biz-hero">
+    <div class="grid-bg"></div>
+    <span class="eyebrow">Numaeel for Business</span>
+    <h1>Put your whole company behind <span class="accent">one Swiss inbox.</span></h1>
+    <p>Every employee on your domain, shared and role-based aliases, admin controls, SSO, and a workflow-aware inbox that triages mail before it reaches anyone. <b style="color:var(--text);font-weight:500;">Unlimited users on every plan</b> — you pay for capability, not headcount.</p>
+    <div class="biz-meta">
+      <span><span class="tick">✓</span> Unlimited users</span>
+      <span><span class="tick">✓</span> Swiss-hosted · nFADP</span>
+      <span><span class="tick">✓</span> SSO &amp; SCIM</span>
+      <span><span class="tick">✓</span> Secure by Default</span>
+    </div>
+  </header>
+
+  <section class="pricing-sec" id="pricing">
+    <div class="wrap">
+      <div class="billing-toggle">
+        <div class="seg" role="tablist" aria-label="Billing period">
+          <button class="active" data-cycle="monthly">Monthly</button>
+          <button data-cycle="annual">Annual <span class="save">2 months free</span></button>
+        </div>
+      </div>
+
+      <div class="biz-grid">
+        <!-- TEAM -->
+        <div class="tier">
+          <div>
+            <h3>Numaeel <span class="accent">Team</span></h3>
+            <p class="pitch">For small teams and startups standing up a company domain for the first time.</p>
+          </div>
+          <div class="price">
+            <span class="amt" data-monthly="€10" data-annual="€8">€10</span>
+            <span class="unit" data-monthly="/month · flat" data-annual="/month · billed annually">/month · flat</span>
+          </div>
+          <span class="users"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg> Unlimited users</span>
+          <ul>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Everything in Personal <b>Pro</b>, org-wide</li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b>Unlimited</b> company domains</li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Shared &amp; role-based aliases (support@, billing@)</li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Admin console + role-based access</li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Google / Microsoft SSO</li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b>100 GB</b> pooled storage</li>
+          </ul>
+          <div class="cta"><a href="#" class="btn btn-outline">Start a trial →</a></div>
+        </div>
+
+        <!-- COMPANY -->
+        <div class="tier featured">
+          <div class="tier-tag">PICK THIS ONE</div>
+          <div>
+            <h3>Numaeel <span class="accent">Company</span></h3>
+            <p class="pitch">For scaling companies that need audit, retention, and compliance baked in.</p>
+          </div>
+          <div class="price">
+            <span class="amt" data-monthly="€100" data-annual="€83">€100</span>
+            <span class="unit" data-monthly="/month · flat" data-annual="/month · billed annually">/month · flat</span>
+          </div>
+          <span class="users"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg> Unlimited users</span>
+          <ul>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Everything in <b>Team</b>, plus —</li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b>SCIM</b> provisioning + directory sync</li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Org-wide rules, templates &amp; workflows</li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b>Full audit trail</b> + data export API</li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> No-click DPA filing, org-managed</li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b>1 TB</b> pooled storage · priority support</li>
+          </ul>
+          <div class="cta"><a href="#" class="btn btn-primary">Start a trial →</a></div>
+        </div>
+
+        <!-- ENTERPRISE -->
+        <div class="tier enterprise featured">
+          <div class="tier-tag">ENTERPRISE</div>
+          <div>
+            <h3>Numaeel <span class="accent">Enterprise</span></h3>
+            <p class="pitch">For regulated organisations needing residency, SLAs and a dedicated team.</p>
+          </div>
+          <div class="price">
+            <span class="amt" data-monthly="€1,000" data-annual="€833">€1,000</span>
+            <span class="unit" data-monthly="/month · flat" data-annual="/month · billed annually">/month · flat</span>
+          </div>
+          <span class="users"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg> Unlimited users</span>
+          <ul>
+            <li><span class="check" style="background:color-mix(in oklab,var(--peach) 22%,transparent);color:var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Everything in <b>Company</b>, plus —</li>
+            <li><span class="check" style="background:color-mix(in oklab,var(--peach) 22%,transparent);color:var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b>Custom data residency</b> &amp; private region</li>
+            <li><span class="check" style="background:color-mix(in oklab,var(--peach) 22%,transparent);color:var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b>Custom SLAs &amp; contracts</b>, signed DPA</li>
+            <li><span class="check" style="background:color-mix(in oklab,var(--peach) 22%,transparent);color:var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> SOC 2 evidence pack on request</li>
+            <li><span class="check" style="background:color-mix(in oklab,var(--peach) 22%,transparent);color:var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Dedicated success engineer + onboarding</li>
+            <li><span class="check" style="background:color-mix(in oklab,var(--peach) 22%,transparent);color:var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b>Unlimited</b> pooled storage &amp; retention</li>
+          </ul>
+          <div class="cta"><a href="#" class="btn">Talk to sales →</a></div>
+        </div>
+      </div>
+
+      <div class="price-foot">
+        <a class="compare-link" href="/compare/?view=business">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          Compare all plan features
+        </a>
+        <span class="price-note">Priced in EUR / CHF / your currency · VAT shown at checkout</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="trust-band">
+    <div class="wrap">
+      <div class="trust-grid">
+        <div class="trust-card">
+          <div class="tc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6l-8-4z"/></svg></div>
+          <h4>Swiss jurisdiction</h4>
+          <p>All company mail stored and processed in Switzerland under nFADP. No third-country transfer.</p>
+        </div>
+        <div class="trust-card">
+          <div class="tc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+          <h4>SSO &amp; SCIM</h4>
+          <p>Connect your IdP — Google, Microsoft Entra, Okta. Provision and de-provision staff automatically.</p>
+        </div>
+        <div class="trust-card">
+          <div class="tc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+          <h4>Audit &amp; compliance</h4>
+          <p>Every action logged with actor and before/after state. Export the full trail for your auditors.</p>
+        </div>
+        <div class="trust-card">
+          <div class="tc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg></div>
+          <h4>Open standards</h4>
+          <p>JMAP, GPG, webhooks. Your staff use Apple Mail, Thunderbird or Outlook — no proprietary client.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-banner">
+    <div class="wrap">
+      <h2>Move the whole company. <span class="accent">Quietly.</span></h2>
+      <p>Point your MX record, invite your team via SSO, and let Numaeel triage the flood.</p>
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+        <a class="btn btn-primary btn-lg" href="#pricing">Open your inbox</a>
+        <a class="btn btn-outline btn-lg" href="#">Book a demo</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap foot-row">
+      <div><span class="flag-mini"></span> Numaeel · Switzerland · © 2026 <a href="https://rhosys.ch" target="_blank" rel="noopener">Rhosys AG</a></div>
+      <div style="display:flex; gap:18px;">
+        <a href="/">Personal</a>
+        <a href="/compare/">Compare plans</a>
+        <a href="#">Status</a>
+      </div>
+      <div>region: europe-1 · status: <span style="color:var(--green);">operational</span></div>
+    </div>
+  </footer>
+
+  <script>
+  (function(){
+    const seg = document.querySelector('.billing-toggle .seg');
+    if(!seg) return;
+    seg.addEventListener('click', function(e){
+      const btn = e.target.closest('button[data-cycle]');
+      if(!btn) return;
+      seg.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn));
+      const cycle = btn.dataset.cycle;
+      document.querySelectorAll('[data-monthly]').forEach(function(el){
+        el.textContent = cycle === 'annual' ? el.dataset.annual : el.dataset.monthly;
+      });
+    });
+  })();
+  </script>
+</body>
+</html>
