@@ -27,8 +27,8 @@ const awsArchitect = new AwsArchitect(
   { bucket, contentDirectory: 'landing' },
 )
 
-// Landing page deploys to the bucket root (no prefix)
-const s3Prefix = ''
+// Landing page deploys under a static versioned prefix
+const s3Prefix = 'v1'
 
 if (action === 'delete') {
   await awsArchitect.deleteWebsiteVersion(s3Prefix)
