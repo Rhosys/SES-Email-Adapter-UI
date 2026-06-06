@@ -361,7 +361,14 @@ onUnmounted(() => {
                 {{ rec.status }}
               </span>
             </div>
-            <CopyInput :value="rec.value" mono />
+            <div class="space-y-1">
+              <p class="text-xs text-ctp-subtext1">Expected:</p>
+              <CopyInput :value="rec.value" mono />
+              <template v-if="rec.currentValue">
+                <p class="mt-1 text-xs text-ctp-subtext1">Current:</p>
+                <p class="break-all font-mono text-xs text-ctp-subtext0">{{ rec.currentValue }}</p>
+              </template>
+            </div>
           </div>
 
           <p class="text-xs text-ctp-subtext0">
