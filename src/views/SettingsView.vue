@@ -700,7 +700,10 @@ const TABS: { key: TabKey; label: string }[] = [
           >
             <div>
               <p class="text-sm text-ctp-text">{{ fwd.address }}</p>
-              <p class="text-xs text-ctp-subtext0">{{ fwd.status }}</p>
+              <p v-if="fwd.verifiedAt" class="text-xs text-ctp-green">
+                Verified on {{ new Date(fwd.verifiedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
+              </p>
+              <p v-else class="text-xs text-ctp-yellow">Pending verification</p>
             </div>
             <button
               class="text-xs text-ctp-red hover:text-ctp-red/80"
