@@ -504,6 +504,7 @@ watch(signalAction, (val) => {
             v-for="(act, idx) in actions"
             :key="idx"
             class="flex flex-wrap items-center gap-3 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2"
+            :class="{ 'opacity-50': act.disabled }"
           >
             <span
               class="rounded-full bg-ctp-surface1 px-2.5 py-0.5 text-xs font-medium text-ctp-text"
@@ -601,7 +602,14 @@ watch(signalAction, (val) => {
             </template>
 
             <button
-              class="ml-auto text-xs text-ctp-subtext0 hover:text-ctp-red"
+              class="ml-auto rounded-full px-2 py-0.5 text-xs transition-colors"
+              :class="act.disabled ? 'bg-ctp-surface1 text-ctp-subtext0' : 'bg-ctp-green/15 text-ctp-green'"
+              @click="updateAction(idx, { disabled: !act.disabled })"
+            >
+              {{ act.disabled ? 'Disabled' : 'Enabled' }}
+            </button>
+            <button
+              class="text-xs text-ctp-subtext0 hover:text-ctp-red"
               @click="removeAction(idx)"
             >
               ✕
