@@ -38,16 +38,7 @@ Backend fields that exist on the frontend type but aren't yet surfaced in any UI
 ### View
 - [ ] `View.layout` — custom component layout array. Deferred to the modular component system V2 (layout editor).
 
-### Signal (DomainMisconfiguration)
-- [ ] `DomainMisconfigurationSignal.data.linkedSignalId` — reference to the triggering signal. Could link to the original email that exposed the misconfiguration.
 
-### Signal (Calendar)
-- [ ] `CalendarEventData.linkedSignalId` — reference to the email that contained the invite. Could link back to the original email.
-- [ ] `CalendarResponseData.linkedSignalId` — reference to the original calendar event. Could link to the event being responded to.
-- [ ] `CalendarInviteInvalidData.linkedSignalId` — reference to the invalid invite email. Could link to the problematic signal.
-
-### Signal (System alerts)
-- [ ] `DeliverabilitySignalData.linkedSignalId` — could link to the original outbound email that bounced.
 
 ---
 
