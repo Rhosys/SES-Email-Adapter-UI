@@ -32,9 +32,6 @@ The frontend previously had a top-level `status` field on Domain (using a DnsSta
 
 Backend fields that exist on the frontend type but aren't yet surfaced in any UI component.
 
-### Arc
-- [ ] `Arc.retentionDuration` — per-arc retention override. Could show a retention badge on arcs with non-default policy.
-
 ### View
 - [ ] `View.layout` — custom component layout array. Deferred to the modular component system V2 (layout editor).
 

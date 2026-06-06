@@ -7,6 +7,7 @@ import { useAccountStore } from '@/stores/account'
 import { useToast } from '@/composables/useToast'
 import { api } from '@/lib/api'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
+import { retentionExpiresAt } from '@/lib/retention'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
 import SignalRenderer from '@/components/SignalRenderer.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
@@ -23,6 +24,12 @@ const arcId = computed(() => route.params.id as string)
 const showReply = computed(() => {
   const workflow = signalsStore.arc?.workflow
   return workflow !== 'auth' && workflow !== 'test' && workflow !== 'status'
+})
+
+const availableUntil = computed(() => {
+  const arc = signalsStore.arc
+  if (!arc?.retentionDuration) return null
+  return retentionExpiresAt(arc.createdAt, arc.retentionDuration)
 })
 
 onMounted(async () => {
@@ -155,6 +162,9 @@ async function loadMore() {
           </span>
           <span v-if="signalsStore.arc.urgency" class="capitalize"
             >· {{ signalsStore.arc.urgency }}</span
+          >
+          <span v-if="availableUntil" class="text-ctp-subtext0"
+            >· Available until {{ availableUntil }}</span
           >
         </div>
         <div class="mt-2 flex flex-wrap gap-1">
