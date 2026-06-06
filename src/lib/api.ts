@@ -2,6 +2,9 @@ import { ok, err, type Result } from 'neverthrow'
 import { loginClient } from './auth'
 import type {
   Account,
+  AccountFilteringConfig,
+  AccountOnboarding,
+  Alias,
   AliasSender,
   SenderPolicy,
   Arc,
@@ -10,22 +13,24 @@ import type {
   BillingInfo,
   CreateDraftSignalBody,
   CreateRuleBody,
-  CreateSavedViewBody,
+  CreateViewBody,
   Domain,
   EmailTemplate,
   ForwardingAddress,
   Label,
   NotificationSettings,
-  Page,
+  Pagination,
+  RetentionDuration,
   Rule,
-  SavedView,
   Signal,
   SignalStatus,
   TeamMember,
   TemplateFunction,
+  UnknownSenderPolicy,
   UpdateDraftSignalBody,
   UpdateRuleBody,
   UserRole,
+  View,
 } from '@/types/server'
 
 export class ApiError {
@@ -61,12 +66,17 @@ export interface QuarantineSignalListParams {
 // Wire shapes returned by the backend list endpoints.
 interface ArcListWire {
   arcs: Arc[]
-  pagination: { cursor: string | null }
+  pagination: Pagination
 }
 
 interface SignalListWire {
   signals: Signal[]
-  pagination: { cursor: string | null }
+  pagination: Pagination
+}
+
+interface AuditListWire {
+  events: AuditEvent[]
+  pagination: Pagination
 }
 
 const BASE = (import.meta.env.VITE_API_BASE_URL as string) ?? 'http://localhost:8787'
@@ -109,7 +119,6 @@ export const api = {
     return request<Account>(`/accounts/${accountId}`)
   },
 
-  // TODO(backend): POST /accounts
   createAccount(body: { name: string }): Promise<Result<Account, ApiError>> {
     return request<Account>('/accounts', {
       method: 'POST',
@@ -117,7 +126,7 @@ export const api = {
     })
   },
 
-  async listArcs(accountId: string, params: ArcListParams): Promise<Result<Page<Arc>, ApiError>> {
+  listArcs(accountId: string, params: ArcListParams): Promise<Result<ArcListWire, ApiError>> {
     const qs = new URLSearchParams()
     if (params.workflow) qs.set('workflow', params.workflow)
     if (params.status) qs.set('status', params.status)
@@ -127,13 +136,9 @@ export const api = {
     if (params.cursor) qs.set('cursor', params.cursor)
     if (params.limit) qs.set('limit', String(params.limit))
     const query = qs.toString()
-    const result = await request<ArcListWire>(
+    return request<ArcListWire>(
       `/accounts/${accountId}/arcs${query ? `?${query}` : ''}`,
     )
-    return result.map(({ arcs, pagination }) => ({
-      items: arcs,
-      nextCursor: pagination.cursor ?? undefined,
-    }))
   },
 
   getArc(accountId: string, arcId: string): Promise<Result<Arc, ApiError>> {
@@ -147,29 +152,25 @@ export const api = {
     })
   },
 
-  async listSignals(
+  listSignals(
     accountId: string,
     arcId: string,
     params: { cursor?: string; limit?: number } = {},
-  ): Promise<Result<Page<Signal>, ApiError>> {
+  ): Promise<Result<SignalListWire, ApiError>> {
     const qs = new URLSearchParams()
     if (params.cursor) qs.set('cursor', params.cursor)
     if (params.limit) qs.set('limit', String(params.limit))
     const query = qs.toString()
-    const result = await request<SignalListWire>(
+    return request<SignalListWire>(
       `/accounts/${accountId}/arcs/${arcId}/signals${query ? `?${query}` : ''}`,
     )
-    return result.map(({ signals, pagination }) => ({
-      items: signals,
-      nextCursor: pagination.cursor ?? undefined,
-    }))
   },
 
-  async listQuarantinedSignals(
+  listQuarantinedSignals(
     accountId: string,
     status: 'quarantine_visible' | 'quarantine_hidden',
     params: QuarantineSignalListParams = {},
-  ): Promise<Result<Page<Signal>, ApiError>> {
+  ): Promise<Result<SignalListWire, ApiError>> {
     const qs = new URLSearchParams()
     qs.set('status', status)
     if (params.sender) qs.set('sender', params.sender)
@@ -177,11 +178,7 @@ export const api = {
     if (params.before) qs.set('before', params.before)
     if (params.cursor) qs.set('cursor', params.cursor)
     if (params.limit) qs.set('limit', String(params.limit))
-    const result = await request<SignalListWire>(`/accounts/${accountId}/signals?${qs.toString()}`)
-    return result.map(({ signals, pagination }) => ({
-      items: signals,
-      nextCursor: pagination.cursor ?? undefined,
-    }))
+    return request<SignalListWire>(`/accounts/${accountId}/signals?${qs.toString()}`)
   },
 
   quarantineResponse(
@@ -192,6 +189,19 @@ export const api = {
     return request<Signal>(`/accounts/${accountId}/signals/${signalId}/quarantineResponse`, {
       method: 'POST',
       body: JSON.stringify({ status }),
+    })
+  },
+
+  // ─── RSVP ────────────────────────────────────────────────────────────────
+
+  rsvpSignal(
+    accountId: string,
+    signalId: string,
+    response: 'accepted' | 'declined' | 'tentative',
+  ): Promise<Result<Signal, ApiError>> {
+    return request<Signal>(`/accounts/${accountId}/signals/${signalId}/rsvp`, {
+      method: 'POST',
+      body: JSON.stringify({ response }),
     })
   },
 
@@ -240,9 +250,8 @@ export const api = {
 
   // ─── Rules ───────────────────────────────────────────────────────────────
 
-  // TODO(backend): GET/POST/PATCH/DELETE /accounts/:id/rules (Phase 7)
   async listRules(accountId: string): Promise<Result<Rule[], ApiError>> {
-    interface RuleListWire { rules: Rule[]; pagination: { cursor: string | null } }
+    interface RuleListWire { rules: Rule[]; pagination: Pagination }
     const result = await request<RuleListWire>(`/accounts/${accountId}/rules`)
     return result.map((w) => w.rules)
   },
@@ -271,9 +280,8 @@ export const api = {
 
   // ─── Labels ──────────────────────────────────────────────────────────────
 
-  // TODO(backend): GET/POST/PATCH/DELETE /accounts/:id/labels (Phase 6)
   async listLabels(accountId: string): Promise<Result<Label[], ApiError>> {
-    interface LabelListWire { labels: Label[]; pagination: { cursor: string | null } }
+    interface LabelListWire { labels: Label[]; pagination: Pagination }
     const result = await request<LabelListWire>(`/accounts/${accountId}/labels`)
     return result.map((w) => w.labels)
   },
@@ -305,15 +313,14 @@ export const api = {
 
   // ─── Saved views ─────────────────────────────────────────────────────────
 
-  // TODO(backend): GET/POST/PATCH/DELETE /accounts/:id/views (Phase 6)
-  async listViews(accountId: string): Promise<Result<SavedView[], ApiError>> {
-    interface ViewListWire { views: SavedView[]; pagination: { cursor: string | null } }
+  async listViews(accountId: string): Promise<Result<View[], ApiError>> {
+    interface ViewListWire { views: View[]; pagination: Pagination }
     const result = await request<ViewListWire>(`/accounts/${accountId}/views`)
     return result.map((w) => w.views)
   },
 
-  createView(accountId: string, body: CreateSavedViewBody): Promise<Result<SavedView, ApiError>> {
-    return request<SavedView>(`/accounts/${accountId}/views`, {
+  createView(accountId: string, body: CreateViewBody): Promise<Result<View, ApiError>> {
+    return request<View>(`/accounts/${accountId}/views`, {
       method: 'POST',
       body: JSON.stringify(body),
     })
@@ -322,9 +329,9 @@ export const api = {
   updateView(
     accountId: string,
     viewId: string,
-    body: Partial<CreateSavedViewBody>,
-  ): Promise<Result<SavedView, ApiError>> {
-    return request<SavedView>(`/accounts/${accountId}/views/${viewId}`, {
+    body: Partial<CreateViewBody>,
+  ): Promise<Result<View, ApiError>> {
+    return request<View>(`/accounts/${accountId}/views/${viewId}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     })
@@ -338,7 +345,15 @@ export const api = {
 
   updateAccount(
     accountId: string,
-    body: { name?: string; deletionRetentionDays?: number; notifications?: NotificationSettings; onboarding?: Partial<import('@/types/server').OnboardingState> },
+    body: {
+      name?: string
+      retentionDuration?: RetentionDuration
+      notifications?: NotificationSettings
+      filtering?: AccountFilteringConfig
+      onboarding?: Partial<AccountOnboarding>
+      afterSendAction?: 'archive' | 'keep_active'
+      defaultCalendarInviteForwardingAddress?: string
+    },
   ): Promise<Result<Account, ApiError>> {
     return request<Account>(`/accounts/${accountId}`, {
       method: 'PATCH',
@@ -348,12 +363,10 @@ export const api = {
 
   // ─── Aliases (email addresses) ────────────────────────────────────────────
 
-  async listAliases(
-    accountId: string,
-  ): Promise<Result<import('@/types/server').EmailAddressConfig[], ApiError>> {
+  async listAliases(accountId: string): Promise<Result<Alias[], ApiError>> {
     interface AliasListWire {
-      aliases: import('@/types/server').EmailAddressConfig[]
-      pagination: { cursor: string | null }
+      aliases: Alias[]
+      pagination: Pagination
     }
     const result = await request<AliasListWire>(`/accounts/${accountId}/aliases`)
     return result.map((w) => w.aliases)
@@ -361,9 +374,9 @@ export const api = {
 
   createAlias(
     accountId: string,
-    body: { address: string; unknownSenderPolicy?: string },
-  ): Promise<Result<import('@/types/server').EmailAddressConfig, ApiError>> {
-    return request(`/accounts/${accountId}/aliases`, {
+    body: { address: string; unknownSenderPolicy?: UnknownSenderPolicy },
+  ): Promise<Result<Alias, ApiError>> {
+    return request<Alias>(`/accounts/${accountId}/aliases`, {
       method: 'POST',
       body: JSON.stringify(body),
     })
@@ -372,9 +385,9 @@ export const api = {
   updateAlias(
     accountId: string,
     address: string,
-    body: { unknownSenderPolicy?: string },
-  ): Promise<Result<import('@/types/server').EmailAddressConfig, ApiError>> {
-    return request(`/accounts/${accountId}/aliases/${encodeURIComponent(address)}`, {
+    body: { unknownSenderPolicy?: UnknownSenderPolicy },
+  ): Promise<Result<Alias, ApiError>> {
+    return request<Alias>(`/accounts/${accountId}/aliases/${encodeURIComponent(address)}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     })
@@ -391,7 +404,7 @@ export const api = {
   addAliasSender(
     accountId: string,
     address: string,
-    body: { domain: string; policy: SenderPolicy },
+    body: { sender: string; policy: SenderPolicy },
   ): Promise<Result<AliasSender, ApiError>> {
     return request<AliasSender>(
       `/accounts/${accountId}/aliases/${encodeURIComponent(address)}/senders`,
@@ -399,9 +412,9 @@ export const api = {
     )
   },
 
-  removeAliasSender(accountId: string, address: string, domain: string): Promise<Result<void, ApiError>> {
+  removeAliasSender(accountId: string, address: string, sender: string): Promise<Result<void, ApiError>> {
     return request<void>(
-      `/accounts/${accountId}/aliases/${encodeURIComponent(address)}/senders/${encodeURIComponent(domain)}`,
+      `/accounts/${accountId}/aliases/${encodeURIComponent(address)}/senders/${encodeURIComponent(sender)}`,
       { method: 'DELETE' },
     )
   },
@@ -414,9 +427,8 @@ export const api = {
 
   // ─── Domains ─────────────────────────────────────────────────────────────
 
-  // TODO(backend): GET /accounts/:id/domains (Phase 9)
   async listDomains(accountId: string): Promise<Result<Domain[], ApiError>> {
-    interface DomainListWire { domains: Domain[]; pagination: { cursor: string | null } }
+    interface DomainListWire { domains: Domain[]; pagination: Pagination }
     const result = await request<DomainListWire>(`/accounts/${accountId}/domains`)
     return result.map((w) => w.domains)
   },
@@ -434,9 +446,8 @@ export const api = {
 
   // ─── Forwarding addresses ─────────────────────────────────────────────────
 
-  // TODO(backend): GET/POST/DELETE /accounts/:id/forwarding-addresses (Phase 9)
   async listForwardingAddresses(accountId: string): Promise<Result<ForwardingAddress[], ApiError>> {
-    interface FwdListWire { forwardingAddresses: ForwardingAddress[]; pagination: { cursor: string | null } }
+    interface FwdListWire { forwardingAddresses: ForwardingAddress[]; pagination: Pagination }
     const result = await request<FwdListWire>(`/accounts/${accountId}/forwarding-addresses`)
     return result.map((w) => w.forwardingAddresses)
   },
@@ -451,17 +462,16 @@ export const api = {
     })
   },
 
-  deleteForwardingAddress(accountId: string, id: string): Promise<Result<void, ApiError>> {
-    return request<void>(`/accounts/${accountId}/forwarding-addresses/${id}`, {
+  deleteForwardingAddress(accountId: string, address: string): Promise<Result<void, ApiError>> {
+    return request<void>(`/accounts/${accountId}/forwarding-addresses/${encodeURIComponent(address)}`, {
       method: 'DELETE',
     })
   },
 
   // ─── Team members ─────────────────────────────────────────────────────────
 
-  // TODO(backend): GET/POST/PATCH/DELETE /accounts/:id/users (Phase 9)
   async listTeamMembers(accountId: string): Promise<Result<TeamMember[], ApiError>> {
-    interface TeamListWire { users: TeamMember[]; pagination: { cursor: string | null } }
+    interface TeamListWire { users: TeamMember[]; pagination: Pagination }
     const result = await request<TeamListWire>(`/accounts/${accountId}/users`)
     return result.map((w) => w.users)
   },
@@ -493,36 +503,25 @@ export const api = {
 
   // ─── Audit log ────────────────────────────────────────────────────────────
 
-  // TODO(backend): GET /accounts/:id/audit (Phase 10)
-  async listAuditEvents(
+  listAuditEvents(
     accountId: string,
     params: { cursor?: string; limit?: number } = {},
-  ): Promise<Result<Page<AuditEvent>, ApiError>> {
-    interface AuditListWire {
-      events: AuditEvent[]
-      pagination: { cursor: string | null }
-    }
+  ): Promise<Result<AuditListWire, ApiError>> {
     const qs = new URLSearchParams()
     if (params.cursor) qs.set('cursor', params.cursor)
     if (params.limit) qs.set('limit', String(params.limit))
     const query = qs.toString()
-    const result = await request<AuditListWire>(
+    return request<AuditListWire>(
       `/accounts/${accountId}/audit${query ? `?${query}` : ''}`,
     )
-    return result.map(({ events, pagination }) => ({
-      items: events,
-      nextCursor: pagination.cursor ?? undefined,
-    }))
   },
 
   // ─── Billing ─────────────────────────────────────────────────────────────────
 
-  // TODO(backend): GET /accounts/:id/billing
   getBilling(accountId: string): Promise<Result<BillingInfo, ApiError>> {
     return request<BillingInfo>(`/accounts/${accountId}/billing`)
   },
 
-  // TODO(backend): POST /accounts/:id/billing/checkout-session
   createCheckoutSession(
     accountId: string,
     body: { priceId: string; successUrl: string; cancelUrl: string },
@@ -533,7 +532,6 @@ export const api = {
     })
   },
 
-  // TODO(backend): POST /accounts/:id/billing/portal-session
   createBillingPortalSession(
     accountId: string,
     body: { returnUrl: string },
@@ -545,17 +543,16 @@ export const api = {
   },
 
   // ─── Email templates ────────────────────────────────────────────────────────
-  // TODO(backend): implement GET/POST/PUT/DELETE /accounts/:id/templates
 
-  listTemplates(accountId: string): Promise<Result<EmailTemplate[], ApiError>> {
-    return request<{ templates: EmailTemplate[] }>(`/accounts/${accountId}/templates`).then((r) =>
-      r.map((d) => d.templates),
-    )
+  async listTemplates(accountId: string): Promise<Result<EmailTemplate[], ApiError>> {
+    interface TemplateListWire { templates: EmailTemplate[]; pagination: Pagination }
+    const result = await request<TemplateListWire>(`/accounts/${accountId}/templates`)
+    return result.map((w) => w.templates)
   },
 
   createTemplate(
     accountId: string,
-    body: { name: string; subject: string; body: string; functions: TemplateFunction[] },
+    body: { name: string; subject: string; body: string; functions?: TemplateFunction[] },
   ): Promise<Result<EmailTemplate, ApiError>> {
     return request<EmailTemplate>(`/accounts/${accountId}/templates`, {
       method: 'POST',
@@ -566,7 +563,7 @@ export const api = {
   updateTemplate(
     accountId: string,
     templateId: string,
-    body: { name: string; subject: string; body: string; functions: TemplateFunction[] },
+    body: { name: string; subject: string; body: string; functions?: TemplateFunction[] },
   ): Promise<Result<EmailTemplate, ApiError>> {
     return request<EmailTemplate>(`/accounts/${accountId}/templates/${templateId}`, {
       method: 'PUT',
