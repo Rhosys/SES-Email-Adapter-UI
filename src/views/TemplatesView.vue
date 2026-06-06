@@ -352,7 +352,15 @@ onMounted(async () => {
           class="flex items-start justify-between gap-4 px-4 py-3"
         >
           <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium text-ctp-text">{{ tpl.name }}</p>
+            <p class="truncate text-sm font-medium text-ctp-text">
+              {{ tpl.name }}
+              <span
+                v-if="tpl.functions?.some(f => f.lastError)"
+                class="ml-1.5 inline-block h-2 w-2 rounded-full bg-ctp-red"
+                title="Function error"
+                aria-label="Has function error"
+              />
+            </p>
             <p class="mt-0.5 truncate text-xs text-ctp-subtext0">{{ tpl.subject }}</p>
             <p class="mt-0.5 text-xs text-ctp-surface2">
               {{ (tpl.functions?.length ?? 0) > 0 ? `${tpl.functions!.length} function${tpl.functions!.length > 1 ? 's' : ''} · ` : '' }}Updated {{ relTime(tpl.updatedAt) }}
@@ -579,13 +587,21 @@ onMounted(async () => {
                 signal-completions
                 @update:model-value="updateFnCode(idx, $event)"
               />
-              <!-- Per-function error -->
+              <!-- Per-function validation error -->
               <div
                 v-if="fn.name && fnErrors[fn.name]"
                 class="mt-2 flex items-start gap-1.5 rounded bg-ctp-red/10 px-2 py-1.5 font-mono text-xs text-ctp-red"
               >
                 <span class="shrink-0">✕</span>
                 <span>{{ fnErrors[fn.name] }}</span>
+              </div>
+              <!-- Last execution error from backend -->
+              <div
+                v-if="fn.lastError && !fnErrors[fn.name]"
+                class="mt-2 flex items-start gap-1.5 rounded bg-ctp-peach/10 px-2 py-1.5 font-mono text-xs text-ctp-peach"
+              >
+                <span class="shrink-0">⚠</span>
+                <span>Last execution error: {{ fn.lastError }}</span>
               </div>
             </div>
           </div>
