@@ -1,5 +1,71 @@
 # SES Email Adapter UI — Build Plan
 
+## Frontend fields requiring backend support
+
+Fields that the old frontend used but the backend doesn't provide. Removed during the API contract reconciliation (spec: `api-contract-reconciliation`).
+
+### OnboardingState granular progress fields
+The frontend onboarding wizard previously tracked step-by-step progress via `domainAdded`, `testEmailReceived`, `senderConfigured`, `notificationCoachCompleted`, and `featureTourCompleted`. The backend only stores `{ completed: boolean; completedAt?: string }`. Either the backend should add granular tracking, or the frontend should persist wizard progress client-side (localStorage).
+
+### TeamMember display fields
+The frontend previously rendered `email`, `name`, `status`, `invitedAt`, and `joinedAt` on team members. The backend only returns `{ userId: string; role: UserRole }`. Display information needs to be resolved via Authress user profiles or the backend needs to include these fields.
+
+### Arc grouping and sent-message tracking
+- `Arc.groupingKey` — used by the frontend to group arcs by sender/thread; not in backend wire shape.
+- `Arc.sentMessageIds` — tracked which outbound signals belonged to an arc; not in backend wire shape.
+- `Arc.lastUserConfirmedAt` — showed when the user last interacted with an arc; not in backend.
+- `Arc.ttl` — time-to-live for auto-deletion; backend uses `retentionDuration` instead.
+
+### RuleAction specific fields
+- `RuleAction.labelId` — which label to assign; replaced by generic `value` field.
+- `RuleAction.workflow` — which workflow to assign; replaced by generic `value` field.
+- `RuleAction.urgency` — urgency level to set; replaced by generic `value` field.
+- `RuleAction.forwardTo` — forwarding destination; replaced by generic `value` field.
+- `RuleAction.templateId` — template to use for auto-draft/reply; replaced by generic `value` field.
+
+### Domain.status (DnsStatus enum)
+The frontend previously had a top-level `status` field on Domain (using a DnsStatus enum). The backend uses boolean flags (`receivingSetupComplete`, `senderSetupComplete`) instead — already migrated.
+
+---
+
+## Unused backend properties requiring UI
+
+Backend fields that exist on the frontend type but aren't yet surfaced in any UI component.
+
+### Arc
+- [ ] `Arc.retentionDuration` — per-arc retention override. Could show a retention badge on arcs with non-default policy.
+- [ ] `Arc.deletedAt` — soft-delete timestamp. Could show "deleted on" info or a grace-period countdown before permanent removal.
+
+### Rule
+- [ ] `RuleAction.disabled` — per-action disable toggle. The rule editor could let users temporarily disable individual actions without removing them.
+
+### View
+- [ ] `View.layout` — custom component layout array. Deferred to the modular component system V2 (layout editor).
+
+### EmailTemplate
+- [ ] `TemplateFunction.lastError` — last execution error for a template function. Could show an error badge/indicator in the template editor function list.
+
+### Alias
+- [ ] `Alias.spamScoreThreshold` — per-alias spam threshold override. Could add a numeric slider/input in alias settings to control spam sensitivity per address.
+
+### ForwardingAddress
+- [ ] `ForwardingAddress.verifiedAt` — timestamp when the address was verified. Could display "Verified on <date>" badge in the forwarding tab.
+
+### Signal (DomainMisconfiguration)
+- [ ] `DomainMisconfigurationSignal.data.linkedSignalId` — reference to the triggering signal. Could link to the original email that exposed the misconfiguration.
+
+### Signal (Calendar)
+- [ ] `CalendarEventData.url` — external calendar link. Could render as a "View in calendar" button on the card.
+- [ ] `CalendarEventData.linkedSignalId` — reference to the email that contained the invite. Could link back to the original email.
+- [ ] `CalendarResponseData.linkedSignalId` — reference to the original calendar event. Could link to the event being responded to.
+- [ ] `CalendarInviteInvalidData.linkedSignalId` — reference to the invalid invite email. Could link to the problematic signal.
+
+### Signal (System alerts)
+- [ ] `InvalidRuleFunctionData.resourceName` / `InvalidTemplateFunctionData.resourceName` — these are rendered but could deep-link to the rule/template editor for quick fixing.
+- [ ] `DeliverabilitySignalData.linkedSignalId` — could link to the original outbound email that bounced.
+
+---
+
 ## Open tasks
 
 ### Extensibility & integrations
