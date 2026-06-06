@@ -42,7 +42,9 @@ const isEditing = computed(() => !!ruleId.value)
 
 const name = ref('')
 const status = ref<'enabled' | 'disabled'>('enabled')
+const conditionType = ref<'json_logic' | 'js'>('json_logic')
 const groups = ref<ConditionGroup[]>([{ mode: 'and', conditions: [defaultLeaf()] }])
+const jsCondition = ref('')
 const actions = ref<RuleAction[]>([{ type: 'block_hidden' }])
 
 // ─── Condition builder helpers ────────────────────────────────────────────────
@@ -185,7 +187,7 @@ const canSave = computed(
   () =>
     name.value.trim().length > 0 &&
     actions.value.length > 0 &&
-    groups.value.every((g) => g.conditions.every((c) => c.value.trim().length > 0)),
+    (conditionType.value === 'js' || groups.value.every((g) => g.conditions.every((c) => c.value.trim().length > 0))),
 )
 
 async function save() {
@@ -193,7 +195,8 @@ async function save() {
   const body = {
     name: name.value.trim(),
     status: status.value,
-    condition: serializeCondition(groups.value),
+    conditionType: conditionType.value,
+    condition: conditionType.value === 'js' ? jsCondition.value : serializeCondition(groups.value),
     actions: actions.value,
   }
 
@@ -227,8 +230,13 @@ onMounted(async () => {
     if (existing) {
       name.value = existing.name
       status.value = existing.status
+      conditionType.value = existing.conditionType ?? 'json_logic'
       actions.value = [...existing.actions]
-      groups.value = logicToGroups(existing.condition ?? '')
+      if (conditionType.value === 'js') {
+        jsCondition.value = existing.condition ?? ''
+      } else {
+        groups.value = logicToGroups(existing.condition ?? '')
+      }
     }
   } else {
     if (signalAction.value) {
@@ -324,12 +332,42 @@ watch(signalAction, (val) => {
       <section class="mb-6">
         <div class="mb-2 flex items-center justify-between">
           <span class="text-xs font-medium text-ctp-subtext0">Conditions</span>
-          <button class="text-xs text-ctp-mauve hover:underline" @click="addGroup">
-            + Add group
-          </button>
+          <div class="flex items-center gap-3">
+            <!-- conditionType toggle -->
+            <div class="flex items-center gap-1 rounded-full bg-ctp-surface0 p-0.5">
+              <button
+                :aria-pressed="conditionType === 'json_logic'"
+                class="rounded-full px-2.5 py-0.5 text-xs transition-colors"
+                :class="
+                  conditionType === 'json_logic'
+                    ? 'bg-ctp-surface2 text-ctp-text'
+                    : 'text-ctp-subtext0 hover:text-ctp-text'
+                "
+                @click="conditionType = 'json_logic'"
+              >
+                Visual
+              </button>
+              <button
+                :aria-pressed="conditionType === 'js'"
+                class="rounded-full px-2.5 py-0.5 text-xs transition-colors"
+                :class="
+                  conditionType === 'js'
+                    ? 'bg-ctp-surface2 text-ctp-text'
+                    : 'text-ctp-subtext0 hover:text-ctp-text'
+                "
+                @click="conditionType = 'js'"
+              >
+                JavaScript
+              </button>
+            </div>
+            <button v-if="conditionType === 'json_logic'" class="text-xs text-ctp-mauve hover:underline" @click="addGroup">
+              + Add group
+            </button>
+          </div>
         </div>
 
-        <div class="space-y-3">
+        <!-- Visual builder (json_logic) -->
+        <div v-if="conditionType === 'json_logic'" class="space-y-3">
           <div
             v-for="(group, gi) in groups"
             :key="gi"
@@ -439,6 +477,21 @@ watch(signalAction, (val) => {
               + Add condition
             </button>
           </div>
+        </div>
+
+        <!-- JavaScript editor (js) -->
+        <div v-else class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-3">
+          <label for="js-condition" class="mb-1 block text-xs text-ctp-subtext0">
+            JavaScript condition function body — receives <code class="text-ctp-mauve">signal</code> and <code class="text-ctp-mauve">arc</code>, return <code class="text-ctp-mauve">true</code> to match.
+          </label>
+          <textarea
+            id="js-condition"
+            v-model="jsCondition"
+            rows="8"
+            spellcheck="false"
+            placeholder="// Example: return signal.from.address.endsWith('@example.com');"
+            class="w-full resize-y rounded border border-ctp-surface1 bg-ctp-base px-3 py-2 font-mono text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+          />
         </div>
       </section>
 
@@ -589,8 +642,8 @@ watch(signalAction, (val) => {
         </button>
       </section>
 
-      <!-- Rule tester -->
-      <section class="mb-6 rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
+      <!-- Rule tester (only for visual builder) -->
+      <section v-if="conditionType === 'json_logic'" class="mb-6 rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
         <h3 class="mb-3 text-xs font-medium text-ctp-subtext1">Test this rule</h3>
         <div class="grid gap-3 sm:grid-cols-2">
           <div>
