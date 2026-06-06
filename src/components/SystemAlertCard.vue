@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
 import type {
   InvalidRuleFunctionSignal,
   InvalidTemplateFunctionSignal,
@@ -55,7 +56,7 @@ const iconColor = computed(() => severity.value === 'error' ? 'text-ctp-red' : '
     <!-- invalid_rule_function -->
     <template v-if="signal.type === 'invalid_rule_function'">
       <p class="text-sm text-ctp-subtext1">
-        Rule <span class="font-medium text-ctp-text">{{ signal.data.resourceName }}</span> has an error:
+        Rule <RouterLink :to="`/rules/${signal.data.resourceName}`" class="font-medium text-ctp-mauve hover:underline">{{ signal.data.resourceName }}</RouterLink> has an error:
       </p>
       <p class="mt-1 text-xs text-ctp-red">{{ signal.data.issue }}</p>
     </template>
@@ -64,7 +65,7 @@ const iconColor = computed(() => severity.value === 'error' ? 'text-ctp-red' : '
     <template v-else-if="signal.type === 'invalid_template_function'">
       <p class="text-sm text-ctp-subtext1">
         Template function <span class="font-medium text-ctp-text">{{ signal.data.functionName }}</span>
-        in <span class="font-medium text-ctp-text">{{ signal.data.resourceName }}</span> has an error:
+        in <RouterLink to="/templates" class="font-medium text-ctp-mauve hover:underline">{{ signal.data.resourceName }}</RouterLink> has an error:
       </p>
       <p class="mt-1 text-xs text-ctp-red">{{ signal.data.issue }}</p>
     </template>

@@ -66,6 +66,15 @@ async function handleRsvp(response: RsvpResponse) {
       <p v-if="signal.data.description" class="text-xs text-ctp-subtext0">
         {{ signal.data.description }}
       </p>
+      <a
+        v-if="signal.data.url"
+        :href="signal.data.url"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="mt-2 inline-flex items-center gap-1 text-xs text-ctp-blue hover:underline"
+      >
+        View in calendar ↗
+      </a>
     </div>
 
     <!-- Attendees -->
