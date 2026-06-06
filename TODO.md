@@ -34,34 +34,19 @@ Backend fields that exist on the frontend type but aren't yet surfaced in any UI
 
 ### Arc
 - [ ] `Arc.retentionDuration` — per-arc retention override. Could show a retention badge on arcs with non-default policy.
-- [ ] `Arc.deletedAt` — soft-delete timestamp. Could show "deleted on" info or a grace-period countdown before permanent removal.
-
-### Rule
-- [ ] `RuleAction.disabled` — per-action disable toggle. The rule editor could let users temporarily disable individual actions without removing them.
 
 ### View
 - [ ] `View.layout` — custom component layout array. Deferred to the modular component system V2 (layout editor).
-
-### EmailTemplate
-- [ ] `TemplateFunction.lastError` — last execution error for a template function. Could show an error badge/indicator in the template editor function list.
-
-### Alias
-- [ ] `Alias.spamScoreThreshold` — per-alias spam threshold override. Could add a numeric slider/input in alias settings to control spam sensitivity per address.
-
-### ForwardingAddress
-- [ ] `ForwardingAddress.verifiedAt` — timestamp when the address was verified. Could display "Verified on <date>" badge in the forwarding tab.
 
 ### Signal (DomainMisconfiguration)
 - [ ] `DomainMisconfigurationSignal.data.linkedSignalId` — reference to the triggering signal. Could link to the original email that exposed the misconfiguration.
 
 ### Signal (Calendar)
-- [ ] `CalendarEventData.url` — external calendar link. Could render as a "View in calendar" button on the card.
 - [ ] `CalendarEventData.linkedSignalId` — reference to the email that contained the invite. Could link back to the original email.
 - [ ] `CalendarResponseData.linkedSignalId` — reference to the original calendar event. Could link to the event being responded to.
 - [ ] `CalendarInviteInvalidData.linkedSignalId` — reference to the invalid invite email. Could link to the problematic signal.
 
 ### Signal (System alerts)
-- [ ] `InvalidRuleFunctionData.resourceName` / `InvalidTemplateFunctionData.resourceName` — these are rendered but could deep-link to the rule/template editor for quick fixing.
 - [ ] `DeliverabilitySignalData.linkedSignalId` — could link to the original outbound email that bounced.
 
 ---
