@@ -1,0 +1,143 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { mount, flushPromises } from '@vue/test-utils'
+import { setActivePinia, createPinia } from 'pinia'
+import { ok } from 'neverthrow'
+import { createRouter, createMemoryHistory } from 'vue-router'
+import SettingsView from '@/views/SettingsView.vue'
+import { useAccountStore } from '@/stores/account'
+import type { Account, Alias } from '@/types/server'
+
+vi.mock('@/lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api')>()
+  return {
+    ...actual,
+    api: {
+      listAccounts: vi.fn(),
+      listAliases: vi.fn(),
+      updateAlias: vi.fn(),
+      updateAccount: vi.fn(),
+    },
+  }
+})
+
+import { api } from '@/lib/api'
+
+const testAccount: Account = {
+  accountId: 'acc_1',
+  name: 'Test',
+  createdAt: '2025-01-01T00:00:00Z',
+  updatedAt: '2025-01-01T00:00:00Z',
+}
+
+function makeRouter() {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/settings', component: SettingsView },
+    ],
+  })
+}
+
+let pinia: ReturnType<typeof createPinia>
+
+async function mountEmailsTab(aliases: Alias[]) {
+  vi.mocked(api.listAliases).mockResolvedValue(ok(aliases))
+
+  const router = makeRouter()
+  await router.push('/settings?tab=emails')
+  await router.isReady()
+
+  const wrapper = mount(SettingsView, {
+    global: { plugins: [pinia, router] },
+  })
+  await flushPromises()
+  return wrapper
+}
+
+describe('SettingsView — spam threshold input', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    vi.clearAllMocks()
+    useAccountStore().account = testAccount
+    vi.mocked(api.listAccounts).mockResolvedValue(ok([testAccount]))
+  })
+
+  it('displays current spamScoreThreshold value in the input', async () => {
+    const alias: Alias = {
+      alias: 'inbox',
+      address: 'inbox@test.com',
+      unknownSenderPolicy: 'allow_all',
+      spamScoreThreshold: 5,
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-01T00:00:00Z',
+    }
+    const wrapper = await mountEmailsTab([alias])
+
+    const input = wrapper.find('#spam-inbox') as ReturnType<typeof wrapper.find>
+    expect(input.exists()).toBe(true)
+    expect((input.element as HTMLInputElement).value).toBe('5')
+  })
+
+  it('shows placeholder "account default" when threshold is undefined', async () => {
+    const alias: Alias = {
+      alias: 'inbox',
+      address: 'inbox@test.com',
+      unknownSenderPolicy: 'allow_all',
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-01T00:00:00Z',
+    }
+    const wrapper = await mountEmailsTab([alias])
+
+    const input = wrapper.find('#spam-inbox') as ReturnType<typeof wrapper.find>
+    expect(input.exists()).toBe(true)
+    expect((input.element as HTMLInputElement).placeholder).toBe('account default')
+    expect((input.element as HTMLInputElement).value).toBe('')
+  })
+
+  it('clamps value to 10 when input exceeds max', async () => {
+    const alias: Alias = {
+      alias: 'inbox',
+      address: 'inbox@test.com',
+      unknownSenderPolicy: 'allow_all',
+      spamScoreThreshold: 5,
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-01T00:00:00Z',
+    }
+    const updatedAlias: Alias = { ...alias, spamScoreThreshold: 10 }
+    vi.mocked(api.updateAlias).mockResolvedValue(ok(updatedAlias))
+
+    const wrapper = await mountEmailsTab([alias])
+
+    const input = wrapper.find('#spam-inbox')
+    // Simulate setting value to 11 and triggering change
+    await input.setValue('11')
+    await input.trigger('change')
+    await flushPromises()
+
+    expect(api.updateAlias).toHaveBeenCalledWith('acc_1', 'inbox@test.com', { spamScoreThreshold: 10 })
+  })
+
+  it('sends spamScoreThreshold: undefined when input is cleared', async () => {
+    const alias: Alias = {
+      alias: 'inbox',
+      address: 'inbox@test.com',
+      unknownSenderPolicy: 'allow_all',
+      spamScoreThreshold: 5,
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-01T00:00:00Z',
+    }
+    const updatedAlias: Alias = { ...alias, spamScoreThreshold: undefined }
+    vi.mocked(api.updateAlias).mockResolvedValue(ok(updatedAlias))
+
+    const wrapper = await mountEmailsTab([alias])
+
+    // Click the Reset button to clear the threshold
+    const resetBtn = wrapper.findAll('button').find(b => b.text() === 'Reset')
+    expect(resetBtn).toBeDefined()
+    await resetBtn!.trigger('click')
+    await flushPromises()
+
+    expect(api.updateAlias).toHaveBeenCalledWith('acc_1', 'inbox@test.com', { spamScoreThreshold: undefined })
+  })
+})
