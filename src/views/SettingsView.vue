@@ -24,6 +24,11 @@ const activeTab = ref<TabKey>('account')
 const accountName = ref('')
 const accountPending = ref(false)
 const accountSaved = ref(false)
+const afterSendAction = ref<'archive' | 'keep_active'>('keep_active')
+const afterSendPending = ref(false)
+const calendarForwardingAddress = ref('')
+const calendarForwardingPending = ref(false)
+const calendarForwardingSaved = ref(false)
 
 async function saveAccount() {
   if (!accountStore.accountId) return
@@ -36,6 +41,34 @@ async function saveAccount() {
     accountSaved.value = true
     setTimeout(() => {
       accountSaved.value = false
+    }, 2000)
+  }
+}
+
+async function updateAfterSendAction(value: 'archive' | 'keep_active') {
+  if (!accountStore.accountId) return
+  afterSendAction.value = value
+  afterSendPending.value = true
+  const result = await api.updateAccount(accountStore.accountId, { afterSendAction: value })
+  afterSendPending.value = false
+  if (result.isOk()) {
+    accountStore.account = result.value
+  }
+}
+
+async function saveCalendarForwarding() {
+  if (!accountStore.accountId) return
+  calendarForwardingPending.value = true
+  calendarForwardingSaved.value = false
+  const result = await api.updateAccount(accountStore.accountId, {
+    defaultCalendarInviteForwardingAddress: calendarForwardingAddress.value.trim() || undefined,
+  })
+  calendarForwardingPending.value = false
+  if (result.isOk()) {
+    accountStore.account = result.value
+    calendarForwardingSaved.value = true
+    setTimeout(() => {
+      calendarForwardingSaved.value = false
     }, 2000)
   }
 }
@@ -279,6 +312,8 @@ onMounted(async () => {
   if (!accountStore.accountId) await accountStore.fetchAccount()
   if (accountStore.account) {
     accountName.value = accountStore.account.name
+    afterSendAction.value = accountStore.account.afterSendAction ?? 'keep_active'
+    calendarForwardingAddress.value = accountStore.account.defaultCalendarInviteForwardingAddress ?? ''
     emailNotifAddress.value = accountStore.account.notifications?.email?.address ?? ''
     emailNotifEnabled.value = accountStore.account.notifications?.email?.enabled ?? false
     emailNotifFrequency.value = accountStore.account.notifications?.email?.frequency ?? 'daily'
@@ -357,6 +392,51 @@ const TABS: { key: TabKey; label: string }[] = [
         <div>
           <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Account ID</span>
           <p class="font-mono text-xs text-ctp-subtext0">{{ accountStore.accountId }}</p>
+        </div>
+
+        <!-- After send action -->
+        <div>
+          <span class="mb-1 block text-xs font-medium text-ctp-subtext0">After send</span>
+          <p class="mb-2 text-xs text-ctp-subtext0">What happens to the conversation after you send a reply</p>
+          <div class="flex gap-2">
+            <button
+              v-for="option in [{ value: 'archive' as const, label: 'Archive' }, { value: 'keep_active' as const, label: 'Keep active' }]"
+              :key="option.value"
+              :disabled="afterSendPending"
+              :aria-pressed="afterSendAction === option.value"
+              class="rounded-full border px-3 py-1 text-xs transition-colors disabled:opacity-50"
+              :class="
+                afterSendAction === option.value
+                  ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
+                  : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
+              "
+              @click="updateAfterSendAction(option.value)"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Calendar forwarding address -->
+        <div>
+          <label for="calendar-forwarding" class="mb-1 block text-xs font-medium text-ctp-subtext0">Calendar forwarding address</label>
+          <p class="mb-2 text-xs text-ctp-subtext0">Calendar invites will be forwarded to this address</p>
+          <div class="flex gap-2">
+            <input
+              id="calendar-forwarding"
+              v-model="calendarForwardingAddress"
+              type="email"
+              placeholder="calendar@example.com"
+              class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+            />
+            <button
+              :disabled="calendarForwardingPending"
+              class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+              @click="saveCalendarForwarding"
+            >
+              {{ calendarForwardingPending ? 'Saving…' : calendarForwardingSaved ? 'Saved ✓' : 'Save' }}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -499,9 +579,20 @@ const TABS: { key: TabKey; label: string }[] = [
             <div class="flex items-center justify-between gap-2 px-4 py-3">
               <div>
                 <p class="text-sm font-medium text-ctp-text">{{ domain.domain }}</p>
-                <p class="text-xs" :class="domain.receivingSetupComplete && domain.senderSetupComplete ? 'text-ctp-green' : 'text-ctp-yellow'">
-                  {{ domain.receivingSetupComplete && domain.senderSetupComplete ? 'Verified' : 'Pending' }}
-                </p>
+                <div class="mt-1 flex flex-wrap gap-1.5">
+                  <span
+                    class="rounded-full px-2 py-0.5 text-xs font-medium"
+                    :class="domain.receivingSetupComplete ? 'bg-ctp-green/10 text-ctp-green' : 'bg-ctp-yellow/10 text-ctp-yellow'"
+                  >
+                    Receiving {{ domain.receivingSetupComplete ? '✓' : 'pending' }}
+                  </span>
+                  <span
+                    class="rounded-full px-2 py-0.5 text-xs font-medium"
+                    :class="domain.senderSetupComplete ? 'bg-ctp-green/10 text-ctp-green' : 'bg-ctp-yellow/10 text-ctp-yellow'"
+                  >
+                    Sending {{ domain.senderSetupComplete ? '✓' : 'pending' }}
+                  </span>
+                </div>
               </div>
               <button
                 v-if="!domain.receivingSetupComplete || !domain.senderSetupComplete"
@@ -529,7 +620,10 @@ const TABS: { key: TabKey; label: string }[] = [
                       <span class="truncate font-mono text-xs text-ctp-text">{{ rec.name }}</span>
                     </div>
                     <p class="mt-1 break-all font-mono text-xs text-ctp-subtext0">
-                      {{ rec.value }}
+                      <span class="text-ctp-subtext1">Expected:</span> {{ rec.value }}
+                    </p>
+                    <p v-if="rec.currentValue" class="mt-0.5 break-all font-mono text-xs text-ctp-subtext0">
+                      <span class="text-ctp-subtext1">Current:</span> {{ rec.currentValue }}
                     </p>
                   </div>
                   <div class="flex shrink-0 items-center gap-2">
