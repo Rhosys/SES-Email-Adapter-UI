@@ -38,7 +38,13 @@ Backend fields that exist on the frontend type but aren't yet surfaced in any UI
 ### View
 - [ ] `View.layout` — custom component layout array. Deferred to the modular component system V2 (layout editor).
 
-
+### Composite signal cards
+- [ ] Merge linked signals into a single card so the user sees context inline rather than navigating. Affected pairs:
+  - `DomainMisconfigurationSignal` ← source email that exposed the misconfiguration
+  - `CalendarEventData` ← source email containing the invite
+  - `CalendarResponseData` ← original calendar event being responded to
+  - `CalendarInviteInvalidData` ← problematic invite email
+  - `DeliverabilitySignalData` ← outbound email that bounced
 
 ---
 
