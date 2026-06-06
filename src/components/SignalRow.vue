@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import type { Signal } from '@/types/server'
+import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
 
 const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ undo: [] }>()
@@ -18,23 +19,31 @@ const undoError = ref<string | null>(null)
 const isUserSent = computed(() => props.signal.source === 'user')
 
 const fromLabel = computed(() => {
-  const { name, address } = props.signal.from
+  if (!isEmailSignal(props.signal)) return ''
+  const { name, address } = props.signal.data.from
   return name ?? address
 })
 
 const snippet = computed(() => {
-  const raw = props.signal.textBody ?? props.signal.htmlBody?.replace(/<[^>]+>/g, '') ?? ''
+  if (!isEmailSignal(props.signal)) return ''
+  const raw = props.signal.data.body ?? ''
   return raw.trim().replace(/\s+/g, ' ').slice(0, 90)
 })
 
-const sentAt = computed(() =>
-  new Date(props.signal.receivedAt).toLocaleString(undefined, {
+const subjectLine = computed(() => {
+  if (!isEmailSignal(props.signal)) return ''
+  return props.signal.data.subject
+})
+
+const sentAt = computed(() => {
+  if (!isInboundEmailSignal(props.signal)) return ''
+  return new Date(props.signal.data.receivedAt).toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }),
-)
+  })
+})
 
 function viewOriginal() {
   menuOpen.value = false
@@ -46,7 +55,7 @@ async function undoSend() {
   if (!accountStore.accountId || undoPending.value) return
   undoPending.value = true
   undoError.value = null
-  const result = await api.patchSignal(accountStore.accountId, props.signal.id, { status: 'draft' })
+  const result = await api.patchSignal(accountStore.accountId, props.signal.signalId, { status: 'draft' })
   undoPending.value = false
   if (result.isOk()) {
     emit('undo')
@@ -63,7 +72,7 @@ async function undoSend() {
 
     <!-- Subject · snippet -->
     <span class="min-w-0 flex-1 truncate text-ctp-subtext0">
-      <span class="font-medium text-ctp-text">{{ signal.subject }}</span>
+      <span class="font-medium text-ctp-text">{{ subjectLine }}</span>
       <span v-if="snippet"> · {{ snippet }}</span>
     </span>
 

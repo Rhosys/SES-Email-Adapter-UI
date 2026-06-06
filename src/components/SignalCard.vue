@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Signal } from '@/types/server'
+import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 
@@ -18,18 +19,23 @@ const undoError = ref<string | null>(null)
 const isUserSent = computed(() => props.signal.source === 'user')
 
 const fromLabel = computed(() => {
-  const { name, address } = props.signal.from
+  if (!isEmailSignal(props.signal)) return ''
+  const { name, address } = props.signal.data.from
   return name ? `${name} <${address}>` : address
 })
 
-const hasSpamWarning = computed(() => (props.signal.spamScore ?? 0) > 0.3)
+const hasSpamWarning = computed(() => {
+  if (!isInboundEmailSignal(props.signal)) return false
+  return (props.signal.data.spamScore ?? 0) > 0.3
+})
 
-const sentAt = computed(() =>
-  new Date(props.signal.receivedAt).toLocaleString(undefined, {
+const sentAt = computed(() => {
+  if (!isInboundEmailSignal(props.signal)) return ''
+  return new Date(props.signal.data.receivedAt).toLocaleString(undefined, {
     dateStyle: 'medium',
     timeStyle: 'short',
-  }),
-)
+  })
+})
 
 function viewOriginal() {
   menuOpen.value = false
@@ -41,7 +47,7 @@ async function undoSend() {
   if (!accountStore.accountId || undoPending.value) return
   undoPending.value = true
   undoError.value = null
-  const result = await api.patchSignal(accountStore.accountId, props.signal.id, { status: 'draft' })
+  const result = await api.patchSignal(accountStore.accountId, props.signal.signalId, { status: 'draft' })
   undoPending.value = false
   if (result.isOk()) {
     emit('undo')
@@ -136,23 +142,20 @@ function fitHeight(e: Event) {
     </div>
 
     <!-- Email body -->
-    <div v-if="expanded" class="border-t border-ctp-surface1">
-      <iframe
-        v-if="signal.htmlBody"
-        :srcdoc="signal.htmlBody"
-        sandbox="allow-popups allow-popups-to-escape-sandbox"
-        referrerpolicy="no-referrer"
-        class="w-full"
-        style="min-height: 200px; border: none"
-        title="Email content"
-        @load="fitHeight"
-      />
-      <pre
-        v-else-if="signal.textBody"
-        class="break-words whitespace-pre-wrap px-4 py-3 font-sans text-sm text-ctp-text"
-        >{{ signal.textBody }}</pre
-      >
-      <p v-else class="px-4 py-3 text-sm text-ctp-subtext0">(No content)</p>
-    </div>
+    <template v-if="expanded && signal.type === 'email'">
+      <div class="border-t border-ctp-surface1">
+        <iframe
+          v-if="signal.data.body"
+          :srcdoc="signal.data.body"
+          sandbox="allow-popups allow-popups-to-escape-sandbox"
+          referrerpolicy="no-referrer"
+          class="w-full"
+          style="min-height: 200px; border: none"
+          title="Email content"
+          @load="fitHeight"
+        />
+        <p v-else class="px-4 py-3 text-sm text-ctp-subtext0">(No content)</p>
+      </div>
+    </template>
   </div>
 </template>

@@ -187,15 +187,15 @@ const labels = computed(() => labelsStore.items)
         </div>
         <button
           v-for="view in sortedViews"
-          :key="view.id"
+          :key="view.viewId"
           type="button"
           draggable="true"
           class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-ctp-subtext1 transition-colors hover:bg-ctp-surface0/50 hover:text-ctp-text"
           @click="navigateToView(view)"
           @keydown.enter="navigateToView(view)"
-          @dragstart="onDragStart(view.id)"
+          @dragstart="onDragStart(view.viewId)"
           @dragover="onDragOver"
-          @drop="onDrop(view.id)"
+          @drop="onDrop(view.viewId)"
         >
           <span class="shrink-0 text-xs" aria-hidden="true">{{ view.icon ?? '📋' }}</span>
           <span class="truncate">{{ view.name }}</span>
@@ -216,8 +216,8 @@ const labels = computed(() => labelsStore.items)
         </div>
         <RouterLink
           v-for="label in labels"
-          :key="label.id"
-          :to="`/?label=${label.id}`"
+          :key="label.label"
+          :to="`/?label=${label.label}`"
           class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ctp-subtext1 transition-colors hover:bg-ctp-surface0/50 hover:text-ctp-text"
         >
           <span

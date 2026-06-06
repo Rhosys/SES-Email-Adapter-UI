@@ -9,10 +9,10 @@ const iconColor: Record<Workflow, string> = {
   crm: 'var(--color-teal)',
   package: 'var(--color-peach)',
   travel: 'var(--color-yellow)',
-  scheduling: 'var(--color-lavender)',
   payments: 'var(--color-green)',
   alert: 'var(--color-mauve)',
   content: 'var(--color-sky)',
+  onboarding: 'var(--color-lavender)',
   status: 'var(--color-sapphire)',
   healthcare: 'var(--color-red)',
   job: 'var(--color-teal)',
@@ -26,10 +26,10 @@ const iconLabel: Record<Workflow, string> = {
   crm: 'CRM',
   package: 'Package',
   travel: 'Travel',
-  scheduling: 'Scheduling',
   payments: 'Payments',
   alert: 'Alert',
   content: 'Content',
+  onboarding: 'Onboarding',
   status: 'Status',
   healthcare: 'Healthcare',
   job: 'Job',
@@ -124,9 +124,9 @@ const iconLabel: Record<Workflow, string> = {
       />
     </svg>
 
-    <!-- scheduling: calendar -->
+    <!-- onboarding: calendar -->
     <svg
-      v-else-if="workflow === 'scheduling'"
+      v-else-if="workflow === 'onboarding'"
       xmlns="http://www.w3.org/2000/svg"
       width="20"
       height="20"

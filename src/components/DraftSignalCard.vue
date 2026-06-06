@@ -5,6 +5,7 @@ import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import { useToast } from '@/composables/useToast'
 import type { Signal, Domain } from '@/types/server'
+import { isEmailSignal } from '@/lib/signal-guards'
 
 const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ discard: []; sent: [] }>()
@@ -18,11 +19,12 @@ function splitAddress(address: string): [string, string] {
   return at >= 0 ? [address.slice(0, at), address.slice(at + 1)] : ['', '']
 }
 
-const [initLocal, initDomain] = splitAddress(props.signal.from?.address ?? '')
+const emailData = isEmailSignal(props.signal) ? props.signal.data : null
+const [initLocal, initDomain] = splitAddress(emailData?.from?.address ?? '')
 const localPart = ref(initLocal)
 const selectedDomain = ref(initDomain)
-const subject = ref(props.signal.subject ?? '')
-const body = ref(props.signal.textBody ?? '')
+const subject = ref(emailData?.subject ?? '')
+const body = ref(emailData?.body ?? '')
 
 const expanded = ref(true)
 const showPreview = ref(false)
@@ -33,7 +35,7 @@ const sendState = ref<'idle' | 'sending' | 'cancellable'>('idle')
 const toastId = ref<string | null>(null)
 const error = ref<string | null>(null)
 
-const verifiedDomains = computed(() => domains.value.filter((d) => d.status === 'verified'))
+const verifiedDomains = computed(() => domains.value.filter((d) => d.senderSetupComplete))
 
 const fromAddress = computed(() =>
   localPart.value && selectedDomain.value ? `${localPart.value}@${selectedDomain.value}` : '',
@@ -49,7 +51,7 @@ const canSend = computed(
     body.value.trim().length > 0,
 )
 
-const toLabel = computed(() => props.signal.to?.map((e) => e.address).join(', ') ?? '')
+const toLabel = computed(() => emailData?.to?.map((e) => e.address).join(', ') ?? '')
 
 onMounted(async () => {
   if (!accountStore.accountId) return
@@ -73,7 +75,7 @@ watch([localPart, selectedDomain, subject, body], () => {
 async function persistDraft() {
   if (!accountStore.accountId) return
   saving.value = true
-  const result = await api.updateDraftSignal(accountStore.accountId, props.signal.id, {
+  const result = await api.updateDraftSignal(accountStore.accountId, props.signal.signalId, {
     from: fromAddress.value ? { address: fromAddress.value } : undefined,
     subject: subject.value,
     textBody: body.value,
@@ -88,7 +90,7 @@ async function send() {
   await persistDraft()
 
   const accountId = accountStore.accountId
-  const signalId = props.signal.id
+  const signalId = props.signal.signalId
 
   sendState.value = 'sending'
   const result = await api.sendSignal(accountId, signalId)
@@ -134,7 +136,7 @@ function cancelSend() {
 
 async function discard() {
   if (!accountStore.accountId) return
-  await api.deleteDraftSignal(accountStore.accountId, props.signal.id)
+  await api.deleteDraftSignal(accountStore.accountId, props.signal.signalId)
   emit('discard')
 }
 </script>
@@ -205,7 +207,7 @@ async function discard() {
               aria-label="Domain"
               class="shrink-0 bg-transparent py-1.5 pr-2 text-xs text-ctp-text focus:outline-none"
             >
-              <option v-for="d in verifiedDomains" :key="d.id" :value="d.domain">
+              <option v-for="d in verifiedDomains" :key="d.domainId" :value="d.domain">
                 {{ d.domain }}
               </option>
             </select>

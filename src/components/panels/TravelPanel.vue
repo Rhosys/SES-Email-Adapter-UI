@@ -83,8 +83,8 @@ const departureLabel = computed(() => {
       {{ departureLabel.text }}
     </p>
 
-    <div v-if="data.passengerName" class="mt-1 text-xs text-ctp-subtext0">
-      Passenger: {{ data.passengerName }}
+    <div v-if="data.passengers?.length" class="mt-1 text-xs text-ctp-subtext0">
+      Passenger{{ data.passengers.length > 1 ? 's' : '' }}: {{ data.passengers.map(p => p.name).join(', ') }}
     </div>
   </div>
 </template>

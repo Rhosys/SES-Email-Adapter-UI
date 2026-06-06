@@ -44,10 +44,10 @@ function handleSelectAll(event: Event) {
     <TransitionGroup name="list" tag="div" class="relative">
       <ArcRow
         v-for="arc in arcs"
-        :key="arc.id"
+        :key="arc.arcId"
         :arc="arc"
-        :selected="selectedIds.has(arc.id)"
-        :focused="arc.id === focusedArcId"
+        :selected="selectedIds.has(arc.arcId)"
+        :focused="arc.arcId === focusedArcId"
         @toggle-select="emit('toggle-select', $event)"
       />
     </TransitionGroup>

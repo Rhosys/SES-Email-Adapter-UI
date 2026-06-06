@@ -20,7 +20,7 @@ const now = inject(NOW_KEY)
 const accountStore = useAccountStore()
 const arcsStore = useArcsStore()
 
-const isUnread = computed(() => !props.arc.lastUserConfirmedAt)
+const isUnread = computed(() => false) // unread tracking not in wire shape — TODO requires backend support
 const stripeColor = computed(() => urgencyStripeColor(props.arc.urgency))
 const timestamp = computed(() =>
   now ? formatRelativeTime(props.arc.lastSignalAt, now.value) : '',
@@ -41,18 +41,18 @@ async function loadSignals() {
   const id = accountStore.accountId
   if (!id) return
   signalsLoading.value = true
-  const result = await api.listSignals(id, props.arc.id, { limit: 50 })
+  const result = await api.listSignals(id, props.arc.arcId, { limit: 50 })
   signalsLoading.value = false
   if (result.isOk()) {
-    signals.value = result.value.items.filter((s) => s.status !== 'draft')
+    signals.value = result.value.signals.filter((s) => s.status !== 'draft')
   }
 }
 
 async function archiveArc() {
   const id = accountStore.accountId
   if (!id) return
-  const result = await api.patchArc(id, props.arc.id, { status: 'archived' })
-  if (result.isOk()) arcsStore.removeArc(props.arc.id)
+  const result = await api.patchArc(id, props.arc.arcId, { status: 'archived' })
+  if (result.isOk()) arcsStore.removeArc(props.arc.arcId)
 }
 
 function onSignalUndo() {
@@ -63,7 +63,7 @@ function onSignalUndo() {
 </script>
 
 <template>
-  <div :data-arc-id="arc.id">
+  <div :data-arc-id="arc.arcId">
     <!-- Arc row line -->
     <div
       class="group relative flex items-center gap-2 border-b border-ctp-surface0 px-3 py-3 transition-colors hover:bg-ctp-surface0"
@@ -96,7 +96,7 @@ function onSignalUndo() {
           :checked="selected"
           class="h-4 w-4 rounded border-ctp-overlay0 bg-ctp-surface1 accent-ctp-blue"
           :aria-label="`Select arc: ${arc.summary}`"
-          @change="emit('toggle-select', arc.id)"
+          @change="emit('toggle-select', arc.arcId)"
         />
       </div>
 
@@ -104,7 +104,7 @@ function onSignalUndo() {
       <WorkflowIcon :workflow="arc.workflow" />
 
       <!-- Summary + labels — navigates to detail -->
-      <RouterLink :to="{ name: 'arc-detail', params: { id: arc.id } }" class="min-w-0 flex-1">
+      <RouterLink :to="{ name: 'arc-detail', params: { id: arc.arcId } }" class="min-w-0 flex-1">
         <p class="truncate text-sm text-ctp-text" :class="{ 'font-semibold': isUnread }">
           {{ arc.summary }}
         </p>
@@ -116,7 +116,7 @@ function onSignalUndo() {
       <!-- Action buttons — visible on row hover -->
       <div class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
         <RouterLink
-          :to="{ name: 'arc-detail', params: { id: arc.id } }"
+          :to="{ name: 'arc-detail', params: { id: arc.arcId } }"
           class="flex h-7 items-center gap-1 rounded border border-ctp-surface1 px-2 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
           title="Reply"
         >
@@ -156,7 +156,7 @@ function onSignalUndo() {
       </div>
       <SignalRow
         v-for="signal in signals"
-        :key="signal.id"
+        :key="signal.signalId"
         :signal="signal"
         @undo="onSignalUndo"
       />

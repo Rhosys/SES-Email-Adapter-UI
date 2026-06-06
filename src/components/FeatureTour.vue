@@ -118,10 +118,10 @@ async function finish() {
   endTour()
   if (accountStore.accountId) {
     await api.updateAccount(accountStore.accountId, {
-      onboarding: { featureTourCompleted: true },
+      onboarding: { completed: true },
     })
     if (accountStore.account?.onboarding) {
-      accountStore.account.onboarding.featureTourCompleted = true
+      accountStore.account.onboarding.completed = true
     }
   }
 }

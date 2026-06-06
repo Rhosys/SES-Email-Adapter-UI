@@ -6,8 +6,10 @@ const props = defineProps<{ data: StatusData }>()
 const typeLabel: Record<StatusData['statusType'], string> = {
   terms_update: 'Terms of service update',
   privacy_policy: 'Privacy policy update',
+  data_processor: 'Data processor update',
+  cookie_policy: 'Cookie policy update',
+  compliance: 'Compliance notice',
   service_notice: 'Service notice',
-  welcome: 'Welcome',
   government: 'Government notice',
   account_notification: 'Account notification',
   other: 'Notice',

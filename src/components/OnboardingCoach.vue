@@ -17,9 +17,9 @@ const completing = ref(false)
 async function persist() {
   const id = accountStore.accountId
   if (!id) return
-  await api.updateAccount(id, { onboarding: { notificationCoachCompleted: true } })
+  await api.updateAccount(id, { onboarding: { completed: true } })
   if (accountStore.account?.onboarding) {
-    accountStore.account.onboarding.notificationCoachCompleted = true
+    accountStore.account.onboarding.completed = true
   }
 }
 

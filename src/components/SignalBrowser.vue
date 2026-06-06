@@ -15,13 +15,13 @@ interface PropInfo {
 }
 
 const SIGNAL_PROPS: PropInfo[] = [
-  { path: 'signal.from.name', type: 'string', example: 'Jane Smith', note: 'May be empty' },
-  { path: 'signal.from.address', type: 'string', example: 'jane@example.com' },
-  { path: 'signal.to[0].address', type: 'string', example: 'you@yourdomain.com', note: 'First recipient' },
-  { path: 'signal.subject', type: 'string', example: 'Quick question about your service' },
-  { path: 'signal.textBody', type: 'string?', example: 'Hi, I have a question…', note: 'Plain-text body' },
-  { path: 'signal.receivedAt', type: 'ISO string', example: new Date().toISOString().slice(0, 19) + 'Z' },
-  { path: 'signal.spamScore', type: 'number?', example: '0.02', note: '0 = clean, 1 = spam' },
+  { path: 'signal.data.from.name', type: 'string', example: 'Jane Smith', note: 'May be empty' },
+  { path: 'signal.data.from.address', type: 'string', example: 'jane@example.com' },
+  { path: 'signal.data.to[0].address', type: 'string', example: 'you@yourdomain.com', note: 'First recipient' },
+  { path: 'signal.data.subject', type: 'string', example: 'Quick question about your service' },
+  { path: 'signal.data.body', type: 'string?', example: 'Hi, I have a question…', note: 'Plain-text body' },
+  { path: 'signal.data.receivedAt', type: 'ISO string', example: new Date().toISOString().slice(0, 19) + 'Z' },
+  { path: 'signal.data.spamScore', type: 'number?', example: '0.02', note: '0 = clean, 1 = spam' },
 ]
 
 const ARC_PROPS: PropInfo[] = [

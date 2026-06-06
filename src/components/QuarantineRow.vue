@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
 import type { Signal } from '@/types/server'
+import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
 
@@ -16,13 +17,21 @@ const emit = defineEmits<{
 }>()
 
 const now = inject(NOW_KEY)
-const timestamp = computed(() =>
-  now ? formatRelativeTime(props.signal.receivedAt, now.value) : '',
-)
 
-const matchedRules = computed(() => props.signal.matchedRules ?? [])
+const inboundData = computed(() => isInboundEmailSignal(props.signal) ? props.signal.data : null)
+
+const timestamp = computed(() => {
+  const receivedAt = inboundData.value?.receivedAt
+  if (!receivedAt || !now) return ''
+  return formatRelativeTime(receivedAt, now.value)
+})
+
+const matchedRules = computed(() => inboundData.value?.matchedRules ?? [])
 const isHidden = computed(() => props.signal.status === 'quarantine_hidden')
-const toAddress = computed(() => props.signal.to[0]?.address ?? '')
+const toAddress = computed(() => inboundData.value?.to[0]?.address ?? '')
+const fromAddress = computed(() => inboundData.value?.from.address ?? '')
+const fromDisplay = computed(() => inboundData.value?.from.name || inboundData.value?.from.address || '')
+const subject = computed(() => inboundData.value?.subject ?? '')
 </script>
 
 <template>
@@ -35,7 +44,7 @@ const toAddress = computed(() => props.signal.to[0]?.address ?? '')
       <!-- Quarantine reason badge -->
       <div class="mt-0.5 shrink-0">
         <span
-          v-if="signal.matchedRules?.some((r) => r.labels.includes('system:sender:untrusted'))"
+          v-if="matchedRules.some((r) => r.labelsAdded.includes('system:sender:untrusted'))"
           class="inline-block rounded-full bg-ctp-peach/15 px-2 py-0.5 text-xs font-medium text-ctp-peach"
         >
           Untrusted sender
@@ -58,8 +67,8 @@ const toAddress = computed(() => props.signal.to[0]?.address ?? '')
       <div class="min-w-0 flex-1">
         <div class="flex items-center justify-between gap-2">
           <p class="truncate text-sm font-medium text-ctp-text">
-            {{ signal.from.name || signal.from.address }}
-            <span class="font-normal text-ctp-subtext0">&lt;{{ signal.from.address }}&gt;</span>
+            {{ fromDisplay }}
+            <span class="font-normal text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span>
           </p>
           <div class="flex shrink-0 items-center gap-1.5">
             <span
@@ -71,7 +80,7 @@ const toAddress = computed(() => props.signal.to[0]?.address ?? '')
           </div>
         </div>
 
-        <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ signal.subject }}</p>
+        <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ subject }}</p>
 
         <!-- Matched rule IDs -->
         <div v-if="matchedRules.length" class="mt-1 flex flex-wrap gap-1">
@@ -89,7 +98,7 @@ const toAddress = computed(() => props.signal.to[0]?.address ?? '')
           <button
             class="rounded bg-ctp-green/15 px-3 py-1.5 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/25 disabled:opacity-50"
             :disabled="pending"
-            @click="emit('allow', signal.id)"
+            @click="emit('allow', signal.signalId)"
           >
             Allow
           </button>
@@ -97,12 +106,12 @@ const toAddress = computed(() => props.signal.to[0]?.address ?? '')
             class="rounded bg-ctp-red/15 px-3 py-1.5 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25 disabled:opacity-50"
             :disabled="pending"
             title="Return a delivery failure to the sender's server"
-            @click="emit('reject', signal.id)"
+            @click="emit('reject', signal.signalId)"
           >
             Reject
           </button>
           <router-link
-            :to="`/rules/new?signalId=${signal.id}&action=block_hidden`"
+            :to="`/rules/new?signalId=${signal.signalId}&action=block_hidden`"
             class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:text-ctp-text"
           >
             Create rule to reject similar
@@ -111,8 +120,8 @@ const toAddress = computed(() => props.signal.to[0]?.address ?? '')
             v-if="toAddress"
             class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:text-ctp-text disabled:opacity-50"
             :disabled="pending"
-            :title="`Block ${signal.from.address} for ${toAddress}`"
-            @click="emit('rejectForAlias', signal.id, toAddress, signal.from.address)"
+            :title="`Block ${fromAddress} for ${toAddress}`"
+            @click="emit('rejectForAlias', signal.signalId, toAddress, fromAddress)"
           >
             Reject sender using this alias
           </button>

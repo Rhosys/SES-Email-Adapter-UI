@@ -12,6 +12,7 @@ const authTypeLabel: Record<AuthData['authType'], string> = {
   password_reset: 'Password reset link',
   magic_link: 'Magic link',
   verification: 'Verification link',
+  security_alert: 'Security alert',
   other: 'Authentication email',
 }
 
@@ -21,6 +22,7 @@ const actionLabel: Record<AuthData['authType'], string> = {
   password_reset: 'Reset password',
   magic_link: 'Open link',
   verification: 'Verify email',
+  security_alert: 'View alert',
   other: 'Open link',
 }
 
