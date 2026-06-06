@@ -9,6 +9,7 @@ const responseLabel = computed(() => {
     case 'accepted': return 'Accepted'
     case 'declined': return 'Declined'
     case 'tentative': return 'Tentative'
+    default: return props.signal.data.rsvpResponse
   }
 })
 
@@ -17,6 +18,7 @@ const responseColor = computed(() => {
     case 'accepted': return 'text-ctp-green'
     case 'declined': return 'text-ctp-red'
     case 'tentative': return 'text-ctp-peach'
+    default: return 'text-ctp-text'
   }
 })
 

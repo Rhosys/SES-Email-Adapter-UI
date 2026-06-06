@@ -25,6 +25,7 @@ const title = computed(() => {
     case 'auto_send_blocked': return 'Outbound Message Blocked'
     case 'domain_misconfiguration': return 'Domain Misconfiguration'
     case 'calendar_invite_invalid': return 'Invalid Calendar Invite'
+    default: return 'System Alert'
   }
 })
 
@@ -37,6 +38,7 @@ const severity = computed(() => {
     case 'domain_misconfiguration':
     case 'calendar_invite_invalid':
       return 'warning'
+    default: return 'warning'
   }
 })
 
