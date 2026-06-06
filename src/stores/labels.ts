@@ -45,34 +45,34 @@ export const useLabelsStore = defineStore('labels', () => {
   }
 
   async function updateLabel(
-    labelId: string,
+    labelKey: string,
     body: { name?: string; color?: string; icon?: string },
   ) {
     const id = accountStore.accountId
     if (!id) return false
-    const result = await api.updateLabel(id, labelId, body)
+    const result = await api.updateLabel(id, labelKey, body)
     if (result.isErr()) {
       error.value = result.error.message
       return false
     }
     _byAccount.value = {
       ..._byAccount.value,
-      [id]: (_byAccount.value[id] ?? []).map((l) => (l.id === labelId ? result.value : l)),
+      [id]: (_byAccount.value[id] ?? []).map((l) => (l.label === labelKey ? result.value : l)),
     }
     return true
   }
 
-  async function deleteLabel(labelId: string) {
+  async function deleteLabel(labelKey: string) {
     const id = accountStore.accountId
     if (!id) return false
-    const result = await api.deleteLabel(id, labelId)
+    const result = await api.deleteLabel(id, labelKey)
     if (result.isErr()) {
       error.value = result.error.message
       return false
     }
     _byAccount.value = {
       ..._byAccount.value,
-      [id]: (_byAccount.value[id] ?? []).filter((l) => l.id !== labelId),
+      [id]: (_byAccount.value[id] ?? []).filter((l) => l.label !== labelKey),
     }
     return true
   }

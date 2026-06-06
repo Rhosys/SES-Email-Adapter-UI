@@ -63,7 +63,7 @@ export const useRulesStore = defineStore('rules', () => {
     }
     _byAccount.value = {
       ..._byAccount.value,
-      [id]: (_byAccount.value[id] ?? []).map((r) => (r.id === ruleId ? result.value : r)),
+      [id]: (_byAccount.value[id] ?? []).map((r) => (r.ruleId === ruleId ? result.value : r)),
     }
     return ok(result.value)
   }
@@ -78,7 +78,7 @@ export const useRulesStore = defineStore('rules', () => {
     }
     _byAccount.value = {
       ..._byAccount.value,
-      [id]: (_byAccount.value[id] ?? []).filter((r) => r.id !== ruleId),
+      [id]: (_byAccount.value[id] ?? []).filter((r) => r.ruleId !== ruleId),
     }
     return ok(undefined)
   }
@@ -87,15 +87,15 @@ export const useRulesStore = defineStore('rules', () => {
     const id = accountStore.accountId
     if (!id) return
     const list = [...(_byAccount.value[id] ?? [])]
-    const idx = list.findIndex((r) => r.id === ruleId)
+    const idx = list.findIndex((r) => r.ruleId === ruleId)
     const swapIdx = idx + direction
     if (idx < 0 || swapIdx < 0 || swapIdx >= list.length) return
 
     const a = list[idx]
     const b = list[swapIdx]
     const [resA, resB] = await Promise.all([
-      api.updateRule(id, a.id, { priorityOrder: b.priorityOrder }),
-      api.updateRule(id, b.id, { priorityOrder: a.priorityOrder }),
+      api.updateRule(id, a.ruleId, { priorityOrder: b.priorityOrder }),
+      api.updateRule(id, b.ruleId, { priorityOrder: a.priorityOrder }),
     ])
     if (resA.isErr()) {
       error.value = resA.error.message
@@ -117,8 +117,8 @@ export const useRulesStore = defineStore('rules', () => {
     const id = accountStore.accountId
     if (!id) return
     const list = [...(_byAccount.value[id] ?? [])]
-    const dragRule = list.find((r) => r.id === dragId)
-    const targetRule = list.find((r) => r.id === targetId)
+    const dragRule = list.find((r) => r.ruleId === dragId)
+    const targetRule = list.find((r) => r.ruleId === targetId)
     if (!dragRule || !targetRule) return
 
     const [resA, resB] = await Promise.all([
@@ -137,7 +137,7 @@ export const useRulesStore = defineStore('rules', () => {
     _byAccount.value = {
       ..._byAccount.value,
       [id]: list
-        .map((r) => (r.id === dragId ? resA.value : r.id === targetId ? resB.value : r))
+        .map((r) => (r.ruleId === dragId ? resA.value : r.ruleId === targetId ? resB.value : r))
         .sort((a, b) => a.priorityOrder - b.priorityOrder),
     }
   }

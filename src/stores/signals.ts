@@ -44,8 +44,8 @@ export const useSignalsStore = defineStore('signals', () => {
 
     arc.value = arcResult.value
     // Newest first
-    items.value = [...signalsResult.value.items].reverse()
-    nextCursor.value = signalsResult.value.nextCursor
+    items.value = [...signalsResult.value.signals].reverse()
+    nextCursor.value = signalsResult.value.pagination.cursor ?? undefined
     loading.value = false
   }
 
@@ -63,8 +63,8 @@ export const useSignalsStore = defineStore('signals', () => {
       error.value = result.error.message
     } else {
       // Prepend older signals (they come in chronological order, we show newest-first)
-      items.value = [...result.value.items, ...items.value]
-      nextCursor.value = result.value.nextCursor
+      items.value = [...result.value.signals, ...items.value]
+      nextCursor.value = result.value.pagination.cursor ?? undefined
     }
 
     loadingMore.value = false
@@ -75,10 +75,12 @@ export const useSignalsStore = defineStore('signals', () => {
     if (!accountId) return err(new NoCurrentAccountError())
     // Use the latest non-draft signal as the reply target
     const replyTo = items.value.find((s) => s.status !== 'draft') ?? items.value[0]
+    const replyToAddress = replyTo && replyTo.type === 'email' ? replyTo.data.from.address : ''
+    const replyToSubject = replyTo && replyTo.type === 'email' ? replyTo.data.subject : ''
     const result = await api.createDraftSignal(accountId, arcId, {
       from: { address: '' },
-      to: replyTo ? [{ address: replyTo.from.address }] : [],
-      subject: replyTo ? `Re: ${replyTo.subject}` : '',
+      to: replyToAddress ? [{ address: replyToAddress }] : [],
+      subject: replyToSubject ? `Re: ${replyToSubject}` : '',
     })
     if (result.isErr()) {
       error.value = result.error.message
@@ -90,7 +92,7 @@ export const useSignalsStore = defineStore('signals', () => {
   }
 
   function removeSignal(signalId: string) {
-    items.value = items.value.filter((s) => s.id !== signalId)
+    items.value = items.value.filter((s) => s.signalId !== signalId)
   }
 
   function reset() {

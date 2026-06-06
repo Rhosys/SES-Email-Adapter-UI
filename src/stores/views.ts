@@ -2,16 +2,16 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api } from '@/lib/api'
 import { useAccountStore } from '@/stores/account'
-import type { CreateSavedViewBody, SavedView } from '@/types/server'
+import type { CreateViewBody, View } from '@/types/server'
 
 export const useViewsStore = defineStore('views', () => {
   const accountStore = useAccountStore()
 
-  const _byAccount = ref<Record<string, SavedView[]>>({})
+  const _byAccount = ref<Record<string, View[]>>({})
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  const items = computed<SavedView[]>(() =>
+  const items = computed<View[]>(() =>
     accountStore.accountId ? (_byAccount.value[accountStore.accountId] ?? []) : [],
   )
 
@@ -31,7 +31,7 @@ export const useViewsStore = defineStore('views', () => {
     _byAccount.value = { ..._byAccount.value, [id]: result.value }
   }
 
-  async function createView(body: CreateSavedViewBody) {
+  async function createView(body: CreateViewBody) {
     const id = accountStore.accountId
     if (!id) return null
     const position = items.value.length
@@ -47,7 +47,7 @@ export const useViewsStore = defineStore('views', () => {
     return result.value
   }
 
-  async function updateView(viewId: string, body: Partial<CreateSavedViewBody>) {
+  async function updateView(viewId: string, body: Partial<CreateViewBody>) {
     const id = accountStore.accountId
     if (!id) return false
     const result = await api.updateView(id, viewId, body)
@@ -57,7 +57,7 @@ export const useViewsStore = defineStore('views', () => {
     }
     _byAccount.value = {
       ..._byAccount.value,
-      [id]: (_byAccount.value[id] ?? []).map((v) => (v.id === viewId ? result.value : v)),
+      [id]: (_byAccount.value[id] ?? []).map((v) => (v.viewId === viewId ? result.value : v)),
     }
     return true
   }
@@ -72,7 +72,7 @@ export const useViewsStore = defineStore('views', () => {
     }
     _byAccount.value = {
       ..._byAccount.value,
-      [id]: (_byAccount.value[id] ?? []).filter((v) => v.id !== viewId),
+      [id]: (_byAccount.value[id] ?? []).filter((v) => v.viewId !== viewId),
     }
     return true
   }
@@ -81,15 +81,15 @@ export const useViewsStore = defineStore('views', () => {
   function reorder(sourceId: string, targetId: string) {
     const id = accountStore.accountId
     if (!id) return
-    const src = items.value.find((v) => v.id === sourceId)
-    const tgt = items.value.find((v) => v.id === targetId)
+    const src = items.value.find((v) => v.viewId === sourceId)
+    const tgt = items.value.find((v) => v.viewId === targetId)
     if (!src || !tgt) return
     const srcPosition = src.position
     _byAccount.value = {
       ..._byAccount.value,
       [id]: (_byAccount.value[id] ?? []).map((v) => {
-        if (v.id === sourceId) return { ...v, position: tgt.position }
-        if (v.id === targetId) return { ...v, position: srcPosition }
+        if (v.viewId === sourceId) return { ...v, position: tgt.position }
+        if (v.viewId === targetId) return { ...v, position: srcPosition }
         return v
       }),
     }

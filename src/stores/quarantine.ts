@@ -22,7 +22,7 @@ interface QuarantinePageState {
 }
 
 function byReceivedDesc(a: Signal, b: Signal) {
-  return new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
+  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 }
 
 export const useQuarantineStore = defineStore('quarantine', () => {
@@ -93,12 +93,12 @@ export const useQuarantineStore = defineStore('quarantine', () => {
       ..._byAccount.value,
       [id]: {
         visible: {
-          items: [...visResult.value.items].sort(byReceivedDesc),
-          cursor: visResult.value.nextCursor,
+          items: [...visResult.value.signals].sort(byReceivedDesc),
+          cursor: visResult.value.pagination.cursor ?? undefined,
         },
         hidden: {
-          items: [...hidResult.value.items].sort(byReceivedDesc),
-          cursor: hidResult.value.nextCursor,
+          items: [...hidResult.value.signals].sort(byReceivedDesc),
+          cursor: hidResult.value.pagination.cursor ?? undefined,
         },
       },
     }
@@ -125,8 +125,8 @@ export const useQuarantineStore = defineStore('quarantine', () => {
         [id]: {
           ...s,
           visible: {
-            items: [...s.visible.items, ...result.value.items].sort(byReceivedDesc),
-            cursor: result.value.nextCursor,
+            items: [...s.visible.items, ...result.value.signals].sort(byReceivedDesc),
+            cursor: result.value.pagination.cursor ?? undefined,
           },
         },
       }
@@ -143,8 +143,8 @@ export const useQuarantineStore = defineStore('quarantine', () => {
         [id]: {
           ...s,
           hidden: {
-            items: [...s.hidden.items, ...result.value.items].sort(byReceivedDesc),
-            cursor: result.value.nextCursor,
+            items: [...s.hidden.items, ...result.value.signals].sort(byReceivedDesc),
+            cursor: result.value.pagination.cursor ?? undefined,
           },
         },
       }
@@ -158,8 +158,8 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     _byAccount.value = {
       ..._byAccount.value,
       [id]: {
-        visible: { ...s.visible, items: s.visible.items.filter((x) => x.id !== signalId) },
-        hidden: { ...s.hidden, items: s.hidden.items.filter((x) => x.id !== signalId) },
+        visible: { ...s.visible, items: s.visible.items.filter((x) => x.signalId !== signalId) },
+        hidden: { ...s.hidden, items: s.hidden.items.filter((x) => x.signalId !== signalId) },
       },
     }
   }
@@ -190,9 +190,9 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     const id = accountStore.accountId
     if (!id) return false
     actionPending.value = new Set([...actionPending.value, signalId])
-    const domain = fromAddress.includes('@') ? fromAddress.split('@')[1] : fromAddress
+    const sender = fromAddress.includes('@') ? fromAddress.split('@')[1] : fromAddress
     const [aliasResult, responseResult] = await Promise.all([
-      api.addAliasSender(id, toAddress, { domain, policy: 'block_hidden' }),
+      api.addAliasSender(id, toAddress, { sender, policy: 'block_hidden' }),
       api.quarantineResponse(id, signalId, 'block_hidden'),
     ])
     actionPending.value = new Set([...actionPending.value].filter((x) => x !== signalId))

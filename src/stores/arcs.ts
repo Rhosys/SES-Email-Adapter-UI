@@ -37,7 +37,7 @@ export const useArcsStore = defineStore('arcs', () => {
   const hasMore = computed(() => nextCursor.value !== undefined)
 
   const allSelected = computed(
-    () => items.value.length > 0 && items.value.every((a) => selectedIds.value.has(a.id)),
+    () => items.value.length > 0 && items.value.every((a) => selectedIds.value.has(a.arcId)),
   )
 
   // Auth+critical arcs are pinned to the top — domain rule from WORKFLOW_UX_SPEC
@@ -70,8 +70,8 @@ export const useArcsStore = defineStore('arcs', () => {
     _byAccount.value = {
       ..._byAccount.value,
       [id]: {
-        items: reset ? page.items : [...existing, ...page.items],
-        nextCursor: page.nextCursor,
+        items: reset ? page.arcs : [...existing, ...page.arcs],
+        nextCursor: page.pagination.cursor ?? undefined,
       },
     }
   }
@@ -96,8 +96,8 @@ export const useArcsStore = defineStore('arcs', () => {
     _byAccount.value = {
       ..._byAccount.value,
       [id]: {
-        items: [...existing, ...page.items],
-        nextCursor: page.nextCursor,
+        items: [...existing, ...page.arcs],
+        nextCursor: page.pagination.cursor ?? undefined,
       },
     }
   }
@@ -116,7 +116,7 @@ export const useArcsStore = defineStore('arcs', () => {
   }
 
   function selectAll() {
-    items.value.forEach((a) => selectedIds.value.add(a.id))
+    items.value.forEach((a) => selectedIds.value.add(a.arcId))
   }
 
   function clearSelection() {
@@ -132,7 +132,7 @@ export const useArcsStore = defineStore('arcs', () => {
       _byAccount.value = {
         ..._byAccount.value,
         [id]: {
-          items: (_byAccount.value[id]?.items ?? []).filter((a) => !selectedIds.value.has(a.id)),
+          items: (_byAccount.value[id]?.items ?? []).filter((a) => !selectedIds.value.has(a.arcId)),
           nextCursor: _byAccount.value[id]?.nextCursor,
         },
       }
@@ -158,7 +158,7 @@ export const useArcsStore = defineStore('arcs', () => {
     bulkActionPending.value = true
     const results = await Promise.all(
       ids.map((arcId) => {
-        const arc = items.value.find((a) => a.id === arcId)
+        const arc = items.value.find((a) => a.arcId === arcId)
         const labels = arc ? [...new Set([...arc.labels, label])] : [label]
         return api.patchArc(id, arcId, { labels })
       }),
@@ -179,14 +179,14 @@ export const useArcsStore = defineStore('arcs', () => {
     if (result.isErr()) return
     const updated = result.value
     const existing = _byAccount.value[id]?.items ?? []
-    const idx = existing.findIndex((a) => a.id === arcId)
+    const idx = existing.findIndex((a) => a.arcId === arcId)
     _byAccount.value = {
       ..._byAccount.value,
       [id]: {
         ..._byAccount.value[id],
         items:
           idx >= 0
-            ? existing.map((a) => (a.id === arcId ? updated : a))
+            ? existing.map((a) => (a.arcId === arcId ? updated : a))
             : [updated, ...existing], // new arc — prepend
       },
     }
@@ -197,7 +197,7 @@ export const useArcsStore = defineStore('arcs', () => {
     if (!accId || !_byAccount.value[accId]) return
     _byAccount.value[accId] = {
       ..._byAccount.value[accId],
-      items: _byAccount.value[accId].items.filter((a) => a.id !== id),
+      items: _byAccount.value[accId].items.filter((a) => a.arcId !== id),
     }
   }
 
@@ -211,12 +211,12 @@ export const useArcsStore = defineStore('arcs', () => {
     if (activeTab.value === 'active') {
       _byAccount.value = {
         ..._byAccount.value,
-        [id]: { ..._byAccount.value[id], items: existing.filter((a) => a.id !== arcId) },
+        [id]: { ..._byAccount.value[id], items: existing.filter((a) => a.arcId !== arcId) },
       }
     } else {
       _byAccount.value = {
         ..._byAccount.value,
-        [id]: { ..._byAccount.value[id], items: existing.map((a) => (a.id === arcId ? result.value : a)) },
+        [id]: { ..._byAccount.value[id], items: existing.map((a) => (a.arcId === arcId ? result.value : a)) },
       }
     }
     return ok(result.value)
@@ -231,7 +231,7 @@ export const useArcsStore = defineStore('arcs', () => {
     const existing = _byAccount.value[id]?.items ?? []
     _byAccount.value = {
       ..._byAccount.value,
-      [id]: { ..._byAccount.value[id], items: existing.map((a) => (a.id === arcId ? result.value : a)) },
+      [id]: { ..._byAccount.value[id], items: existing.map((a) => (a.arcId === arcId ? result.value : a)) },
     }
     return ok(result.value)
   }

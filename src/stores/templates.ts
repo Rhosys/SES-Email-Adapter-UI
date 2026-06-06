@@ -47,7 +47,7 @@ export const useTemplatesStore = defineStore('templates', () => {
     error.value = null
     const result = await api.updateTemplate(id, templateId, body)
     if (result.isErr()) { error.value = result.error.message; return err(result.error) }
-    templates.value = templates.value.map((t) => (t.id === templateId ? result.value : t))
+    templates.value = templates.value.map((t) => (t.templateId === templateId ? result.value : t))
     return ok(result.value)
   }
 
@@ -57,7 +57,7 @@ export const useTemplatesStore = defineStore('templates', () => {
     error.value = null
     const result = await api.deleteTemplate(id, templateId)
     if (result.isErr()) { error.value = result.error.message; return err(result.error) }
-    templates.value = templates.value.filter((t) => t.id !== templateId)
+    templates.value = templates.value.filter((t) => t.templateId !== templateId)
     return ok(undefined)
   }
 
