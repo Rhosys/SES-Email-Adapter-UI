@@ -22,8 +22,7 @@ import { api, ApiError } from '@/lib/api'
 
 function mockLabel(overrides: Partial<Label> = {}): Label {
   return {
-    id: 'lbl_1',
-    accountId: 'acc_1',
+    label: 'lbl_1',
     name: 'Test label',
     color: '#cba6f7',
     createdAt: '2025-01-01T00:00:00Z',
@@ -57,7 +56,7 @@ describe('labelsStore', () => {
   })
 
   it('createLabel adds item and returns true', async () => {
-    vi.mocked(api.createLabel).mockResolvedValue(ok(mockLabel({ id: 'lbl_2', name: 'New' })))
+    vi.mocked(api.createLabel).mockResolvedValue(ok(mockLabel({ label: 'lbl_2', name: 'New' })))
     const store = useLabelsStore()
     const result = await store.createLabel({ name: 'New' })
     expect(result).toBe(true)
@@ -87,14 +86,14 @@ describe('labelsStore', () => {
 
   it('deleteLabel removes item from list', async () => {
     vi.mocked(api.listLabels).mockResolvedValue(
-      ok([mockLabel({ id: 'lbl_1' }), mockLabel({ id: 'lbl_2' })]),
+      ok([mockLabel({ label: 'lbl_1' }), mockLabel({ label: 'lbl_2' })]),
     )
     vi.mocked(api.deleteLabel).mockResolvedValue(ok(undefined))
     const store = useLabelsStore()
     await store.fetchLabels()
     const result = await store.deleteLabel('lbl_1')
     expect(result).toBe(true)
-    expect(store.items.map((l) => l.id)).toEqual(['lbl_2'])
+    expect(store.items.map((l) => l.label)).toEqual(['lbl_2'])
   })
 
   it('deleteLabel sets error and returns false on failure', async () => {

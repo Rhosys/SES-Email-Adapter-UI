@@ -5,7 +5,7 @@ import { useAccountStore } from '@/stores/account'
 import { useLabelsStore } from '@/stores/labels'
 import { useViewsStore } from '@/stores/views'
 import { api } from '@/lib/api'
-import type { Arc, Rule, EmailAddressConfig } from '@/types/server'
+import type { Arc, Rule, Alias } from '@/types/server'
 import AppSidebar from '@/components/AppSidebar.vue'
 import SupportPanel from '@/components/SupportPanel.vue'
 import ToastStack from '@/components/ToastStack.vue'
@@ -59,7 +59,7 @@ const activeCategories = ref<Set<SectionKey>>(new Set(['arcs', 'senders', 'alias
 const suggestions = ref<{
   arcs: Arc[]
   senders: string[]
-  aliases: EmailAddressConfig[]
+  aliases: Alias[]
   rules: Rule[]
   loading: boolean
 }>({ arcs: [], senders: [], aliases: [], rules: [], loading: false })
@@ -129,11 +129,11 @@ async function fetchSuggestions(q: string) {
   hasSearched.value = true
 
   suggestions.value.arcs = arcsRes.isOk()
-    ? arcsRes.value.items
+    ? arcsRes.value.arcs
         .filter(
-          (a) =>
+          (a: Arc) =>
             a.summary?.toLowerCase().includes(ql) ||
-            a.labels?.some((l) => l.toLowerCase().includes(ql)),
+            a.labels?.some((l: string) => l.toLowerCase().includes(ql)),
         )
         .slice(0, 4)
     : []
@@ -148,7 +148,7 @@ async function fetchSuggestions(q: string) {
 
   suggestions.value.rules = rulesRes.isOk()
     ? rulesRes.value
-        .filter((r) => r.name.toLowerCase().includes(ql) || r.condition.toLowerCase().includes(ql))
+        .filter((r) => r.name.toLowerCase().includes(ql) || (r.condition ?? '').toLowerCase().includes(ql))
         .slice(0, 3)
     : []
 }
@@ -181,7 +181,7 @@ function onKeyDown(e: KeyboardEvent) {
 function selectArc(arc: Arc) {
   searchQuery.value = ''
   inputFocused.value = false
-  void router.push(`/arcs/${arc.id}`)
+  void router.push(`/arcs/${arc.arcId}`)
 }
 
 function selectSender(address: string) {
@@ -199,7 +199,7 @@ function selectAlias() {
 function selectRule(rule: Rule) {
   searchQuery.value = ''
   inputFocused.value = false
-  void router.push(`/rules/${rule.id}`)
+  void router.push(`/rules/${rule.ruleId}`)
 }
 
 function submitSearch() {
@@ -233,7 +233,7 @@ onMounted(async () => {
   // Auto-start the feature tour only after the notification coach has been shown
   // (the coach itself starts the tour as its final step for fresh users)
   const ob = accountStore.account?.onboarding
-  if (ob?.completed && ob.notificationCoachCompleted && !ob.featureTourCompleted) {
+  if (ob?.completed) {
     startTour()
   }
 
@@ -378,7 +378,7 @@ onMounted(async () => {
                     </div>
                     <button
                       v-for="arc in suggestions.arcs"
-                      :key="arc.id"
+                      :key="arc.arcId"
                       type="button"
                       class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-ctp-surface0"
                       @mousedown.prevent="selectArc(arc)"
@@ -432,7 +432,7 @@ onMounted(async () => {
                     </div>
                     <button
                       v-for="alias in suggestions.aliases"
-                      :key="alias.id"
+                      :key="alias.alias"
                       type="button"
                       class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-ctp-surface0"
                       @mousedown.prevent="selectAlias"
@@ -457,7 +457,7 @@ onMounted(async () => {
                     </div>
                     <button
                       v-for="rule in suggestions.rules"
-                      :key="rule.id"
+                      :key="rule.ruleId"
                       type="button"
                       class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-ctp-surface0"
                       @mousedown.prevent="selectRule(rule)"

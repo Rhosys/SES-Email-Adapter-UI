@@ -3,20 +3,29 @@ import { mount } from '@vue/test-utils'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
 import type { Signal, AuthData, ConversationData, TestData } from '@/types/server'
 
-function makeSignal(workflowData?: Signal['workflowData']): Signal {
+function makeSignal(workflowData?: unknown): Signal {
   return {
-    id: 'sig_1',
+    signalId: 'sig_1',
     arcId: 'arc_1',
-    accountId: 'acc_1',
-    status: 'received',
-    source: 'ses',
-    from: { address: 'sender@example.com', name: 'Sender' },
-    to: [{ address: 'inbox@example.com' }],
-    subject: 'Test',
-    receivedAt: new Date().toISOString(),
+    type: 'email',
+    source: 'system',
+    status: 'active',
     createdAt: new Date().toISOString(),
-    workflowData,
-  }
+    data: {
+      receivedAt: new Date().toISOString(),
+      summary: 'Test',
+      from: { address: 'sender@example.com', name: 'Sender' },
+      to: [{ address: 'inbox@example.com' }],
+      cc: [],
+      subject: 'Test',
+      attachments: [],
+      headers: {},
+      recipientAddress: 'inbox@example.com',
+      workflow: 'conversation',
+      spamScore: 0,
+      workflowData,
+    },
+  } as Signal
 }
 
 describe('WorkflowPanel', () => {
@@ -45,15 +54,12 @@ describe('WorkflowPanel', () => {
   it('renders ConversationPanel for conversation workflow', () => {
     const data: ConversationData = {
       workflow: 'conversation',
-      senderName: 'Alice',
-      isReply: false,
       sentiment: 'neutral',
       requiresReply: true,
     }
     const wrapper = mount(WorkflowPanel, {
       props: { signal: makeSignal(data) },
     })
-    expect(wrapper.text()).toContain('Alice')
     expect(wrapper.text()).toContain('Reply needed')
   })
 

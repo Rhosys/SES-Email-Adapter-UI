@@ -20,8 +20,7 @@ import { api, ApiError } from '@/lib/api'
 
 function mockArc(overrides: Partial<Arc> = {}): Arc {
   return {
-    id: 'arc_1',
-    accountId: 'acc_1',
+    arcId: 'arc_1',
     workflow: 'conversation',
     labels: [],
     status: 'active',
@@ -42,7 +41,7 @@ describe('arcsStore', () => {
   })
 
   it('fetches arcs and populates items', async () => {
-    vi.mocked(api.listArcs).mockResolvedValue(ok({ items: [mockArc()] }))
+    vi.mocked(api.listArcs).mockResolvedValue(ok({ arcs: [mockArc()], pagination: { cursor: null } }))
     const store = useArcsStore()
     await store.fetchArcs(true)
     expect(store.items).toHaveLength(1)
@@ -61,31 +60,33 @@ describe('arcsStore', () => {
   it('pins auth+critical arcs first in sortedItems', async () => {
     vi.mocked(api.listArcs).mockResolvedValue(
       ok({
-        items: [
-          mockArc({ id: 'arc_2', workflow: 'conversation', urgency: 'high' }),
-          mockArc({ id: 'arc_1', workflow: 'auth', urgency: 'critical' }),
+        arcs: [
+          mockArc({ arcId: 'arc_2', workflow: 'conversation', urgency: 'high' }),
+          mockArc({ arcId: 'arc_1', workflow: 'auth', urgency: 'critical' }),
         ],
+        pagination: { cursor: null },
       }),
     )
     const store = useArcsStore()
     await store.fetchArcs(true)
-    expect(store.sortedItems[0].id).toBe('arc_1')
-    expect(store.sortedItems[1].id).toBe('arc_2')
+    expect(store.sortedItems[0].arcId).toBe('arc_1')
+    expect(store.sortedItems[1].arcId).toBe('arc_2')
   })
 
   it('does not pin auth arcs that are not critical', async () => {
     vi.mocked(api.listArcs).mockResolvedValue(
       ok({
-        items: [
-          mockArc({ id: 'arc_2', workflow: 'conversation', urgency: 'high' }),
-          mockArc({ id: 'arc_1', workflow: 'auth', urgency: 'normal' }),
+        arcs: [
+          mockArc({ arcId: 'arc_2', workflow: 'conversation', urgency: 'high' }),
+          mockArc({ arcId: 'arc_1', workflow: 'auth', urgency: 'normal' }),
         ],
+        pagination: { cursor: null },
       }),
     )
     const store = useArcsStore()
     await store.fetchArcs(true)
     // auth without critical urgency is not pinned — original order preserved
-    expect(store.sortedItems[0].id).toBe('arc_2')
+    expect(store.sortedItems[0].arcId).toBe('arc_2')
   })
 
   it('toggleSelect adds and removes ids', () => {
@@ -98,7 +99,7 @@ describe('arcsStore', () => {
 
   it('selectAll adds all item ids', async () => {
     vi.mocked(api.listArcs).mockResolvedValue(
-      ok({ items: [mockArc({ id: 'arc_1' }), mockArc({ id: 'arc_2' })] }),
+      ok({ arcs: [mockArc({ arcId: 'arc_1' }), mockArc({ arcId: 'arc_2' })], pagination: { cursor: null } }),
     )
     const store = useArcsStore()
     await store.fetchArcs(true)
@@ -117,8 +118,8 @@ describe('arcsStore', () => {
 
   it('bulkArchive optimistically removes active arcs from list', async () => {
     vi.mocked(api.listArcs)
-      .mockResolvedValueOnce(ok({ items: [mockArc()] }))
-      .mockResolvedValue(ok({ items: [] }))
+      .mockResolvedValueOnce(ok({ arcs: [mockArc()], pagination: { cursor: null } }))
+      .mockResolvedValue(ok({ arcs: [], pagination: { cursor: null } }))
     vi.mocked(api.patchArc).mockResolvedValue(ok(mockArc({ status: 'archived' })))
     const store = useArcsStore()
     await store.fetchArcs(true)
@@ -129,7 +130,7 @@ describe('arcsStore', () => {
   })
 
   it('hasMore is true when nextCursor is set', async () => {
-    vi.mocked(api.listArcs).mockResolvedValue(ok({ items: [mockArc()], nextCursor: 'cursor_abc' }))
+    vi.mocked(api.listArcs).mockResolvedValue(ok({ arcs: [mockArc()], pagination: { cursor: 'cursor_abc' } }))
     const store = useArcsStore()
     await store.fetchArcs(true)
     expect(store.hasMore).toBe(true)

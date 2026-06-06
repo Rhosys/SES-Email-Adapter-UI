@@ -26,13 +26,12 @@ import { api } from '@/lib/api'
 
 function mockRule(overrides: Partial<Rule> = {}): Rule {
   return {
-    id: 'rule_1',
-    accountId: 'acc_1',
+    ruleId: 'rule_1',
     name: 'Block spam',
     status: 'enabled',
     priorityOrder: 1,
     condition: '{"==":[{"var":"signal.from.address"},"spam@evil.com"]}',
-    actions: [{ type: 'block' }],
+    actions: [{ type: 'block_hidden' }],
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     ...overrides,
@@ -42,7 +41,6 @@ function mockRule(overrides: Partial<Rule> = {}): Rule {
 const testAccount: Account = {
   accountId: 'acc_1',
   name: 'Test',
-  deletionRetentionDays: 30,
   createdAt: '2025-01-01T00:00:00Z',
   updatedAt: '2025-01-01T00:00:00Z',
 }
@@ -78,7 +76,7 @@ describe('RulesView', () => {
 
   it('renders action badge for each action', async () => {
     vi.mocked(api.listRules).mockResolvedValue(
-      ok([mockRule({ actions: [{ type: 'block' }, { type: 'archive' }] })]),
+      ok([mockRule({ actions: [{ type: 'block_hidden' }, { type: 'archive' }] })]),
     )
     const wrapper = mountView()
     await flushPromises()
@@ -134,7 +132,7 @@ describe('RulesView', () => {
 
   it('▲ button is disabled for the first rule', async () => {
     vi.mocked(api.listRules).mockResolvedValue(
-      ok([mockRule({ id: 'r1', priorityOrder: 1 }), mockRule({ id: 'r2', priorityOrder: 2 })]),
+      ok([mockRule({ ruleId: 'r1', priorityOrder: 1 }), mockRule({ ruleId: 'r2', priorityOrder: 2 })]),
     )
     const wrapper = mountView()
     await flushPromises()
@@ -145,7 +143,7 @@ describe('RulesView', () => {
 
   it('▼ button is disabled for the last rule', async () => {
     vi.mocked(api.listRules).mockResolvedValue(
-      ok([mockRule({ id: 'r1', priorityOrder: 1 }), mockRule({ id: 'r2', priorityOrder: 2 })]),
+      ok([mockRule({ ruleId: 'r1', priorityOrder: 1 }), mockRule({ ruleId: 'r2', priorityOrder: 2 })]),
     )
     const wrapper = mountView()
     await flushPromises()
@@ -156,9 +154,9 @@ describe('RulesView', () => {
 
   it('calls moveRule when ▲ is clicked on second rule', async () => {
     vi.mocked(api.listRules).mockResolvedValue(
-      ok([mockRule({ id: 'r1', priorityOrder: 1 }), mockRule({ id: 'r2', priorityOrder: 2 })]),
+      ok([mockRule({ ruleId: 'r1', priorityOrder: 1 }), mockRule({ ruleId: 'r2', priorityOrder: 2 })]),
     )
-    vi.mocked(api.updateRule).mockResolvedValue(ok(mockRule({ id: 'r2', priorityOrder: 1 })))
+    vi.mocked(api.updateRule).mockResolvedValue(ok(mockRule({ ruleId: 'r2', priorityOrder: 1 })))
     const wrapper = mountView()
     await flushPromises()
     const upButtons = wrapper.findAll('button[aria-label="Move rule up"]')
@@ -168,9 +166,9 @@ describe('RulesView', () => {
 
   it('calls reorderRule on drop', async () => {
     vi.mocked(api.listRules).mockResolvedValue(
-      ok([mockRule({ id: 'r1', priorityOrder: 1 }), mockRule({ id: 'r2', priorityOrder: 2 })]),
+      ok([mockRule({ ruleId: 'r1', priorityOrder: 1 }), mockRule({ ruleId: 'r2', priorityOrder: 2 })]),
     )
-    vi.mocked(api.updateRule).mockResolvedValue(ok(mockRule({ id: 'r1', priorityOrder: 2 })))
+    vi.mocked(api.updateRule).mockResolvedValue(ok(mockRule({ ruleId: 'r1', priorityOrder: 2 })))
     const wrapper = mountView()
     await flushPromises()
 
@@ -210,7 +208,7 @@ describe('RulesView', () => {
 
   it('renders correct position numbers for two rules', async () => {
     vi.mocked(api.listRules).mockResolvedValue(
-      ok([mockRule({ id: 'r1', priorityOrder: 1 }), mockRule({ id: 'r2', priorityOrder: 2 })]),
+      ok([mockRule({ ruleId: 'r1', priorityOrder: 1 }), mockRule({ ruleId: 'r2', priorityOrder: 2 })]),
     )
     const wrapper = mountView()
     await flushPromises()

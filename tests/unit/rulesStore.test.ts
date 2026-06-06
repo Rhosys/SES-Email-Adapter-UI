@@ -22,13 +22,12 @@ import { api, ApiError } from '@/lib/api'
 
 function mockRule(overrides: Partial<Rule> = {}): Rule {
   return {
-    id: 'rule_1',
-    accountId: 'acc_1',
+    ruleId: 'rule_1',
     name: 'Test rule',
     status: 'enabled',
     priorityOrder: 1,
     condition: '{"==":[{"var":"signal.from.address"},"spam@example.com"]}',
-    actions: [{ type: 'block' }],
+    actions: [{ type: 'block_hidden' }],
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     ...overrides,
@@ -61,13 +60,13 @@ describe('rulesStore', () => {
   })
 
   it('createRule adds item and returns it', async () => {
-    const rule = mockRule({ id: 'rule_2', name: 'New rule' })
+    const rule = mockRule({ ruleId: 'rule_2', name: 'New rule' })
     vi.mocked(api.createRule).mockResolvedValue(ok(rule))
     const store = useRulesStore()
     const result = await store.createRule({
       name: 'New rule',
       condition: '{}',
-      actions: [{ type: 'block' }],
+      actions: [{ type: 'block_hidden' }],
     })
     expect(result.isOk()).toBe(true)
     expect(result.isOk() && result.value).toEqual(rule)
@@ -95,14 +94,14 @@ describe('rulesStore', () => {
 
   it('deleteRule removes item from list', async () => {
     vi.mocked(api.listRules).mockResolvedValue(
-      ok([mockRule({ id: 'rule_1' }), mockRule({ id: 'rule_2' })]),
+      ok([mockRule({ ruleId: 'rule_1' }), mockRule({ ruleId: 'rule_2' })]),
     )
     vi.mocked(api.deleteRule).mockResolvedValue(ok(undefined))
     const store = useRulesStore()
     await store.fetchRules()
     const result = await store.deleteRule('rule_1')
     expect(result.isOk()).toBe(true)
-    expect(store.items.map((r) => r.id)).toEqual(['rule_2'])
+    expect(store.items.map((r) => r.ruleId)).toEqual(['rule_2'])
   })
 
   it('deleteRule sets error and returns err on failure', async () => {

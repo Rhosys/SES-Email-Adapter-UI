@@ -9,8 +9,7 @@ import type { Arc } from '@/types/server'
 const nowProvide = { [NOW_KEY as symbol]: ref(Date.now()) }
 
 const baseArc: Arc = {
-  id: 'arc_1',
-  accountId: 'acc_1',
+  arcId: 'arc_1',
   workflow: 'conversation',
   labels: ['urgent'],
   status: 'active',
@@ -46,14 +45,14 @@ describe('ArcRow', () => {
     expect(wrapper.text()).toContain('urgent')
   })
 
-  it('applies font-semibold when arc is unread (no lastUserConfirmedAt)', () => {
+  it('does not apply font-semibold (unread tracking not in wire shape)', () => {
     const wrapper = mountArc(baseArc)
-    expect(wrapper.html()).toContain('font-semibold')
+    expect(wrapper.html()).not.toContain('font-semibold')
   })
 
-  it('does not apply font-semibold when arc is read', () => {
+  it('does not apply font-semibold when arc has read marker', () => {
     const readArc = { ...baseArc, lastUserConfirmedAt: '2025-01-01T12:00:00Z' }
-    const wrapper = mountArc(readArc)
+    const wrapper = mountArc(readArc as Arc)
     expect(wrapper.html()).not.toContain('font-semibold')
   })
 

@@ -38,13 +38,12 @@ import { api } from '@/lib/api'
 
 function mockRule(overrides: Partial<Rule> = {}): Rule {
   return {
-    id: 'rule_1',
-    accountId: 'acc_1',
+    ruleId: 'rule_1',
     name: 'Block spam',
     status: 'enabled',
     priorityOrder: 1,
     condition: '{"==":[{"var":"signal.from.address"},"spam@evil.com"]}',
-    actions: [{ type: 'block' }],
+    actions: [{ type: 'block_hidden' }],
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     ...overrides,
@@ -54,7 +53,6 @@ function mockRule(overrides: Partial<Rule> = {}): Rule {
 const testAccount: Account = {
   accountId: 'acc_1',
   name: 'Test',
-  deletionRetentionDays: 30,
   createdAt: '2025-01-01T00:00:00Z',
   updatedAt: '2025-01-01T00:00:00Z',
 }
@@ -149,7 +147,7 @@ describe('RuleEditorView — new rule', () => {
   })
 
   it('calls createRule on save with correct body', async () => {
-    const createdRule = mockRule({ id: 'new_1', name: 'My Rule' })
+    const createdRule = mockRule({ ruleId: 'new_1', name: 'My Rule' })
     vi.mocked(api.createRule).mockResolvedValue(ok(createdRule))
 
     const wrapper = await mountEditor()
@@ -165,7 +163,7 @@ describe('RuleEditorView — new rule', () => {
       'acc_1',
       expect.objectContaining({
         name: 'My Rule',
-        actions: expect.arrayContaining([expect.objectContaining({ type: 'block' })]),
+        actions: expect.arrayContaining([expect.objectContaining({ type: 'block_hidden' })]),
         condition: expect.any(String),
       }),
     )
@@ -271,14 +269,13 @@ describe('RuleEditorView — assign_label action', () => {
 
   it('shows label select with label name when assign_label action is present', async () => {
     const label: Label = {
-      id: 'lbl_1',
-      accountId: 'acc_1',
+      label: 'lbl_1',
       name: 'VIP',
       createdAt: '2025-01-01T00:00:00Z',
     }
     vi.mocked(api.listLabels).mockResolvedValue(ok([label]))
     vi.mocked(api.listRules).mockResolvedValue(
-      ok([mockRule({ actions: [{ type: 'assign_label', labelId: 'lbl_1' }] })]),
+      ok([mockRule({ actions: [{ type: 'assign_label', value: 'lbl_1' }] })]),
     )
 
     await useRulesStore().fetchRules()

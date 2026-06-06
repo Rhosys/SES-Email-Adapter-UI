@@ -19,21 +19,31 @@ vi.mock('@/lib/api', async (importOriginal) => {
 
 import { api, ApiError } from '@/lib/api'
 
-function mockSignal(overrides: Partial<Signal> = {}): Signal {
+function mockSignal(overrides: Partial<Signal> & { signalId?: string; status?: string } = {}): Signal {
+  const { signalId = 'sig_1', status = 'quarantine_visible', ...rest } = overrides
   return {
-    id: 'sig_1',
+    signalId,
     arcId: 'arc_1',
-    accountId: 'acc_1',
-    status: 'quarantine_visible',
-    source: 'ses',
-    from: { address: 'sender@example.com', name: 'Sender' },
-    to: [{ address: 'inbox@example.com' }],
-    subject: 'Test subject',
-    receivedAt: '2025-01-01T12:00:00Z',
+    type: 'email',
+    source: 'system',
+    status,
     createdAt: '2025-01-01T12:00:00Z',
-    matchedRules: [{ ruleId: 'rule_1', labels: ['system:sender:untrusted'], status: 'matched' }],
-    ...overrides,
-  }
+    data: {
+      receivedAt: '2025-01-01T12:00:00Z',
+      summary: 'Test',
+      from: { address: 'sender@example.com', name: 'Sender' },
+      to: [{ address: 'inbox@example.com' }],
+      cc: [],
+      subject: 'Test subject',
+      attachments: [],
+      headers: {},
+      recipientAddress: 'inbox@example.com',
+      workflow: 'conversation',
+      spamScore: 0,
+      matchedRules: [{ ruleId: 'rule_1', actions: [], labelsAdded: ['system:sender:untrusted'] }],
+    },
+    ...rest,
+  } as Signal
 }
 
 function mockBothCalls(
@@ -43,8 +53,8 @@ function mockBothCalls(
   hidCursor?: string,
 ) {
   vi.mocked(api.listQuarantinedSignals)
-    .mockResolvedValueOnce(ok({ items: visItems, nextCursor: visCursor }))
-    .mockResolvedValueOnce(ok({ items: hidItems, nextCursor: hidCursor }))
+    .mockResolvedValueOnce(ok({ signals: visItems, pagination: { cursor: visCursor ?? null } }))
+    .mockResolvedValueOnce(ok({ signals: hidItems, pagination: { cursor: hidCursor ?? null } }))
 }
 
 describe('quarantineStore', () => {
@@ -56,17 +66,17 @@ describe('quarantineStore', () => {
   })
 
   it('fetchSignals keeps visible and hidden in separate buckets, each sorted by receivedAt desc', async () => {
-    const vis1 = mockSignal({ id: 'v1', receivedAt: '2025-01-01T10:00:00Z' })
-    const vis2 = mockSignal({ id: 'v2', receivedAt: '2025-01-01T08:00:00Z' })
-    const hid1 = mockSignal({ id: 'h1', status: 'quarantine_hidden', receivedAt: '2025-01-01T12:00:00Z' })
+    const vis1 = mockSignal({ signalId: 'v1', createdAt: '2025-01-01T10:00:00Z' })
+    const vis2 = mockSignal({ signalId: 'v2', createdAt: '2025-01-01T08:00:00Z' })
+    const hid1 = mockSignal({ signalId: 'h1', status: 'quarantine_hidden', createdAt: '2025-01-01T12:00:00Z' })
     mockBothCalls([vis2, vis1], [hid1])
 
     const store = useQuarantineStore()
     await store.fetchSignals(true)
 
     // visible-first ordering is maintained; each bucket sorted by receivedAt desc
-    expect(store.quarantineVisible.map((s) => s.id)).toEqual(['v1', 'v2'])
-    expect(store.quarantineHidden.map((s) => s.id)).toEqual(['h1'])
+    expect(store.quarantineVisible.map((s) => s.signalId)).toEqual(['v1', 'v2'])
+    expect(store.quarantineHidden.map((s) => s.signalId)).toEqual(['h1'])
     expect(store.loading).toBe(false)
     expect(store.error).toBeNull()
   })
@@ -74,7 +84,7 @@ describe('quarantineStore', () => {
   it('fetchSignals sets error when visible call fails', async () => {
     vi.mocked(api.listQuarantinedSignals)
       .mockResolvedValueOnce(err(new ApiError(500, 'Server error')))
-      .mockResolvedValueOnce(ok({ items: [] }))
+      .mockResolvedValueOnce(ok({ signals: [], pagination: { cursor: null } }))
 
     const store = useQuarantineStore()
     await store.fetchSignals(true)
@@ -86,7 +96,7 @@ describe('quarantineStore', () => {
 
   it('fetchSignals sets error when hidden call fails', async () => {
     vi.mocked(api.listQuarantinedSignals)
-      .mockResolvedValueOnce(ok({ items: [] }))
+      .mockResolvedValueOnce(ok({ signals: [], pagination: { cursor: null } }))
       .mockResolvedValueOnce(err(new ApiError(503, 'Hidden fetch failed')))
 
     const store = useQuarantineStore()
@@ -122,13 +132,13 @@ describe('quarantineStore', () => {
   })
 
   it('fetchMore loads next visible page before hidden pages', async () => {
-    mockBothCalls([mockSignal({ id: 'v1' })], [mockSignal({ id: 'h1', status: 'quarantine_hidden' })], 'cur_v', 'cur_h')
+    mockBothCalls([mockSignal({ signalId: 'v1' })], [mockSignal({ signalId: 'h1', status: 'quarantine_hidden' })], 'cur_v', 'cur_h')
     const store = useQuarantineStore()
     await store.fetchSignals(true)
 
     // fetchMore should request the visible cursor next
     vi.mocked(api.listQuarantinedSignals).mockResolvedValueOnce(
-      ok({ items: [mockSignal({ id: 'v2' })], nextCursor: undefined }),
+      ok({ signals: [mockSignal({ signalId: 'v2' })], pagination: { cursor: null } }),
     )
     await store.fetchMore()
 
@@ -137,18 +147,18 @@ describe('quarantineStore', () => {
       'quarantine_visible',
       expect.objectContaining({ cursor: 'cur_v' }),
     )
-    expect(store.quarantineVisible.map((s) => s.id)).toContain('v2')
+    expect(store.quarantineVisible.map((s) => s.signalId)).toContain('v2')
     // hidden cursor still pending
     expect(store.hasMore).toBe(true)
   })
 
   it('fetchMore loads hidden page once visible is exhausted', async () => {
-    mockBothCalls([], [mockSignal({ id: 'h1', status: 'quarantine_hidden' })], undefined, 'cur_h')
+    mockBothCalls([], [mockSignal({ signalId: 'h1', status: 'quarantine_hidden' })], undefined, 'cur_h')
     const store = useQuarantineStore()
     await store.fetchSignals(true)
 
     vi.mocked(api.listQuarantinedSignals).mockResolvedValueOnce(
-      ok({ items: [mockSignal({ id: 'h2', status: 'quarantine_hidden' })], nextCursor: undefined }),
+      ok({ signals: [mockSignal({ signalId: 'h2', status: 'quarantine_hidden' })], pagination: { cursor: null } }),
     )
     await store.fetchMore()
 
@@ -157,19 +167,19 @@ describe('quarantineStore', () => {
       'quarantine_hidden',
       expect.objectContaining({ cursor: 'cur_h' }),
     )
-    expect(store.quarantineHidden.map((s) => s.id)).toContain('h2')
+    expect(store.quarantineHidden.map((s) => s.signalId)).toContain('h2')
     expect(store.hasMore).toBe(false)
   })
 
   it('allow removes signal from visible items on success', async () => {
-    mockBothCalls([mockSignal({ id: 'sig_1' }), mockSignal({ id: 'sig_2' })], [])
+    mockBothCalls([mockSignal({ signalId: 'sig_1' }), mockSignal({ signalId: 'sig_2' })], [])
     const store = useQuarantineStore()
     await store.fetchSignals(true)
 
     vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockSignal({ status: 'active' })))
     const result = await store.allow('sig_1')
     expect(result).toBe(true)
-    expect(store.quarantineVisible.map((s) => s.id)).toEqual(['sig_2'])
+    expect(store.quarantineVisible.map((s) => s.signalId)).toEqual(['sig_2'])
     expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'active')
   })
 
@@ -186,7 +196,7 @@ describe('quarantineStore', () => {
   })
 
   it('reject removes signal from list on success', async () => {
-    mockBothCalls([mockSignal({ id: 'sig_1' })], [])
+    mockBothCalls([mockSignal({ signalId: 'sig_1' })], [])
     const store = useQuarantineStore()
     await store.fetchSignals(true)
 
@@ -210,7 +220,7 @@ describe('quarantineStore', () => {
   })
 
   it('rejectForAlias calls addAliasSender and quarantineResponse then removes signal', async () => {
-    mockBothCalls([mockSignal({ id: 'sig_1' })], [])
+    mockBothCalls([mockSignal({ signalId: 'sig_1' })], [])
     const store = useQuarantineStore()
     await store.fetchSignals(true)
 
@@ -220,7 +230,7 @@ describe('quarantineStore', () => {
     expect(result).toBe(true)
     expect(store.quarantineVisible).toHaveLength(0)
     expect(vi.mocked(api.addAliasSender)).toHaveBeenCalledWith('acc_1', 'inbox@example.com', {
-      domain: 'example.com',
+      sender: 'example.com',
       policy: 'block_hidden',
     })
     expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'block_hidden')
