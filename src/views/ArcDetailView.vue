@@ -150,6 +150,9 @@ async function loadMore() {
           <span class="capitalize">{{ signalsStore.arc.workflow }}</span>
           <span>·</span>
           <span class="capitalize">{{ signalsStore.arc.status }}</span>
+          <span v-if="signalsStore.arc.status === 'deleted' && signalsStore.arc.deletedAt">
+            · Deleted on {{ new Date(signalsStore.arc.deletedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
+          </span>
           <span v-if="signalsStore.arc.urgency" class="capitalize"
             >· {{ signalsStore.arc.urgency }}</span
           >
