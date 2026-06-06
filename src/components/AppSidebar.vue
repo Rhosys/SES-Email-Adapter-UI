@@ -90,16 +90,16 @@ const labels = computed(() => labelsStore.items)
       >
         <button
           v-for="acc in accountStore.accounts"
-          :key="acc.id"
+          :key="acc.accountId"
           class="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-ctp-surface0"
           :class="
-            acc.id === accountStore.accountId ? 'font-medium text-ctp-text' : 'text-ctp-subtext1'
+            acc.accountId === accountStore.accountId ? 'font-medium text-ctp-text' : 'text-ctp-subtext1'
           "
-          @click="selectAccount(acc.id)"
+          @click="selectAccount(acc.accountId)"
         >
           <span class="flex-1 truncate">{{ acc.name }}</span>
           <svg
-            v-if="acc.id === accountStore.accountId"
+            v-if="acc.accountId === accountStore.accountId"
             class="h-3.5 w-3.5 shrink-0 text-ctp-mauve"
             viewBox="0 0 16 16"
             fill="currentColor"

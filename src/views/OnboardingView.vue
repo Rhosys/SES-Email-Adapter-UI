@@ -74,8 +74,8 @@ async function createAndAdvance() {
   // Retry loop — keep trying until we have an account
   let retryDelay = 3_000
   while (!accountStore.accountId) {
-    const ok = await accountStore.createAccount('')
-    if (ok) break
+    const result = await accountStore.createAccount('')
+    if (result.isOk()) break
 
     await new Promise<void>((res) => setTimeout(res, retryDelay))
     retryDelay = Math.min(retryDelay * 1.5, 15_000)

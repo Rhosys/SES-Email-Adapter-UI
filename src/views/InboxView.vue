@@ -63,11 +63,7 @@ function openFocused() {
 
 async function archiveFocused() {
   if (!focusedArcId.value) return
-  const accountId = accountStore.accountId
-  if (!accountId) return
-  const { api } = await import('@/lib/api')
-  const result = await api.patchArc(accountId, focusedArcId.value, { status: 'archived' })
-  if (result.isOk()) arcsStore.removeArc(focusedArcId.value)
+  await arcsStore.archiveArc(focusedArcId.value)
 }
 
 function selectFocused() {

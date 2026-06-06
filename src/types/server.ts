@@ -105,7 +105,7 @@ export interface OnboardingState {
 }
 
 export interface Account {
-  id: string
+  accountId: string
   name: string
   deletionRetentionDays: number
   notifications?: NotificationSettings

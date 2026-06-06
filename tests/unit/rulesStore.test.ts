@@ -40,7 +40,7 @@ describe('rulesStore', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     const accountStore = useAccountStore()
-    accountStore.account = { id: 'acc_1', name: 'Test' } as Account
+    accountStore.account = { accountId: 'acc_1', name: 'Test' } as Account
   })
 
   it('fetchRules populates items', async () => {
@@ -69,15 +69,16 @@ describe('rulesStore', () => {
       condition: '{}',
       actions: [{ type: 'block' }],
     })
-    expect(result).toEqual(rule)
+    expect(result.isOk()).toBe(true)
+    expect(result.isOk() && result.value).toEqual(rule)
     expect(store.items).toHaveLength(1)
   })
 
-  it('createRule sets error and returns null on failure', async () => {
+  it('createRule sets error and returns err on failure', async () => {
     vi.mocked(api.createRule).mockResolvedValue(err(new ApiError(400, 'Invalid')))
     const store = useRulesStore()
     const result = await store.createRule({ name: 'x', condition: '{}', actions: [] })
-    expect(result).toBeNull()
+    expect(result.isErr()).toBe(true)
     expect(store.error).toBe('Invalid')
   })
 
@@ -88,7 +89,7 @@ describe('rulesStore', () => {
     const store = useRulesStore()
     await store.fetchRules()
     const result = await store.updateRule('rule_1', { name: 'Updated rule' })
-    expect(result?.name).toBe('Updated rule')
+    expect(result.isOk() && result.value.name).toBe('Updated rule')
     expect(store.items[0].name).toBe('Updated rule')
   })
 
@@ -100,17 +101,17 @@ describe('rulesStore', () => {
     const store = useRulesStore()
     await store.fetchRules()
     const result = await store.deleteRule('rule_1')
-    expect(result).toBe(true)
+    expect(result.isOk()).toBe(true)
     expect(store.items.map((r) => r.id)).toEqual(['rule_2'])
   })
 
-  it('deleteRule sets error and returns false on failure', async () => {
+  it('deleteRule sets error and returns err on failure', async () => {
     vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
     vi.mocked(api.deleteRule).mockResolvedValue(err(new ApiError(404, 'Not found')))
     const store = useRulesStore()
     await store.fetchRules()
     const result = await store.deleteRule('rule_1')
-    expect(result).toBe(false)
+    expect(result.isErr()).toBe(true)
     expect(store.error).toBe('Not found')
     expect(store.items).toHaveLength(1)
   })

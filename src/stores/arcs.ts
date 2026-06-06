@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { api } from '@/lib/api'
+import { ok, err, type Result } from 'neverthrow'
+import { api, ApiError } from '@/lib/api'
 import { useAccountStore } from '@/stores/account'
+import { NoCurrentAccountError } from '@/stores/errors'
 import type { Arc, ArcStatus } from '@/types/server'
 
 type TabKey = 'active' | 'archived' | 'all'
@@ -199,6 +201,41 @@ export const useArcsStore = defineStore('arcs', () => {
     }
   }
 
+  async function archiveArc(arcId: string): Promise<Result<Arc, ApiError | NoCurrentAccountError>> {
+    const id = accountStore.accountId
+    if (!id) return err(new NoCurrentAccountError())
+    const result = await api.patchArc(id, arcId, { status: 'archived' })
+    if (result.isErr()) return err(result.error)
+    // Update in the list if present
+    const existing = _byAccount.value[id]?.items ?? []
+    if (activeTab.value === 'active') {
+      _byAccount.value = {
+        ..._byAccount.value,
+        [id]: { ..._byAccount.value[id], items: existing.filter((a) => a.id !== arcId) },
+      }
+    } else {
+      _byAccount.value = {
+        ..._byAccount.value,
+        [id]: { ..._byAccount.value[id], items: existing.map((a) => (a.id === arcId ? result.value : a)) },
+      }
+    }
+    return ok(result.value)
+  }
+
+  async function labelArc(arcId: string, labels: string[]): Promise<Result<Arc, ApiError | NoCurrentAccountError>> {
+    const id = accountStore.accountId
+    if (!id) return err(new NoCurrentAccountError())
+    const result = await api.patchArc(id, arcId, { labels })
+    if (result.isErr()) return err(result.error)
+    // Update in the list if present
+    const existing = _byAccount.value[id]?.items ?? []
+    _byAccount.value = {
+      ..._byAccount.value,
+      [id]: { ..._byAccount.value[id], items: existing.map((a) => (a.id === arcId ? result.value : a)) },
+    }
+    return ok(result.value)
+  }
+
   return {
     items,
     sortedItems,
@@ -220,6 +257,8 @@ export const useArcsStore = defineStore('arcs', () => {
     clearSelection,
     bulkArchive,
     bulkLabel,
+    archiveArc,
+    labelArc,
     removeArc,
   }
 })

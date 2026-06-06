@@ -80,11 +80,11 @@ async function save() {
     body: draftBody.value,
     functions: draftFunctions.value.map((f) => ({ name: f.name.trim(), code: f.code })),
   }
-  const ok = editingId.value
+  const result = editingId.value
     ? await store.updateTemplate(editingId.value, payload)
-    : !!(await store.createTemplate(payload))
+    : await store.createTemplate(payload)
   saving.value = false
-  if (ok) closeEditor()
+  if (result.isOk()) closeEditor()
 }
 
 async function remove(tpl: EmailTemplate) {

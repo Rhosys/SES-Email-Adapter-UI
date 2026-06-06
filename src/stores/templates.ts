@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { api } from '@/lib/api'
+import { ok, err, type Result } from 'neverthrow'
+import { api, ApiError } from '@/lib/api'
 import { useAccountStore } from '@/stores/account'
+import { NoCurrentAccountError } from '@/stores/errors'
 import type { EmailTemplate, TemplateFunction } from '@/types/server'
 
 interface TemplateBody {
@@ -29,34 +31,34 @@ export const useTemplatesStore = defineStore('templates', () => {
     templates.value = result.value
   }
 
-  async function createTemplate(body: TemplateBody): Promise<EmailTemplate | null> {
+  async function createTemplate(body: TemplateBody): Promise<Result<EmailTemplate, ApiError | NoCurrentAccountError>> {
     const id = accountStore.accountId
-    if (!id) return null
+    if (!id) return err(new NoCurrentAccountError())
     error.value = null
     const result = await api.createTemplate(id, body)
-    if (result.isErr()) { error.value = result.error.message; return null }
+    if (result.isErr()) { error.value = result.error.message; return err(result.error) }
     templates.value = [result.value, ...templates.value]
-    return result.value
+    return ok(result.value)
   }
 
-  async function updateTemplate(templateId: string, body: TemplateBody): Promise<boolean> {
+  async function updateTemplate(templateId: string, body: TemplateBody): Promise<Result<EmailTemplate, ApiError | NoCurrentAccountError>> {
     const id = accountStore.accountId
-    if (!id) return false
+    if (!id) return err(new NoCurrentAccountError())
     error.value = null
     const result = await api.updateTemplate(id, templateId, body)
-    if (result.isErr()) { error.value = result.error.message; return false }
+    if (result.isErr()) { error.value = result.error.message; return err(result.error) }
     templates.value = templates.value.map((t) => (t.id === templateId ? result.value : t))
-    return true
+    return ok(result.value)
   }
 
-  async function deleteTemplate(templateId: string): Promise<boolean> {
+  async function deleteTemplate(templateId: string): Promise<Result<void, ApiError | NoCurrentAccountError>> {
     const id = accountStore.accountId
-    if (!id) return false
+    if (!id) return err(new NoCurrentAccountError())
     error.value = null
     const result = await api.deleteTemplate(id, templateId)
-    if (result.isErr()) { error.value = result.error.message; return false }
+    if (result.isErr()) { error.value = result.error.message; return err(result.error) }
     templates.value = templates.value.filter((t) => t.id !== templateId)
-    return true
+    return ok(undefined)
   }
 
   function clearError() {

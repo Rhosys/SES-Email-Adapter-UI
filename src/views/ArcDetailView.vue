@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useSignalsStore } from '@/stores/signals'
+import { useArcsStore } from '@/stores/arcs'
 import { useAccountStore } from '@/stores/account'
 import { useToast } from '@/composables/useToast'
 import { api } from '@/lib/api'
@@ -12,6 +13,7 @@ import ReplyComposer from '@/components/ReplyComposer.vue'
 
 const route = useRoute()
 const signalsStore = useSignalsStore()
+const arcsStore = useArcsStore()
 const accountStore = useAccountStore()
 const { showUndo } = useToast()
 
@@ -49,8 +51,8 @@ function onSignalUndo() {
 }
 
 async function archive() {
-  const ok = await signalsStore.archiveArc(arcId.value)
-  if (!ok) return
+  const result = await arcsStore.archiveArc(arcId.value)
+  if (result.isErr()) return
   const id = arcId.value
   const summary = signalsStore.arc?.summary
   showUndo(

@@ -38,7 +38,7 @@ describe('arcsStore', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     const accountStore = useAccountStore()
-    accountStore.account = { id: 'acc_1', name: 'Test' } as Account
+    accountStore.account = { accountId: 'acc_1', name: 'Test' } as Account
   })
 
   it('fetches arcs and populates items', async () => {

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { api } from '@/lib/api'
+import { ok, err, type Result } from 'neverthrow'
+import { api, ApiError } from '@/lib/api'
 import type { Account } from '@/types/server'
 
 // Per-tab account (sessionStorage — isolated per tab, copied on Ctrl+click)
@@ -15,7 +16,7 @@ export const useAccountStore = defineStore('account', () => {
   const error = ref<string | null>(null)
   const fetched = ref(false)
 
-  const accountId = computed(() => account.value?.id ?? null)
+  const accountId = computed(() => account.value?.accountId ?? null)
 
   // fromAccountId: explicit override (e.g. from ?accountId= query param)
   async function fetchAccount(fromAccountId?: string) {
@@ -34,34 +35,34 @@ export const useAccountStore = defineStore('account', () => {
       fromAccountId ?? sessionStorage.getItem(TAB_KEY) ?? localStorage.getItem(LAST_KEY) ?? null
 
     account.value =
-      (preferred ? (accounts.value.find((a) => a.id === preferred) ?? null) : null) ??
+      (preferred ? (accounts.value.find((a) => a.accountId === preferred) ?? null) : null) ??
       accounts.value[0] ??
       null
 
-    if (account.value) sessionStorage.setItem(TAB_KEY, account.value.id)
+    if (account.value) sessionStorage.setItem(TAB_KEY, account.value.accountId)
     fetched.value = true
   }
 
-  async function createAccount(name: string): Promise<boolean> {
+  async function createAccount(name: string): Promise<Result<Account, ApiError>> {
     loading.value = true
     error.value = null
     const result = await api.createAccount({ name })
     loading.value = false
     if (result.isErr()) {
       error.value = result.error.message
-      return false
+      return err(result.error)
     }
     const newAccount = result.value
     accounts.value = [newAccount, ...accounts.value]
     account.value = newAccount
     fetched.value = true
-    sessionStorage.setItem(TAB_KEY, newAccount.id)
-    localStorage.setItem(LAST_KEY, newAccount.id)
-    return true
+    sessionStorage.setItem(TAB_KEY, newAccount.accountId)
+    localStorage.setItem(LAST_KEY, newAccount.accountId)
+    return ok(newAccount)
   }
 
   function switchAccount(id: string) {
-    const target = accounts.value.find((a) => a.id === id)
+    const target = accounts.value.find((a) => a.accountId === id)
     if (!target) return
     sessionStorage.setItem(TAB_KEY, id)
     localStorage.setItem(LAST_KEY, id)

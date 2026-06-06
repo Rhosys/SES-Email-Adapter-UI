@@ -200,7 +200,7 @@ async function save() {
     ? await rulesStore.updateRule(ruleId.value!, body)
     : await rulesStore.createRule(body)
 
-  if (!saved) return
+  if (saved.isErr()) return
 
   if (signalId.value && signalAction.value) {
     if (signalAction.value === 'allow') {

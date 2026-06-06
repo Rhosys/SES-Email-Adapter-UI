@@ -52,7 +52,7 @@ function mockRule(overrides: Partial<Rule> = {}): Rule {
 }
 
 const testAccount: Account = {
-  id: 'acc_1',
+  accountId: 'acc_1',
   name: 'Test',
   deletionRetentionDays: 30,
   createdAt: '2025-01-01T00:00:00Z',

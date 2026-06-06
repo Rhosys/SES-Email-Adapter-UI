@@ -52,7 +52,7 @@ describe('quarantineStore', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     const accountStore = useAccountStore()
-    accountStore.account = { id: 'acc_1', name: 'Test' } as Account
+    accountStore.account = { accountId: 'acc_1', name: 'Test' } as Account
   })
 
   it('fetchSignals keeps visible and hidden in separate buckets, each sorted by receivedAt desc', async () => {

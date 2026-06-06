@@ -59,7 +59,7 @@ describe('signalsStore', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     const accountStore = useAccountStore()
-    accountStore.account = { id: 'acc_1', name: 'Test' } as Account
+    accountStore.account = { accountId: 'acc_1', name: 'Test' } as Account
   })
 
   it('fetchAll populates arc and items', async () => {
@@ -132,25 +132,5 @@ describe('signalsStore', () => {
     expect(store.arc).toBeNull()
     expect(store.items).toHaveLength(0)
     expect(store.error).toBeNull()
-  })
-
-  it('archiveArc returns true on success and updates arc', async () => {
-    vi.mocked(api.patchArc).mockResolvedValue(ok(mockArc({ status: 'archived' })))
-
-    const store = useSignalsStore()
-    const result = await store.archiveArc('arc_1')
-
-    expect(result).toBe(true)
-    expect(store.arc?.status).toBe('archived')
-  })
-
-  it('archiveArc returns false and sets error on failure', async () => {
-    vi.mocked(api.patchArc).mockResolvedValue(err(new ApiError(500, 'Failed')))
-
-    const store = useSignalsStore()
-    const result = await store.archiveArc('arc_1')
-
-    expect(result).toBe(false)
-    expect(store.error).toBe('Failed')
   })
 })

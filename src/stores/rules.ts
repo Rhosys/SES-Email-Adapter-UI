@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { api } from '@/lib/api'
+import { ok, err, type Result } from 'neverthrow'
+import { api, ApiError } from '@/lib/api'
 import { useAccountStore } from '@/stores/account'
+import { NoCurrentAccountError } from '@/stores/errors'
 import type { CreateRuleBody, Rule, UpdateRuleBody } from '@/types/server'
 
 export const useRulesStore = defineStore('rules', () => {
@@ -30,55 +32,55 @@ export const useRulesStore = defineStore('rules', () => {
     _byAccount.value = { ..._byAccount.value, [id]: result.value }
   }
 
-  async function createRule(body: CreateRuleBody): Promise<Rule | null> {
+  async function createRule(body: CreateRuleBody): Promise<Result<Rule, ApiError | NoCurrentAccountError>> {
     const id = accountStore.accountId
-    if (!id) return null
+    if (!id) return err(new NoCurrentAccountError())
     savePending.value = true
     error.value = null
     const result = await api.createRule(id, body)
     savePending.value = false
     if (result.isErr()) {
       error.value = result.error.message
-      return null
+      return err(result.error)
     }
     _byAccount.value = {
       ..._byAccount.value,
       [id]: [...(_byAccount.value[id] ?? []), result.value],
     }
-    return result.value
+    return ok(result.value)
   }
 
-  async function updateRule(ruleId: string, body: UpdateRuleBody): Promise<Rule | null> {
+  async function updateRule(ruleId: string, body: UpdateRuleBody): Promise<Result<Rule, ApiError | NoCurrentAccountError>> {
     const id = accountStore.accountId
-    if (!id) return null
+    if (!id) return err(new NoCurrentAccountError())
     savePending.value = true
     error.value = null
     const result = await api.updateRule(id, ruleId, body)
     savePending.value = false
     if (result.isErr()) {
       error.value = result.error.message
-      return null
+      return err(result.error)
     }
     _byAccount.value = {
       ..._byAccount.value,
       [id]: (_byAccount.value[id] ?? []).map((r) => (r.id === ruleId ? result.value : r)),
     }
-    return result.value
+    return ok(result.value)
   }
 
-  async function deleteRule(ruleId: string): Promise<boolean> {
+  async function deleteRule(ruleId: string): Promise<Result<void, ApiError | NoCurrentAccountError>> {
     const id = accountStore.accountId
-    if (!id) return false
+    if (!id) return err(new NoCurrentAccountError())
     const result = await api.deleteRule(id, ruleId)
     if (result.isErr()) {
       error.value = result.error.message
-      return false
+      return err(result.error)
     }
     _byAccount.value = {
       ..._byAccount.value,
       [id]: (_byAccount.value[id] ?? []).filter((r) => r.id !== ruleId),
     }
-    return true
+    return ok(undefined)
   }
 
   async function moveRule(ruleId: string, direction: -1 | 1): Promise<void> {
