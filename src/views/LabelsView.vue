@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useLabelsStore } from '@/stores/labels'
 import { useViewsStore } from '@/stores/views'
-import type { Label, SavedView } from '@/types/server'
+import type { Label, View, Workflow } from '@/types/server'
 
 const route = useRoute()
 const router = useRouter()
@@ -63,7 +63,7 @@ async function saveLabel() {
     icon: labelIcon.value.trim() || undefined,
   }
   if (editingLabel.value) {
-    await labelsStore.updateLabel(editingLabel.value.id, body)
+    await labelsStore.updateLabel(editingLabel.value.label, body)
   } else {
     await labelsStore.createLabel(body)
   }
@@ -73,12 +73,12 @@ async function saveLabel() {
 
 async function deleteLabel(label: Label) {
   if (!confirm(`Delete label "${label.name}"?`)) return
-  await labelsStore.deleteLabel(label.id)
+  await labelsStore.deleteLabel(label.label)
 }
 
 // ─── View form ────────────────────────────────────────────────────────────────
 const showViewForm = ref(false)
-const editingView = ref<SavedView | null>(null)
+const editingView = ref<View | null>(null)
 const viewName = ref('')
 const viewIcon = ref('')
 const viewWorkflow = ref('')
@@ -109,7 +109,7 @@ function openNewView() {
   showViewForm.value = true
 }
 
-function openEditView(view: SavedView) {
+function openEditView(view: View) {
   editingView.value = view
   viewName.value = view.name
   viewIcon.value = view.icon ?? ''
@@ -128,10 +128,10 @@ async function saveView() {
   const body = {
     name: viewName.value.trim(),
     icon: viewIcon.value.trim() || undefined,
-    workflow: viewWorkflow.value || undefined,
+    workflow: (viewWorkflow.value || undefined) as Workflow | undefined,
   }
   if (editingView.value) {
-    await viewsStore.updateView(editingView.value.id, body)
+    await viewsStore.updateView(editingView.value.viewId, body)
   } else {
     await viewsStore.createView(body)
   }
@@ -139,9 +139,9 @@ async function saveView() {
   if (!viewsStore.error) cancelView()
 }
 
-async function deleteView(view: SavedView) {
+async function deleteView(view: View) {
   if (!confirm(`Delete view "${view.name}"?`)) return
-  await viewsStore.deleteView(view.id)
+  await viewsStore.deleteView(view.viewId)
 }
 
 const sortedViews = computed(() => viewsStore.sortedViews)
@@ -316,7 +316,7 @@ onMounted(async () => {
         <TransitionGroup v-else name="list" tag="div" class="relative divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div
             v-for="label in labelsStore.items"
-            :key="label.id"
+            :key="label.label"
             class="flex items-center gap-3 px-4 py-3"
           >
             <span
@@ -447,7 +447,7 @@ onMounted(async () => {
           </p>
         </div>
         <TransitionGroup v-else name="list" tag="div" class="relative divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
-          <div v-for="view in sortedViews" :key="view.id" class="flex items-center gap-3 px-4 py-3">
+          <div v-for="view in sortedViews" :key="view.viewId" class="flex items-center gap-3 px-4 py-3">
             <span class="shrink-0 text-base">{{ view.icon ?? '📋' }}</span>
             <div class="flex-1">
               <p class="text-sm font-medium">{{ view.name }}</p>

@@ -30,7 +30,7 @@ const focusedArcId = ref<string | null>(null)
 
 function coachShouldRun() {
   const ob = accountStore.account?.onboarding
-  return ob?.completed && !ob.notificationCoachCompleted
+  return ob?.completed
 }
 
 function scrollFocusedIntoView() {
@@ -43,16 +43,16 @@ function scrollFocusedIntoView() {
 function moveNext() {
   const items = arcsStore.sortedItems
   if (!items.length) return
-  const idx = items.findIndex((a) => a.id === focusedArcId.value)
-  focusedArcId.value = items[Math.min(idx + 1, items.length - 1)].id
+  const idx = items.findIndex((a) => a.arcId === focusedArcId.value)
+  focusedArcId.value = items[Math.min(idx + 1, items.length - 1)].arcId
   scrollFocusedIntoView()
 }
 
 function movePrev() {
   const items = arcsStore.sortedItems
   if (!items.length) return
-  const idx = items.findIndex((a) => a.id === focusedArcId.value)
-  focusedArcId.value = items[Math.max(idx <= 0 ? 0 : idx - 1, 0)].id
+  const idx = items.findIndex((a) => a.arcId === focusedArcId.value)
+  focusedArcId.value = items[Math.max(idx <= 0 ? 0 : idx - 1, 0)].arcId
   scrollFocusedIntoView()
 }
 

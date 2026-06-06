@@ -47,11 +47,11 @@ function openNew() {
 }
 
 function openEdit(tpl: EmailTemplate) {
-  editingId.value = tpl.id
+  editingId.value = tpl.templateId
   draftName.value = tpl.name
   draftSubject.value = tpl.subject
   draftBody.value = tpl.body
-  draftFunctions.value = tpl.functions.map((f) => ({ ...f }))
+  draftFunctions.value = (tpl.functions ?? []).map((f) => ({ ...f }))
   fnErrors.value = {}
   showPreview.value = false
   showEditor.value = true
@@ -89,7 +89,7 @@ async function save() {
 
 async function remove(tpl: EmailTemplate) {
   if (!confirm(`Delete "${tpl.name}"? Rules using this template will stop working.`)) return
-  await store.deleteTemplate(tpl.id)
+  await store.deleteTemplate(tpl.templateId)
 }
 
 function openClone(tpl: EmailTemplate) {
@@ -97,7 +97,7 @@ function openClone(tpl: EmailTemplate) {
   draftName.value = `Copy of ${tpl.name}`
   draftSubject.value = tpl.subject
   draftBody.value = tpl.body
-  draftFunctions.value = tpl.functions.map((f) => ({ ...f }))
+  draftFunctions.value = (tpl.functions ?? []).map((f) => ({ ...f }))
   fnErrors.value = {}
   showPreview.value = false
   showEditor.value = true
@@ -348,14 +348,14 @@ onMounted(async () => {
       >
         <div
           v-for="tpl in store.templates"
-          :key="tpl.id"
+          :key="tpl.templateId"
           class="flex items-start justify-between gap-4 px-4 py-3"
         >
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-medium text-ctp-text">{{ tpl.name }}</p>
             <p class="mt-0.5 truncate text-xs text-ctp-subtext0">{{ tpl.subject }}</p>
             <p class="mt-0.5 text-xs text-ctp-surface2">
-              {{ tpl.functions.length > 0 ? `${tpl.functions.length} function${tpl.functions.length > 1 ? 's' : ''} · ` : '' }}Updated {{ relTime(tpl.updatedAt) }}
+              {{ (tpl.functions?.length ?? 0) > 0 ? `${tpl.functions!.length} function${tpl.functions!.length > 1 ? 's' : ''} · ` : '' }}Updated {{ relTime(tpl.updatedAt) }}
             </p>
           </div>
           <div class="flex shrink-0 gap-2">

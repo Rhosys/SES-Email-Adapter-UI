@@ -6,6 +6,7 @@ import { useArcsStore } from '@/stores/arcs'
 import { useAccountStore } from '@/stores/account'
 import { useToast } from '@/composables/useToast'
 import { api } from '@/lib/api'
+import { isInboundEmailSignal } from '@/lib/signal-guards'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
 import SignalCard from '@/components/SignalCard.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
@@ -165,7 +166,7 @@ async function loadMore() {
       </div>
 
       <!-- Workflow panel (from latest signal with workflowData) -->
-      <div v-if="signalsStore.latestSignal?.workflowData" class="mb-6">
+      <div v-if="signalsStore.latestSignal && isInboundEmailSignal(signalsStore.latestSignal) && signalsStore.latestSignal.data.workflowData" class="mb-6">
         <WorkflowPanel :signal="signalsStore.latestSignal" />
       </div>
 
@@ -182,7 +183,7 @@ async function loadMore() {
 
       <!-- Signal thread — received + draft signals -->
       <div class="space-y-4">
-        <template v-for="signal in signalsStore.items" :key="signal.id">
+        <template v-for="signal in signalsStore.items" :key="signal.signalId">
           <DraftSignalCard
             v-if="signal.status === 'draft'"
             :signal="signal"

@@ -89,14 +89,8 @@ async function createAndAdvance() {
 
   // Restore progress
   const ob = accountStore.account?.onboarding
-  if (ob?.testEmailReceived) {
-    await persistProgress({ completed: true })
+  if (ob?.completed) {
     void router.replace('/inbox')
-    return
-  }
-  if (ob?.domainAdded) {
-    domainAdded.value = true
-    step.value = 3
     return
   }
   step.value = 2
@@ -132,10 +126,10 @@ async function submitDomain() {
   const result = await api.addDomain(accountStore.accountId, { domain: domain.value.trim() })
   addingDomain.value = false
   if (result.isErr()) { domainApiError.value = result.error.message; return }
-  domainId.value = result.value.id
-  dnsRecords.value = result.value.dnsRecords
+  domainId.value = result.value.domainId
+  // Records will be fetched on recheck — addDomain returns Domain without records
   domainAdded.value = true
-  await persistProgress({ domainAdded: true })
+  await recheckDns()
 }
 
 async function verifyWithGoogleDns(type: string, host: string): Promise<boolean> {
@@ -155,15 +149,17 @@ async function recheckDns() {
   if (!accountStore.accountId || !domainId.value) return
   recheckingDns.value = true
   const result = await api.recheckDomain(accountStore.accountId, domainId.value)
-  if (result.isOk()) dnsRecords.value = result.value.dnsRecords
+  if (result.isOk() && 'records' in result.value) {
+    dnsRecords.value = (result.value as { records: DnsRecord[] }).records
+  }
   const mxRec = dnsRecords.value.find((r) => r.type === 'MX')
-  if (mxRec) mxVerifiedByClient.value = await verifyWithGoogleDns('MX', mxRec.host)
+  if (mxRec) mxVerifiedByClient.value = await verifyWithGoogleDns('MX', mxRec.name)
   recheckingDns.value = false
 }
 
 const DNS_STATUS_COLORS: Record<string, string> = {
   verified: 'text-ctp-green',
-  failed:   'text-ctp-red',
+  failing:  'text-ctp-red',
   pending:  'text-ctp-subtext0',
 }
 
@@ -180,7 +176,7 @@ function startPolling(accountId: string) {
     attempts++
     if (attempts > 60) { clearInterval(pollInterval!); return }
     const result = await api.listQuarantinedSignals(accountId, 'quarantine_visible', { limit: 1 })
-    if (result.isOk() && result.value.items.length > 0) {
+    if (result.isOk() && result.value.signals.length > 0) {
       clearInterval(pollInterval!)
       void onSignalArrived()
     }
@@ -204,7 +200,7 @@ function connectWs(accountId: string) {
 async function onSignalArrived() {
   if (signalArrived.value) return
   signalArrived.value = true
-  await persistProgress({ testEmailReceived: true, completed: true })
+  await persistProgress({ completed: true })
   step.value = 4
 }
 
@@ -219,8 +215,6 @@ watch(step, (s) => {
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 async function persistProgress(patch: Partial<{
-  domainAdded: boolean
-  testEmailReceived: boolean
   completed: boolean
 }>) {
   if (!accountStore.accountId) return
@@ -358,7 +352,7 @@ onUnmounted(() => {
                 <span class="rounded bg-ctp-surface1 px-1.5 py-0.5 font-mono text-xs text-ctp-subtext0">
                   {{ rec.type }}
                 </span>
-                <span class="truncate font-mono text-xs text-ctp-text">{{ rec.host }}</span>
+                <span class="truncate font-mono text-xs text-ctp-text">{{ rec.name }}</span>
               </div>
               <span
                 class="shrink-0 text-xs font-medium"

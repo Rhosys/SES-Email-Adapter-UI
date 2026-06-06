@@ -125,9 +125,9 @@ async function loadMore() {
           <TransitionGroup name="list" tag="div" role="list" aria-label="Emails needing review" class="relative">
             <QuarantineRow
               v-for="signal in store.quarantineVisible"
-              :key="signal.id"
+              :key="signal.signalId"
               :signal="signal"
-              :pending="store.actionPending.has(signal.id)"
+              :pending="store.actionPending.has(signal.signalId)"
               @allow="onAllow"
               @reject="onReject"
               @reject-for-alias="onRejectForAlias"
@@ -159,9 +159,9 @@ async function loadMore() {
           <TransitionGroup name="list" tag="div" role="list" aria-label="Silently held emails" class="relative">
             <QuarantineRow
               v-for="signal in store.quarantineHidden"
-              :key="signal.id"
+              :key="signal.signalId"
               :signal="signal"
-              :pending="store.actionPending.has(signal.id)"
+              :pending="store.actionPending.has(signal.signalId)"
               @allow="onAllow"
               @reject="onReject"
               @reject-for-alias="onRejectForAlias"

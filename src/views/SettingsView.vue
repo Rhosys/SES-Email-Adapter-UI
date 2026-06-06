@@ -5,7 +5,8 @@ import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import type {
   Domain,
-  EmailAddressConfig,
+  DnsRecord,
+  Alias,
   ForwardingAddress,
   UnknownSenderPolicy,
   TeamMember,
@@ -40,7 +41,7 @@ async function saveAccount() {
 }
 
 // ─── Email addresses tab ──────────────────────────────────────────────────────
-const aliases = ref<EmailAddressConfig[]>([])
+const aliases = ref<Alias[]>([])
 const aliasesLoading = ref(false)
 const aliasError = ref('')
 const newAddress = ref('')
@@ -93,7 +94,7 @@ async function deleteAddress(address: string) {
 }
 
 // ─── Domains tab ──────────────────────────────────────────────────────────────
-const domains = ref<Domain[]>([])
+const domains = ref<(Domain & { records?: DnsRecord[] })[]>([])
 const domainsLoading = ref(false)
 const newDomain = ref('')
 const addDomainPending = ref(false)
@@ -124,14 +125,14 @@ async function recheckDomain(domainId: string) {
   const result = await api.recheckDomain(accountStore.accountId, domainId)
   recheckPending.value = new Set([...recheckPending.value].filter((id) => id !== domainId))
   if (result.isOk()) {
-    domains.value = domains.value.map((d) => (d.id === domainId ? result.value : d))
+    domains.value = domains.value.map((d) => (d.domainId === domainId ? result.value : d))
   }
 }
 
 const STATUS_COLORS: Record<string, string> = {
   verified: 'text-ctp-green',
   pending: 'text-ctp-yellow',
-  failed: 'text-ctp-red',
+  failing: 'text-ctp-red',
 }
 
 // ─── Forwarding addresses tab ─────────────────────────────────────────────────
@@ -161,10 +162,10 @@ async function addForwardingAddress() {
   }
 }
 
-async function removeForwarding(id: string) {
+async function removeForwarding(address: string) {
   if (!accountStore.accountId) return
-  const result = await api.deleteForwardingAddress(accountStore.accountId, id)
-  if (result.isOk()) forwarding.value = forwarding.value.filter((f) => f.id !== id)
+  const result = await api.deleteForwardingAddress(accountStore.accountId, address)
+  if (result.isOk()) forwarding.value = forwarding.value.filter((f) => f.address !== address)
 }
 
 // ─── Team tab ─────────────────────────────────────────────────────────────────
@@ -411,7 +412,7 @@ const TABS: { key: TabKey; label: string }[] = [
           </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
-          <div v-for="alias in aliases" :key="alias.id" class="px-4 py-3">
+          <div v-for="alias in aliases" :key="alias.alias" class="px-4 py-3">
             <div class="flex items-center justify-between gap-2">
               <p class="text-sm font-medium text-ctp-text">{{ alias.address }}</p>
               <button
@@ -491,30 +492,30 @@ const TABS: { key: TabKey; label: string }[] = [
         <div v-else class="space-y-4">
           <div
             v-for="domain in domains"
-            :key="domain.id"
+            :key="domain.domainId"
             class="rounded-lg border border-ctp-surface1"
           >
             <!-- Domain header -->
             <div class="flex items-center justify-between gap-2 px-4 py-3">
               <div>
                 <p class="text-sm font-medium text-ctp-text">{{ domain.domain }}</p>
-                <p class="text-xs" :class="STATUS_COLORS[domain.status] ?? 'text-ctp-subtext0'">
-                  {{ domain.status.charAt(0).toUpperCase() + domain.status.slice(1) }}
+                <p class="text-xs" :class="domain.receivingSetupComplete && domain.senderSetupComplete ? 'text-ctp-green' : 'text-ctp-yellow'">
+                  {{ domain.receivingSetupComplete && domain.senderSetupComplete ? 'Verified' : 'Pending' }}
                 </p>
               </div>
               <button
-                v-if="domain.status !== 'verified'"
-                :disabled="recheckPending.has(domain.id)"
+                v-if="!domain.receivingSetupComplete || !domain.senderSetupComplete"
+                :disabled="recheckPending.has(domain.domainId)"
                 class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-surface2 hover:text-ctp-text disabled:opacity-50"
-                @click="recheckDomain(domain.id)"
+                @click="recheckDomain(domain.domainId)"
               >
-                {{ recheckPending.has(domain.id) ? 'Checking…' : 'Re-check DNS' }}
+                {{ recheckPending.has(domain.domainId) ? 'Checking…' : 'Re-check DNS' }}
               </button>
             </div>
             <!-- DNS records — two-tier display -->
-            <div class="border-t border-ctp-surface0">
+            <div v-if="domain.records?.length" class="border-t border-ctp-surface0">
               <div
-                v-for="(rec, i) in domain.dnsRecords"
+                v-for="(rec, i) in domain.records"
                 :key="i"
                 class="border-b border-ctp-surface0/50 px-4 py-2 last:border-0"
               >
@@ -525,7 +526,7 @@ const TABS: { key: TabKey; label: string }[] = [
                         class="shrink-0 rounded bg-ctp-surface1 px-1.5 py-0.5 font-mono text-xs text-ctp-subtext0"
                         >{{ rec.type }}</span
                       >
-                      <span class="truncate font-mono text-xs text-ctp-text">{{ rec.host }}</span>
+                      <span class="truncate font-mono text-xs text-ctp-text">{{ rec.name }}</span>
                     </div>
                     <p class="mt-1 break-all font-mono text-xs text-ctp-subtext0">
                       {{ rec.value }}
@@ -541,9 +542,9 @@ const TABS: { key: TabKey; label: string }[] = [
                     <button
                       class="rounded border border-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
                       :title="`Copy ${rec.type} value`"
-                      @click="copyDnsValue(`${domain.id}-${i}`, rec.value)"
+                      @click="copyDnsValue(`${domain.domainId}-${i}`, rec.value)"
                     >
-                      {{ copiedDns.has(`${domain.id}-${i}`) ? '✓' : 'Copy' }}
+                      {{ copiedDns.has(`${domain.domainId}-${i}`) ? '✓' : 'Copy' }}
                     </button>
                   </div>
                 </div>
@@ -600,7 +601,7 @@ const TABS: { key: TabKey; label: string }[] = [
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div
             v-for="fwd in forwarding"
-            :key="fwd.id"
+            :key="fwd.address"
             class="flex items-center justify-between px-4 py-3"
           >
             <div>
@@ -609,7 +610,7 @@ const TABS: { key: TabKey; label: string }[] = [
             </div>
             <button
               class="text-xs text-ctp-red hover:text-ctp-red/80"
-              @click="removeForwarding(fwd.id)"
+              @click="removeForwarding(fwd.address)"
             >
               Remove
             </button>
@@ -679,20 +680,9 @@ const TABS: { key: TabKey; label: string }[] = [
           </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
-          <div v-for="member in team" :key="member.id" class="flex items-center gap-3 px-4 py-3">
+          <div v-for="member in team" :key="member.userId" class="flex items-center gap-3 px-4 py-3">
             <div class="flex-1">
-              <p class="text-sm font-medium text-ctp-text">{{ member.name || member.email }}</p>
-              <p v-if="member.name" class="text-xs text-ctp-subtext0">{{ member.email }}</p>
-              <span
-                class="mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs"
-                :class="
-                  member.status === 'active'
-                    ? 'bg-ctp-green/10 text-ctp-green'
-                    : 'bg-ctp-surface1 text-ctp-subtext0'
-                "
-              >
-                {{ member.status }}
-              </span>
+              <p class="text-sm font-medium text-ctp-text">{{ member.userId }}</p>
             </div>
             <select
               :value="member.role"
@@ -709,7 +699,7 @@ const TABS: { key: TabKey; label: string }[] = [
             </select>
             <button
               class="text-xs text-ctp-red hover:text-ctp-red/80"
-              @click="removeMember(member.userId, member.email)"
+              @click="removeMember(member.userId, member.userId)"
             >
               Remove
             </button>

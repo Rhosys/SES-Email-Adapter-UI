@@ -3,8 +3,8 @@ import { ref, computed, inject } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
-import type { Arc, Rule, Signal } from '@/types/server'
-import type { EmailAddressConfig } from '@/types/server'
+import type { Arc, Rule, Signal, Alias } from '@/types/server'
+import { isEmailSignal } from '@/lib/signal-guards'
 import { useRelativeTime } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
 import { NOW_KEY } from '@/composables/useRelativeTime'
@@ -26,7 +26,7 @@ const visibleSections = ref<Set<SectionKey>>(new Set(['arcs', 'signals', 'aliase
 const results = ref<{
   arcs: Arc[]
   signals: Signal[]
-  aliases: EmailAddressConfig[]
+  aliases: Alias[]
   rules: Rule[]
   error: string | null
 }>({ arcs: [], signals: [], aliases: [], rules: [], error: null })
@@ -63,7 +63,7 @@ async function doSearch() {
 
   if (arcsRes.isOk()) {
     const ql = q.toLowerCase()
-    results.value.arcs = arcsRes.value.items.filter(
+    results.value.arcs = arcsRes.value.arcs.filter(
       (a) =>
         a.summary?.toLowerCase().includes(ql) ||
         a.labels?.some((l) => l.toLowerCase().includes(ql)),
@@ -78,7 +78,7 @@ async function doSearch() {
   if (rulesRes.isOk()) {
     const ql = q.toLowerCase()
     results.value.rules = rulesRes.value.filter(
-      (r) => r.name.toLowerCase().includes(ql) || r.condition.toLowerCase().includes(ql),
+      (r) => r.name.toLowerCase().includes(ql) || (r.condition ?? '').toLowerCase().includes(ql),
     )
   }
 
@@ -198,8 +198,8 @@ if (query.value) {
         <div class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <RouterLink
             v-for="arc in results.arcs"
-            :key="arc.id"
-            :to="`/arcs/${arc.id}`"
+            :key="arc.arcId"
+            :to="`/arcs/${arc.arcId}`"
             class="block px-4 py-3 transition-colors hover:bg-ctp-surface0/50"
           >
             <div class="flex items-start justify-between gap-2">
@@ -219,15 +219,15 @@ if (query.value) {
           Signals ({{ results.signals.length }})
         </h2>
         <div class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
-          <div v-for="signal in results.signals" :key="signal.id" class="px-4 py-3">
+          <div v-for="signal in results.signals" :key="signal.signalId" class="px-4 py-3">
             <div class="flex items-start justify-between gap-2">
-              <p class="text-sm font-medium text-ctp-text">{{ signal.subject }}</p>
+              <p class="text-sm font-medium text-ctp-text">{{ isEmailSignal(signal) ? signal.data.subject : signal.type }}</p>
               <span class="shrink-0 text-xs text-ctp-subtext0">
-                {{ relTime(signal.receivedAt) }}
+                {{ relTime(signal.createdAt) }}
               </span>
             </div>
-            <p class="mt-0.5 text-xs text-ctp-subtext0">
-              From: {{ signal.from.name || signal.from.address }}
+            <p v-if="isEmailSignal(signal)" class="mt-0.5 text-xs text-ctp-subtext0">
+              From: {{ signal.data.from.name || signal.data.from.address }}
             </p>
           </div>
         </div>
@@ -241,7 +241,7 @@ if (query.value) {
         <div class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <RouterLink
             v-for="alias in results.aliases"
-            :key="alias.id"
+            :key="alias.alias"
             to="/settings"
             class="flex items-center justify-between px-4 py-3 transition-colors hover:bg-ctp-surface0/50"
           >
@@ -259,8 +259,8 @@ if (query.value) {
         <div class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <RouterLink
             v-for="rule in results.rules"
-            :key="rule.id"
-            :to="`/rules/${rule.id}`"
+            :key="rule.ruleId"
+            :to="`/rules/${rule.ruleId}`"
             class="block px-4 py-3 transition-colors hover:bg-ctp-surface0/50"
           >
             <div class="flex items-center justify-between gap-2">

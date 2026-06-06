@@ -43,7 +43,7 @@ const isEditing = computed(() => !!ruleId.value)
 const name = ref('')
 const status = ref<'enabled' | 'disabled'>('enabled')
 const groups = ref<ConditionGroup[]>([{ mode: 'and', conditions: [defaultLeaf()] }])
-const actions = ref<RuleAction[]>([{ type: 'block' }])
+const actions = ref<RuleAction[]>([{ type: 'block_hidden' }])
 
 // ─── Condition builder helpers ────────────────────────────────────────────────
 
@@ -116,7 +116,8 @@ interface ActionMeta {
 }
 
 const ACTION_META: ActionMeta[] = [
-  { type: 'block', label: 'Block', description: 'Silently discard — sender not notified' },
+  { type: 'block_hidden', label: 'Block (hidden)', description: 'Silently discard — sender not notified' },
+  { type: 'block_reject', label: 'Block (reject)', description: 'Discard and bounce to sender' },
   { type: 'quarantine', label: 'Quarantine', description: 'Hold for manual review' },
   {
     type: 'quarantine_hidden',
@@ -134,10 +135,10 @@ const ACTION_META: ActionMeta[] = [
     label: 'Suppress notification',
     description: 'Deliver without notification',
   },
-  { type: 'auto_reply', label: 'Auto reply', description: 'Send an automated reply' },
   { type: 'auto_draft', label: 'Auto draft', description: 'Pre-draft a reply' },
   { type: 'pong', label: 'Pong', description: 'Send an acknowledgement reply' },
-  { type: 'delete', label: 'Delete', description: 'Permanently delete the signal' },
+  { type: 'webhook', label: 'Webhook', description: 'POST to an external URL' },
+  { type: 'forwardCalendarInvite', label: 'Forward calendar invite', description: 'Forward calendar invites to another address' },
 ]
 
 const WORKFLOW_OPTIONS = [
@@ -159,7 +160,7 @@ const WORKFLOW_OPTIONS = [
 const URGENCY_OPTIONS = ['critical', 'high', 'normal', 'low', 'silent']
 
 const addingAction = ref(false)
-const actionTypeToAdd = ref<RuleActionType>('block')
+const actionTypeToAdd = ref<RuleActionType>('block_hidden')
 
 function addAction() {
   actions.value = [...actions.value, { type: actionTypeToAdd.value }]
@@ -222,30 +223,31 @@ onMounted(async () => {
 
   if (isEditing.value) {
     if (rulesStore.items.length === 0) await rulesStore.fetchRules()
-    const existing = rulesStore.items.find((r) => r.id === ruleId.value)
+    const existing = rulesStore.items.find((r) => r.ruleId === ruleId.value)
     if (existing) {
       name.value = existing.name
       status.value = existing.status
       actions.value = [...existing.actions]
-      groups.value = logicToGroups(existing.condition)
+      groups.value = logicToGroups(existing.condition ?? '')
     }
   } else {
     if (signalAction.value) {
-      actions.value = [{ type: signalAction.value === 'allow' ? 'approve_sender' : 'block' }]
+      actions.value = [{ type: signalAction.value === 'allow' ? 'approve_sender' : 'block_hidden' }]
     }
     if (signalId.value) {
-      const signal = [...quarantineStore.quarantineVisible, ...quarantineStore.quarantineHidden].find((s) => s.id === signalId.value)
-      if (signal) {
+      const signal = [...quarantineStore.quarantineVisible, ...quarantineStore.quarantineHidden].find((s) => s.signalId === signalId.value)
+      if (signal && signal.type === 'email' && 'from' in signal.data) {
+        const fromAddr = signal.data.from.address
         groups.value = [
           {
             mode: 'and',
             conditions: [
-              { field: 'signal.from.address', operator: 'equals', value: signal.from.address },
+              { field: 'signal.from.address', operator: 'equals', value: fromAddr },
             ],
           },
         ]
-        name.value = `${signalAction.value === 'allow' ? 'Allow' : 'Block'} ${signal.from.address}`
-        testInput.value.fromAddress = signal.from.address
+        name.value = `${signalAction.value === 'allow' ? 'Allow' : 'Block'} ${fromAddr}`
+        testInput.value.fromAddress = fromAddr
       }
     }
   }
@@ -253,7 +255,7 @@ onMounted(async () => {
 
 watch(signalAction, (val) => {
   if (!isEditing.value && val) {
-    actions.value = [{ type: val === 'allow' ? 'approve_sender' : 'block' }]
+    actions.value = [{ type: val === 'allow' ? 'approve_sender' : 'block_hidden' }]
   }
 })
 </script>
@@ -458,13 +460,13 @@ watch(signalAction, (val) => {
 
             <template v-if="act.type === 'assign_label'">
               <select
-                :value="act.labelId ?? ''"
+                :value="act.value ?? ''"
                 aria-label="Label"
                 class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
-                @change="updateAction(idx, { labelId: ($event.target as HTMLSelectElement).value })"
+                @change="updateAction(idx, { value: ($event.target as HTMLSelectElement).value })"
               >
                 <option value="">Pick label…</option>
-                <option v-for="l in labelsStore.items" :key="l.id" :value="l.id">
+                <option v-for="l in labelsStore.items" :key="l.label" :value="l.label">
                   {{ l.name }}
                 </option>
               </select>
@@ -472,12 +474,12 @@ watch(signalAction, (val) => {
 
             <template v-else-if="act.type === 'assign_workflow'">
               <select
-                :value="act.workflow ?? ''"
+                :value="act.value ?? ''"
                 aria-label="Workflow"
                 class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                 @change="
                   updateAction(idx, {
-                    workflow: ($event.target as HTMLSelectElement).value as never,
+                    value: ($event.target as HTMLSelectElement).value,
                   })
                 "
               >
@@ -488,12 +490,12 @@ watch(signalAction, (val) => {
 
             <template v-else-if="act.type === 'set_urgency'">
               <select
-                :value="act.urgency ?? ''"
+                :value="act.value ?? ''"
                 aria-label="Urgency level"
                 class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                 @change="
                   updateAction(idx, {
-                    urgency: ($event.target as HTMLSelectElement).value as never,
+                    value: ($event.target as HTMLSelectElement).value,
                   })
                 "
               >
@@ -502,26 +504,26 @@ watch(signalAction, (val) => {
               </select>
             </template>
 
-            <template v-else-if="act.type === 'forward'">
+            <template v-else-if="act.type === 'forward' || act.type === 'forwardCalendarInvite'">
               <input
-                :value="act.forwardTo ?? ''"
+                :value="act.value ?? ''"
                 type="email"
                 aria-label="Forward to address"
                 placeholder="forward@example.com"
                 class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-                @input="updateAction(idx, { forwardTo: ($event.target as HTMLInputElement).value })"
+                @input="updateAction(idx, { value: ($event.target as HTMLInputElement).value })"
               />
             </template>
 
-            <template v-else-if="act.type === 'auto_reply' || act.type === 'auto_draft'">
+            <template v-else-if="act.type === 'auto_draft'">
               <select
-                :value="act.templateId ?? ''"
+                :value="act.value ?? ''"
                 aria-label="Template"
                 class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
-                @change="updateAction(idx, { templateId: ($event.target as HTMLSelectElement).value || undefined })"
+                @change="updateAction(idx, { value: ($event.target as HTMLSelectElement).value || undefined })"
               >
                 <option value="">— Select template —</option>
-                <option v-for="tpl in templatesStore.templates" :key="tpl.id" :value="tpl.id">
+                <option v-for="tpl in templatesStore.templates" :key="tpl.templateId" :value="tpl.templateId">
                   {{ tpl.name }}
                 </option>
               </select>
@@ -532,6 +534,17 @@ watch(signalAction, (val) => {
               >
                 Manage
               </RouterLink>
+            </template>
+
+            <template v-else-if="act.type === 'webhook'">
+              <input
+                :value="act.value ?? ''"
+                type="url"
+                aria-label="Webhook URL"
+                placeholder="https://example.com/webhook"
+                class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+                @input="updateAction(idx, { value: ($event.target as HTMLInputElement).value })"
+              />
             </template>
 
             <button

@@ -9,7 +9,8 @@ const accountStore = useAccountStore()
 const rulesStore = useRulesStore()
 
 const ACTION_LABELS: Partial<Record<RuleActionType, string>> = {
-  block: 'Block',
+  block_hidden: 'Block (hidden)',
+  block_reject: 'Block (reject)',
   quarantine: 'Quarantine',
   quarantine_hidden: 'Quarantine (hidden)',
   archive: 'Archive',
@@ -19,26 +20,27 @@ const ACTION_LABELS: Partial<Record<RuleActionType, string>> = {
   forward: 'Forward',
   approve_sender: 'Approve',
   suppress_notification: 'Suppress',
-  auto_reply: 'Auto reply',
   auto_draft: 'Auto draft',
   pong: 'Pong',
-  delete: 'Delete',
+  webhook: 'Webhook',
+  forwardCalendarInvite: 'Forward calendar',
 }
 
 const ACTION_COLORS: Partial<Record<RuleActionType, string>> = {
-  block: 'text-ctp-red bg-ctp-red/10',
-  delete: 'text-ctp-red bg-ctp-red/10',
+  block_hidden: 'text-ctp-red bg-ctp-red/10',
+  block_reject: 'text-ctp-red bg-ctp-red/10',
   quarantine: 'text-ctp-peach bg-ctp-peach/10',
   quarantine_hidden: 'text-ctp-peach bg-ctp-peach/10',
   archive: 'text-ctp-subtext0 bg-ctp-surface1',
   assign_label: 'text-ctp-blue bg-ctp-blue/10',
   approve_sender: 'text-ctp-green bg-ctp-green/10',
   forward: 'text-ctp-sapphire bg-ctp-sapphire/10',
-  auto_reply: 'text-ctp-mauve bg-ctp-mauve/10',
   auto_draft: 'text-ctp-mauve bg-ctp-mauve/10',
+  webhook: 'text-ctp-mauve bg-ctp-mauve/10',
 }
 
 function conditionSummary(rule: Rule): string {
+  if (!rule.condition) return 'Match all emails'
   try {
     const tree = JSON.parse(rule.condition) as unknown
     return summarizeLogic(tree)
@@ -99,15 +101,15 @@ function summarizeLogic(node: unknown, depth = 0): string {
 
 async function deleteRule(rule: Rule) {
   if (!confirm(`Delete rule "${rule.name}"?`)) return
-  await rulesStore.deleteRule(rule.id)
+  await rulesStore.deleteRule(rule.ruleId)
 }
 
 async function moveUp(rule: Rule) {
-  await rulesStore.moveRule(rule.id, -1)
+  await rulesStore.moveRule(rule.ruleId, -1)
 }
 
 async function moveDown(rule: Rule) {
-  await rulesStore.moveRule(rule.id, 1)
+  await rulesStore.moveRule(rule.ruleId, 1)
 }
 
 // ─── Drag and drop ────────────────────────────────────────────────────────────
@@ -219,17 +221,17 @@ onMounted(async () => {
         <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -- drag is a mouse enhancement; keyboard reorder uses the ▲/▼ buttons -->
         <div
           v-for="(rule, idx) in rulesStore.items"
-          :key="rule.id"
+          :key="rule.ruleId"
           draggable="true"
           class="flex cursor-grab items-start gap-3 px-4 py-4 transition-colors active:cursor-grabbing"
           :class="{
-            'opacity-40': rule.id === draggingId,
-            'opacity-50': rule.status === 'disabled' && rule.id !== draggingId,
-            'border-t-2 border-t-ctp-mauve': rule.id === dragOverId && rule.id !== draggingId,
+            'opacity-40': rule.ruleId === draggingId,
+            'opacity-50': rule.status === 'disabled' && rule.ruleId !== draggingId,
+            'border-t-2 border-t-ctp-mauve': rule.ruleId === dragOverId && rule.ruleId !== draggingId,
           }"
-          @dragstart="onDragStart(rule.id)"
-          @dragover="onDragOver($event, rule.id)"
-          @drop.prevent="onDrop(rule.id)"
+          @dragstart="onDragStart(rule.ruleId)"
+          @dragover="onDragOver($event, rule.ruleId)"
+          @drop.prevent="onDrop(rule.ruleId)"
           @dragend="onDragEnd"
         >
           <!-- Priority arrows -->
@@ -285,7 +287,7 @@ onMounted(async () => {
           <!-- Row actions -->
           <div class="flex shrink-0 items-center gap-2">
             <RouterLink
-              :to="`/rules/${rule.id}`"
+              :to="`/rules/${rule.ruleId}`"
               class="text-xs text-ctp-subtext0 hover:text-ctp-text"
             >
               Edit

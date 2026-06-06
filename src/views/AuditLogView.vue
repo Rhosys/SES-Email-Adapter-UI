@@ -92,11 +92,11 @@ async function load(cursor?: string) {
     return
   }
   if (cursor) {
-    events.value = [...events.value, ...result.value.items]
+    events.value = [...events.value, ...result.value.events]
   } else {
-    events.value = result.value.items
+    events.value = result.value.events
   }
-  nextCursor.value = result.value.nextCursor
+  nextCursor.value = result.value.pagination.cursor ?? undefined
   void router.replace({ query: cursor ? { cursor } : {} })
 }
 
