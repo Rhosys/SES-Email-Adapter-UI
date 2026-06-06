@@ -105,7 +105,7 @@ async function send() {
   const id = deferAction(
     'Email sent',
     async () => {
-      // Toast expired — signal is now live. Parent re-fetches to show SignalCard with undo button.
+      // Toast expired — signal is now live. Parent re-fetches to show EmailSignalCard with undo button.
       sendState.value = 'idle'
       toastId.value = null
       emit('sent')

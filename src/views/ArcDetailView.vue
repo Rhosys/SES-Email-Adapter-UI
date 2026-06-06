@@ -8,7 +8,7 @@ import { useToast } from '@/composables/useToast'
 import { api } from '@/lib/api'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
-import SignalCard from '@/components/SignalCard.vue'
+import SignalRenderer from '@/components/SignalRenderer.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
 import ReplyComposer from '@/components/ReplyComposer.vue'
 
@@ -190,7 +190,7 @@ async function loadMore() {
             @discard="onDraftDiscard"
             @sent="onDraftSent"
           />
-          <SignalCard v-else :signal="signal" @undo="onSignalUndo" />
+          <SignalRenderer v-else :signal="signal" @undo="onSignalUndo" />
         </template>
       </div>
 
