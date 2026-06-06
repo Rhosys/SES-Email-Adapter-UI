@@ -119,6 +119,15 @@ async function updateAliasMode(address: string, unknownSenderPolicy: UnknownSend
   }
 }
 
+async function updateAliasThreshold(address: string, raw: string) {
+  if (!accountStore.accountId) return
+  const value = raw.trim() === '' ? undefined : Math.min(10, Math.max(0, Number(raw)))
+  const result = await api.updateAlias(accountStore.accountId, address, { spamScoreThreshold: value })
+  if (result.isOk()) {
+    aliases.value = aliases.value.map((a) => (a.address === address ? result.value : a))
+  }
+}
+
 async function deleteAddress(address: string) {
   if (!accountStore.accountId) return
   if (!confirm(`Remove ${address}?`)) return
@@ -520,6 +529,27 @@ const TABS: { key: TabKey; label: string }[] = [
             <p class="mt-1 text-xs text-ctp-subtext0">
               {{ FILTER_MODES.find((m) => m.value === alias.unknownSenderPolicy)?.description }}
             </p>
+            <div class="mt-2 flex items-center gap-2">
+              <label :for="`spam-${alias.alias}`" class="text-xs text-ctp-subtext0">Spam threshold:</label>
+              <input
+                :id="`spam-${alias.alias}`"
+                type="number"
+                min="0"
+                max="10"
+                step="0.1"
+                :value="alias.spamScoreThreshold ?? ''"
+                :placeholder="'account default'"
+                class="w-20 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                @change="updateAliasThreshold(alias.address, ($event.target as HTMLInputElement).value)"
+              />
+              <button
+                v-if="alias.spamScoreThreshold != null"
+                class="text-xs text-ctp-subtext0 hover:text-ctp-text"
+                @click="updateAliasThreshold(alias.address, '')"
+              >
+                Reset
+              </button>
+            </div>
           </div>
         </div>
       </section>
