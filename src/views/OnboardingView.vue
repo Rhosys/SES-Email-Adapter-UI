@@ -113,6 +113,7 @@ const domainApiError = ref('')
 const dnsRecords = ref<DnsRecord[]>([])
 const recheckingDns = ref(false)
 const mxVerifiedByClient = ref(false)
+const hasRechecked = ref(false)
 
 const domainFieldError = computed(() => {
   if (!domainTouched.value) return ''
@@ -161,6 +162,7 @@ async function recheckDns() {
   }
   const mxRec = dnsRecords.value.find((r) => r.type === 'MX')
   if (mxRec) mxVerifiedByClient.value = await verifyWithGoogleDns('MX', mxRec.name)
+  hasRechecked.value = true
   recheckingDns.value = false
 }
 
@@ -168,6 +170,19 @@ const DNS_STATUS_COLORS: Record<string, string> = {
   verified: 'text-ctp-green',
   failing:  'text-ctp-red',
   pending:  'text-ctp-subtext0',
+}
+
+async function changeDomain() {
+  if (!accountStore.accountId || !domainId.value) return
+  await api.deleteDomain(accountStore.accountId, domainId.value)
+  domain.value = ''
+  domainTouched.value = false
+  domainId.value = ''
+  domainAdded.value = false
+  domainApiError.value = ''
+  dnsRecords.value = []
+  mxVerifiedByClient.value = false
+  hasRechecked.value = false
 }
 
 // ── Step 3: Test email ────────────────────────────────────────────────────────
@@ -326,28 +341,28 @@ onUnmounted(() => {
             <p v-if="domainFieldError" id="domain-error" class="text-xs text-ctp-red">{{ domainFieldError }}</p>
           </div>
           <button
+            v-if="!domainAdded"
             type="submit"
-            :disabled="addingDomain || domainAdded || !domain.trim()"
+            :disabled="addingDomain || !domain.trim()"
             class="shrink-0 rounded-lg bg-ctp-mauve px-5 py-2.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
           >
-            {{ addingDomain ? 'Adding…' : domainAdded ? 'Added ✓' : 'Add domain' }}
+            {{ addingDomain ? 'Adding…' : 'Add domain' }}
+          </button>
+          <button
+            v-else
+            type="button"
+            class="shrink-0 rounded-lg border border-ctp-surface1 px-5 py-2.5 text-sm font-medium text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text"
+            @click="changeDomain"
+          >
+            Change
           </button>
         </form>
 
         <!-- DNS records -->
-        <div v-if="dnsRecords.length" class="mt-6 space-y-3">
-          <div class="flex items-center justify-between">
-            <p class="text-sm font-medium text-ctp-subtext1">
-              Add these DNS records to your domain provider:
-            </p>
-            <button
-              :disabled="recheckingDns"
-              class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text disabled:opacity-50"
-              @click="recheckDns"
-            >
-              {{ recheckingDns ? 'Checking…' : 'Re-check DNS' }}
-            </button>
-          </div>
+        <div v-if="dnsRecords.length" class="mt-10 space-y-3">
+          <p class="text-sm font-medium text-ctp-subtext1">
+            Add these DNS records to your domain provider:
+          </p>
 
           <div
             v-for="(rec, i) in dnsRecords"
@@ -362,6 +377,7 @@ onUnmounted(() => {
                 <span class="truncate font-mono text-xs text-ctp-text">{{ rec.name }}</span>
               </div>
               <span
+                v-if="hasRechecked"
                 class="shrink-0 text-xs font-medium"
                 :class="DNS_STATUS_COLORS[rec.status] ?? 'text-ctp-subtext0'"
               >
@@ -371,30 +387,34 @@ onUnmounted(() => {
             <div class="space-y-1">
               <p class="text-xs text-ctp-subtext1">Expected:</p>
               <CopyInput :value="rec.value" mono />
-              <template v-if="rec.currentValue">
+              <template v-if="hasRechecked && rec.currentValue">
                 <p class="mt-1 text-xs text-ctp-subtext1">Current:</p>
                 <p class="break-all font-mono text-xs text-ctp-subtext0">{{ rec.currentValue }}</p>
               </template>
             </div>
           </div>
 
-          <p class="text-xs text-ctp-subtext0">
+          <p v-if="hasRechecked" class="text-xs text-ctp-subtext0">
             DNS changes can take up to 48 hours to propagate globally. Click
             <strong>Re-check DNS</strong> after adding records to your provider.
           </p>
 
-          <!-- Continue once MX is verified -->
-          <div v-if="mxIsVerified" class="pt-2">
+          <!-- Bottom action row: re-check left, continue right -->
+          <div class="flex items-center justify-between pt-2">
             <button
+              :disabled="recheckingDns"
+              class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text disabled:opacity-50"
+              @click="recheckDns"
+            >
+              {{ recheckingDns ? 'Checking…' : 'Re-check DNS' }}
+            </button>
+            <button
+              v-if="mxIsVerified"
               class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
               @click="step = 3"
             >
               Continue to test email →
             </button>
-          </div>
-          <div v-else class="rounded-lg border border-dashed border-ctp-surface1 px-4 py-3 text-xs text-ctp-subtext0">
-            Waiting for the <strong>MX</strong> record to be verified before you can continue.
-            Click <strong>Re-check DNS</strong> after adding the records.
           </div>
         </div>
       </section>

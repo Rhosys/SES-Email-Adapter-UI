@@ -444,6 +444,10 @@ export const api = {
     return request<Domain>(`/accounts/${accountId}/domains/${domainId}`, { method: 'PATCH' })
   },
 
+  deleteDomain(accountId: string, domainId: string): Promise<Result<void, ApiError>> {
+    return request<void>(`/accounts/${accountId}/domains/${domainId}`, { method: 'DELETE' })
+  },
+
   // ─── Forwarding addresses ─────────────────────────────────────────────────
 
   async listForwardingAddresses(accountId: string): Promise<Result<ForwardingAddress[], ApiError>> {
