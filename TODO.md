@@ -47,6 +47,8 @@ Backend fields that exist on the frontend type but aren't yet surfaced in any UI
 
 ## Open tasks
 
+- [ ] **Deduplicate signals with identical bodies in arc detail view** — when multiple signals on the same arc have identical text bodies (different headers/metadata), collapse them into a single displayed signal with a "received N times" indicator. Compute body fingerprint (SHA-256 of normalized text body) client-side at render time. Show the most recent signal's headers; collapsed duplicates accessible via expand. Edge case: duplicate critical notifications still reach the user via push (backend sends per-signal) — this dedup is display-only, not notification suppression.
+
 ### Extensibility & integrations
 
 - [ ] **Webhooks UI in Settings** — outbound webhook subscriptions so users can pipe arc events into Slack, Discord, or Linear without writing custom code. New tab in the Settings view. Requires backend (see Backend TODOs — Webhooks).
