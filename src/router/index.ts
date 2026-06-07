@@ -157,16 +157,19 @@ const APP_NAME = 'SES Email Adapter'
 
 router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return true
+
+  // Block until the user's session is fully resolved (login redirect processed, token available).
+  // waitForUserSession resolves once authenticate() or userSessionExists() has completed.
   const authenticated = await loginClient.userSessionExists()
   if (!authenticated) return { name: 'login', query: { redirect: to.fullPath } }
 
   // Onboarding manages its own account creation — let it through always
   if (to.name === 'onboarding') return true
 
-  // For all other authenticated routes: ensure an account is loaded
+  // Wait for the background fetch (started in main.ts after session resolved) if accounts aren't loaded yet
   const accountStore = useAccountStore()
-  if (!accountStore.fetched) {
-    await accountStore.fetchAccount()
+  if (!accountStore.accounts.length) {
+    await accountStore.waitForFetch()
   }
 
   // Redirect to onboarding if no account exists or onboarding hasn't been completed.

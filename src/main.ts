@@ -27,6 +27,14 @@ window.addEventListener('beforeunload', () => logger.flushOnUnload())
 
 app.use(pinia).use(router).mount('#app')
 
+// Gate all post-auth initialization on session readiness.
+// waitForUserSession blocks until authenticate() or userSessionExists() confirms a session.
+// Once resolved, start the accounts fetch — guards will await this promise, never initiate their own.
+loginClient.waitForUserSession().then(() => {
+  const accountStore = useAccountStore()
+  accountStore.startFetch()
+})
+
 // Wire logger context after stores are available
 logger.setContext(() => {
   const accountStore = useAccountStore()

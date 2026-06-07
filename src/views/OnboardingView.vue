@@ -65,23 +65,30 @@ async function createAndAdvance() {
     creationMsgIdx.value = (creationMsgIdx.value + 1) % CREATION_MSGS.length
   }, 2000)
 
-  // Minimum display time for UX polish
-  await new Promise<void>((res) => setTimeout(res, 2000))
+  // Wait for background fetch (started in main.ts) to complete
+  await accountStore.waitForFetch()
 
-  // Fetch existing accounts once
-  if (!accountStore.fetched) await accountStore.fetchAccount()
-
-  // Retry loop — keep trying until we have an account
-  let retryDelay = 3_000
-  while (!accountStore.accountId) {
-    const result = await accountStore.createAccount('')
-    if (result.isOk()) break
-
-    await new Promise<void>((res) => setTimeout(res, retryDelay))
-    retryDelay = Math.min(retryDelay * 1.5, 15_000)
-    // Re-fetch in case the account was created server-side but the response was lost
-    accountStore.fetched = false
-    await accountStore.fetchAccount()
+  // If user already has an account, skip creation entirely
+  if (!accountStore.accountId) {
+    // Retry loop — keep trying until we have an account
+    let retryDelay = 3_000
+    let created = false
+    while (!created) {
+      const [result] = await Promise.all([
+        accountStore.createAccount(''),
+        // Minimum 2s display time for the creation animation
+        new Promise<void>((res) => setTimeout(res, 2000)),
+      ])
+      if (result.isOk()) {
+        created = true
+      } else {
+        await new Promise<void>((res) => setTimeout(res, retryDelay))
+        retryDelay = Math.min(retryDelay * 1.5, 15_000)
+        // Re-fetch in case the account was created server-side but the response was lost
+        await accountStore.fetchAccount()
+        if (accountStore.accountId) created = true
+      }
+    }
   }
 
   if (msgInterval) { clearInterval(msgInterval); msgInterval = null }

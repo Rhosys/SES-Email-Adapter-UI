@@ -14,7 +14,9 @@ export const useAccountStore = defineStore('account', () => {
   const accounts = ref<Account[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
-  const fetched = ref(false)
+
+  // The in-flight fetch promise — guards can await this without initiating their own fetch
+  let pendingFetch: Promise<void> | null = null
 
   const accountId = computed(() => account.value?.accountId ?? null)
 
@@ -26,7 +28,6 @@ export const useAccountStore = defineStore('account', () => {
     loading.value = false
     if (result.isErr()) {
       error.value = result.error.message
-      fetched.value = true
       return
     }
     accounts.value = result.value
@@ -40,7 +41,19 @@ export const useAccountStore = defineStore('account', () => {
       null
 
     if (account.value) sessionStorage.setItem(TAB_KEY, account.value.accountId)
-    fetched.value = true
+  }
+
+  /** Fire-and-forget: starts fetchAccount and stores the promise for guards to await. */
+  function startFetch(fromAccountId?: string) {
+    pendingFetch = fetchAccount(fromAccountId)
+  }
+
+  /** Await the in-flight fetch (if any). If the fetch hasn't started yet, waits briefly for it to begin. */
+  async function waitForFetch() {
+    // The fetch is kicked off by main.ts after waitForUserSession resolves.
+    // In rare cases the guard may reach here before the .then() microtask fires — yield once.
+    if (!pendingFetch) await Promise.resolve()
+    if (pendingFetch) await pendingFetch
   }
 
   async function createAccount(name: string): Promise<Result<Account, ApiError>> {
@@ -55,7 +68,6 @@ export const useAccountStore = defineStore('account', () => {
     const newAccount = result.value
     accounts.value = [newAccount, ...accounts.value]
     account.value = newAccount
-    fetched.value = true
     sessionStorage.setItem(TAB_KEY, newAccount.accountId)
     localStorage.setItem(LAST_KEY, newAccount.accountId)
     return ok(newAccount)
@@ -77,8 +89,9 @@ export const useAccountStore = defineStore('account', () => {
     loading,
     error,
     accountId,
-    fetched,
     fetchAccount,
+    startFetch,
+    waitForFetch,
     createAccount,
     switchAccount,
   }
