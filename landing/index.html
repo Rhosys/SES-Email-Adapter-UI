@@ -559,12 +559,7 @@
       color: var(--mauve);
       display: inline-flex; gap: 8px; align-items: center;
     }
-    .section-eyebrow .num {
-      color: var(--overlay0);
-      border: 1px solid var(--surface0);
-      padding: 1px 6px; border-radius: 4px;
-      font-size: 11px;
-    }
+
     h2.section-title {
       font-size: clamp(32px, 4vw, 52px);
       line-height: 1.05;
@@ -2501,7 +2496,7 @@ rest into workflows, and drops only what matters into your protected inbox.</p>
   <section id="how" class="understands" style="padding: 100px 0px 50px">
     <div class="wrap">
       <div class="und-head">
-        <div class="section-eyebrow"><span class="num">01</span> It doesn't just filter — it reads</div>
+        <div class="section-eyebrow">It doesn't just filter — it reads</div>
         <h2 class="section-title">Every email arrives as data, not a guess.</h2>
         <p class="section-sub">
           Other inboxes give you a flag and a folder. Numaeel pulls the moving parts out of every message —
@@ -2655,7 +2650,7 @@ rest into workflows, and drops only what matters into your protected inbox.</p>
       </div>
 
       <div>
-        <div class="section-eyebrow"><span class="num">02</span> Unlimited aliases</div>
+        <div class="section-eyebrow">Unlimited aliases</div>
         <h2 class="section-title">A different address for every sign-up. None of them charged extra.</h2>
         <p class="section-sub">
           Bring your own domain. Catch-all routing means every address on it — <code style="font-family: var(--font-mono); background: var(--mantle); padding: 2px 6px; border-radius: 4px; color: var(--mauve);">receipts@</code>,
@@ -2680,7 +2675,7 @@ rest into workflows, and drops only what matters into your protected inbox.</p>
   <section id="rules" style="background: var(--mantle); border-top: 1px solid var(--surface0); border-bottom: 1px solid var(--surface0);">
     <div class="wrap">
       <div class="rules-head">
-        <div class="section-eyebrow"><span class="num">03</span> The rule engine</div>
+        <div class="section-eyebrow">The rule engine</div>
         <h2 class="section-title">Rules you can read like&nbsp;code.</h2>
       </div>
 
@@ -2828,7 +2823,7 @@ rest into workflows, and drops only what matters into your protected inbox.</p>
       </div>
 
       <div>
-        <div class="section-eyebrow"><span class="num">04</span> Forwarding loops</div>
+        <div class="section-eyebrow">Forwarding loops</div>
         <h2 class="section-title">Every edge case handled.</h2>
         <p class="section-sub">
           Numaeel reads the label graph at validation time. If a forwarding target's label set overlaps the source
@@ -2859,10 +2854,10 @@ rest into workflows, and drops only what matters into your protected inbox.</p>
   <!-- ───────────────────────── OPEN SOURCE / JMAP ───────────────────────── -->
   <section id="jmap" style="background: var(--mantle); border-top: 1px solid var(--surface0); border-bottom: 1px solid var(--surface0);">
     <div class="wrap">
-      <div class="section-eyebrow"><span class="num">05</span> Open source · JMAP</div>
+      <div class="section-eyebrow">Open source · JMAP</div>
       <h2 class="section-title">Open source on GitHub, not a walled garden.</h2>
       <p class="section-sub" style="max-width: 66ch;">
-        Numaeel is built in the open. The backend, the Vue UI, and the browser extension live on GitHub under
+        Numaeel is built in the open. The <a href="https://github.com/Rhosys/SES-Email-Adapter" target="_blank" rel="noopener" style="color: var(--text); text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--surface1);">backend</a>, the <a href="https://github.com/Rhosys/SES-Email-Adapter-UI" target="_blank" rel="noopener" style="color: var(--text); text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--surface1);">Vue UI</a>, and the <a href="https://github.com/Rhosys/SES-Email-Adapter-Extension" target="_blank" rel="noopener" style="color: var(--text); text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--surface1);">browser extension</a> live on GitHub under
         a permissive licence — fork them, audit them, run them yourself if you'd rather. And because the inbox
         speaks JMAP (RFC 8620 / 8621), any standards-compliant mail client connects directly. No proprietary
         SDK. No client-shaped lock-in. No surprise re-licensing email.
@@ -3123,7 +3118,7 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
 
         <!-- RIGHT: text -->
         <div>
-          <div class="section-eyebrow"><span class="num">06</span> Calendar &amp; identity</div>
+          <div class="section-eyebrow">Calendar &amp; identity</div>
           <h2 class="section-title">Keep your calendar. Keep your logins.</h2>
           <p class="section-sub">
             Numaeel is a privacy front-end for the mail you receive — not a replacement for the tools you already trust.
@@ -3183,7 +3178,7 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
   <section id="switzerland" class="swiss-section">
     <div class="wrap swiss-hero">
       <div>
-        <div class="section-eyebrow"><span class="num">07</span> Where your mail lives</div>
+        <div class="section-eyebrow">Where your mail lives</div>
         <h2 class="section-title">Secured in Switzerland.</h2>
         <p class="section-sub">
           Email stored and processed inside Switzerland — under the Swiss nFADP, one of the strongest privacy
@@ -3248,7 +3243,7 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
   <section id="pricing">
     <div class="wrap">
       <div style="text-align: center;">
-        <div class="section-eyebrow" style="justify-content: center;"><span class="num">08</span> Pricing</div>
+        <div class="section-eyebrow" style="justify-content: center;">Pricing</div>
         <h2 class="section-title" style="margin-left: auto; margin-right: auto; max-width: 24ch;">Free forever for one inbox. Open standards for the rest.</h2>
       </div>
 
@@ -3381,18 +3376,16 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
     <div class="wrap">
       <div class="foot-grid">
         <div class="foot-col">
-          <div class="foot-brand-line" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px;">
-            <a class="brand" href="/">
-              <span class="mark" aria-hidden="true">
-                <svg viewBox="0 0 32 32" fill="none">
-                  <path d="M6 10h20v12H6z" stroke="#cba6f7" stroke-width="2"/>
-                  <path d="M6 10l10 7 10-7" stroke="#cba6f7" stroke-width="2" stroke-linejoin="round"/>
-                </svg>
-              </span>
-              Numaeel
-            </a>
-            <span style="color: var(--overlay1); font-size: 13px;">The protected inbox, secured in Switzerland. By Rhosys.</span>
-          </div>
+          <a class="brand" href="/" style="margin-bottom: 8px;">
+            <span class="mark" aria-hidden="true">
+              <svg viewBox="0 0 32 32" fill="none">
+                <path d="M6 10h20v12H6z" stroke="#cba6f7" stroke-width="2"/>
+                <path d="M6 10l10 7 10-7" stroke="#cba6f7" stroke-width="2" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            Numaeel
+          </a>
+          <span style="color: var(--overlay1); font-size: 13px; display: block;">The protected inbox, secured in Switzerland. By Rhosys.</span>
         </div>
         <div class="foot-col">
           <h5>Product</h5>
@@ -3411,6 +3404,7 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
           <a href="/a/">Webhooks</a>
           <a href="/a/">API keys</a>
           <a href="/a/">Status</a>
+          <a href="https://github.com/Rhosys/SES-Email-Adapter-UI" target="_blank" rel="noopener">Open Source</a>
         </div>
         <div class="foot-col">
           <h5>Legal &amp; company</h5>
