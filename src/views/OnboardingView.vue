@@ -129,6 +129,10 @@ const mxIsVerified = computed(() =>
   mxVerifiedByClient.value || dnsRecords.value.some((r) => r.type === 'MX' && r.status === 'verified'),
 )
 
+const allRecordsVerified = computed(() =>
+  dnsRecords.value.length > 0 && dnsRecords.value.every((r) => r.status === 'verified'),
+)
+
 async function submitDomain() {
   domainTouched.value = true
   if (!isValidDomain(domain.value) || !accountStore.accountId) return
@@ -154,7 +158,9 @@ async function hydrateExistingDomain() {
   // Fetch records via recheck (GET single domain returns records)
   const detail = await api.recheckDomain(accountStore.accountId, existing.domainId)
   if (detail.isOk() && 'records' in detail.value) {
-    dnsRecords.value = (detail.value as { records: DnsRecord[] }).records
+    const records = (detail.value as { records: DnsRecord[] }).records
+    dnsRecords.value = records
+    if (records.some((r) => r.currentValue)) hasRechecked.value = true
   }
 }
 
@@ -406,7 +412,9 @@ onUnmounted(() => {
               <p class="text-xs text-ctp-subtext1">Expected:</p>
               <CopyInput :value="rec.value" mono />
               <template v-if="hasRechecked && rec.currentValue">
-                <p class="mt-1 text-xs text-ctp-subtext1">Current:</p>
+                <p class="mt-1 text-xs" :class="rec.status === 'failing' ? 'text-ctp-red' : 'text-ctp-subtext1'">
+                  Current{{ rec.status === 'failing' ? ' (invalid)' : '' }}:
+                </p>
                 <p class="break-all font-mono text-xs text-ctp-subtext0">{{ rec.currentValue }}</p>
               </template>
             </div>
@@ -420,6 +428,7 @@ onUnmounted(() => {
           <!-- Bottom action row: re-check left, continue right -->
           <div class="flex items-center justify-between pt-2">
             <button
+              v-if="!allRecordsVerified"
               :disabled="recheckingDns"
               class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text disabled:opacity-50"
               @click="recheckDns"
@@ -427,11 +436,11 @@ onUnmounted(() => {
               {{ recheckingDns ? 'Checking…' : 'Re-check DNS' }}
             </button>
             <button
-              v-if="mxIsVerified"
-              class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
+              :disabled="!mxIsVerified"
+              class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
               @click="step = 3"
             >
-              Continue to test email →
+              {{ mxIsVerified && !allRecordsVerified ? 'Skip full setup →' : 'Continue to test email →' }}
             </button>
           </div>
         </div>
