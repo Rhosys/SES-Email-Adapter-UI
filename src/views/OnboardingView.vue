@@ -101,6 +101,9 @@ async function createAndAdvance() {
     return
   }
   step.value = 2
+
+  // Hydrate in-progress domain if one exists
+  await hydrateExistingDomain()
 }
 
 // ── Step 2: Domain ────────────────────────────────────────────────────────────
@@ -138,6 +141,21 @@ async function submitDomain() {
   // Records will be fetched on recheck — addDomain returns Domain without records
   domainAdded.value = true
   await recheckDns()
+}
+
+async function hydrateExistingDomain() {
+  if (!accountStore.accountId) return
+  const result = await api.listDomains(accountStore.accountId)
+  if (result.isErr() || result.value.length === 0) return
+  const existing = result.value[0]
+  domain.value = existing.domain
+  domainId.value = existing.domainId
+  domainAdded.value = true
+  // Fetch records via recheck (GET single domain returns records)
+  const detail = await api.recheckDomain(accountStore.accountId, existing.domainId)
+  if (detail.isOk() && 'records' in detail.value) {
+    dnsRecords.value = (detail.value as { records: DnsRecord[] }).records
+  }
 }
 
 async function verifyWithGoogleDns(type: string, host: string): Promise<boolean> {
