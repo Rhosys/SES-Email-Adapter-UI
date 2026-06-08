@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { CalendarEventSignal } from '@/types/server'
+import type { CalendarEventSignal, Signal } from '@/types/server'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
+import LinkedSignalSummary from '@/components/LinkedSignalSummary.vue'
 
 type RsvpResponse = 'accepted' | 'declined' | 'tentative'
 
-const props = defineProps<{ signal: CalendarEventSignal }>()
+const props = defineProps<{ signal: CalendarEventSignal; linkedSignal?: Signal }>()
 
 const accountStore = useAccountStore()
 const loading = ref<RsvpResponse | null>(null)
@@ -125,5 +126,7 @@ async function handleRsvp(response: RsvpResponse) {
         </button>
       </div>
     </div>
+
+    <LinkedSignalSummary v-if="linkedSignal" :signal="linkedSignal" label="Received via" />
   </div>
 </template>

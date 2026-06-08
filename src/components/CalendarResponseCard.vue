@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { CalendarResponseSignal } from '@/types/server'
+import type { CalendarResponseSignal, Signal } from '@/types/server'
+import LinkedSignalSummary from '@/components/LinkedSignalSummary.vue'
 
-const props = defineProps<{ signal: CalendarResponseSignal }>()
+const props = defineProps<{ signal: CalendarResponseSignal; linkedSignal?: Signal }>()
 
 const responseLabel = computed(() => {
   switch (props.signal.data.rsvpResponse) {
@@ -41,5 +42,7 @@ const respondedAt = computed(() =>
       </span>
       <span class="ml-auto text-xs text-ctp-subtext0">{{ respondedAt }}</span>
     </div>
+
+    <LinkedSignalSummary v-if="linkedSignal" :signal="linkedSignal" label="For event" />
   </div>
 </template>
