@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { DeliverabilitySignal } from '@/types/server'
+import type { DeliverabilitySignal, Signal } from '@/types/server'
+import LinkedSignalSummary from '@/components/LinkedSignalSummary.vue'
 
-defineProps<{ signal: DeliverabilitySignal }>()
+defineProps<{ signal: DeliverabilitySignal; linkedSignal?: Signal }>()
 </script>
 
 <template>
@@ -34,5 +35,7 @@ defineProps<{ signal: DeliverabilitySignal }>()
         <span v-if="recipient.reason" class="text-xs text-ctp-subtext0">— {{ recipient.reason }}</span>
       </div>
     </div>
+
+    <LinkedSignalSummary v-if="linkedSignal" :signal="linkedSignal" label="Sent email" />
   </div>
 </template>

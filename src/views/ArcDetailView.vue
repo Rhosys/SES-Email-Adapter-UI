@@ -8,7 +8,7 @@ import { useToast } from '@/composables/useToast'
 import { api } from '@/lib/api'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { retentionExpiresAt } from '@/lib/retention'
-import { groupByBodyFingerprint } from '@/lib/dedup'
+import { groupByBodyFingerprint, attachLinkedSignals } from '@/lib/dedup'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
 import SignalRenderer from '@/components/SignalRenderer.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
@@ -27,7 +27,7 @@ const showReply = computed(() => {
   return workflow !== 'auth' && workflow !== 'test' && workflow !== 'status'
 })
 
-const dedupedSignals = computed(() => groupByBodyFingerprint(signalsStore.items))
+const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalsStore.items)))
 
 const availableUntil = computed(() => {
   const arc = signalsStore.arc
@@ -206,7 +206,7 @@ async function loadMore() {
             @discard="onDraftDiscard"
             @sent="onDraftSent"
           />
-          <SignalRenderer v-else :signal="group.signal" :duplicates="group.duplicates" @undo="onSignalUndo" />
+          <SignalRenderer v-else :signal="group.signal" :duplicates="group.duplicates" :linked-signal="group.linkedSignal" @undo="onSignalUndo" />
         </template>
       </div>
 
