@@ -6,7 +6,7 @@ import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 
-const props = defineProps<{ signal: Signal }>()
+const props = defineProps<{ signal: Signal; duplicates?: Signal[] }>()
 const emit = defineEmits<{ undo: [] }>()
 
 const router = useRouter()
@@ -15,6 +15,9 @@ const expanded = ref(true)
 const menuOpen = ref(false)
 const undoPending = ref(false)
 const undoError = ref<string | null>(null)
+const showDuplicates = ref(false)
+
+const receivedCount = computed(() => (props.duplicates?.length ?? 0) + 1)
 
 const isUserSent = computed(() => props.signal.source === 'user')
 
@@ -92,6 +95,16 @@ function fitHeight(e: Event) {
         <span class="text-xs text-ctp-subtext0">{{ sentAt }}</span>
       </button>
 
+      <!-- Duplicate count badge -->
+      <button
+        v-if="duplicates && duplicates.length > 0"
+        class="mr-2 shrink-0 rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1 hover:bg-ctp-surface2"
+        :aria-expanded="showDuplicates"
+        @click.stop="showDuplicates = !showDuplicates"
+      >
+        × {{ receivedCount }}
+      </button>
+
       <!-- Undo error inline -->
       <span v-if="undoError" class="mr-2 shrink-0 text-xs text-ctp-red">{{ undoError }}</span>
 
@@ -155,6 +168,22 @@ function fitHeight(e: Event) {
           @load="fitHeight"
         />
         <p v-else class="px-4 py-3 text-sm text-ctp-subtext0">(No content)</p>
+      </div>
+    </template>
+
+    <!-- Earlier copies -->
+    <template v-if="showDuplicates && duplicates && duplicates.length > 0">
+      <div class="border-t border-ctp-surface1 px-4 py-2">
+        <p class="mb-1 text-xs font-medium text-ctp-subtext0">Earlier copies</p>
+        <ul class="space-y-0.5">
+          <li
+            v-for="dup in duplicates"
+            :key="dup.signalId"
+            class="text-xs text-ctp-subtext0"
+          >
+            {{ isInboundEmailSignal(dup) ? new Date(dup.data.receivedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '' }}
+          </li>
+        </ul>
       </div>
     </template>
   </div>

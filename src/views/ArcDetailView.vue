@@ -8,6 +8,7 @@ import { useToast } from '@/composables/useToast'
 import { api } from '@/lib/api'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { retentionExpiresAt } from '@/lib/retention'
+import { groupByBodyFingerprint } from '@/lib/dedup'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
 import SignalRenderer from '@/components/SignalRenderer.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
@@ -25,6 +26,8 @@ const showReply = computed(() => {
   const workflow = signalsStore.arc?.workflow
   return workflow !== 'auth' && workflow !== 'test' && workflow !== 'status'
 })
+
+const dedupedSignals = computed(() => groupByBodyFingerprint(signalsStore.items))
 
 const availableUntil = computed(() => {
   const arc = signalsStore.arc
@@ -196,14 +199,14 @@ async function loadMore() {
 
       <!-- Signal thread — received + draft signals -->
       <div class="space-y-4">
-        <template v-for="signal in signalsStore.items" :key="signal.signalId">
+        <template v-for="group in dedupedSignals" :key="group.signal.signalId">
           <DraftSignalCard
-            v-if="signal.status === 'draft'"
-            :signal="signal"
+            v-if="group.signal.status === 'draft'"
+            :signal="group.signal"
             @discard="onDraftDiscard"
             @sent="onDraftSent"
           />
-          <SignalRenderer v-else :signal="signal" @undo="onSignalUndo" />
+          <SignalRenderer v-else :signal="group.signal" :duplicates="group.duplicates" @undo="onSignalUndo" />
         </template>
       </div>
 
