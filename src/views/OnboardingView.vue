@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, watchEffect, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
+import logger from '@/lib/logger'
 import type { DnsRecord } from '@/types/server'
 import CopyInput from '@/components/CopyInput.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
@@ -10,7 +11,7 @@ import UserAvatar from '@/components/UserAvatar.vue'
 const router = useRouter()
 const accountStore = useAccountStore()
 
-// ── Pronounceable word pairs for test email username ──────────────────────
+// ── Deterministic test email username from domain hash ────────────────────────
 const WORDS = [
   'acorn', 'amber', 'atlas', 'azure', 'birch', 'blaze', 'bloom', 'cedar',
   'chess', 'cider', 'cloak', 'cloud', 'coral', 'crane', 'crisp', 'daisy',
@@ -32,8 +33,7 @@ const WORDS = [
   'weave', 'whale', 'wheat', 'wheel', 'white', 'world', 'wrath', 'yacht',
   'yield', 'young', 'zesty', 'zippy',
 ]
-function pick() { return WORDS[Math.floor(Math.random() * WORDS.length)] }
-const testEmailUser = `${pick()}.${pick()}`
+const testEmailUser = ref('test.numaeel')
 
 import { isValidDomain } from '@/lib/validation'
 
@@ -100,6 +100,11 @@ async function createAndAdvance() {
     void router.replace('/inbox')
     return
   }
+  if (ob?.testEmailReceived) {
+    signalArrived.value = true
+    step.value = 4
+    return
+  }
   step.value = 2
 
   // Hydrate in-progress domain if one exists
@@ -109,6 +114,17 @@ async function createAndAdvance() {
 // ── Step 2: Domain ────────────────────────────────────────────────────────────
 const domain = ref('')
 const domainTouched = ref(false)
+
+// Hash domain into deterministic test email username: word.word.numaeel
+watchEffect(async () => {
+  const d = domain.value
+  if (!d) { testEmailUser.value = 'test.numaeel'; return }
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(d))
+  const bytes = new Uint8Array(buf)
+  const w1 = WORDS[bytes[0]! % WORDS.length]
+  const w2 = WORDS[bytes[1]! % WORDS.length]
+  testEmailUser.value = `${w1}.${w2}.numaeel`
+})
 const domainId = ref('')
 const addingDomain = ref(false)
 const domainAdded = ref(false)
@@ -124,10 +140,6 @@ const domainFieldError = computed(() => {
   if (!isValidDomain(domain.value)) return 'Enter a valid domain (e.g. example.com)'
   return ''
 })
-
-const mxIsVerified = computed(() =>
-  mxVerifiedByClient.value || dnsRecords.value.some((r) => r.type === 'MX' && r.status === 'verified'),
-)
 
 const allRecordsVerified = computed(() =>
   dnsRecords.value.length > 0 && dnsRecords.value.every((r) => r.status === 'verified'),
@@ -210,7 +222,7 @@ async function changeDomain() {
 }
 
 // ── Step 3: Test email ────────────────────────────────────────────────────────
-const testEmailAddress = computed(() => `${testEmailUser}@${domain.value || 'yourdomain.com'}`)
+const testEmailAddress = computed(() => `${testEmailUser.value}@${domain.value || 'yourdomain.com'}`)
 const emailSentClicked = ref(false)
 const signalArrived = ref(false)
 let ws: WebSocket | null = null
@@ -218,11 +230,23 @@ let pollInterval: ReturnType<typeof setInterval> | null = null
 
 function startPolling(accountId: string) {
   let attempts = 0
+  logger.info({ title: 'Onboarding: starting signal poll', accountId })
   pollInterval = setInterval(async () => {
     attempts++
-    if (attempts > 60) { clearInterval(pollInterval!); return }
-    const result = await api.listQuarantinedSignals(accountId, 'quarantine_visible', { limit: 1 })
-    if (result.isOk() && result.value.signals.length > 0) {
+    if (attempts > 60) {
+      logger.warn({ title: 'Onboarding: poll timeout — no signal after 60 attempts', accountId })
+      clearInterval(pollInterval!)
+      return
+    }
+    // Check both quarantined signals and arcs — test emails may not be quarantined
+    const [quarantineResult, arcsResult] = await Promise.all([
+      api.listQuarantinedSignals(accountId, 'quarantine_visible', { limit: 1 }),
+      api.listArcs(accountId, { limit: 1 }),
+    ])
+    const hasSignal = quarantineResult.isOk() && quarantineResult.value.signals.length > 0
+    const hasArc = arcsResult.isOk() && arcsResult.value.arcs.length > 0
+    if (hasSignal || hasArc) {
+      logger.info({ title: 'Onboarding: signal detected via poll', accountId, attempt: attempts, source: hasArc ? 'arc' : 'quarantine' })
       clearInterval(pollInterval!)
       void onSignalArrived()
     }
@@ -234,11 +258,20 @@ function connectWs(accountId: string) {
   const wsBase = base.startsWith('https://')
     ? base.replace('https://', 'wss://')
     : base.replace('http://', 'ws://')
+  const wsUrl = `${wsBase}/accounts/${accountId}/signals/stream`
+  logger.info({ title: 'Onboarding: connecting WebSocket', url: wsUrl })
   try {
-    ws = new WebSocket(`${wsBase}/accounts/${accountId}/signals/stream`)
-    ws.onmessage = () => void onSignalArrived()
-    ws.onerror = () => startPolling(accountId)
+    ws = new WebSocket(wsUrl)
+    ws.onmessage = () => {
+      logger.info({ title: 'Onboarding: signal detected via WebSocket', accountId })
+      void onSignalArrived()
+    }
+    ws.onerror = (e) => {
+      logger.warn({ title: 'Onboarding: WebSocket error, falling back to polling', accountId, error: e })
+      startPolling(accountId)
+    }
   } catch {
+    logger.warn({ title: 'Onboarding: WebSocket connect failed, falling back to polling', accountId })
     startPolling(accountId)
   }
 }
@@ -246,8 +279,13 @@ function connectWs(accountId: string) {
 async function onSignalArrived() {
   if (signalArrived.value) return
   signalArrived.value = true
-  await persistProgress({ completed: true })
+  await persistProgress({ testEmailReceived: true })
   step.value = 4
+}
+
+async function completeOnboarding() {
+  await persistProgress({ completed: true })
+  router.push('/inbox')
 }
 
 function markEmailSent() {
@@ -262,6 +300,7 @@ watch(step, (s) => {
 // ── Persistence ───────────────────────────────────────────────────────────────
 async function persistProgress(patch: Partial<{
   completed: boolean
+  testEmailReceived: boolean
 }>) {
   if (!accountStore.accountId) return
   const result = await api.updateAccount(accountStore.accountId, { onboarding: patch })
@@ -435,12 +474,13 @@ onUnmounted(() => {
             >
               {{ recheckingDns ? 'Checking…' : 'Re-check DNS' }}
             </button>
+            <span v-else></span>
             <button
-              :disabled="!mxIsVerified"
+              :disabled="!allRecordsVerified"
               class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
               @click="step = 3"
             >
-              {{ mxIsVerified && !allRecordsVerified ? 'Skip full setup →' : 'Continue to test email →' }}
+              Continue to test email →
             </button>
           </div>
         </div>
@@ -547,7 +587,7 @@ onUnmounted(() => {
 
           <button
             class="rounded-lg bg-ctp-mauve px-8 py-3 text-sm font-semibold text-ctp-base transition-opacity hover:opacity-90"
-            @click="router.push('/inbox')"
+            @click="completeOnboarding()"
           >
             See the result →
           </button>

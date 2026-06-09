@@ -94,6 +94,8 @@ export interface AccountFilteringConfig {
 export interface AccountOnboarding {
   completed: boolean
   completedAt?: string
+  testEmailReceived?: boolean
+  testEmailReceivedAt?: string
 }
 
 export interface Account {
