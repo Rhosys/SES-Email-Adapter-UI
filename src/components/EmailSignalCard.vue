@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Signal } from '@/types/server'
 import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
+import { useGestureHandler } from '@/composables/useGestureHandler'
 
 const props = defineProps<{ signal: Signal; duplicates?: Signal[] }>()
 const emit = defineEmits<{ undo: [] }>()
@@ -72,6 +73,79 @@ function fitHeight(e: Event) {
     // Cross-origin sandbox blocked contentDocument access — keep CSS min-height
   }
 }
+
+// --- Gesture / zoom for the email body iframe ---
+//
+// Touch events that start inside the iframe don't bubble to the parent document,
+// so a transparent overlay div captures all gestures. Single taps temporarily
+// become pointer-events:none so the browser's synthetic click reaches the iframe
+// (enabling link clicks), and is restored ~600 ms later.
+//
+// Supported gestures:
+//   • Pinch open/close  — zoom email content (1× – 4×)
+//   • Double-tap        — zoom to 2.5× centred on tap, or reset to 1×
+//   • Single-finger pan — pan while zoomed (page scroll when at 1×)
+//   • Swipe down        — collapse the email card (unzoomed only)
+
+const gestureOverlayRef = ref<HTMLElement | null>(null)
+
+const {
+  scale: emailScale,
+  translateX: emailTx,
+  translateY: emailTy,
+  isGesturing: emailIsGesturing,
+  reset: resetEmailZoom,
+} = useGestureHandler(gestureOverlayRef, {
+  onSingleTap: () => {
+    const overlay = gestureOverlayRef.value
+    // When at natural scale, let the browser's synthetic click reach the iframe
+    if (!overlay || emailScale.value > 1) return
+    overlay.style.pointerEvents = 'none'
+    setTimeout(() => {
+      if (gestureOverlayRef.value) gestureOverlayRef.value.style.pointerEvents = ''
+    }, 600)
+  },
+
+  onDoubleTap: (cx, cy) => {
+    if (emailScale.value > 1) {
+      resetEmailZoom()
+      return
+    }
+    const el = gestureOverlayRef.value
+    if (!el) return
+    const newScale = 2.5
+    const w = el.offsetWidth
+    const h = el.offsetHeight
+    // Keep the tapped point fixed: translate so cx stays at cx after scaling
+    emailTx.value = Math.max(w * (1 - newScale), Math.min(0, cx - cx * newScale))
+    emailTy.value = Math.max(h * (1 - newScale), Math.min(0, cy - cy * newScale))
+    emailScale.value = newScale
+  },
+
+  onSwipe: (dir) => {
+    if (dir === 'down') expanded.value = false
+  },
+})
+
+// Reset zoom whenever the card is collapsed
+watch(expanded, (v) => { if (!v) resetEmailZoom() })
+
+const iframeStyle = computed(() => ({
+  minHeight: '200px',
+  border: 'none',
+  display: 'block',
+  transformOrigin: '0 0',
+  transform: `translate(${emailTx.value}px, ${emailTy.value}px) scale(${emailScale.value})`,
+  // Suppress transition during active gestures to avoid input lag
+  transition: emailIsGesturing.value ? 'none' : 'transform 0.25s ease-out',
+  willChange: 'transform',
+}))
+
+// pan-y: let the page scroll normally when at natural scale;
+// none: we own all touch handling when zoomed in
+const overlayTouchAction = computed(() => (emailScale.value > 1 ? 'none' : 'pan-y'))
+
+const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toFixed(1)}×`)
 </script>
 
 <template>
@@ -157,16 +231,48 @@ function fitHeight(e: Event) {
     <!-- Email body -->
     <template v-if="expanded && signal.type === 'email'">
       <div class="border-t border-ctp-surface1">
-        <iframe
-          v-if="signal.data.body"
-          :srcdoc="signal.data.body"
-          sandbox="allow-popups allow-popups-to-escape-sandbox"
-          referrerpolicy="no-referrer"
-          class="w-full"
-          style="min-height: 200px; border: none"
-          title="Email content"
-          @load="fitHeight"
-        />
+        <div v-if="signal.data.body" class="relative overflow-hidden">
+          <iframe
+            :srcdoc="signal.data.body"
+            sandbox="allow-popups allow-popups-to-escape-sandbox"
+            referrerpolicy="no-referrer"
+            class="w-full"
+            :style="iframeStyle"
+            title="Email content"
+            @load="fitHeight"
+          />
+
+          <!-- Transparent gesture capture overlay.
+               Always covers the iframe because touch events that start inside
+               an iframe don't bubble to the parent document.
+               Single taps are handled by temporarily setting pointer-events:none
+               so the browser's delayed synthetic click reaches the iframe. -->
+          <div
+            ref="gestureOverlayRef"
+            class="absolute inset-0"
+            :style="{ touchAction: overlayTouchAction }"
+            aria-hidden="true"
+          />
+
+          <!-- Zoom controls — z-index above overlay so they receive clicks directly -->
+          <div
+            v-if="emailScale > 1"
+            class="absolute right-2 top-2 z-20 flex items-center gap-1.5"
+          >
+            <span
+              class="rounded-full bg-ctp-surface0/80 px-2 py-0.5 text-xs text-ctp-subtext1 backdrop-blur-sm"
+              aria-live="polite"
+              aria-label="Current zoom level"
+            >{{ zoomLabel }}</span>
+            <button
+              class="rounded-full bg-ctp-surface0/80 px-2 py-0.5 text-xs text-ctp-text backdrop-blur-sm hover:bg-ctp-surface1/90 active:bg-ctp-surface2"
+              aria-label="Reset zoom to 100%"
+              @click="resetEmailZoom"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
         <p v-else class="px-4 py-3 text-sm text-ctp-subtext0">(No content)</p>
       </div>
     </template>
