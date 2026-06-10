@@ -110,6 +110,11 @@ async function createAndAdvance() {
 
   // Hydrate in-progress domain if one exists
   await hydrateExistingDomain()
+
+  // On page load/refresh, skip straight to the test email screen if all records are already verified
+  if (allRecordsVerified.value) {
+    step.value = 3
+  }
 }
 
 // ── Step 2: Domain ────────────────────────────────────────────────────────────
