@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
+import AsyncButton from '@/components/ui/AsyncButton.vue'
 import type {
   Domain,
   DnsRecord,
@@ -389,13 +390,13 @@ const TABS: { key: TabKey; label: string }[] = [
               type="text"
               class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
             />
-            <button
-              :disabled="accountPending || !accountName.trim()"
-              class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
-              @click="saveAccount"
+            <AsyncButton
+              :action="saveAccount"
+              :disabled="!accountName.trim()"
+              class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
             >
-              {{ accountPending ? 'Saving…' : accountSaved ? 'Saved ✓' : 'Save' }}
-            </button>
+              Save
+            </AsyncButton>
           </div>
         </div>
         <div>
@@ -408,21 +409,21 @@ const TABS: { key: TabKey; label: string }[] = [
           <span class="mb-1 block text-xs font-medium text-ctp-subtext0">After send</span>
           <p class="mb-2 text-xs text-ctp-subtext0">What happens to the conversation after you send a reply</p>
           <div class="flex gap-2">
-            <button
+            <AsyncButton
               v-for="option in [{ value: 'archive' as const, label: 'Archive' }, { value: 'keep_active' as const, label: 'Keep active' }]"
               :key="option.value"
-              :disabled="afterSendPending"
+              :action="() => updateAfterSendAction(option.value)"
+              variant="ghost"
               :aria-pressed="afterSendAction === option.value"
-              class="rounded-full border px-3 py-1 text-xs transition-colors disabled:opacity-50"
+              class="rounded-full border px-3 py-1 text-xs"
               :class="
                 afterSendAction === option.value
                   ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
                   : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
               "
-              @click="updateAfterSendAction(option.value)"
             >
               {{ option.label }}
-            </button>
+            </AsyncButton>
           </div>
         </div>
 
@@ -438,13 +439,12 @@ const TABS: { key: TabKey; label: string }[] = [
               placeholder="calendar@example.com"
               class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
             />
-            <button
-              :disabled="calendarForwardingPending"
-              class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
-              @click="saveCalendarForwarding"
+            <AsyncButton
+              :action="saveCalendarForwarding"
+              class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
             >
-              {{ calendarForwardingPending ? 'Saving…' : calendarForwardingSaved ? 'Saved ✓' : 'Save' }}
-            </button>
+              Save
+            </AsyncButton>
           </div>
         </div>
       </section>
@@ -466,13 +466,14 @@ const TABS: { key: TabKey; label: string }[] = [
             placeholder="you@domain.com"
             class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           />
-          <button
+          <AsyncButton
             type="submit"
-            :disabled="newAddressPending || !newAddress.trim()"
-            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+            :action="addAddress"
+            :disabled="!newAddress.trim()"
+            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
           >
-            {{ newAddressPending ? 'Adding…' : 'Add' }}
-          </button>
+            Add
+          </AsyncButton>
         </form>
 
         <div
@@ -564,13 +565,14 @@ const TABS: { key: TabKey; label: string }[] = [
             placeholder="yourdomain.com"
             class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           />
-          <button
+          <AsyncButton
             type="submit"
-            :disabled="addDomainPending || !newDomain.trim()"
-            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+            :action="addDomain"
+            :disabled="!newDomain.trim()"
+            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
           >
-            {{ addDomainPending ? 'Adding…' : 'Add domain' }}
-          </button>
+            Add domain
+          </AsyncButton>
         </form>
 
         <div
@@ -624,14 +626,14 @@ const TABS: { key: TabKey; label: string }[] = [
                   </span>
                 </div>
               </div>
-              <button
+              <AsyncButton
                 v-if="!domain.receivingSetupComplete || !domain.senderSetupComplete"
-                :disabled="recheckPending.has(domain.domainId)"
-                class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-surface2 hover:text-ctp-text disabled:opacity-50"
-                @click="recheckDomain(domain.domainId)"
+                :action="() => recheckDomain(domain.domainId)"
+                variant="outline"
+                class="px-3 py-1.5 text-xs text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
               >
-                {{ recheckPending.has(domain.domainId) ? 'Checking…' : 'Re-check DNS' }}
-              </button>
+                Re-check DNS
+              </AsyncButton>
             </div>
             <!-- DNS records — two-tier display -->
             <div v-if="domain.records?.length" class="border-t border-ctp-surface0">
@@ -691,13 +693,14 @@ const TABS: { key: TabKey; label: string }[] = [
             placeholder="forward@example.com"
             class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           />
-          <button
+          <AsyncButton
             type="submit"
-            :disabled="addForwardPending || !newForwardAddress.trim()"
-            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+            :action="addForwardingAddress"
+            :disabled="!newForwardAddress.trim()"
+            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
           >
-            {{ addForwardPending ? 'Adding…' : 'Add' }}
-          </button>
+            Add
+          </AsyncButton>
         </form>
 
         <div
@@ -772,13 +775,14 @@ const TABS: { key: TabKey; label: string }[] = [
             </select>
             <p class="text-xs text-ctp-subtext0">{{ ROLE_DESCRIPTIONS[inviteRole] }}</p>
           </div>
-          <button
+          <AsyncButton
             type="submit"
-            :disabled="invitePending || !inviteEmail.trim()"
-            class="self-start rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+            :action="inviteMember"
+            :disabled="!inviteEmail.trim()"
+            class="self-start rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
           >
-            {{ invitePending ? 'Inviting…' : 'Invite' }}
-          </button>
+            Invite
+          </AsyncButton>
         </form>
 
         <div
@@ -897,13 +901,12 @@ const TABS: { key: TabKey; label: string }[] = [
           </div>
         </div>
 
-        <button
-          :disabled="notifPending"
-          class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
-          @click="saveNotifications"
+        <AsyncButton
+          :action="saveNotifications"
+          class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
         >
-          {{ notifPending ? 'Saving…' : notifSaved ? 'Saved ✓' : 'Save preferences' }}
-        </button>
+          Save preferences
+        </AsyncButton>
       </section>
     </main>
   </div>

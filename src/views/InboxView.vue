@@ -106,12 +106,12 @@ function handleLoadMore() {
   void arcsStore.fetchMoreArcs()
 }
 
-function handleBulkArchive() {
-  void arcsStore.bulkArchive()
+async function handleBulkArchive() {
+  await arcsStore.bulkArchive()
 }
 
-function handleBulkLabel(label: string) {
-  void arcsStore.bulkLabel(label)
+async function handleBulkLabel(label: string) {
+  await arcsStore.bulkLabel(label)
 }
 
 // Inbox zero celebration — fires only when active tab transitions from items → 0
@@ -147,8 +147,8 @@ watch(
         v-if="arcsStore.selectedIds.size > 0"
         :count="arcsStore.selectedIds.size"
         :pending="arcsStore.bulkActionPending"
-        @archive="handleBulkArchive"
-        @label="handleBulkLabel"
+        :archive-action="handleBulkArchive"
+        :label-action="handleBulkLabel"
         @clear="arcsStore.clearSelection()"
       />
 

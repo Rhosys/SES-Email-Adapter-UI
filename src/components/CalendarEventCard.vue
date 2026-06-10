@@ -4,13 +4,13 @@ import type { CalendarEventSignal, Signal } from '@/types/server'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import LinkedSignalSummary from '@/components/LinkedSignalSummary.vue'
+import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 type RsvpResponse = 'accepted' | 'declined' | 'tentative'
 
 const props = defineProps<{ signal: CalendarEventSignal; linkedSignal?: Signal }>()
 
 const accountStore = useAccountStore()
-const loading = ref<RsvpResponse | null>(null)
 const error = ref<string | null>(null)
 const rsvpStatus = ref<RsvpResponse | null>(null)
 
@@ -29,16 +29,17 @@ const formattedEnd = computed(() => {
   })
 })
 
-async function handleRsvp(response: RsvpResponse) {
-  if (!accountStore.accountId || loading.value) return
-  loading.value = response
-  error.value = null
-  const result = await api.rsvpSignal(accountStore.accountId, props.signal.signalId, response)
-  loading.value = null
-  if (result.isOk()) {
-    rsvpStatus.value = response
-  } else {
-    error.value = result.error.message
+function rsvpAction(response: RsvpResponse) {
+  return async () => {
+    if (!accountStore.accountId) return
+    error.value = null
+    const result = await api.rsvpSignal(accountStore.accountId, props.signal.signalId, response)
+    if (result.isOk()) {
+      rsvpStatus.value = response
+    } else {
+      error.value = result.error.message
+      throw new Error(result.error.message)
+    }
   }
 }
 </script>
@@ -103,27 +104,27 @@ async function handleRsvp(response: RsvpResponse) {
     <div v-else class="border-t border-ctp-surface1 pt-3">
       <p v-if="error" class="mb-2 text-xs text-ctp-red">{{ error }}</p>
       <div class="flex items-center gap-2">
-        <button
-          :disabled="loading !== null"
-          class="rounded border border-ctp-green px-3 py-1 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/10 disabled:opacity-50"
-          @click="handleRsvp('accepted')"
+        <AsyncButton
+          :action="rsvpAction('accepted')"
+          variant="outline"
+          class="border-ctp-green text-ctp-green hover:bg-ctp-green/10"
         >
-          {{ loading === 'accepted' ? 'Accepting…' : 'Accept' }}
-        </button>
-        <button
-          :disabled="loading !== null"
-          class="rounded border border-ctp-peach px-3 py-1 text-xs font-medium text-ctp-peach transition-colors hover:bg-ctp-peach/10 disabled:opacity-50"
-          @click="handleRsvp('tentative')"
+          Accept
+        </AsyncButton>
+        <AsyncButton
+          :action="rsvpAction('tentative')"
+          variant="outline"
+          class="border-ctp-peach text-ctp-peach hover:bg-ctp-peach/10"
         >
-          {{ loading === 'tentative' ? 'Responding…' : 'Tentative' }}
-        </button>
-        <button
-          :disabled="loading !== null"
-          class="rounded border border-ctp-red px-3 py-1 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/10 disabled:opacity-50"
-          @click="handleRsvp('declined')"
+          Tentative
+        </AsyncButton>
+        <AsyncButton
+          :action="rsvpAction('declined')"
+          variant="outline"
+          class="border-ctp-red text-ctp-red hover:bg-ctp-red/10"
         >
-          {{ loading === 'declined' ? 'Declining…' : 'Decline' }}
-        </button>
+          Decline
+        </AsyncButton>
       </div>
     </div>
 

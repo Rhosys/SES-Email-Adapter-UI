@@ -7,6 +7,7 @@ import logger from '@/lib/logger'
 import type { DnsRecord } from '@/types/server'
 import CopyInput from '@/components/CopyInput.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
+import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 const router = useRouter()
 const accountStore = useAccountStore()
@@ -403,14 +404,15 @@ onUnmounted(() => {
             />
             <p v-if="domainFieldError" id="domain-error" class="text-xs text-ctp-red">{{ domainFieldError }}</p>
           </div>
-          <button
+          <AsyncButton
             v-if="!domainAdded"
             type="submit"
-            :disabled="addingDomain || !domain.trim()"
-            class="shrink-0 rounded-lg bg-ctp-mauve px-5 py-2.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+            :action="submitDomain"
+            :disabled="!domain.trim()"
+            class="shrink-0 rounded-lg bg-ctp-mauve px-5 py-2.5 text-sm font-medium text-ctp-base hover:opacity-90"
           >
-            {{ addingDomain ? 'Adding…' : 'Add domain' }}
-          </button>
+            Add domain
+          </AsyncButton>
           <button
             v-else
             type="button"
@@ -466,14 +468,14 @@ onUnmounted(() => {
 
           <!-- Bottom action row: re-check left, continue right -->
           <div class="flex items-center justify-between pt-2">
-            <button
+            <AsyncButton
               v-if="!allRecordsVerified"
-              :disabled="recheckingDns"
-              class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text disabled:opacity-50"
-              @click="recheckDns"
+              :action="recheckDns"
+              variant="outline"
+              class="px-3 py-1.5 text-xs text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text"
             >
-              {{ recheckingDns ? 'Checking…' : 'Re-check DNS' }}
-            </button>
+              Re-check DNS
+            </AsyncButton>
             <span v-else></span>
             <button
               :disabled="!allRecordsVerified"
@@ -585,12 +587,12 @@ onUnmounted(() => {
             </p>
           </div>
 
-          <button
-            class="rounded-lg bg-ctp-mauve px-8 py-3 text-sm font-semibold text-ctp-base transition-opacity hover:opacity-90"
-            @click="completeOnboarding()"
+          <AsyncButton
+            :action="completeOnboarding"
+            class="rounded-lg bg-ctp-mauve px-8 py-3 text-sm font-semibold text-ctp-base hover:opacity-90"
           >
             See the result →
-          </button>
+          </AsyncButton>
         </div>
       </section>
 

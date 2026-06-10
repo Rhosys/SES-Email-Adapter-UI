@@ -6,6 +6,7 @@ import { UserConfigurationScreen } from '@authress/login'
 import type { DeviceType, Device, LinkedIdentity } from '@authress/login'
 import { useFeatureTour } from '@/composables/useFeatureTour'
 import ShortcutHelpOverlay from '@/components/ShortcutHelpOverlay.vue'
+import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 const accountStore = useAccountStore()
 const { startTour } = useFeatureTour()
@@ -310,13 +311,14 @@ async function signOut() {
             class="flex-1 rounded border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
             autofocus
           />
-          <button
+          <AsyncButton
             type="submit"
-            :disabled="passkeyPending || !newPasskeyName.trim()"
-            class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+            :action="registerPasskey"
+            :disabled="!newPasskeyName.trim()"
+            class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
           >
-            {{ passkeyPending ? 'Registering…' : 'Register' }}
-          </button>
+            Register
+          </AsyncButton>
         </form>
 
         <div
@@ -449,12 +451,13 @@ async function signOut() {
       <!-- Sign out -->
       <section class="rounded-lg border border-ctp-surface1 p-4">
         <h2 class="mb-3 text-sm font-medium text-ctp-text">Session</h2>
-        <button
-          class="rounded-lg border border-ctp-red px-4 py-2 text-sm text-ctp-red hover:bg-ctp-red/10"
-          @click="signOut"
+        <AsyncButton
+          :action="signOut"
+          variant="danger"
+          class="rounded-lg px-4 py-2 text-sm"
         >
           Sign out
-        </button>
+        </AsyncButton>
       </section>
     </main>
   </div>

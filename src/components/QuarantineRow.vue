@@ -4,16 +4,14 @@ import type { Signal } from '@/types/server'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
+import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 const props = defineProps<{
   signal: Signal
   pending: boolean
-}>()
-
-const emit = defineEmits<{
-  (e: 'allow', signalId: string): void
-  (e: 'reject', signalId: string): void
-  (e: 'rejectForAlias', signalId: string, toAddress: string, fromAddress: string): void
+  allowAction: (signalId: string) => Promise<unknown>
+  rejectAction: (signalId: string) => Promise<unknown>
+  rejectForAliasAction: (signalId: string, toAddress: string, fromAddress: string) => Promise<unknown>
 }>()
 
 const now = inject(NOW_KEY)
@@ -95,36 +93,39 @@ const subject = computed(() => inboundData.value?.subject ?? '')
 
         <!-- Actions -->
         <div class="mt-2 flex flex-wrap items-center gap-2">
-          <button
-            class="rounded bg-ctp-green/15 px-3 py-1.5 text-xs font-medium text-ctp-green transition-colors hover:bg-ctp-green/25 disabled:opacity-50"
+          <AsyncButton
+            :action="() => props.allowAction(signal.signalId)"
             :disabled="pending"
-            @click="emit('allow', signal.signalId)"
+            variant="ghost"
+            class="rounded bg-ctp-green/15 px-3 py-1.5 text-xs font-medium text-ctp-green hover:bg-ctp-green/25"
           >
             Allow
-          </button>
-          <button
-            class="rounded bg-ctp-red/15 px-3 py-1.5 text-xs font-medium text-ctp-red transition-colors hover:bg-ctp-red/25 disabled:opacity-50"
+          </AsyncButton>
+          <AsyncButton
+            :action="() => props.rejectAction(signal.signalId)"
             :disabled="pending"
+            variant="ghost"
             title="Return a delivery failure to the sender's server"
-            @click="emit('reject', signal.signalId)"
+            class="rounded bg-ctp-red/15 px-3 py-1.5 text-xs font-medium text-ctp-red hover:bg-ctp-red/25"
           >
             Reject
-          </button>
+          </AsyncButton>
           <router-link
             :to="`/rules/new?signalId=${signal.signalId}&action=block_hidden`"
             class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:text-ctp-text"
           >
             Create rule to reject similar
           </router-link>
-          <button
+          <AsyncButton
             v-if="toAddress"
-            class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:text-ctp-text disabled:opacity-50"
+            :action="() => props.rejectForAliasAction(signal.signalId, toAddress, fromAddress)"
             :disabled="pending"
+            variant="outline"
+            class="px-3 py-1.5 text-xs text-ctp-subtext1 hover:text-ctp-text"
             :title="`Block ${fromAddress} for ${toAddress}`"
-            @click="emit('rejectForAlias', signal.signalId, toAddress, fromAddress)"
           >
             Reject sender using this alias
-          </button>
+          </AsyncButton>
         </div>
       </div>
     </div>

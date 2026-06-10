@@ -128,9 +128,9 @@ async function loadMore() {
               :key="signal.signalId"
               :signal="signal"
               :pending="store.actionPending.has(signal.signalId)"
-              @allow="onAllow"
-              @reject="onReject"
-              @reject-for-alias="onRejectForAlias"
+              :allow-action="onAllow"
+              :reject-action="onReject"
+              :reject-for-alias-action="onRejectForAlias"
             />
           </TransitionGroup>
         </section>
@@ -162,9 +162,9 @@ async function loadMore() {
               :key="signal.signalId"
               :signal="signal"
               :pending="store.actionPending.has(signal.signalId)"
-              @allow="onAllow"
-              @reject="onReject"
-              @reject-for-alias="onRejectForAlias"
+              :allow-action="onAllow"
+              :reject-action="onReject"
+              :reject-for-alias-action="onRejectForAlias"
             />
           </TransitionGroup>
         </section>

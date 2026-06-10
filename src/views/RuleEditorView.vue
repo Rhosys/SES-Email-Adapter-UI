@@ -22,6 +22,7 @@ import {
   OPERATORS,
   serializeCondition,
 } from '@/lib/ruleLogic'
+import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -716,13 +717,13 @@ watch(signalAction, (val) => {
 
       <!-- Save -->
       <div class="flex items-center gap-3">
-        <button
-          :disabled="!canSave || rulesStore.savePending"
-          class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
-          @click="save"
+        <AsyncButton
+          :action="save"
+          :disabled="!canSave"
+          class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
         >
-          {{ rulesStore.savePending ? 'Saving…' : isEditing ? 'Save changes' : 'Create rule' }}
-        </button>
+          {{ isEditing ? 'Save changes' : 'Create rule' }}
+        </AsyncButton>
         <button class="text-sm text-ctp-subtext0 hover:text-ctp-text" @click="router.back()">
           Cancel
         </button>

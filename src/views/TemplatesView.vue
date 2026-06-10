@@ -8,6 +8,7 @@ import CodeEditor from '@/components/CodeEditor.vue'
 import SignalBrowser from '@/components/SignalBrowser.vue'
 import { useHbsAutocomplete } from '@/composables/useHbsAutocomplete'
 import type { EmailTemplate, TemplateFunction } from '@/types/server'
+import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 const store = useTemplatesStore()
 const accountStore = useAccountStore()
@@ -612,13 +613,13 @@ onMounted(async () => {
 
         <!-- Save / cancel -->
         <div class="flex gap-3">
-          <button
-            :disabled="!canSave || saving || validating"
-            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            @click="save"
+          <AsyncButton
+            :action="save"
+            :disabled="!canSave"
+            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
           >
-            {{ validating ? 'Checking…' : saving ? 'Saving…' : editingId ? 'Save changes' : 'Create template' }}
-          </button>
+            {{ editingId ? 'Save changes' : 'Create template' }}
+          </AsyncButton>
           <button class="text-sm text-ctp-subtext0 hover:text-ctp-text" @click="closeEditor">
             Cancel
           </button>

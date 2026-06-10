@@ -5,6 +5,7 @@ import { useAccountStore } from '@/stores/account'
 import { useLabelsStore } from '@/stores/labels'
 import { useViewsStore } from '@/stores/views'
 import type { Label, View, Workflow } from '@/types/server'
+import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -274,13 +275,13 @@ onMounted(async () => {
             </div>
           </div>
           <div class="mt-4 flex gap-2">
-            <button
-              :disabled="!labelName.trim() || labelPending"
-              class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
-              @click="saveLabel"
+            <AsyncButton
+              :action="saveLabel"
+              :disabled="!labelName.trim()"
+              class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
             >
-              {{ labelPending ? 'Saving…' : 'Save' }}
-            </button>
+              Save
+            </AsyncButton>
             <button
               class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 hover:text-ctp-text"
               @click="cancelLabel"
@@ -403,13 +404,13 @@ onMounted(async () => {
             </div>
           </div>
           <div class="mt-4 flex gap-2">
-            <button
-              :disabled="!viewName.trim() || viewPending"
-              class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
-              @click="saveView"
+            <AsyncButton
+              :action="saveView"
+              :disabled="!viewName.trim()"
+              class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
             >
-              {{ viewPending ? 'Saving…' : 'Save' }}
-            </button>
+              Save
+            </AsyncButton>
             <button
               class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 hover:text-ctp-text"
               @click="cancelView"

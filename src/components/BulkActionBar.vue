@@ -1,20 +1,21 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import AsyncButton from '@/components/ui/AsyncButton.vue'
 
-defineProps<{ count: number; pending: boolean }>()
+defineProps<{ count: number; pending: boolean; archiveAction: () => Promise<unknown>; labelAction: (label: string) => Promise<unknown> }>()
 const emit = defineEmits<{
-  (e: 'archive'): void
-  (e: 'label', label: string): void
   (e: 'clear'): void
 }>()
 
 const labelInput = ref('')
 
-function submitLabel() {
-  const val = labelInput.value.trim()
-  if (!val) return
-  emit('label', val)
-  labelInput.value = ''
+function labelActionWrapper(action: (label: string) => Promise<unknown>) {
+  return async () => {
+    const val = labelInput.value.trim()
+    if (!val) return
+    await action(val)
+    labelInput.value = ''
+  }
 }
 </script>
 
@@ -24,15 +25,16 @@ function submitLabel() {
   >
     <span class="text-ctp-subtext1">{{ count }} selected</span>
 
-    <button
+    <AsyncButton
+      :action="archiveAction"
       :disabled="pending"
-      class="rounded bg-ctp-surface0 px-3 py-1.5 text-ctp-text hover:bg-ctp-surface1 disabled:opacity-50"
-      @click="emit('archive')"
+      variant="ghost"
+      class="rounded bg-ctp-surface0 px-3 py-1.5 text-ctp-text hover:bg-ctp-surface1"
     >
       Archive
-    </button>
+    </AsyncButton>
 
-    <form class="flex flex-wrap items-center gap-1" @submit.prevent="submitLabel">
+    <form class="flex flex-wrap items-center gap-1" @submit.prevent="labelActionWrapper(labelAction)()">
       <input
         v-model="labelInput"
         type="text"
@@ -40,13 +42,15 @@ function submitLabel() {
         placeholder="Add label…"
         class="w-full rounded border border-ctp-surface1 bg-ctp-surface0 px-2 py-1.5 text-sm text-ctp-text placeholder-ctp-overlay0 focus:outline-none focus:ring-1 focus:ring-ctp-blue sm:w-auto"
       />
-      <button
-        type="submit"
+      <AsyncButton
+        :action="labelActionWrapper(labelAction)"
         :disabled="pending || !labelInput.trim()"
-        class="rounded bg-ctp-surface0 px-2 py-1.5 text-ctp-subtext0 hover:bg-ctp-surface1 disabled:opacity-50"
+        type="submit"
+        variant="ghost"
+        class="rounded bg-ctp-surface0 px-2 py-1.5 text-ctp-subtext0 hover:bg-ctp-surface1"
       >
         Add
-      </button>
+      </AsyncButton>
     </form>
 
     <button class="ml-auto text-ctp-subtext0 hover:text-ctp-text" @click="emit('clear')">

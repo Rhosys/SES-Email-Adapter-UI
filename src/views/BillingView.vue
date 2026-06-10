@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { Account, BillingInfo, BillingPlan } from '@/types/server'
+import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 const accountStore = useAccountStore()
 const route = useRoute()
@@ -191,13 +192,13 @@ async function openPortal() {
 
           <!-- Manage subscription (paid plans) -->
           <div v-if="currentPlan !== 'free'" class="mt-4 border-t border-ctp-surface1 pt-4">
-            <button
-              :disabled="portalLoading"
-              class="rounded-lg border border-ctp-surface1 px-4 py-2 text-sm text-ctp-text hover:border-ctp-surface2 disabled:opacity-50"
-              @click="openPortal"
+            <AsyncButton
+              :action="openPortal"
+              variant="outline"
+              class="px-4 py-2 text-sm text-ctp-text hover:border-ctp-surface2"
             >
-              {{ portalLoading ? 'Loading…' : 'Manage subscription ↗' }}
-            </button>
+              Manage subscription ↗
+            </AsyncButton>
           </div>
         </div>
 
@@ -266,14 +267,13 @@ async function openPortal() {
                 >
                   Coming soon
                 </button>
-                <button
+                <AsyncButton
                   v-else
-                  :disabled="upgrading !== null"
-                  class="w-full rounded-lg bg-ctp-mauve py-1.5 text-xs font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
-                  @click="upgrade(plan)"
+                  :action="() => upgrade(plan)"
+                  class="w-full rounded-lg bg-ctp-mauve py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
                 >
-                  {{ upgrading === plan.id ? 'Redirecting…' : `Upgrade to ${plan.name}` }}
-                </button>
+                  Upgrade to {{ plan.name }}
+                </AsyncButton>
               </div>
             </div>
           </div>

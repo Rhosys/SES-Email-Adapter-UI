@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import { useToast } from '@/composables/useToast'
 import type { Signal, Domain } from '@/types/server'
 import { isEmailSignal } from '@/lib/signal-guards'
+import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ discard: []; sent: [] }>()
@@ -296,9 +297,13 @@ async function discard() {
           >
             {{ sendState === 'sending' ? 'Sending…' : 'Send' }}
           </button>
-          <button class="text-sm text-ctp-subtext0 hover:text-ctp-red" @click="discard">
+          <AsyncButton
+            :action="discard"
+            variant="ghost"
+            class="text-sm text-ctp-subtext0 hover:text-ctp-red"
+          >
             Discard draft
-          </button>
+          </AsyncButton>
         </template>
       </div>
     </div>

@@ -13,6 +13,7 @@ import WorkflowPanel from '@/components/WorkflowPanel.vue'
 import SignalRenderer from '@/components/SignalRenderer.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
 import ReplyComposer from '@/components/ReplyComposer.vue'
+import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 const route = useRoute()
 const signalsStore = useSignalsStore()
@@ -134,26 +135,28 @@ async function loadMore() {
         <div class="flex items-start justify-between gap-4">
           <h1 class="text-xl font-semibold text-ctp-text">{{ signalsStore.arc.summary }}</h1>
           <div class="flex shrink-0 items-center gap-2">
-            <button
+            <AsyncButton
               v-if="showReply"
-              class="flex h-8 items-center gap-1.5 rounded border border-ctp-surface1 px-3 text-sm text-ctp-subtext1 transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
-              @click="startDraft"
+              :action="startDraft"
+              variant="outline"
+              class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
             >
               <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                 <path d="M6 3.5L1 8l5 4.5V9.5c4.5 0 7.5 1.5 9 4.5-.5-4.5-3-8-9-8V3.5z"/>
               </svg>
               Reply
-            </button>
-            <button
+            </AsyncButton>
+            <AsyncButton
               v-if="signalsStore.arc.status === 'active'"
-              class="flex h-8 items-center gap-1.5 rounded border border-ctp-surface1 px-3 text-sm text-ctp-subtext1 transition-colors hover:border-ctp-red hover:text-ctp-red"
-              @click="archive"
+              :action="archive"
+              variant="outline"
+              class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-red hover:text-ctp-red"
             >
               <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                 <path d="M1.5 2h13l-1 2H2.5L1.5 2zm.5 3h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V5zm4 2v5h5V7H6z"/>
               </svg>
               Archive
-            </button>
+            </AsyncButton>
           </div>
         </div>
         <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-ctp-subtext0">
@@ -212,7 +215,7 @@ async function loadMore() {
 
       <!-- Reply composer (opened from header Reply button) -->
       <div v-if="showReply" class="mt-6">
-        <ReplyComposer @reply="startDraft" />
+        <ReplyComposer :action="startDraft" />
       </div>
     </template>
   </div>
