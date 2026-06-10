@@ -77,9 +77,7 @@ function fitHeight(e: Event) {
 // --- Gesture / zoom for the email body iframe ---
 //
 // Touch events that start inside the iframe don't bubble to the parent document,
-// so a transparent overlay div captures all gestures. Single taps temporarily
-// become pointer-events:none so the browser's synthetic click reaches the iframe
-// (enabling link clicks), and is restored ~600 ms later.
+// so a transparent overlay div captures all gestures.
 //
 // Supported gestures:
 //   • Pinch open/close  — zoom email content (1× – 4×)
@@ -96,15 +94,11 @@ const {
   isGesturing: emailIsGesturing,
   reset: resetEmailZoom,
 } = useGestureHandler(gestureOverlayRef, {
-  onSingleTap: () => {
-    const overlay = gestureOverlayRef.value
-    // When at natural scale, let the browser's synthetic click reach the iframe
-    if (!overlay || emailScale.value > 1) return
-    overlay.style.pointerEvents = 'none'
-    setTimeout(() => {
-      if (gestureOverlayRef.value) gestureOverlayRef.value.style.pointerEvents = ''
-    }, 600)
-  },
+  // onSingleTap intentionally omitted: forwarding clicks to a sandboxed iframe via
+  // pointer-events:none is unreliable on modern browsers because the synthetic click
+  // fires in < 50 ms (before the style change lands). Links inside the email body
+  // work normally with a mouse on desktop; touch link clicks are a known limitation
+  // of the overlay-over-iframe approach.
 
   onDoubleTap: (cx, cy) => {
     if (emailScale.value > 1) {
@@ -231,7 +225,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
     <!-- Email body -->
     <template v-if="expanded && signal.type === 'email'">
       <div class="border-t border-ctp-surface1">
-        <div v-if="signal.data.body" class="relative overflow-hidden">
+        <div v-if="signal.data.body" class="relative overflow-hidden" data-testid="email-body-container">
           <iframe
             :srcdoc="signal.data.body"
             sandbox="allow-popups allow-popups-to-escape-sandbox"
@@ -244,9 +238,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
 
           <!-- Transparent gesture capture overlay.
                Always covers the iframe because touch events that start inside
-               an iframe don't bubble to the parent document.
-               Single taps are handled by temporarily setting pointer-events:none
-               so the browser's delayed synthetic click reaches the iframe. -->
+               a sandboxed iframe don't bubble to the parent document. -->
           <div
             ref="gestureOverlayRef"
             class="absolute inset-0"
