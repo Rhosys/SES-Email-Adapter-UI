@@ -8,9 +8,12 @@ import { useFeatureTour } from '@/composables/useFeatureTour'
 import ShortcutHelpOverlay from '@/components/ShortcutHelpOverlay.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import AppNavbar from '@/components/AppNavbar.vue'
+import SupportPanel from '@/components/SupportPanel.vue'
+import { useSupportPanel } from '@/composables/useSupportPanel'
 
 const accountStore = useAccountStore()
 const { startTour } = useFeatureTour()
+const { open: supportOpen } = useSupportPanel()
 const shortcutHelpOpen = ref(false)
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
@@ -490,4 +493,6 @@ async function registerPasskey() {
     </main>
     </div>
   </div>
+
+  <SupportPanel :open="supportOpen" @close="supportOpen = false" />
 </template>

@@ -43,6 +43,7 @@ const email = computed(() => identity.value?.email ?? null)
 
 const emailCopied = ref(false)
 const userIdCopied = ref(false)
+const accountIdCopied = ref(false)
 
 function copyEmail() {
   if (!email.value) return
@@ -57,6 +58,14 @@ function copyUserId() {
   void navigator.clipboard.writeText(userId.value).then(() => {
     userIdCopied.value = true
     setTimeout(() => { userIdCopied.value = false }, 1500)
+  })
+}
+
+function copyAccountId() {
+  if (!accountStore.accountId) return
+  void navigator.clipboard.writeText(accountStore.accountId).then(() => {
+    accountIdCopied.value = true
+    setTimeout(() => { accountIdCopied.value = false }, 1500)
   })
 }
 
@@ -282,6 +291,28 @@ onUnmounted(() => { if (switcherCloseTimer) clearTimeout(switcherCloseTimer) })
                 @click.stop="copyUserId"
               >
                 <svg v-if="userIdCopied" class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2.5 8.5l4 4 7-7"/>
+                </svg>
+                <svg v-else class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M5 2h7a1 1 0 011 1v9" stroke-linecap="round"/>
+                  <rect x="2" y="4" width="9" height="10" rx="1"/>
+                </svg>
+              </button>
+            </div>
+
+            <div v-if="accountStore.accountId" class="flex items-center justify-between gap-2">
+              <div class="min-w-0 flex-1">
+                <p class="text-xs font-medium text-ctp-subtext0">Account ID</p>
+                <p class="truncate font-mono text-sm text-ctp-text">{{ accountStore.accountId }}</p>
+              </div>
+              <button
+                type="button"
+                class="shrink-0 transition-colors"
+                :class="accountIdCopied ? 'text-ctp-green' : 'text-ctp-subtext0 hover:text-ctp-text'"
+                :aria-label="accountIdCopied ? 'Copied!' : 'Copy account ID'"
+                @click.stop="copyAccountId"
+              >
+                <svg v-if="accountIdCopied" class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M2.5 8.5l4 4 7-7"/>
                 </svg>
                 <svg v-else class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
