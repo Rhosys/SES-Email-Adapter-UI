@@ -6,7 +6,7 @@ import { api } from '@/lib/api'
 import logger from '@/lib/logger'
 import type { DnsRecord } from '@/types/server'
 import CopyInput from '@/components/CopyInput.vue'
-import UserAvatar from '@/components/UserAvatar.vue'
+import AppNavbar from '@/components/AppNavbar.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 const router = useRouter()
@@ -322,10 +322,7 @@ onUnmounted(() => {
 <template>
   <div class="flex min-h-screen flex-col bg-ctp-base text-ctp-text">
     <!-- Top nav -->
-    <div class="flex items-center justify-between border-b border-ctp-surface0 bg-ctp-mantle px-6 py-3">
-      <span class="text-sm font-semibold text-ctp-text">SES Adapter</span>
-      <UserAvatar />
-    </div>
+    <AppNavbar />
 
     <!-- Progress pills -->
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-6 py-3">

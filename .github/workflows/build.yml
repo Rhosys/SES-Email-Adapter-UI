@@ -213,7 +213,7 @@ jobs:
             const prefix = process.env.DEPLOY_PREFIX
             const url = `https://email.rhosys.cloud/${prefix}/`
             const marker = '### Preview deployed'
-            const body = `${marker}\n\n**URL:** ${url}\n\n> Deep links require the CloudFront path-rewrite rule to be configured for the \`/${prefix}/\` prefix.`
+            const body = `${marker}\n\n**URL:** ${url}`
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
