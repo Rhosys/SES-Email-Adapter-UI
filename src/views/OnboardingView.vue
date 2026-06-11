@@ -106,15 +106,11 @@ async function createAndAdvance() {
     step.value = 4
     return
   }
-  step.value = 2
+  // Hydrate before deciding which step to show; the 1000ms floor prevents a
+  // flash of step 2 when we're about to advance directly to step 3.
+  await Promise.all([hydrateExistingDomain(), new Promise<void>((res) => setTimeout(res, 1000))])
 
-  // Hydrate in-progress domain if one exists
-  await hydrateExistingDomain()
-
-  // On page load/refresh, skip straight to the test email screen if all records are already verified
-  if (allRecordsVerified.value) {
-    step.value = 3
-  }
+  step.value = allRecordsVerified.value ? 3 : 2
 }
 
 // ── Step 2: Domain ────────────────────────────────────────────────────────────
