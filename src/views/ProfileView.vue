@@ -156,44 +156,44 @@ async function registerPasskey() {
   <div class="flex min-h-screen flex-col bg-ctp-base text-ctp-text">
     <AppNavbar />
 
-    <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
-      <h1 class="text-lg font-semibold">Profile</h1>
-      <p class="mt-0.5 text-xs text-ctp-subtext0">
-        Identity and security settings for your user account
-      </p>
-    </header>
+    <div class="flex-1 overflow-y-auto">
+      <!-- Header -->
+      <header class="px-4 py-8">
+        <div class="mx-auto max-w-3xl">
+          <h1 class="text-xl font-semibold">Profile</h1>
+          <p class="mt-1 text-sm text-ctp-subtext0">
+            Identity and security settings for your user account
+          </p>
+        </div>
+      </header>
 
-    <!-- Tab bar -->
-    <div class="border-b border-ctp-surface0 bg-ctp-mantle px-4">
-      <nav class="flex gap-4" aria-label="Profile tabs">
-        <button
-          type="button"
-          class="relative py-2 text-sm font-medium transition-colors"
-          :class="activeTab === 'configuration' ? 'text-ctp-mauve' : 'text-ctp-subtext0 hover:text-ctp-text'"
-          @click="activeTab = 'configuration'"
-        >
-          Configuration
-          <span
-            v-if="activeTab === 'configuration'"
-            class="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-ctp-mauve"
-          />
-        </button>
-        <button
-          type="button"
-          class="relative py-2 text-sm font-medium transition-colors"
-          :class="activeTab === 'security' ? 'text-ctp-mauve' : 'text-ctp-subtext0 hover:text-ctp-text'"
-          @click="activeTab = 'security'"
-        >
-          Security
-          <span
-            v-if="activeTab === 'security'"
-            class="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-ctp-mauve"
-          />
-        </button>
-      </nav>
-    </div>
+      <!-- Pill tabs -->
+      <div class="px-4">
+        <div class="mx-auto max-w-3xl">
+          <nav class="flex gap-2" aria-label="Profile tabs">
+            <button
+              type="button"
+              class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
+              :class="activeTab === 'configuration' ? 'bg-ctp-mauve/15 text-ctp-mauve' : 'text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text'"
+              @click="activeTab = 'configuration'"
+            >
+              Configuration
+            </button>
+            <button
+              type="button"
+              class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
+              :class="activeTab === 'security' ? 'bg-ctp-mauve/15 text-ctp-mauve' : 'text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text'"
+              @click="activeTab = 'security'"
+            >
+              Security
+            </button>
+          </nav>
+          <div class="mt-3 border-b border-ctp-surface0" />
+        </div>
+      </div>
 
-    <main class="mx-auto max-w-lg space-y-5 px-4 py-6">
+      <!-- Content -->
+      <main class="mx-auto max-w-3xl space-y-5 px-4 py-6">
       <!-- ── Configuration tab ─────────────────────────────────────────────── -->
       <template v-if="activeTab === 'configuration'">
         <!-- Feature tour -->
@@ -488,5 +488,6 @@ async function registerPasskey() {
         </section>
       </template>
     </main>
+    </div>
   </div>
 </template>
