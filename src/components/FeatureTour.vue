@@ -32,18 +32,6 @@ const STEPS: TourStep[] = [
     description:
       'Match emails by sender, subject, or content — then auto-archive, label, or block.',
   },
-  {
-    target: 'nav-labels',
-    title: 'Labels & views',
-    description:
-      'Tag threads with coloured labels and save filtered inbox views as sidebar shortcuts.',
-  },
-  {
-    target: 'nav-settings',
-    title: 'Settings',
-    description:
-      'Manage sending domains, team members, notification preferences, and forwarding addresses.',
-  },
 ]
 
 const currentStep = ref(0)

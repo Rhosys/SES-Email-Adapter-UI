@@ -66,7 +66,10 @@ async function undoSend() {
 </script>
 
 <template>
-  <div class="flex items-center gap-3 border-b border-ctp-surface0 bg-ctp-base/60 py-2 pl-14 pr-3 text-xs hover:bg-ctp-surface0/60">
+  <div
+    class="flex cursor-pointer items-center gap-3 border-b border-ctp-surface0 bg-ctp-base/60 py-2 pl-14 pr-3 text-xs hover:bg-ctp-surface0/60"
+    @click="viewOriginal"
+  >
     <!-- Sender -->
     <span class="w-28 shrink-0 truncate font-medium text-ctp-subtext1">{{ fromLabel }}</span>
 

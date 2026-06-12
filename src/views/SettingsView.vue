@@ -18,7 +18,7 @@ const route = useRoute()
 const router = useRouter()
 const accountStore = useAccountStore()
 
-type TabKey = 'account' | 'emails' | 'domains' | 'forwarding' | 'team' | 'notifications'
+type TabKey = 'account' | 'emails' | 'domains' | 'forwarding' | 'compose' | 'team' | 'notifications'
 const activeTab = ref<TabKey>('account')
 
 // ─── Account profile tab ─────────────────────────────────────────────────────
@@ -334,6 +334,7 @@ onMounted(async () => {
     'emails',
     'domains',
     'forwarding',
+    'compose',
     'team',
     'notifications',
   ]
@@ -346,6 +347,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'emails', label: 'Email addresses' },
   { key: 'domains', label: 'Domains' },
   { key: 'forwarding', label: 'Forwarding' },
+  { key: 'compose', label: 'Compose' },
   { key: 'team', label: 'Team' },
   { key: 'notifications', label: 'Notifications' },
 ]
@@ -382,70 +384,8 @@ const TABS: { key: TabKey; label: string }[] = [
       <!-- ── Account tab ─────────────────────────────────────────────────── -->
       <section v-if="activeTab === 'account'" class="space-y-6">
         <div>
-          <label for="account-name" class="mb-1 block text-xs font-medium text-ctp-subtext0">Account name</label>
-          <div class="flex gap-2">
-            <input
-              id="account-name"
-              v-model="accountName"
-              type="text"
-              class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
-            />
-            <AsyncButton
-              :action="saveAccount"
-              :disabled="!accountName.trim()"
-              class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
-            >
-              Save
-            </AsyncButton>
-          </div>
-        </div>
-        <div>
           <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Account ID</span>
           <p class="font-mono text-xs text-ctp-subtext0">{{ accountStore.accountId }}</p>
-        </div>
-
-        <!-- After send action -->
-        <div>
-          <span class="mb-1 block text-xs font-medium text-ctp-subtext0">After send</span>
-          <p class="mb-2 text-xs text-ctp-subtext0">What happens to the conversation after you send a reply</p>
-          <div class="flex gap-2">
-            <AsyncButton
-              v-for="option in [{ value: 'archive' as const, label: 'Archive' }, { value: 'keep_active' as const, label: 'Keep active' }]"
-              :key="option.value"
-              :action="() => updateAfterSendAction(option.value)"
-              variant="ghost"
-              :aria-pressed="afterSendAction === option.value"
-              class="rounded-full border px-3 py-1 text-xs"
-              :class="
-                afterSendAction === option.value
-                  ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
-                  : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
-              "
-            >
-              {{ option.label }}
-            </AsyncButton>
-          </div>
-        </div>
-
-        <!-- Calendar forwarding address -->
-        <div>
-          <label for="calendar-forwarding" class="mb-1 block text-xs font-medium text-ctp-subtext0">Calendar forwarding address</label>
-          <p class="mb-2 text-xs text-ctp-subtext0">Calendar invites will be forwarded to this address</p>
-          <div class="flex gap-2">
-            <input
-              id="calendar-forwarding"
-              v-model="calendarForwardingAddress"
-              type="email"
-              placeholder="calendar@example.com"
-              class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-            />
-            <AsyncButton
-              :action="saveCalendarForwarding"
-              class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
-            >
-              Save
-            </AsyncButton>
-          </div>
         </div>
       </section>
 
@@ -682,6 +622,27 @@ const TABS: { key: TabKey; label: string }[] = [
 
       <!-- ── Forwarding tab ─────────────────────────────────────────────── -->
       <section v-else-if="activeTab === 'forwarding'">
+        <!-- Calendar forwarding address -->
+        <div class="mb-6 rounded-lg border border-ctp-surface1 p-4">
+          <label for="calendar-forwarding" class="mb-1 block text-xs font-medium text-ctp-subtext0">Calendar invite forwarding</label>
+          <p class="mb-2 text-xs text-ctp-subtext0">Calendar invites will be automatically forwarded to this address</p>
+          <div class="flex gap-2">
+            <input
+              id="calendar-forwarding"
+              v-model="calendarForwardingAddress"
+              type="email"
+              placeholder="calendar@example.com"
+              class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+            />
+            <AsyncButton
+              :action="saveCalendarForwarding"
+              class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
+            >
+              Save
+            </AsyncButton>
+          </div>
+        </div>
+
         <form
           class="mb-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
           @submit.prevent="addForwardingAddress"
@@ -744,6 +705,31 @@ const TABS: { key: TabKey; label: string }[] = [
             >
               Remove
             </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Compose tab ──────────────────────────────────────────────── -->
+      <section v-else-if="activeTab === 'compose'" class="space-y-6">
+        <div>
+          <span class="mb-1 block text-xs font-medium text-ctp-subtext0">After send</span>
+          <p class="mb-2 text-xs text-ctp-subtext0">What happens to the conversation after you send a reply</p>
+          <div class="flex gap-2">
+            <AsyncButton
+              v-for="option in [{ value: 'archive' as const, label: 'Archive' }, { value: 'keep_active' as const, label: 'Keep active' }]"
+              :key="option.value"
+              :action="() => updateAfterSendAction(option.value)"
+              variant="ghost"
+              :aria-pressed="afterSendAction === option.value"
+              class="rounded-full border px-3 py-1 text-xs"
+              :class="
+                afterSendAction === option.value
+                  ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
+                  : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
+              "
+            >
+              {{ option.label }}
+            </AsyncButton>
           </div>
         </div>
       </section>
@@ -812,8 +798,18 @@ const TABS: { key: TabKey; label: string }[] = [
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div v-for="member in team" :key="member.userId" class="flex items-center gap-3 px-4 py-3">
+            <img
+              v-if="member.picture"
+              :src="member.picture"
+              :alt="member.name ?? member.userId"
+              class="h-8 w-8 shrink-0 rounded-full object-cover"
+            />
+            <div v-else class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ctp-surface1 text-xs font-medium text-ctp-subtext1">
+              {{ (member.name ?? member.email ?? member.userId).charAt(0).toUpperCase() }}
+            </div>
             <div class="flex-1">
-              <p class="text-sm font-medium text-ctp-text">{{ member.userId }}</p>
+              <p class="text-sm font-medium text-ctp-text">{{ member.name ?? member.userId }}</p>
+              <p v-if="member.email" class="text-xs text-ctp-subtext0">{{ member.email }}</p>
             </div>
             <select
               :value="member.role"

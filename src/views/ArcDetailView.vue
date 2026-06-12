@@ -133,7 +133,7 @@ async function loadMore() {
       <!-- Arc header -->
       <div class="mb-6">
         <div class="flex items-start justify-between gap-4">
-          <h1 class="text-xl font-semibold text-ctp-text">{{ signalsStore.arc.summary }}</h1>
+          <h1 class="text-xl font-semibold text-ctp-text">{{ signalsStore.arc.subject ?? signalsStore.arc.summary }}</h1>
           <div class="flex shrink-0 items-center gap-2">
             <AsyncButton
               v-if="showReply"
@@ -158,6 +158,15 @@ async function loadMore() {
               Archive
             </AsyncButton>
           </div>
+        </div>
+        <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-ctp-subtext0">
+          <span v-if="signalsStore.arc.senderAddress" class="font-medium text-ctp-text">{{ signalsStore.arc.senderAddress }}</span>
+          <span v-if="signalsStore.arc.senderAddress && signalsStore.arc.recipientAddress">→</span>
+          <span v-if="signalsStore.arc.recipientAddress">{{ signalsStore.arc.recipientAddress }}</span>
+        </div>
+        <div v-if="signalsStore.arc.subject && signalsStore.arc.summary !== signalsStore.arc.subject" class="mt-2">
+          <span class="text-xs font-medium text-ctp-subtext0">Summary</span>
+          <p class="text-sm text-ctp-subtext1">{{ signalsStore.arc.summary }}</p>
         </div>
         <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-ctp-subtext0">
           <span class="capitalize">{{ signalsStore.arc.workflow }}</span>

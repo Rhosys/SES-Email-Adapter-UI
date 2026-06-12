@@ -33,6 +33,15 @@ const hasSpamWarning = computed(() => {
   return (props.signal.data.spamScore ?? 0) > 0.3
 })
 
+const isBcc = computed(() => {
+  if (!isInboundEmailSignal(props.signal)) return false
+  const alias = props.signal.data.recipientAddress?.toLowerCase()
+  if (!alias) return false
+  const inTo = props.signal.data.to.some((a) => a.address.toLowerCase() === alias)
+  const inCc = props.signal.data.cc.some((a) => a.address.toLowerCase() === alias)
+  return !inTo && !inCc
+})
+
 const sentAt = computed(() => {
   if (!isInboundEmailSignal(props.signal)) return ''
   return new Date(props.signal.data.receivedAt).toLocaleString(undefined, {
@@ -225,7 +234,35 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
     <!-- Email body -->
     <template v-if="expanded && signal.type === 'email'">
       <div class="border-t border-ctp-surface1">
-        <div v-if="signal.data.body" class="relative overflow-hidden" data-testid="email-body-container">
+        <!-- Email metadata -->
+        <div class="space-y-1 bg-white px-4 py-3 text-xs">
+          <div class="flex gap-2">
+            <span class="w-16 shrink-0 font-medium text-ctp-subtext0">From</span>
+            <span class="text-ctp-text">{{ fromLabel }}</span>
+          </div>
+          <div v-if="isInboundEmailSignal(signal) && signal.data.recipientAddress" class="flex gap-2">
+            <span class="w-16 shrink-0 font-medium text-ctp-subtext0">To (alias)</span>
+            <span class="text-ctp-text">{{ signal.data.recipientAddress }}</span>
+          </div>
+          <div class="flex gap-2">
+            <span class="w-16 shrink-0 font-medium text-ctp-subtext0">Subject</span>
+            <span class="font-medium text-ctp-text">{{ isEmailSignal(signal) ? signal.data.subject : '' }}</span>
+          </div>
+          <div v-if="isEmailSignal(signal) && signal.data.to.length > 0" class="flex gap-2">
+            <span class="w-16 shrink-0 font-medium text-ctp-subtext0">To</span>
+            <span class="text-ctp-text">{{ signal.data.to.map((a) => a.name ? `${a.name} <${a.address}>` : a.address).join(', ') }}</span>
+          </div>
+          <div v-if="isEmailSignal(signal) && signal.data.cc.length > 0" class="flex gap-2">
+            <span class="w-16 shrink-0 font-medium text-ctp-subtext0">CC</span>
+            <span class="text-ctp-text">{{ signal.data.cc.map((a) => a.name ? `${a.name} <${a.address}>` : a.address).join(', ') }}</span>
+          </div>
+          <div v-if="isBcc" class="flex gap-2">
+            <span class="w-16 shrink-0 font-medium text-ctp-red">BCC</span>
+            <span class="font-medium text-ctp-red">Alias not in To or CC — received via BCC</span>
+          </div>
+        </div>
+
+        <div v-if="signal.data.body" class="relative overflow-hidden bg-white" data-testid="email-body-container">
           <iframe
             :srcdoc="signal.data.body"
             sandbox="allow-popups allow-popups-to-escape-sandbox"

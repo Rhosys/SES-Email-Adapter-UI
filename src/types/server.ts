@@ -126,6 +126,10 @@ export interface Arc {
   updatedAt: string
   retentionDuration?: RetentionDuration
   urgency?: ArcUrgency
+  // Denormalised from latest inbound signal — backend TODO pending
+  senderAddress?: string
+  recipientAddress?: string
+  subject?: string
 }
 
 // ─── Signal (Discriminated Union) ─────────────────────────────────────────────
@@ -631,6 +635,10 @@ export interface ForwardingAddress {
 export interface TeamMember {
   userId: string
   role: UserRole
+  // Profile fields — populated once backend resolves from Authress
+  name?: string
+  email?: string
+  picture?: string
 }
 
 // ─── Alias ────────────────────────────────────────────────────────────────────

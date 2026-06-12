@@ -105,8 +105,12 @@ function onSignalUndo() {
 
       <!-- Summary + labels — navigates to detail -->
       <RouterLink :to="{ name: 'arc-detail', params: { id: arc.arcId } }" class="min-w-0 flex-1">
+        <div class="flex items-center gap-2">
+          <span v-if="arc.senderAddress" class="w-36 shrink-0 truncate text-xs font-medium text-ctp-subtext1">{{ arc.senderAddress }}</span>
+          <span v-if="arc.recipientAddress" class="w-28 shrink-0 truncate text-xs text-ctp-subtext0">{{ arc.recipientAddress }}</span>
+        </div>
         <p class="truncate text-sm text-ctp-text" :class="{ 'font-semibold': isUnread }">
-          {{ arc.summary }}
+          {{ arc.subject ?? arc.summary }}
         </p>
         <div class="mt-0.5 flex flex-wrap items-center gap-1">
           <LabelChip v-for="label in arc.labels" :key="label" :label="label" />
