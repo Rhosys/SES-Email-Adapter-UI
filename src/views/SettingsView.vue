@@ -7,6 +7,7 @@ import { notify } from '@/lib/notifications'
 import { loginClient } from '@/lib/auth'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import FilterModeModal from '@/components/ui/FilterModeModal.vue'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import type {
   Domain,
@@ -77,6 +78,9 @@ const aliasesLoading = ref(false)
 const aliasError = ref('')
 const newAddress = ref('')
 const newAddressPending = ref(false)
+
+const filterModalOpen = ref(false)
+const filterModalAlias = ref<Alias | null>(null)
 
 const FILTER_MODES: { value: UnknownSenderPolicy; label: string; description: string }[] = [
   { value: 'allow_all', label: 'Allow all', description: 'All senders pass through' },
@@ -609,16 +613,13 @@ const TABS: { key: TabKey; label: string }[] = [
               </button>
             </div>
             <div class="mt-2">
-              <select
-                :value="alias.unknownSenderPolicy"
-                :aria-label="`Filter mode for ${alias.address}`"
-                class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
-                @change="updateAliasMode(alias.address, ($event.target as HTMLSelectElement).value as UnknownSenderPolicy)"
+              <button
+                type="button"
+                class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-xs text-ctp-text transition-colors hover:border-ctp-mauve"
+                @click="filterModalAlias = alias; filterModalOpen = true"
               >
-                <option v-for="mode in FILTER_MODES" :key="mode.value" :value="mode.value">
-                  {{ mode.label }} — {{ mode.description }}
-                </option>
-              </select>
+                {{ FILTER_MODES.find((m) => m.value === alias.unknownSenderPolicy)?.label ?? alias.unknownSenderPolicy }}
+              </button>
             </div>
             <div class="mt-2 flex items-center gap-2">
               <label :for="`spam-${alias.alias}`" class="text-xs text-ctp-subtext0">Spam threshold:</label>
@@ -994,6 +995,15 @@ const TABS: { key: TabKey; label: string }[] = [
       :confirm-variant="dialogOptions.confirmVariant"
       @confirm="onConfirm"
       @cancel="onCancel"
+    />
+
+    <FilterModeModal
+      :open="filterModalOpen"
+      :address="filterModalAlias?.address ?? ''"
+      :current-mode="filterModalAlias?.unknownSenderPolicy ?? 'quarantine_visible'"
+      :modes="FILTER_MODES"
+      @select="(mode) => { if (filterModalAlias) { updateAliasMode(filterModalAlias.address, mode); filterModalAlias = { ...filterModalAlias, unknownSenderPolicy: mode } } }"
+      @close="filterModalOpen = false"
     />
   </div>
 </template>
