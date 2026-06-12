@@ -20,9 +20,7 @@ export const router = createRouter({
     },
     {
       path: '/profile',
-      name: 'profile',
-      component: () => import('@/views/ProfileView.vue'),
-      meta: { requiresAuth: true },
+      redirect: { name: 'settings', query: { tab: 'profile' } },
     },
 
     // Authenticated routes — all rendered inside AppLayout (sidebar)
@@ -83,7 +81,7 @@ export const router = createRouter({
         },
         {
           path: 'settings/notifications',
-          redirect: { name: 'settings', query: { tab: 'notifications' } },
+          redirect: { name: 'settings', query: { tab: 'profile' } },
         },
         {
           path: 'billing',
@@ -143,7 +141,6 @@ const ROUTE_TITLES: Record<string, string> = {
   'rules-edit': 'Edit rule',
   templates: 'Templates',
   settings: 'Settings',
-  profile: 'Profile',
   billing: 'Billing',
   'audit-log': 'Audit log',
   changelog: 'Changelog',
@@ -175,7 +172,7 @@ router.beforeEach(async (to) => {
 
   // Redirect to onboarding if no account exists or onboarding hasn't been completed.
   // Profile and billing are exempt — users can navigate there any time they're authenticated.
-  const exemptFromOnboardingRedirect = new Set(['profile', 'billing'])
+  const exemptFromOnboardingRedirect = new Set(['billing'])
   if (
     !exemptFromOnboardingRedirect.has(String(to.name)) &&
     (!accountStore.accountId || !accountStore.account?.onboarding?.completed)

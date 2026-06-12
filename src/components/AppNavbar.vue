@@ -93,7 +93,7 @@ function navigateToSettings() {
 
 function navigateToProfile() {
   userMenuOpen.value = false
-  void router.push('/profile')
+  void router.push('/settings?tab=profile')
 }
 
 function openHelp() {

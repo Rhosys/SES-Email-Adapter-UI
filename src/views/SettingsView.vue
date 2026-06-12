@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import { notify } from '@/lib/notifications'
+import { loginClient } from '@/lib/auth'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
@@ -22,8 +23,18 @@ const router = useRouter()
 const accountStore = useAccountStore()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
-type TabKey = 'account' | 'emails' | 'domains' | 'forwarding' | 'compose' | 'team' | 'notifications'
-const activeTab = ref<TabKey>('account')
+type TabKey = 'profile' | 'emails' | 'domains' | 'forwarding' | 'compose' | 'team'
+const activeTab = ref<TabKey>('profile')
+
+// ─── Profile tab ─────────────────────────────────────────────────────────────
+interface Identity {
+  userId?: string
+  sub?: string
+  email?: string
+  name?: string
+  picture?: string
+}
+const identity = ref<Identity | null>(null)
 
 // ─── Account profile tab ─────────────────────────────────────────────────────
 const afterSendAction = ref<'archive' | 'keep_active'>('keep_active')
@@ -338,7 +349,7 @@ function sendTestNotification() {
 // ─── Tab loading ──────────────────────────────────────────────────────────────
 async function switchTab(tab: TabKey) {
   activeTab.value = tab
-  void router.replace({ query: tab === 'account' ? {} : { tab } })
+  void router.replace({ query: tab === 'profile' ? {} : { tab } })
   if (tab === 'emails' && aliases.value.length === 0) await loadAliases()
   if (tab === 'domains' && domains.value.length === 0) await loadDomains()
   if (tab === 'forwarding' && forwarding.value.length === 0) await loadForwarding()
@@ -347,6 +358,7 @@ async function switchTab(tab: TabKey) {
 
 onMounted(async () => {
   if (!accountStore.accountId) await accountStore.fetchAccount()
+  identity.value = loginClient.getUserIdentity() as Identity | null
   if (accountStore.account) {
     afterSendAction.value = accountStore.account.afterSendAction ?? 'keep_active'
     calendarForwardingAddress.value = accountStore.account.defaultCalendarInviteForwardingAddress ?? ''
@@ -356,26 +368,24 @@ onMounted(async () => {
   }
   // Hydrate active tab from URL
   const VALID_TABS: TabKey[] = [
-    'account',
+    'profile',
     'emails',
     'domains',
     'forwarding',
     'compose',
     'team',
-    'notifications',
   ]
   const tab = route.query.tab as TabKey | undefined
   if (tab && VALID_TABS.includes(tab)) await switchTab(tab)
 })
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: 'account', label: 'Account' },
-  { key: 'emails', label: 'Aliases' },
+  { key: 'profile', label: 'Profile' },
+  { key: 'emails', label: 'Email addresses' },
   { key: 'domains', label: 'Domains' },
   { key: 'forwarding', label: 'Forwarding' },
   { key: 'compose', label: 'Compose' },
   { key: 'team', label: 'Team' },
-  { key: 'notifications', label: 'Notifications' },
 ]
 </script>
 
@@ -407,11 +417,112 @@ const TABS: { key: TabKey; label: string }[] = [
     </div>
 
     <main class="mx-auto max-w-2xl px-4 py-6">
-      <!-- ── Account tab ─────────────────────────────────────────────────── -->
-      <section v-if="activeTab === 'account'" class="space-y-6">
+      <!-- ── Profile tab ─────────────────────────────────────────────── -->
+      <section v-if="activeTab === 'profile'" class="space-y-6">
+        <!-- User identity -->
+        <div class="flex items-center gap-4">
+          <span class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-ctp-surface1">
+            <img
+              v-if="identity?.picture"
+              :src="identity.picture"
+              :alt="identity.name ?? 'Profile'"
+              class="h-full w-full object-cover"
+              referrerpolicy="no-referrer"
+            />
+            <span
+              v-else
+              class="flex h-full w-full items-center justify-center bg-ctp-surface1 text-lg font-semibold text-ctp-subtext1"
+            >
+              {{ (identity?.name ?? identity?.email ?? '?').slice(0, 2).toUpperCase() }}
+            </span>
+          </span>
+          <div class="min-w-0 flex-1">
+            <p v-if="identity?.name" class="truncate text-sm font-semibold text-ctp-text">{{ identity.name }}</p>
+            <p v-if="identity?.email" class="truncate text-xs text-ctp-subtext0">{{ identity.email }}</p>
+          </div>
+        </div>
+
+        <!-- Account ID -->
         <div>
           <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Account ID</span>
           <p class="font-mono text-xs text-ctp-subtext0">{{ accountStore.accountId }}</p>
+        </div>
+
+        <!-- Notification preferences -->
+        <div class="rounded-lg border border-ctp-surface1 p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-ctp-text">Email notifications</p>
+              <p class="text-xs text-ctp-subtext0">
+                Receive digest emails about quarantine and alerts
+              </p>
+            </div>
+            <button
+              role="switch"
+              :aria-checked="emailNotifEnabled"
+              :aria-label="emailNotifEnabled ? 'Disable email notifications' : 'Enable email notifications'"
+              class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
+              :class="emailNotifEnabled ? 'bg-ctp-mauve' : 'bg-ctp-surface1'"
+              @click="emailNotifEnabled = !emailNotifEnabled"
+            >
+              <span
+                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                :class="emailNotifEnabled ? 'translate-x-4' : 'translate-x-0.5'"
+              />
+            </button>
+          </div>
+
+          <div v-if="emailNotifEnabled" class="mt-4 space-y-3">
+            <div>
+              <label for="notif-address" class="mb-1 block text-xs text-ctp-subtext0">Notification address</label>
+              <input
+                id="notif-address"
+                v-model="emailNotifAddress"
+                type="email"
+                placeholder="you@example.com"
+                class="w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
+              />
+            </div>
+            <div>
+              <span class="mb-1 block text-xs text-ctp-subtext0">Frequency</span>
+              <div class="flex gap-2">
+                <button
+                  v-for="freq in ['instant', 'hourly', 'daily'] as const"
+                  :key="freq"
+                  :aria-pressed="emailNotifFrequency === freq"
+                  class="rounded-full border px-3 py-1 text-xs transition-colors"
+                  :class="
+                    emailNotifFrequency === freq
+                      ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
+                      : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2'
+                  "
+                  @click="emailNotifFrequency = freq"
+                >
+                  {{ freq.charAt(0).toUpperCase() + freq.slice(1) }}
+                </button>
+              </div>
+              <p class="mt-1 text-xs text-ctp-subtext0">
+                <template v-if="emailNotifFrequency === 'instant'">Sent as each event arrives</template>
+                <template v-else-if="emailNotifFrequency === 'hourly'">One digest per hour if anything new</template>
+                <template v-else>One daily summary at 8 AM UTC</template>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <AsyncButton
+            :action="saveNotifications"
+            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
+          >
+            Save preferences
+          </AsyncButton>
+          <button
+            class="rounded-lg border border-ctp-surface1 px-4 py-2 text-sm text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
+            @click="sendTestNotification"
+          >
+            Send test notification
+          </button>
         </div>
       </section>
 
@@ -873,84 +984,6 @@ const TABS: { key: TabKey; label: string }[] = [
         </div>
       </section>
 
-      <!-- ── Notifications tab ──────────────────────────────────────────── -->
-      <section v-else-if="activeTab === 'notifications'" class="space-y-6">
-        <div class="rounded-lg border border-ctp-surface1 p-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-ctp-text">Email notifications</p>
-              <p class="text-xs text-ctp-subtext0">
-                Receive digest emails about quarantine and alerts
-              </p>
-            </div>
-            <button
-              role="switch"
-              :aria-checked="emailNotifEnabled"
-              :aria-label="emailNotifEnabled ? 'Disable email notifications' : 'Enable email notifications'"
-              class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
-              :class="emailNotifEnabled ? 'bg-ctp-mauve' : 'bg-ctp-surface1'"
-              @click="emailNotifEnabled = !emailNotifEnabled"
-            >
-              <span
-                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                :class="emailNotifEnabled ? 'translate-x-4' : 'translate-x-0.5'"
-              />
-            </button>
-          </div>
-
-          <div v-if="emailNotifEnabled" class="mt-4 space-y-3">
-            <div>
-              <label for="notif-address" class="mb-1 block text-xs text-ctp-subtext0">Notification address</label>
-              <input
-                id="notif-address"
-                v-model="emailNotifAddress"
-                type="email"
-                placeholder="you@example.com"
-                class="w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
-              />
-            </div>
-            <div>
-              <span class="mb-1 block text-xs text-ctp-subtext0">Frequency</span>
-              <div class="flex gap-2">
-                <button
-                  v-for="freq in ['instant', 'hourly', 'daily'] as const"
-                  :key="freq"
-                  :aria-pressed="emailNotifFrequency === freq"
-                  class="rounded-full border px-3 py-1 text-xs transition-colors"
-                  :class="
-                    emailNotifFrequency === freq
-                      ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
-                      : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2'
-                  "
-                  @click="emailNotifFrequency = freq"
-                >
-                  {{ freq.charAt(0).toUpperCase() + freq.slice(1) }}
-                </button>
-              </div>
-              <p class="mt-1 text-xs text-ctp-subtext0">
-                <template v-if="emailNotifFrequency === 'instant'">Sent as each event arrives</template>
-                <template v-else-if="emailNotifFrequency === 'hourly'">One digest per hour if anything new</template>
-                <template v-else>One daily summary at 8 AM UTC</template>
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex gap-2">
-          <AsyncButton
-            :action="saveNotifications"
-            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
-          >
-            Save preferences
-          </AsyncButton>
-          <button
-            class="rounded-lg border border-ctp-surface1 px-4 py-2 text-sm text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
-            @click="sendTestNotification"
-          >
-            Send test notification
-          </button>
-        </div>
-      </section>
     </main>
 
     <ConfirmDialog
