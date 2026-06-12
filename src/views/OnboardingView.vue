@@ -10,10 +10,12 @@ import AppNavbar from '@/components/AppNavbar.vue'
 import SupportPanel from '@/components/SupportPanel.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import { useSupportPanel } from '@/composables/useSupportPanel'
+import { useFeatureTour } from '@/composables/useFeatureTour'
 
 const router = useRouter()
 const accountStore = useAccountStore()
 const { open: supportOpen } = useSupportPanel()
+const { startTour } = useFeatureTour()
 
 // ── Deterministic test email username from domain hash ────────────────────────
 const WORDS = [
@@ -292,6 +294,7 @@ async function onSignalArrived() {
 
 async function completeOnboarding() {
   await persistProgress({ completed: true })
+  startTour()
   router.push('/inbox')
 }
 

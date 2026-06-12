@@ -3,8 +3,6 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useArcsStore } from '@/stores/arcs'
-import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
-import { useFeatureTour } from '@/composables/useFeatureTour'
 import { useRelativeTime } from '@/composables/useRelativeTime'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import StatusTabs from '@/components/StatusTabs.vue'
@@ -18,8 +16,6 @@ const route = useRoute()
 const router = useRouter()
 const accountStore = useAccountStore()
 const arcsStore = useArcsStore()
-const { countdownRunning, startArcViewCountdown, showCoachNow } = useOnboardingCoach()
-const { tourCompleted } = useFeatureTour()
 const { onAction, offAction } = useKeyboardShortcuts()
 
 useRelativeTime()
@@ -29,12 +25,6 @@ type TabKey = (typeof VALID_TABS)[number]
 
 // Keyboard-navigable cursor through the arc list
 const focusedArcId = ref<string | null>(null)
-
-function coachShouldRun() {
-  if (tourCompleted()) return false
-  const ob = accountStore.account?.onboarding
-  return ob?.completed
-}
 
 function scrollFocusedIntoView() {
   if (!focusedArcId.value) return
@@ -79,8 +69,6 @@ onMounted(async () => {
   if (tab && (VALID_TABS as readonly string[]).includes(tab)) arcsStore.setTab(tab)
   await accountStore.fetchAccount()
   await arcsStore.fetchArcs(true)
-  // If the countdown was started when user left for arc-detail, show now that they're back
-  if (coachShouldRun() && countdownRunning.value) showCoachNow()
 
   onAction('navigate_next', moveNext)
   onAction('navigate_prev', movePrev)
@@ -90,9 +78,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  // User leaving inbox (most likely to view an arc) — start the 20s countdown
-  if (coachShouldRun()) startArcViewCountdown()
-
   offAction('navigate_next', moveNext)
   offAction('navigate_prev', movePrev)
   offAction('open_thread', openFocused)
