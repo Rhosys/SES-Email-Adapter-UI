@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import type {
   Domain,
   DnsRecord,
@@ -17,6 +19,7 @@ import type {
 const route = useRoute()
 const router = useRouter()
 const accountStore = useAccountStore()
+const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
 type TabKey = 'account' | 'emails' | 'domains' | 'forwarding' | 'compose' | 'team' | 'notifications'
 const activeTab = ref<TabKey>('account')
@@ -111,9 +114,23 @@ async function updateAliasThreshold(address: string, raw: string) {
   }
 }
 
+async function updateDefaultPolicy(policy: UnknownSenderPolicy) {
+  if (!accountStore.accountId) return
+  const result = await api.updateAccount(accountStore.accountId, {
+    filtering: { ...accountStore.account?.filtering, defaultUnknownSenderPolicy: policy },
+  })
+  if (result.isOk()) accountStore.account = result.value
+}
+
 async function deleteAddress(address: string) {
   if (!accountStore.accountId) return
-  if (!confirm(`Remove ${address}?`)) return
+  const confirmed = await confirmAction({
+    title: 'Remove address',
+    message: `Remove ${address}? Emails sent to this address will no longer be received.`,
+    confirmLabel: 'Remove',
+    confirmVariant: 'danger',
+  })
+  if (!confirmed) return
   const result = await api.deleteAlias(accountStore.accountId, address)
   if (result.isOk()) aliases.value = aliases.value.filter((a) => a.address !== address)
 }
@@ -254,9 +271,15 @@ async function updateMemberRole(userId: string, role: UserRole) {
   }
 }
 
-async function removeMember(userId: string, email: string) {
+async function removeMember(userId: string, displayName: string) {
   if (!accountStore.accountId) return
-  if (!confirm(`Remove ${email} from the team?`)) return
+  const confirmed = await confirmAction({
+    title: 'Remove team member',
+    message: `Remove ${displayName} from the team? They will lose access immediately.`,
+    confirmLabel: 'Remove',
+    confirmVariant: 'danger',
+  })
+  if (!confirmed) return
   const result = await api.removeTeamMember(accountStore.accountId, userId)
   if (result.isOk()) team.value = team.value.filter((m) => m.userId !== userId)
 }
@@ -396,6 +419,25 @@ const TABS: { key: TabKey; label: string }[] = [
           class="mb-4 rounded border border-ctp-red bg-ctp-red/10 px-3 py-2 text-xs text-ctp-red"
         >
           {{ aliasError }}
+        </div>
+        <!-- Account default filter mode -->
+        <div class="mb-6 rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <p class="text-sm font-medium text-ctp-text">Default filter mode</p>
+              <p class="mt-0.5 text-xs text-ctp-subtext0">Applied to new aliases that don't have a specific policy set</p>
+            </div>
+            <select
+              :value="accountStore.account?.filtering?.defaultUnknownSenderPolicy ?? 'quarantine_visible'"
+              aria-label="Account default filter mode"
+              class="rounded-lg border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+              @change="updateDefaultPolicy(($event.target as HTMLSelectElement).value as UnknownSenderPolicy)"
+            >
+              <option v-for="mode in FILTER_MODES" :key="mode.value" :value="mode.value">
+                {{ mode.label }}
+              </option>
+            </select>
+          </div>
         </div>
         <!-- Add address -->
         <form class="mb-4 flex gap-2" @submit.prevent="addAddress">
@@ -820,7 +862,7 @@ const TABS: { key: TabKey; label: string }[] = [
             </select>
             <button
               class="text-xs text-ctp-red hover:text-ctp-red/80"
-              @click="removeMember(member.userId, member.userId)"
+              @click="removeMember(member.userId, member.name ?? member.email ?? member.userId)"
             >
               Remove
             </button>
@@ -907,5 +949,15 @@ const TABS: { key: TabKey; label: string }[] = [
         </div>
       </section>
     </main>
+
+    <ConfirmDialog
+      :open="dialogOpen"
+      :title="dialogOptions.title"
+      :message="dialogOptions.message"
+      :confirm-label="dialogOptions.confirmLabel"
+      :confirm-variant="dialogOptions.confirmVariant"
+      @confirm="onConfirm"
+      @cancel="onCancel"
+    />
   </div>
 </template>
