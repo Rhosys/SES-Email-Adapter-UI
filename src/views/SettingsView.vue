@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
+import { notify } from '@/lib/notifications'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
@@ -316,17 +317,19 @@ async function saveNotifications() {
 function sendTestNotification() {
   if (!('Notification' in window)) return
   if (Notification.permission === 'granted') {
-    new Notification('Test notification from SES Adapter', {
+    notify({
+      title: 'Test notification from SES Adapter',
       body: 'If you see this, browser notifications are working.',
-      icon: '/favicon.ico',
+      onClick: () => { void router.push('/') },
     })
     return
   }
   void Notification.requestPermission().then((permission) => {
     if (permission === 'granted') {
-      new Notification('Test notification from SES Adapter', {
+      notify({
+        title: 'Test notification from SES Adapter',
         body: 'If you see this, browser notifications are working.',
-        icon: '/favicon.ico',
+        onClick: () => { void router.push('/') },
       })
     }
   })

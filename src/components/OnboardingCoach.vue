@@ -4,6 +4,7 @@ import { useAccountStore } from '@/stores/account'
 import { useFeatureTour } from '@/composables/useFeatureTour'
 import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
 import { api } from '@/lib/api'
+import { notify } from '@/lib/notifications'
 
 const accountStore = useAccountStore()
 const { startTour } = useFeatureTour()
@@ -47,14 +48,11 @@ async function enableNotifications() {
 
 function fireDemo() {
   setTimeout(() => {
-    try {
-      new Notification('New email from hello@example.com', {
-        body: "That's how it works — you'll see these for high-priority emails.",
-        icon: '/favicon.ico',
-      })
-    } catch {
-      // Notification may be blocked by OS even with permission granted
-    }
+    notify({
+      title: 'New email from hello@example.com',
+      body: "That's how it works — you'll see these for high-priority emails.",
+      onClick: () => { /* demo — no navigation needed */ },
+    })
   }, 800)
 }
 
