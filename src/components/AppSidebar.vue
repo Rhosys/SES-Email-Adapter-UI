@@ -43,6 +43,7 @@ function navigateToView(v: { workflow?: string; labels?: string[] }) {
 const viewsLoaded = computed(() => !viewsStore.loading)
 const sortedViews = computed(() => viewsStore.sortedViews)
 const labels = computed(() => labelsStore.items)
+const labelsExpanded = ref(true)
 </script>
 
 <template>
@@ -177,17 +178,41 @@ const labels = computed(() => labelsStore.items)
         </RouterLink>
       </div>
 
-      <!-- Custom views -->
+      <!-- Labels — expandable -->
+      <div v-if="labels.length > 0" class="mt-4 px-2">
+        <button
+          class="mb-1 flex w-full items-center justify-between px-3"
+          @click="labelsExpanded = !labelsExpanded"
+        >
+          <span class="text-xs font-medium uppercase tracking-wide text-ctp-subtext0">Labels</span>
+          <svg
+            class="h-3 w-3 text-ctp-subtext0 transition-transform"
+            :class="labelsExpanded ? 'rotate-0' : '-rotate-90'"
+            viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"
+          >
+            <path d="M2 5.5l6 6 6-6H2z" />
+          </svg>
+        </button>
+        <template v-if="labelsExpanded">
+          <RouterLink
+            v-for="label in labels"
+            :key="label.label"
+            :to="`/?label=${label.label}`"
+            class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ctp-subtext1 transition-colors hover:bg-ctp-surface0/50 hover:text-ctp-text"
+          >
+            <span
+              class="h-2 w-2 shrink-0 rounded-full"
+              :style="{ backgroundColor: label.color ?? 'currentColor' }"
+            />
+            <span class="truncate">{{ label.name }}</span>
+          </RouterLink>
+        </template>
+      </div>
+
+      <!-- Views — always expanded -->
       <div v-if="viewsLoaded && sortedViews.length > 0" class="mt-4 px-2">
         <div class="mb-1 flex items-center justify-between px-3">
           <span class="text-xs font-medium uppercase tracking-wide text-ctp-subtext0">Views</span>
-          <RouterLink
-            to="/labels"
-            class="text-xs text-ctp-subtext0 hover:text-ctp-text"
-            title="Manage views"
-          >
-            Manage
-          </RouterLink>
         </div>
         <button
           v-for="view in sortedViews"
@@ -204,32 +229,6 @@ const labels = computed(() => labelsStore.items)
           <span class="shrink-0 text-xs" aria-hidden="true">{{ view.icon ?? '📋' }}</span>
           <span class="truncate">{{ view.name }}</span>
         </button>
-      </div>
-
-      <!-- Labels -->
-      <div v-if="labels.length > 0" class="mt-4 px-2">
-        <div class="mb-1 flex items-center justify-between px-3">
-          <span class="text-xs font-medium uppercase tracking-wide text-ctp-subtext0">Labels</span>
-          <RouterLink
-            to="/labels"
-            class="text-xs text-ctp-subtext0 hover:text-ctp-text"
-            title="Manage labels"
-          >
-            Manage
-          </RouterLink>
-        </div>
-        <RouterLink
-          v-for="label in labels"
-          :key="label.label"
-          :to="`/?label=${label.label}`"
-          class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ctp-subtext1 transition-colors hover:bg-ctp-surface0/50 hover:text-ctp-text"
-        >
-          <span
-            class="h-2 w-2 shrink-0 rounded-full"
-            :style="{ backgroundColor: label.color ?? 'currentColor' }"
-          />
-          <span class="truncate">{{ label.name }}</span>
-        </RouterLink>
       </div>
     </nav>
   </aside>

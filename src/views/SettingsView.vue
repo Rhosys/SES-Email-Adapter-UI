@@ -102,15 +102,6 @@ async function updateAliasMode(address: string, unknownSenderPolicy: UnknownSend
   }
 }
 
-async function updateAliasThreshold(address: string, raw: string) {
-  if (!accountStore.accountId) return
-  const value = raw.trim() === '' ? undefined : Math.min(10, Math.max(0, Number(raw)))
-  const result = await api.updateAlias(accountStore.accountId, address, { spamScoreThreshold: value })
-  if (result.isOk()) {
-    aliases.value = aliases.value.map((a) => (a.address === address ? result.value : a))
-  }
-}
-
 async function deleteAddress(address: string) {
   if (!accountStore.accountId) return
   if (!confirm(`Remove ${address}?`)) return
@@ -344,7 +335,7 @@ onMounted(async () => {
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'account', label: 'Account' },
-  { key: 'emails', label: 'Email addresses' },
+  { key: 'emails', label: 'Aliases' },
   { key: 'domains', label: 'Domains' },
   { key: 'forwarding', label: 'Forwarding' },
   { key: 'compose', label: 'Compose' },
@@ -452,44 +443,16 @@ const TABS: { key: TabKey; label: string }[] = [
                 Remove
               </button>
             </div>
-            <div class="mt-2 flex flex-wrap gap-1">
-              <button
-                v-for="mode in FILTER_MODES"
-                :key="mode.value"
-                class="rounded-full border px-2.5 py-0.5 text-xs transition-colors"
-                :class="
-                  alias.unknownSenderPolicy === mode.value
-                    ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
-                    : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
-                "
-                @click="updateAliasMode(alias.address, mode.value)"
+            <div class="mt-2">
+              <select
+                :value="alias.unknownSenderPolicy"
+                class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                @change="updateAliasMode(alias.address, ($event.target as HTMLSelectElement).value as UnknownSenderPolicy)"
               >
-                {{ mode.label }}
-              </button>
-            </div>
-            <p class="mt-1 text-xs text-ctp-subtext0">
-              {{ FILTER_MODES.find((m) => m.value === alias.unknownSenderPolicy)?.description }}
-            </p>
-            <div class="mt-2 flex items-center gap-2">
-              <label :for="`spam-${alias.alias}`" class="text-xs text-ctp-subtext0">Spam threshold:</label>
-              <input
-                :id="`spam-${alias.alias}`"
-                type="number"
-                min="0"
-                max="10"
-                step="0.1"
-                :value="alias.spamScoreThreshold ?? ''"
-                :placeholder="'account default'"
-                class="w-20 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
-                @change="updateAliasThreshold(alias.address, ($event.target as HTMLInputElement).value)"
-              />
-              <button
-                v-if="alias.spamScoreThreshold != null"
-                class="text-xs text-ctp-subtext0 hover:text-ctp-text"
-                @click="updateAliasThreshold(alias.address, '')"
-              >
-                Reset
-              </button>
+                <option v-for="mode in FILTER_MODES" :key="mode.value" :value="mode.value">
+                  {{ mode.label }} — {{ mode.description }}
+                </option>
+              </select>
             </div>
           </div>
         </div>
