@@ -120,11 +120,13 @@ async function createAndAdvance() {
 const domain = ref('')
 const domainTouched = ref(false)
 
-// Hash domain into deterministic test email username: word.word.numaeel
+// Hash domain+date into deterministic test email username: word.word.numaeel
+// Date rotates daily so stale addresses self-heal if deliverability breaks.
 watchEffect(async () => {
   const d = domain.value
   if (!d) { testEmailUser.value = 'test.numaeel'; return }
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(d))
+  const today = new Date().toISOString().slice(0, 10)
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${d}:${today}`))
   const bytes = new Uint8Array(buf)
   const w1 = WORDS[bytes[0]! % WORDS.length]
   const w2 = WORDS[bytes[1]! % WORDS.length]
@@ -491,7 +493,7 @@ onUnmounted(() => {
 
       <!-- ── Step 3: Test email ──────────────────────────────────────────────── -->
       <section v-else-if="step === 3">
-        <h2 class="mb-1 text-xl font-semibold">Send us a test email</h2>
+        <h2 class="mb-1 text-xl font-semibold">Test your new domain inbox</h2>
         <p class="mb-6 text-sm text-ctp-subtext0">
           Send an email to the address below to validate your setup. We'll detect it in real time.
         </p>
