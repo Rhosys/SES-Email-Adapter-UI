@@ -621,26 +621,38 @@ const TABS: { key: TabKey; label: string }[] = [
                 {{ FILTER_MODES.find((m) => m.value === alias.unknownSenderPolicy)?.label ?? alias.unknownSenderPolicy }}
               </button>
             </div>
-            <div class="mt-2 flex items-center gap-2">
-              <label :for="`spam-${alias.alias}`" class="text-xs text-ctp-subtext0">Spam threshold:</label>
-              <input
-                :id="`spam-${alias.alias}`"
-                type="number"
-                min="0"
-                max="10"
-                step="0.1"
-                :value="alias.spamScoreThreshold ?? ''"
-                :placeholder="'account default'"
-                class="w-20 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
-                @change="updateAliasThreshold(alias.address, ($event.target as HTMLInputElement).value)"
-              />
-              <button
-                v-if="alias.spamScoreThreshold != null"
-                class="text-xs text-ctp-subtext0 hover:text-ctp-text"
-                @click="updateAliasThreshold(alias.address, '')"
-              >
-                Reset
-              </button>
+            <div class="mt-3">
+              <span class="mb-1.5 block text-xs text-ctp-subtext0">Spam threshold</span>
+              <div class="flex items-center gap-1">
+                <button
+                  v-for="n in 10"
+                  :key="n"
+                  type="button"
+                  class="flex h-7 w-7 items-center justify-center rounded text-xs font-medium transition-colors"
+                  :class="
+                    alias.spamScoreThreshold === n
+                      ? 'bg-ctp-mauve text-ctp-base'
+                      : 'bg-ctp-surface0 text-ctp-subtext1 hover:bg-ctp-surface1 hover:text-ctp-text'
+                  "
+                  @click="updateAliasThreshold(alias.address, String(n))"
+                >
+                  {{ n }}
+                </button>
+                <button
+                  v-if="alias.spamScoreThreshold != null"
+                  class="ml-2 text-xs text-ctp-subtext0 hover:text-ctp-text"
+                  @click="updateAliasThreshold(alias.address, '')"
+                >
+                  Reset
+                </button>
+              </div>
+              <p class="mt-1.5 text-xs text-ctp-subtext0">
+                <template v-if="alias.spamScoreThreshold == null">Using account default threshold</template>
+                <template v-else-if="alias.spamScoreThreshold <= 3">Very aggressive — most emails from unknown senders will be quarantined</template>
+                <template v-else-if="alias.spamScoreThreshold <= 6">Balanced — catches obvious spam while allowing most legitimate mail</template>
+                <template v-else-if="alias.spamScoreThreshold <= 9">Permissive — only flags the most obvious spam</template>
+                <template v-else>Disabled — no spam filtering</template>
+              </p>
             </div>
           </div>
         </div>

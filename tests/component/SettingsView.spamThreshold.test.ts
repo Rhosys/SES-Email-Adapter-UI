@@ -74,9 +74,11 @@ describe('SettingsView — spam threshold input', () => {
     }
     const wrapper = await mountEmailsTab([alias])
 
-    const input = wrapper.find('#spam-inbox') as ReturnType<typeof wrapper.find>
-    expect(input.exists()).toBe(true)
-    expect((input.element as HTMLInputElement).value).toBe('5')
+    // The number picker shows button 5 highlighted (bg-ctp-mauve)
+    const buttons = wrapper.findAll('button').filter(b => b.text().match(/^\d+$/))
+    const btn5 = buttons.find(b => b.text() === '5')
+    expect(btn5).toBeDefined()
+    expect(btn5!.classes()).toContain('bg-ctp-mauve')
   })
 
   it('shows placeholder "account default" when threshold is undefined', async () => {
@@ -89,10 +91,11 @@ describe('SettingsView — spam threshold input', () => {
     }
     const wrapper = await mountEmailsTab([alias])
 
-    const input = wrapper.find('#spam-inbox') as ReturnType<typeof wrapper.find>
-    expect(input.exists()).toBe(true)
-    expect((input.element as HTMLInputElement).placeholder).toBe('account default')
-    expect((input.element as HTMLInputElement).value).toBe('')
+    // No number button should be highlighted, and description shows account default
+    const buttons = wrapper.findAll('button').filter(b => b.text().match(/^\d+$/))
+    const highlighted = buttons.filter(b => b.classes().includes('bg-ctp-mauve'))
+    expect(highlighted.length).toBe(0)
+    expect(wrapper.text()).toContain('Using account default threshold')
   })
 
   it('clamps value to 10 when input exceeds max', async () => {
@@ -109,10 +112,11 @@ describe('SettingsView — spam threshold input', () => {
 
     const wrapper = await mountEmailsTab([alias])
 
-    const input = wrapper.find('#spam-inbox')
-    // Simulate setting value to 11 and triggering change
-    await input.setValue('11')
-    await input.trigger('change')
+    // Click button 10 to set the maximum threshold
+    const buttons = wrapper.findAll('button').filter(b => b.text().match(/^\d+$/))
+    const btn10 = buttons.find(b => b.text() === '10')
+    expect(btn10).toBeDefined()
+    await btn10!.trigger('click')
     await flushPromises()
 
     expect(api.updateAlias).toHaveBeenCalledWith('acc_1', 'inbox@test.com', { spamScoreThreshold: 10 })
