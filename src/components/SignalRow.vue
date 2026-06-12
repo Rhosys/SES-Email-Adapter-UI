@@ -66,8 +66,9 @@ async function undoSend() {
 </script>
 
 <template>
-  <div
-    class="flex cursor-pointer items-center gap-3 border-b border-ctp-surface0 bg-ctp-base/60 py-2 pl-14 pr-3 text-xs hover:bg-ctp-surface0/60"
+  <button
+    type="button"
+    class="flex w-full cursor-pointer items-center gap-3 border-b border-ctp-surface0 bg-ctp-base/60 py-2 pl-14 pr-3 text-left text-xs hover:bg-ctp-surface0/60"
     @click="viewOriginal"
   >
     <!-- Sender -->
@@ -126,5 +127,5 @@ async function undoSend() {
       <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -->
       <div v-if="menuOpen" class="fixed inset-0 z-10" @click="menuOpen = false" />
     </div>
-  </div>
+  </button>
 </template>
