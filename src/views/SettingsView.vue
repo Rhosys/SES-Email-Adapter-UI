@@ -22,29 +22,11 @@ type TabKey = 'account' | 'emails' | 'domains' | 'forwarding' | 'compose' | 'tea
 const activeTab = ref<TabKey>('account')
 
 // ─── Account profile tab ─────────────────────────────────────────────────────
-const accountName = ref('')
-const accountPending = ref(false)
-const accountSaved = ref(false)
 const afterSendAction = ref<'archive' | 'keep_active'>('keep_active')
 const afterSendPending = ref(false)
 const calendarForwardingAddress = ref('')
 const calendarForwardingPending = ref(false)
 const calendarForwardingSaved = ref(false)
-
-async function saveAccount() {
-  if (!accountStore.accountId) return
-  accountPending.value = true
-  accountSaved.value = false
-  const result = await api.updateAccount(accountStore.accountId, { name: accountName.value.trim() })
-  accountPending.value = false
-  if (result.isOk()) {
-    accountStore.account = result.value
-    accountSaved.value = true
-    setTimeout(() => {
-      accountSaved.value = false
-    }, 2000)
-  }
-}
 
 async function updateAfterSendAction(value: 'archive' | 'keep_active') {
   if (!accountStore.accountId) return
@@ -321,7 +303,6 @@ async function switchTab(tab: TabKey) {
 onMounted(async () => {
   if (!accountStore.accountId) await accountStore.fetchAccount()
   if (accountStore.account) {
-    accountName.value = accountStore.account.name
     afterSendAction.value = accountStore.account.afterSendAction ?? 'keep_active'
     calendarForwardingAddress.value = accountStore.account.defaultCalendarInviteForwardingAddress ?? ''
     emailNotifAddress.value = accountStore.account.notifications?.email?.address ?? ''
