@@ -44,6 +44,9 @@ const viewsLoaded = computed(() => !viewsStore.loading)
 const sortedViews = computed(() => viewsStore.sortedViews)
 const labels = computed(() => labelsStore.items)
 const labelsExpanded = ref(true)
+
+// Account switcher (shown at bottom when multiple accounts)
+const accountSwitcherOpen = ref(false)
 </script>
 
 <template>
@@ -231,5 +234,55 @@ const labelsExpanded = ref(true)
         </button>
       </div>
     </nav>
+
+    <!-- Account switcher -->
+    <div v-if="accountStore.accounts.length > 1" class="relative border-t border-ctp-surface0 px-2 py-2">
+      <button
+        type="button"
+        class="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm text-ctp-subtext1 transition-colors hover:bg-ctp-surface0/50 hover:text-ctp-text"
+        :aria-expanded="accountSwitcherOpen"
+        aria-haspopup="listbox"
+        @click="accountSwitcherOpen = !accountSwitcherOpen"
+      >
+        <span class="truncate">{{ accountStore.account?.name ?? 'Account' }}</span>
+        <svg
+          class="h-3 w-3 shrink-0 transition-transform"
+          :class="{ 'rotate-180': accountSwitcherOpen }"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
+          <path d="M4 6l4 4 4-4" />
+        </svg>
+      </button>
+
+      <!-- Dropdown (positioned above) -->
+      <div
+        v-if="accountSwitcherOpen"
+        class="absolute bottom-full left-2 right-2 z-50 mb-1 overflow-hidden rounded-lg border border-ctp-surface1 bg-ctp-mantle shadow-lg"
+      >
+        <button
+          v-for="acc in accountStore.accounts"
+          :key="acc.accountId"
+          class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-ctp-surface0"
+          :class="acc.accountId === accountStore.accountId ? 'font-medium text-ctp-text' : 'text-ctp-subtext1'"
+          @click="accountSwitcherOpen = false; accountStore.switchAccount(acc.accountId)"
+        >
+          <span class="flex-1 truncate">{{ acc.name }}</span>
+          <svg
+            v-if="acc.accountId === accountStore.accountId"
+            class="h-3.5 w-3.5 shrink-0 text-ctp-mauve"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <path d="M2 8l4 4 8-8" />
+          </svg>
+        </button>
+      </div>
+      <div v-if="accountSwitcherOpen" role="presentation" class="fixed inset-0 z-40" @click="accountSwitcherOpen = false" />
+    </div>
   </aside>
 </template>

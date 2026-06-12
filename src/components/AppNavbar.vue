@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useSupportPanel } from '@/composables/useSupportPanel'
@@ -11,14 +11,6 @@ defineProps<{ showHamburger?: boolean }>()
 const router = useRouter()
 const accountStore = useAccountStore()
 const { open: supportOpen } = useSupportPanel()
-
-// ── Account switcher ──────────────────────────────────────────────────────────
-const switcherOpen = ref(false)
-
-function selectAccount(id: string) {
-  switcherOpen.value = false
-  accountStore.switchAccount(id)
-}
 
 // ── User menu ─────────────────────────────────────────────────────────────────
 interface Identity {
@@ -114,9 +106,7 @@ function onUserMenuFocusout(e: FocusEvent) {
   }
 }
 
-// Close switcher on outside click
-let switcherCloseTimer: ReturnType<typeof setTimeout> | null = null
-onUnmounted(() => { if (switcherCloseTimer) clearTimeout(switcherCloseTimer) })
+
 </script>
 
 <template>
@@ -144,58 +134,8 @@ onUnmounted(() => { if (switcherCloseTimer) clearTimeout(switcherCloseTimer) })
       <slot name="search" />
     </div>
 
-    <!-- Right section: account switcher + user avatar -->
+    <!-- Right section: user avatar -->
     <div class="flex items-center gap-2">
-      <!-- Account switcher -->
-      <div v-if="accountStore.accounts.length > 1" class="relative">
-        <button
-          type="button"
-          class="flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-ctp-subtext1 transition-colors hover:bg-ctp-surface0/50 hover:text-ctp-text"
-          :aria-expanded="switcherOpen"
-          aria-haspopup="listbox"
-          @click="switcherOpen = !switcherOpen"
-        >
-          <span class="max-w-[120px] truncate">{{ accountStore.account?.name ?? 'Account' }}</span>
-          <svg
-            class="h-3 w-3 shrink-0 transition-transform"
-            :class="{ 'rotate-180': switcherOpen }"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-          >
-            <path d="M4 6l4 4 4-4" />
-          </svg>
-        </button>
-
-        <!-- Dropdown -->
-        <div
-          v-if="switcherOpen"
-          class="absolute right-0 top-full z-50 mt-1 min-w-[180px] overflow-hidden rounded-lg border border-ctp-surface1 bg-ctp-mantle shadow-lg"
-        >
-          <button
-            v-for="acc in accountStore.accounts"
-            :key="acc.accountId"
-            class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-ctp-surface0"
-            :class="acc.accountId === accountStore.accountId ? 'font-medium text-ctp-text' : 'text-ctp-subtext1'"
-            @click="selectAccount(acc.accountId)"
-          >
-            <span class="flex-1 truncate">{{ acc.name }}</span>
-            <svg
-              v-if="acc.accountId === accountStore.accountId"
-              class="h-3.5 w-3.5 shrink-0 text-ctp-mauve"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-            >
-              <path d="M2 8l4 4 8-8" />
-            </svg>
-          </button>
-        </div>
-        <div v-if="switcherOpen" role="presentation" class="fixed inset-0 z-40" @click="switcherOpen = false" />
-      </div>
-
       <!-- User avatar + dropdown menu -->
       <div class="relative" @focusout="onUserMenuFocusout">
         <button
