@@ -347,12 +347,14 @@ interface Shell {
 function launchFireworks(canvas: HTMLCanvasElement) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
+  // ctx is guaranteed non-null below this point; alias for closure narrowing
+  const c = ctx
 
   const dpr = window.devicePixelRatio || 1
   const resize = () => {
     canvas.width = canvas.offsetWidth * dpr
     canvas.height = canvas.offsetHeight * dpr
-    ctx.scale(dpr, dpr)
+    c.scale(dpr, dpr)
   }
   resize()
 
@@ -401,7 +403,7 @@ function launchFireworks(canvas: HTMLCanvasElement) {
   }
 
   function frame() {
-    ctx.clearRect(0, 0, w(), h())
+    c.clearRect(0, 0, w(), h())
 
     // Update shells
     for (let i = shells.length - 1; i >= 0; i--) {
@@ -411,10 +413,10 @@ function launchFireworks(canvas: HTMLCanvasElement) {
 
       if (!s.exploded) {
         // Draw trail
-        ctx.beginPath()
-        ctx.arc(s.x, s.y, 2, 0, Math.PI * 2)
-        ctx.fillStyle = s.color
-        ctx.fill()
+        c.beginPath()
+        c.arc(s.x, s.y, 2, 0, Math.PI * 2)
+        c.fillStyle = s.color
+        c.fill()
       }
 
       if (s.y <= s.targetY && !s.exploded) {
@@ -440,14 +442,14 @@ function launchFireworks(canvas: HTMLCanvasElement) {
         continue
       }
 
-      ctx.globalAlpha = p.alpha
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-      ctx.fillStyle = p.color
-      ctx.fill()
+      c.globalAlpha = p.alpha
+      c.beginPath()
+      c.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+      c.fillStyle = p.color
+      c.fill()
     }
 
-    ctx.globalAlpha = 1
+    c.globalAlpha = 1
 
     // Stop when everything has faded
     if (particles.length === 0 && shells.length === 0) {
