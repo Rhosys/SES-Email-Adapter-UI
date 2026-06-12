@@ -180,30 +180,33 @@ describe('RulesView', () => {
   })
 
   it('calls deleteRule after confirm', async () => {
-    vi.stubGlobal(
-      'confirm',
-      vi.fn(() => true),
-    )
     vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
     vi.mocked(api.deleteRule).mockResolvedValue(ok(undefined))
     const wrapper = mountView()
     await flushPromises()
     await wrapper.find('button.text-ctp-red').trigger('click')
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    // ConfirmDialog should now be open — find the confirm button by its red/mauve bg class
+    const confirmBtn = wrapper.findAll('button').find((b) => b.text() === 'Delete' && b.classes().some((c) => c.includes('bg-ctp')))
+    expect(confirmBtn).toBeDefined()
+    await confirmBtn!.trigger('click')
+    await flushPromises()
     expect(api.deleteRule).toHaveBeenCalledWith('acc_1', 'rule_1')
-    vi.unstubAllGlobals()
   })
 
   it('does not call deleteRule when confirm is cancelled', async () => {
-    vi.stubGlobal(
-      'confirm',
-      vi.fn(() => false),
-    )
     vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
     const wrapper = mountView()
     await flushPromises()
     await wrapper.find('button.text-ctp-red').trigger('click')
+    await flushPromises()
+    // ConfirmDialog should now be open — click the cancel button
+    const cancelBtn = wrapper.findAll('button').find((b) => b.text() === 'Cancel')
+    expect(cancelBtn).toBeDefined()
+    await cancelBtn!.trigger('click')
+    await flushPromises()
     expect(api.deleteRule).not.toHaveBeenCalled()
-    vi.unstubAllGlobals()
   })
 
   it('renders correct position numbers for two rules', async () => {

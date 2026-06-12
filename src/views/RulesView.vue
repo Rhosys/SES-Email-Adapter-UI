@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useRulesStore } from '@/stores/rules'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import type { Rule, RuleActionType } from '@/types/server'
 
 const accountStore = useAccountStore()
 const rulesStore = useRulesStore()
+const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
+
+const systemRules = computed(() => rulesStore.items.filter((r) => r.system))
+const userRules = computed(() => rulesStore.items.filter((r) => !r.system))
 
 const ACTION_LABELS: Partial<Record<RuleActionType, string>> = {
   block_hidden: 'Block (hidden)',
@@ -100,8 +106,19 @@ function summarizeLogic(node: unknown, depth = 0): string {
 }
 
 async function deleteRule(rule: Rule) {
-  if (!confirm(`Delete rule "${rule.name}"?`)) return
+  const confirmed = await confirmAction({
+    title: 'Delete rule',
+    message: `Delete "${rule.name}"? This cannot be undone.`,
+    confirmLabel: 'Delete',
+    confirmVariant: 'danger',
+  })
+  if (!confirmed) return
   await rulesStore.deleteRule(rule.ruleId)
+}
+
+async function toggleSystemRule(rule: Rule) {
+  const newStatus = rule.status === 'enabled' ? 'disabled' : 'enabled'
+  await rulesStore.updateRule(rule.ruleId, { status: newStatus })
 }
 
 async function moveUp(rule: Rule) {
@@ -193,34 +210,94 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Empty -->
+      <!-- Empty (user rules only) -->
       <div
-        v-else-if="rulesStore.items.length === 0"
-        class="rounded-lg border border-dashed border-ctp-surface1 py-20 text-center"
+        v-else-if="userRules.length === 0 && systemRules.length === 0"
+        class="py-20 text-center"
       >
-        <p class="text-sm font-medium text-ctp-text">Every email handled on autopilot</p>
-        <p class="mt-1 text-xs text-ctp-subtext0">
+        <p class="text-base font-medium text-ctp-text">Every email handled on autopilot</p>
+        <p class="mx-auto mt-2 max-w-sm text-sm text-ctp-subtext0">
           Rules run the moment a message arrives — label it, archive it, forward it, or block the
           sender. Create your first rule to stop doing it manually.
         </p>
         <RouterLink
           to="/rules/new"
-          class="mt-4 inline-block rounded bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
+          class="mt-4 inline-block rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
         >
           Create your first rule
         </RouterLink>
       </div>
 
+      <template v-else>
+        <!-- System rules section -->
+        <div v-if="systemRules.length > 0" class="mb-6">
+          <h2 class="mb-2 text-xs font-medium uppercase tracking-wide text-ctp-subtext0">System rules</h2>
+          <div class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
+            <div
+              v-for="rule in systemRules"
+              :key="rule.ruleId"
+              class="flex items-center gap-3 px-4 py-3"
+            >
+              <!-- Toggle switch -->
+              <button
+                role="switch"
+                :aria-checked="rule.status === 'enabled'"
+                :aria-label="`${rule.status === 'enabled' ? 'Disable' : 'Enable'} ${rule.name}`"
+                class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
+                :class="rule.status === 'enabled' ? 'bg-ctp-green' : 'bg-ctp-surface1'"
+                @click="toggleSystemRule(rule)"
+              >
+                <span
+                  class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                  :class="rule.status === 'enabled' ? 'translate-x-4' : 'translate-x-0.5'"
+                />
+              </button>
+
+              <!-- Name + actions summary -->
+              <div class="min-w-0 flex-1">
+                <p class="text-sm text-ctp-text" :class="{ 'opacity-50': rule.status === 'disabled' }">{{ rule.name }}</p>
+                <div class="mt-0.5 flex flex-wrap gap-1">
+                  <span
+                    v-for="action in rule.actions"
+                    :key="action.type"
+                    class="rounded-full px-2 py-0.5 text-xs"
+                    :class="ACTION_COLORS[action.type] ?? 'text-ctp-subtext0 bg-ctp-surface1'"
+                  >
+                    {{ ACTION_LABELS[action.type] ?? action.type }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- User rules header -->
+        <div v-if="userRules.length > 0 || systemRules.length > 0" class="mb-2">
+          <h2 class="text-xs font-medium uppercase tracking-wide text-ctp-subtext0">Your rules</h2>
+        </div>
+
+        <!-- User rules empty -->
+        <div v-if="userRules.length === 0 && systemRules.length > 0" class="py-12 text-center">
+          <p class="text-sm text-ctp-subtext0">No custom rules yet — system rules are handling the basics.</p>
+          <RouterLink
+            to="/rules/new"
+            class="mt-3 inline-block rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
+          >
+            Create a rule
+          </RouterLink>
+        </div>
+      </template>
+
       <!-- Rules list with move animation -->
       <TransitionGroup
-        v-else
+        v-if="userRules.length > 0"
         name="rule-row"
         tag="div"
         class="relative divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
       >
         <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -- drag is a mouse enhancement; keyboard reorder uses the ▲/▼ buttons -->
         <div
-          v-for="(rule, idx) in rulesStore.items"
+          v-for="(rule, idx) in userRules"
           :key="rule.ruleId"
           draggable="true"
           class="flex cursor-grab items-start gap-3 px-4 py-4 transition-colors active:cursor-grabbing"
@@ -246,7 +323,7 @@ onMounted(async () => {
             </button>
             <span class="text-xs text-ctp-surface2">{{ idx + 1 }}</span>
             <button
-              :disabled="idx === rulesStore.items.length - 1"
+              :disabled="idx === userRules.length - 1"
               class="text-ctp-subtext0 hover:text-ctp-text disabled:opacity-20"
               aria-label="Move rule down"
               @click="moveDown(rule)"
@@ -300,6 +377,16 @@ onMounted(async () => {
       </TransitionGroup>
     </main>
   </div>
+
+  <ConfirmDialog
+    :open="dialogOpen"
+    :title="dialogOptions.title"
+    :message="dialogOptions.message"
+    :confirm-label="dialogOptions.confirmLabel"
+    :confirm-variant="dialogOptions.confirmVariant"
+    @confirm="onConfirm"
+    @cancel="onCancel"
+  />
 </template>
 
 <style scoped>

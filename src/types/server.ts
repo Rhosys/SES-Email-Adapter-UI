@@ -543,6 +543,7 @@ export interface Rule {
   actions: RuleAction[]
   status: 'enabled' | 'disabled'
   priorityOrder: number
+  system?: boolean
   createdAt: string
   updatedAt: string
 }
