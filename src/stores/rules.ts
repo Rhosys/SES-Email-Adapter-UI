@@ -23,7 +23,12 @@ export const useRulesStore = defineStore('rules', () => {
     if (!id) return
     loading.value = true
     error.value = null
+    const start = Date.now()
     const result = await api.listRules(id)
+    const elapsed = Date.now() - start
+    if (import.meta.env.MODE !== 'test' && elapsed < 1000) {
+      await new Promise<void>((r) => setTimeout(r, 1000 - elapsed))
+    }
     loading.value = false
     if (result.isErr()) {
       error.value = result.error.message

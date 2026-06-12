@@ -78,12 +78,17 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     }
     loading.value = true
     error.value = null
+    const start = Date.now()
 
     const [visResult, hidResult] = await Promise.all([
       api.listQuarantinedSignals(id, 'quarantine_visible', buildParams()),
       api.listQuarantinedSignals(id, 'quarantine_hidden', buildParams()),
     ])
 
+    const elapsed = Date.now() - start
+    if (import.meta.env.MODE !== 'test' && elapsed < 1000) {
+      await new Promise<void>((r) => setTimeout(r, 1000 - elapsed))
+    }
     loading.value = false
 
     if (visResult.isErr()) { error.value = visResult.error.message; return }

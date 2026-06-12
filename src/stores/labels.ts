@@ -20,7 +20,12 @@ export const useLabelsStore = defineStore('labels', () => {
     if (!id) return
     loading.value = true
     error.value = null
+    const start = Date.now()
     const result = await api.listLabels(id)
+    const elapsed = Date.now() - start
+    if (import.meta.env.MODE !== 'test' && elapsed < 1000) {
+      await new Promise<void>((r) => setTimeout(r, 1000 - elapsed))
+    }
     loading.value = false
     if (result.isErr()) {
       error.value = result.error.message

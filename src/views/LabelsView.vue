@@ -307,10 +307,10 @@ onMounted(async () => {
         </div>
         <div
           v-else-if="labelsStore.items.length === 0 && !showLabelForm"
-          class="rounded-lg border border-dashed border-ctp-surface1 py-12 text-center text-sm text-ctp-subtext0"
+          class="py-20 text-center"
         >
-          <p class="font-medium text-ctp-text">No labels yet</p>
-          <p class="mx-auto mt-1 max-w-xs text-xs">
+          <p class="text-base font-medium text-ctp-text">No labels yet</p>
+          <p class="mx-auto mt-2 max-w-sm text-sm text-ctp-subtext0">
             Labels make it easy to group and filter arcs at a glance. Create one and start attaching it in rules.
           </p>
         </div>
@@ -439,10 +439,10 @@ onMounted(async () => {
         </div>
         <div
           v-else-if="sortedViews.length === 0 && !showViewForm"
-          class="rounded-lg border border-dashed border-ctp-surface1 py-12 text-center text-sm text-ctp-subtext0"
+          class="py-20 text-center"
         >
-          <p class="font-medium text-ctp-text">No saved views yet</p>
-          <p class="mx-auto mt-1 max-w-xs text-xs">
+          <p class="text-base font-medium text-ctp-text">No saved views yet</p>
+          <p class="mx-auto mt-2 max-w-sm text-sm text-ctp-subtext0">
             Save a filtered view of your inbox as a shortcut — it appears in the sidebar so you're
             one click away from exactly what you need.
           </p>
