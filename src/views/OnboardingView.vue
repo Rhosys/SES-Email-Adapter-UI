@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, watchEffect, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, watchEffect, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
@@ -314,6 +314,160 @@ async function persistProgress(patch: Partial<{
   if (result.isOk()) accountStore.account = result.value
 }
 
+// ── Canvas fireworks ──────────────────────────────────────────────────────────
+const fireworksCanvas = ref<HTMLCanvasElement | null>(null)
+let fireworksRaf = 0
+
+const FIREWORK_COLORS = [
+  '#cba6f7', '#f5c2e7', '#89b4fa', '#74c7ec',
+  '#a6e3a1', '#94e2d5', '#fab387', '#f9e2af',
+  '#f38ba8', '#eba0ac',
+]
+
+interface Particle {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  alpha: number
+  decay: number
+  size: number
+  color: string
+}
+
+interface Shell {
+  x: number
+  y: number
+  vy: number
+  targetY: number
+  color: string
+  exploded: boolean
+}
+
+function launchFireworks(canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const dpr = window.devicePixelRatio || 1
+  const resize = () => {
+    canvas.width = canvas.offsetWidth * dpr
+    canvas.height = canvas.offsetHeight * dpr
+    ctx.scale(dpr, dpr)
+  }
+  resize()
+
+  const particles: Particle[] = []
+  const shells: Shell[] = []
+  const w = () => canvas.offsetWidth
+  const h = () => canvas.offsetHeight
+  const random = (min: number, max: number) => Math.random() * (max - min) + min
+
+  function spawnShell() {
+    const x = random(w() * 0.15, w() * 0.85)
+    shells.push({
+      x,
+      y: h(),
+      vy: random(-h() * 0.018, -h() * 0.012),
+      targetY: random(h() * 0.15, h() * 0.45),
+      color: FIREWORK_COLORS[Math.floor(random(0, FIREWORK_COLORS.length))],
+      exploded: false,
+    })
+  }
+
+  function explode(shell: Shell) {
+    const count = Math.floor(random(40, 70))
+    for (let i = 0; i < count; i++) {
+      const angle = random(0, Math.PI * 2)
+      const speed = random(1, 5)
+      particles.push({
+        x: shell.x,
+        y: shell.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        alpha: 1,
+        decay: random(0.012, 0.025),
+        size: random(1.5, 3.5),
+        color: Math.random() > 0.3
+          ? shell.color
+          : FIREWORK_COLORS[Math.floor(random(0, FIREWORK_COLORS.length))],
+      })
+    }
+  }
+
+  // Schedule 8 shells over ~3 seconds
+  const shellTimers: ReturnType<typeof setTimeout>[] = []
+  for (let i = 0; i < 8; i++) {
+    shellTimers.push(setTimeout(spawnShell, i * 380 + random(0, 150)))
+  }
+
+  function frame() {
+    ctx.clearRect(0, 0, w(), h())
+
+    // Update shells
+    for (let i = shells.length - 1; i >= 0; i--) {
+      const s = shells[i]!
+      s.y += s.vy
+      s.vy *= 0.97
+
+      if (!s.exploded) {
+        // Draw trail
+        ctx.beginPath()
+        ctx.arc(s.x, s.y, 2, 0, Math.PI * 2)
+        ctx.fillStyle = s.color
+        ctx.fill()
+      }
+
+      if (s.y <= s.targetY && !s.exploded) {
+        s.exploded = true
+        explode(s)
+      }
+
+      if (s.exploded) shells.splice(i, 1)
+    }
+
+    // Update particles
+    const gravity = 0.06
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i]!
+      p.x += p.vx
+      p.y += p.vy
+      p.vy += gravity
+      p.vx *= 0.985
+      p.alpha -= p.decay
+
+      if (p.alpha <= 0) {
+        particles.splice(i, 1)
+        continue
+      }
+
+      ctx.globalAlpha = p.alpha
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+      ctx.fillStyle = p.color
+      ctx.fill()
+    }
+
+    ctx.globalAlpha = 1
+
+    // Stop when everything has faded
+    if (particles.length === 0 && shells.length === 0) {
+      return
+    }
+
+    fireworksRaf = requestAnimationFrame(frame)
+  }
+
+  fireworksRaf = requestAnimationFrame(frame)
+}
+
+watch(step, (s) => {
+  if (s === 4) {
+    nextTick(() => {
+      if (fireworksCanvas.value) launchFireworks(fireworksCanvas.value)
+    })
+  }
+})
+
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 onMounted(() => { void createAndAdvance() })
 
@@ -321,6 +475,7 @@ onUnmounted(() => {
   if (msgInterval) clearInterval(msgInterval)
   if (pollInterval) clearInterval(pollInterval)
   if (ws) { ws.close(); ws = null }
+  if (fireworksRaf) cancelAnimationFrame(fireworksRaf)
 })
 </script>
 
@@ -545,33 +700,15 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <!-- ── Step 4: Done — CSS fireworks celebration ───────────────────────── -->
+      <!-- ── Step 4: Done — Canvas fireworks celebration ──────────────────── -->
       <section v-else-if="step === 4" class="relative flex flex-col items-center justify-center py-16 text-center">
 
-        <!-- CSS-only fireworks — no JavaScript ──────────────────────────────── -->
-        <div class="fw" aria-hidden="true">
-          <!-- 5 burst groups scattered across the viewport -->
-          <div class="fw-b fw-b1">
-            <span/><span/><span/><span/><span/><span/>
-            <span/><span/><span/><span/><span/><span/>
-          </div>
-          <div class="fw-b fw-b2">
-            <span/><span/><span/><span/><span/><span/>
-            <span/><span/><span/><span/><span/><span/>
-          </div>
-          <div class="fw-b fw-b3">
-            <span/><span/><span/><span/><span/><span/>
-            <span/><span/><span/><span/><span/><span/>
-          </div>
-          <div class="fw-b fw-b4">
-            <span/><span/><span/><span/><span/><span/>
-            <span/><span/><span/><span/><span/><span/>
-          </div>
-          <div class="fw-b fw-b5">
-            <span/><span/><span/><span/><span/><span/>
-            <span/><span/><span/><span/><span/><span/>
-          </div>
-        </div>
+        <!-- Canvas fireworks overlay -->
+        <canvas
+          ref="fireworksCanvas"
+          class="pointer-events-none fixed inset-0 z-0 h-full w-full"
+          aria-hidden="true"
+        />
 
         <!-- Done card -->
         <div class="relative z-10 flex flex-col items-center gap-5">
@@ -606,98 +743,5 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* ── CSS-only fireworks — no JavaScript required ─────────────────────────────
-   Each .fw-b is a burst origin (0×0 point).  Its <span> children are particles
-   that shoot radially outward using rotate(--a) translateY(-dist) so the
-   direction is baked into a CSS custom property — no script needed.
-   ─────────────────────────────────────────────────────────────────────────── */
-
-.fw {
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* ── Burst origin positions ── */
-.fw-b {
-  position: absolute;
-  width: 0;
-  height: 0;
-}
-.fw-b1 { left: 18%;  top: 22%; }
-.fw-b2 { left: 78%;  top: 16%; }
-.fw-b3 { left: 50%;  top: 50%; }
-.fw-b4 { left: 14%;  top: 70%; }
-.fw-b5 { left: 82%;  top: 68%; }
-
-/* ── Particles ── */
-.fw-b > span {
-  position: absolute;
-  display: block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  /* centred on burst origin */
-  top: -3px;
-  left: -3px;
-  animation: fw-spark 1.5s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
-}
-
-/* 12 particles, evenly spread at 30° intervals */
-.fw-b > span:nth-child(1)  { --a: 0deg   }
-.fw-b > span:nth-child(2)  { --a: 30deg  }
-.fw-b > span:nth-child(3)  { --a: 60deg  }
-.fw-b > span:nth-child(4)  { --a: 90deg  }
-.fw-b > span:nth-child(5)  { --a: 120deg }
-.fw-b > span:nth-child(6)  { --a: 150deg }
-.fw-b > span:nth-child(7)  { --a: 180deg }
-.fw-b > span:nth-child(8)  { --a: 210deg }
-.fw-b > span:nth-child(9)  { --a: 240deg }
-.fw-b > span:nth-child(10) { --a: 270deg }
-.fw-b > span:nth-child(11) { --a: 300deg }
-.fw-b > span:nth-child(12) { --a: 330deg }
-
-/* ── Per-burst timing offsets ── */
-.fw-b1 > span { animation-delay: 0s;     }
-.fw-b2 > span { animation-delay: 0.38s;  }
-.fw-b3 > span { animation-delay: 0.76s;  }
-.fw-b4 > span { animation-delay: 0.19s;  }
-.fw-b5 > span { animation-delay: 0.57s;  }
-
-/* ── Per-burst colours (odd = primary, even = accent) ── */
-.fw-b1 > span              { background: #cba6f7; } /* mauve     */
-.fw-b1 > span:nth-child(even) { background: #f5c2e7; } /* pink      */
-
-.fw-b2 > span              { background: #89b4fa; } /* blue      */
-.fw-b2 > span:nth-child(even) { background: #74c7ec; } /* sapphire  */
-
-.fw-b3 > span              { background: #a6e3a1; } /* green     */
-.fw-b3 > span:nth-child(even) { background: #94e2d5; } /* teal      */
-
-.fw-b4 > span              { background: #fab387; } /* peach     */
-.fw-b4 > span:nth-child(even) { background: #f9e2af; } /* yellow    */
-
-.fw-b5 > span              { background: #f38ba8; } /* red       */
-.fw-b5 > span:nth-child(even) { background: #eba0ac; } /* maroon    */
-
-/* ── Keyframe: radial outward burst ──
-   rotate(--a) puts the particle on the right bearing;
-   translateY then moves it along that rotated Y axis (away from origin).
-   Scale + opacity fade complete the "spark trails off" look.
-   ─────────────────────────────────────────────────────────────────────── */
-@keyframes fw-spark {
-  0% {
-    transform: rotate(var(--a)) translateY(0)    scale(1);
-    opacity: 1;
-  }
-  60% {
-    opacity: 0.7;
-  }
-  100% {
-    transform: rotate(var(--a)) translateY(-110px) scale(0.2);
-    opacity: 0;
-  }
-}
+/* No component-specific styles needed — fireworks are Canvas-rendered */
 </style>
