@@ -290,6 +290,25 @@ async function saveNotifications() {
   }
 }
 
+function sendTestNotification() {
+  if (!('Notification' in window)) return
+  if (Notification.permission === 'granted') {
+    new Notification('Test notification from SES Adapter', {
+      body: 'If you see this, browser notifications are working.',
+      icon: '/favicon.ico',
+    })
+    return
+  }
+  void Notification.requestPermission().then((permission) => {
+    if (permission === 'granted') {
+      new Notification('Test notification from SES Adapter', {
+        body: 'If you see this, browser notifications are working.',
+        icon: '/favicon.ico',
+      })
+    }
+  })
+}
+
 // ─── Tab loading ──────────────────────────────────────────────────────────────
 async function switchTab(tab: TabKey) {
   activeTab.value = tab
@@ -878,12 +897,20 @@ const TABS: { key: TabKey; label: string }[] = [
           </div>
         </div>
 
-        <AsyncButton
-          :action="saveNotifications"
-          class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
-        >
-          Save preferences
-        </AsyncButton>
+        <div class="flex gap-2">
+          <AsyncButton
+            :action="saveNotifications"
+            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
+          >
+            Save preferences
+          </AsyncButton>
+          <button
+            class="rounded-lg border border-ctp-surface1 px-4 py-2 text-sm text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
+            @click="sendTestNotification"
+          >
+            Send test notification
+          </button>
+        </div>
       </section>
     </main>
   </div>

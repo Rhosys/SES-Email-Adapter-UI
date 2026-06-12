@@ -7,6 +7,7 @@ const active = ref(false)
 export function useFeatureTour() {
   return {
     tourActive: active,
+    tourCompleted: () => localStorage.getItem(TOUR_COMPLETE_KEY) === '1',
     startTour: () => {
       if (localStorage.getItem(TOUR_COMPLETE_KEY)) return
       active.value = true

@@ -32,6 +32,12 @@ const STEPS: TourStep[] = [
     description:
       'Match emails by sender, subject, or content — then auto-archive, label, or block.',
   },
+  {
+    target: 'nav-templates',
+    title: 'Reply templates',
+    description:
+      'Create reusable email templates with variables — auto-reply or one-click compose.',
+  },
 ]
 
 const currentStep = ref(0)

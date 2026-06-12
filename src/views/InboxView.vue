@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useArcsStore } from '@/stores/arcs'
 import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
+import { useFeatureTour } from '@/composables/useFeatureTour'
 import { useRelativeTime } from '@/composables/useRelativeTime'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import StatusTabs from '@/components/StatusTabs.vue'
@@ -18,6 +19,7 @@ const router = useRouter()
 const accountStore = useAccountStore()
 const arcsStore = useArcsStore()
 const { countdownRunning, startArcViewCountdown, showCoachNow } = useOnboardingCoach()
+const { tourCompleted } = useFeatureTour()
 const { onAction, offAction } = useKeyboardShortcuts()
 
 useRelativeTime()
@@ -29,6 +31,7 @@ type TabKey = (typeof VALID_TABS)[number]
 const focusedArcId = ref<string | null>(null)
 
 function coachShouldRun() {
+  if (tourCompleted()) return false
   const ob = accountStore.account?.onboarding
   return ob?.completed
 }

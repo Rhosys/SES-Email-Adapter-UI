@@ -120,6 +120,7 @@ const labels = computed(() => labelsStore.items)
 
         <RouterLink
           to="/templates"
+          data-tour="nav-templates"
           class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
           :class="
             isActive('/templates')
