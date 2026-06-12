@@ -446,6 +446,7 @@ const TABS: { key: TabKey; label: string }[] = [
             <div class="mt-2">
               <select
                 :value="alias.unknownSenderPolicy"
+                :aria-label="`Filter mode for ${alias.address}`"
                 class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                 @change="updateAliasMode(alias.address, ($event.target as HTMLSelectElement).value as UnknownSenderPolicy)"
               >
