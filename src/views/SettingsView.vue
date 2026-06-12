@@ -782,7 +782,7 @@ const TABS: { key: TabKey; label: string }[] = [
               v-model="calendarForwardingAddress"
               type="email"
               placeholder="calendar@example.com"
-              class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+              class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
             />
             <AsyncButton
               :action="saveCalendarForwarding"
@@ -802,7 +802,7 @@ const TABS: { key: TabKey; label: string }[] = [
             type="email"
             aria-label="Forwarding address"
             placeholder="forward@example.com"
-            class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+            class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
           />
           <AsyncButton
             type="submit"
