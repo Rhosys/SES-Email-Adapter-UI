@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { watch, ref, nextTick, onBeforeUnmount } from 'vue'
-import type { UnknownSenderPolicy } from '@/types/server'
 
 const props = defineProps<{
   open: boolean
-  address: string
-  currentMode: UnknownSenderPolicy
-  modes: { value: UnknownSenderPolicy; label: string; description: string }[]
+  title: string
+  subtitle?: string
+  currentMode: string
+  modes: { value: string; label: string; description: string }[]
 }>()
 
 const emit = defineEmits<{
-  select: [mode: UnknownSenderPolicy]
+  select: [mode: string]
   close: []
 }>()
 
@@ -72,10 +72,10 @@ onBeforeUnmount(() => {
         class="mx-4 w-full max-w-md rounded-xl border border-ctp-surface1 bg-ctp-mantle p-6 shadow-2xl"
       >
         <h2 id="filter-modal-title" class="text-base font-semibold text-ctp-text">
-          Filter mode for {{ address }}
+          {{ title }}
         </h2>
         <p class="mt-2 text-sm text-ctp-subtext0">
-          Choose how emails from unknown senders are handled for this address.
+          {{ subtitle ?? 'Choose how emails from unknown senders are handled for this address.' }}
         </p>
 
         <div class="mt-4 space-y-2">
