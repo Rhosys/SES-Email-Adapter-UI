@@ -138,6 +138,23 @@ async function updateDefaultPolicy(policy: UnknownSenderPolicy) {
   if (result.isOk()) accountStore.account = result.value
 }
 
+async function updateNewAddressHandling(value: 'auto_allow' | 'block_until_approved') {
+  if (!accountStore.accountId) return
+  const result = await api.updateAccount(accountStore.accountId, {
+    filtering: { ...accountStore.account?.filtering, newAddressHandling: value },
+  })
+  if (result.isOk()) accountStore.account = result.value
+}
+
+async function updateAccountSpamThreshold(raw: string) {
+  if (!accountStore.accountId) return
+  const value = raw === '' ? undefined : Math.min(10, Math.max(1, Number(raw)))
+  const result = await api.updateAccount(accountStore.accountId, {
+    filtering: { ...accountStore.account?.filtering, spamScoreThreshold: value },
+  })
+  if (result.isOk()) accountStore.account = result.value
+}
+
 async function deleteAddress(address: string) {
   if (!accountStore.accountId) return
   const confirmed = await confirmAction({
@@ -538,12 +555,13 @@ const TABS: { key: TabKey; label: string }[] = [
         >
           {{ aliasError }}
         </div>
-        <!-- Account default filter mode -->
-        <div class="mb-6 rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
-          <div class="flex items-center justify-between gap-4">
+        <!-- Account-level filtering defaults -->
+        <div class="mb-6 divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface1 bg-ctp-mantle">
+          <!-- Default filter mode -->
+          <div class="flex items-center justify-between gap-4 p-4">
             <div>
               <p class="text-sm font-medium text-ctp-text">Default filter mode</p>
-              <p class="mt-0.5 text-xs text-ctp-subtext0">Applied to new aliases that don't have a specific policy set</p>
+              <p class="mt-0.5 text-xs text-ctp-subtext0">Applied to aliases that don't have a specific policy set</p>
             </div>
             <select
               :value="accountStore.account?.filtering?.defaultUnknownSenderPolicy ?? 'quarantine_visible'"
@@ -555,6 +573,63 @@ const TABS: { key: TabKey; label: string }[] = [
                 {{ mode.label }}
               </option>
             </select>
+          </div>
+          <!-- New address handling -->
+          <div class="p-4">
+            <p class="mb-2 text-sm font-medium text-ctp-text">New address handling</p>
+            <p class="mb-3 text-xs text-ctp-subtext0">What happens when an email arrives for an address not yet in your alias list</p>
+            <div class="flex gap-2">
+              <AsyncButton
+                v-for="opt in [{ value: 'auto_allow' as const, label: 'Auto-allow' }, { value: 'block_until_approved' as const, label: 'Block until approved' }]"
+                :key="opt.value"
+                :action="() => updateNewAddressHandling(opt.value)"
+                variant="ghost"
+                :aria-pressed="(accountStore.account?.filtering?.newAddressHandling ?? 'auto_allow') === opt.value"
+                class="rounded-full border px-3 py-1 text-xs"
+                :class="
+                  (accountStore.account?.filtering?.newAddressHandling ?? 'auto_allow') === opt.value
+                    ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
+                    : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
+                "
+              >
+                {{ opt.label }}
+              </AsyncButton>
+            </div>
+          </div>
+          <!-- Account-level spam threshold -->
+          <div class="p-4">
+            <p class="mb-0.5 text-sm font-medium text-ctp-text">Default spam threshold</p>
+            <p class="mb-3 text-xs text-ctp-subtext0">Used by aliases that haven't set their own threshold</p>
+            <div class="flex items-center gap-1">
+              <button
+                v-for="n in 10"
+                :key="n"
+                type="button"
+                class="flex h-7 w-7 items-center justify-center rounded text-xs font-medium transition-colors"
+                :class="
+                  accountStore.account?.filtering?.spamScoreThreshold === n
+                    ? 'bg-ctp-mauve text-ctp-base'
+                    : 'bg-ctp-surface0 text-ctp-subtext1 hover:bg-ctp-surface1 hover:text-ctp-text'
+                "
+                @click="updateAccountSpamThreshold(String(n))"
+              >
+                {{ n }}
+              </button>
+              <button
+                v-if="accountStore.account?.filtering?.spamScoreThreshold != null"
+                class="ml-2 text-xs text-ctp-subtext0 hover:text-ctp-text"
+                @click="updateAccountSpamThreshold('')"
+              >
+                Reset
+              </button>
+            </div>
+            <p class="mt-1.5 text-xs text-ctp-subtext0">
+              <template v-if="accountStore.account?.filtering?.spamScoreThreshold == null">No account default — each alias decides independently</template>
+              <template v-else-if="accountStore.account.filtering.spamScoreThreshold <= 3">Very aggressive — most emails from unknown senders will be quarantined</template>
+              <template v-else-if="accountStore.account.filtering.spamScoreThreshold <= 6">Balanced — catches obvious spam while allowing most legitimate mail</template>
+              <template v-else-if="accountStore.account.filtering.spamScoreThreshold <= 9">Permissive — only flags the most obvious spam</template>
+              <template v-else>Disabled — no spam filtering</template>
+            </p>
           </div>
         </div>
         <!-- Add address -->
