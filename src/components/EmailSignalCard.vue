@@ -42,6 +42,40 @@ const isBcc = computed(() => {
   return !inTo && !inCc
 })
 
+const envelopeSender = computed(() => {
+  if (!isInboundEmailSignal(props.signal)) return null
+  const returnPath = props.signal.data.headers['Return-Path'] ?? props.signal.data.headers['return-path']
+  if (!returnPath) return null
+  const cleaned = returnPath.replace(/[<>]/g, '').trim()
+  if (!isEmailSignal(props.signal)) return cleaned
+  // Only show if different from the From address
+  if (cleaned.toLowerCase() === props.signal.data.from.address.toLowerCase()) return null
+  return cleaned
+})
+
+const replyToLabel = computed(() => {
+  if (!isEmailSignal(props.signal)) return null
+  const rt = props.signal.data.replyTo
+  if (!rt) return null
+  // Only show if different from from address
+  if (rt.address.toLowerCase() === props.signal.data.from.address.toLowerCase()) return null
+  return rt.name ? `${rt.name} <${rt.address}>` : rt.address
+})
+
+const attachmentCount = computed(() => {
+  if (!isEmailSignal(props.signal)) return 0
+  return props.signal.data.attachments.length
+})
+
+const rawSignalJson = ref('')
+const showRawModal = ref(false)
+
+function viewRawSignal() {
+  menuOpen.value = false
+  rawSignalJson.value = JSON.stringify(props.signal, null, 2)
+  showRawModal.value = true
+}
+
 const sentAt = computed(() => {
   if (!isInboundEmailSignal(props.signal)) return ''
   return new Date(props.signal.data.receivedAt).toLocaleString(undefined, {
@@ -170,6 +204,12 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
           >
         </div>
         <span class="text-xs text-ctp-subtext0">{{ sentAt }}</span>
+        <!-- Reply-To indicator -->
+        <span v-if="replyToLabel" class="text-xs text-ctp-peach" title="Reply-To differs from sender">↩ {{ replyToLabel }}</span>
+        <!-- Envelope sender indicator -->
+        <span v-if="envelopeSender" class="text-xs text-ctp-subtext0" :title="`Envelope: ${envelopeSender}`">✉ {{ envelopeSender }}</span>
+        <!-- Attachment indicator -->
+        <span v-if="attachmentCount > 0" class="text-xs text-ctp-subtext0" :title="`${attachmentCount} attachment${attachmentCount > 1 ? 's' : ''}`">📎 {{ attachmentCount }}</span>
       </button>
 
       <!-- Duplicate count badge -->
@@ -207,6 +247,13 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
           class="absolute right-0 top-full z-20 min-w-44 rounded-lg border border-ctp-surface1 bg-ctp-mantle py-1 shadow-lg"
           role="menu"
         >
+          <button
+            class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
+            role="menuitem"
+            @click="viewRawSignal"
+          >
+            View raw data
+          </button>
           <button
             class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
             role="menuitem"
@@ -322,4 +369,17 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
       </div>
     </template>
   </div>
+
+  <!-- Raw signal data modal -->
+  <Teleport to="body">
+    <div v-if="showRawModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80" aria-hidden="true" @click.self="showRawModal = false">
+      <div class="relative max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl border border-ctp-surface1 bg-ctp-mantle p-4 shadow-2xl">
+        <div class="mb-3 flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-ctp-text">Signal data</h3>
+          <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="showRawModal = false">Close</button>
+        </div>
+        <pre class="overflow-auto rounded-lg bg-ctp-base p-3 font-mono text-xs text-ctp-text">{{ rawSignalJson }}</pre>
+      </div>
+    </div>
+  </Teleport>
 </template>
