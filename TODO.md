@@ -53,10 +53,13 @@ Backend fields that exist on the frontend type but aren't yet surfaced in any UI
 
 ### Arc & Signal display actions
 
-- [ ] **Reply button** — triggers the compose flow pre-populated with the signal's sender as recipient and the arc context. Should reuse the existing compose infrastructure.
-- [ ] **Archive button** — moves the arc/signal to archived state.
-- [ ] **Delete button** — requires a confirmation modal explaining the action is irreversible. On confirm, permanently deletes the arc/signal.
-- [ ] **Retention badge on Arc** — display a badge showing the arc's retention duration (time remaining before auto-deletion). Derived from `retentionDuration` on the arc.
+- [x] **Reply button** — implemented in `ArcDetailView` and `ArcRow` (hidden for auth/test/status workflows).
+- [x] **Archive button** — implemented in `ArcDetailView` (with undo toast) and `ArcRow`.
+- [ ] **Delete button** — no delete action exists anywhere in the UI. Needs a `ConfirmDialog` ("this is irreversible"), then `DELETE /arcs/:id`. Show in `ArcDetailView` action bar and `ArcRow` overflow menu. Only show for arcs that are already archived or have `status === 'deleted'` to avoid accidental hard deletes.
+- [ ] **Retention badge on ArcRow** — `ArcDetailView` already shows "Available until…" inline in the header metadata, but `ArcRow` (the inbox list) shows nothing. Add a small expiry badge (e.g. "expires in 3d") to the row when `arc.retentionDuration` is set and the deadline is within 7 days.
+- [ ] **Composite signal cards** — `attachLinkedSignals()` wires linked signals to their parent but the cards don't visually merge. Pairs that should render as a single unified card: `domain_misconfiguration` + source email, `calendar_event` + invite email, `calendar_response` + original event, `deliverability` + bounced outbound email. Currently each signal renders as a separate card with a `LinkedSignalSummary` link row; they should collapse into one card showing the primary data with the linked context inline.
+- [ ] **Retry Send action on failed signals** — `SystemAlertCard` renders `domain_misconfiguration` and `send_failed` alerts but has no action button. Add a "Retry Send" button that calls the retry endpoint, and surface a warning banner on the Domains settings tab when any domain has an incomplete setup.
+- [ ] **Remove SchedulingPanel dead stub** — `src/components/panels/SchedulingPanel.vue` is dead code (comment: "backend has no 'scheduling' workflow"). Remove the file and the `v-else-if` branch in `WorkflowPanel.vue`.
 
 ### Billing screen
 
