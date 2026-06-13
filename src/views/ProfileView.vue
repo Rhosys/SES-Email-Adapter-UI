@@ -210,7 +210,7 @@ async function registerPasskey() {
             </div>
             <button
               class="shrink-0 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
-              @click="startTour"
+              @click="startTour({ force: true })"
             >
               Start tour
             </button>
