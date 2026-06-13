@@ -61,6 +61,7 @@ describe('SettingsView — spam threshold input', () => {
     vi.clearAllMocks()
     useAccountStore().account = testAccount
     vi.mocked(api.listAccounts).mockResolvedValue(ok([testAccount]))
+    vi.mocked(api.updateAccount).mockResolvedValue(ok(testAccount))
   })
 
   it('displays current spamScoreThreshold value in the input', async () => {
@@ -74,8 +75,9 @@ describe('SettingsView — spam threshold input', () => {
     }
     const wrapper = await mountEmailsTab([alias])
 
-    // The number picker shows button 5 highlighted (bg-ctp-mauve)
-    const buttons = wrapper.findAll('button').filter(b => b.text().match(/^\d+$/))
+    // Scope to the alias list (not the account-defaults card above it)
+    const aliasList = wrapper.find('.divide-y.divide-ctp-surface0.rounded-lg.border.border-ctp-surface0')
+    const buttons = aliasList.findAll('button').filter(b => b.text().match(/^\d+$/))
     const btn5 = buttons.find(b => b.text() === '5')
     expect(btn5).toBeDefined()
     expect(btn5!.classes()).toContain('bg-ctp-mauve')
@@ -91,8 +93,9 @@ describe('SettingsView — spam threshold input', () => {
     }
     const wrapper = await mountEmailsTab([alias])
 
-    // No number button should be highlighted, and description shows account default
-    const buttons = wrapper.findAll('button').filter(b => b.text().match(/^\d+$/))
+    // Scope to the alias list — no button should be highlighted, description shows account default
+    const aliasList = wrapper.find('.divide-y.divide-ctp-surface0.rounded-lg.border.border-ctp-surface0')
+    const buttons = aliasList.findAll('button').filter(b => b.text().match(/^\d+$/))
     const highlighted = buttons.filter(b => b.classes().includes('bg-ctp-mauve'))
     expect(highlighted.length).toBe(0)
     expect(wrapper.text()).toContain('Using account default threshold')
@@ -112,8 +115,9 @@ describe('SettingsView — spam threshold input', () => {
 
     const wrapper = await mountEmailsTab([alias])
 
-    // Click button 10 to set the maximum threshold
-    const buttons = wrapper.findAll('button').filter(b => b.text().match(/^\d+$/))
+    // Scope to the alias list to avoid clicking the account-defaults picker
+    const aliasList = wrapper.find('.divide-y.divide-ctp-surface0.rounded-lg.border.border-ctp-surface0')
+    const buttons = aliasList.findAll('button').filter(b => b.text().match(/^\d+$/))
     const btn10 = buttons.find(b => b.text() === '10')
     expect(btn10).toBeDefined()
     await btn10!.trigger('click')
