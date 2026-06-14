@@ -1,0 +1,42 @@
+import type { View } from '@/types/server'
+
+export const mockViews: View[] = [
+  {
+    viewId: 'view_1',
+    name: 'Receipts & Finance',
+    icon: '💰',
+    color: '#f9e2af',
+    labels: ['lbl_1', 'lbl_3'],
+    sortField: 'lastSignalAt',
+    sortDirection: 'desc',
+    position: 0,
+    createdAt: '2026-02-01T00:00:00Z',
+    updatedAt: '2026-05-01T00:00:00Z',
+  },
+  {
+    viewId: 'view_2',
+    name: 'Travel Plans',
+    icon: '✈️',
+    color: '#94e2d5',
+    workflow: 'travel',
+    labels: ['lbl_4'],
+    sortField: 'lastSignalAt',
+    sortDirection: 'desc',
+    position: 1,
+    createdAt: '2026-03-01T00:00:00Z',
+    updatedAt: '2026-03-01T00:00:00Z',
+  },
+  {
+    viewId: 'view_3',
+    name: 'Security Alerts',
+    icon: '🚨',
+    color: '#f38ba8',
+    workflow: 'alert',
+    labels: [],
+    sortField: 'createdAt',
+    sortDirection: 'desc',
+    position: 2,
+    createdAt: '2026-04-01T00:00:00Z',
+    updatedAt: '2026-04-01T00:00:00Z',
+  },
+]
