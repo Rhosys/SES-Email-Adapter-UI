@@ -230,6 +230,15 @@ const aliasesLoading = ref(false)
 const aliasError = ref('')
 const newAddress = ref('')
 const newAddressPending = ref(false)
+const aliasSearch = ref('')
+const addAliasModalOpen = ref(false)
+const expandedAlias = ref<string | null>(null)
+
+const filteredAliases = computed(() => {
+  if (!aliasSearch.value.trim()) return aliases.value
+  const q = aliasSearch.value.toLowerCase()
+  return aliases.value.filter((a) => a.address.toLowerCase().includes(q))
+})
 
 const filterModalOpen = ref(false)
 const filterModalAlias = ref<Alias | null>(null)
@@ -267,6 +276,7 @@ async function addAddress() {
   if (result.isOk()) {
     aliases.value = [...aliases.value, result.value]
     newAddress.value = ''
+    addAliasModalOpen.value = false
   } else {
     aliasError.value = result.error.message
   }
@@ -1099,24 +1109,26 @@ const TABS: { key: TabKey; label: string }[] = [
             </div>
           </div>
         </div>
-        <!-- Add address -->
-        <form class="mb-4 flex gap-2" @submit.prevent="addAddress">
+        <!-- Divider between account defaults and alias list -->
+        <div class="my-6 border-t border-ctp-surface0" />
+
+        <!-- Search + Add button -->
+        <div class="mb-4 flex items-center gap-2">
           <input
-            v-model="newAddress"
-            type="email"
-            aria-label="New email address"
-            placeholder="you@domain.com"
+            v-model="aliasSearch"
+            type="text"
+            aria-label="Search aliases"
+            placeholder="Search aliases…"
             class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           />
-          <AsyncButton
-            type="submit"
-            :action="addAddress"
-            :disabled="!newAddress.trim()"
-            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
+          <button
+            type="button"
+            class="shrink-0 rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
+            @click="addAliasModalOpen = true"
           >
-            Add
-          </AsyncButton>
-        </form>
+            + Add alias
+          </button>
+        </div>
 
         <div
           v-if="aliasesLoading"
@@ -1144,58 +1156,70 @@ const TABS: { key: TabKey; label: string }[] = [
           </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
-          <div v-for="alias in aliases" :key="alias.alias" class="px-4 py-3">
+          <div v-for="alias in filteredAliases" :key="alias.alias" class="px-4 py-2.5">
+            <!-- Compact single-line row -->
             <div class="flex items-center justify-between gap-2">
-              <p class="text-sm font-medium text-ctp-text">{{ alias.address }}</p>
-              <button
-                class="text-xs text-ctp-red hover:text-ctp-red/80"
-                @click="deleteAddress(alias.address)"
-              >
-                Remove
-              </button>
-            </div>
-            <div class="mt-2">
+              <p class="min-w-0 flex-1 truncate text-sm font-medium text-ctp-text">{{ alias.address }}</p>
               <button
                 type="button"
-                class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-xs text-ctp-text transition-colors hover:border-ctp-mauve"
+                class="shrink-0 rounded-full border border-ctp-surface1 px-2.5 py-0.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
                 @click="filterModalAlias = alias; filterModalOpen = true"
               >
                 {{ FILTER_MODES.find((m) => m.value === alias.unknownSenderPolicy)?.label ?? alias.unknownSenderPolicy }}
               </button>
+              <button
+                type="button"
+                class="shrink-0 rounded p-1 text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text"
+                :aria-label="`Toggle details for ${alias.address}`"
+                @click="expandedAlias = expandedAlias === alias.address ? null : alias.address"
+              >
+                <svg class="h-4 w-4 transition-transform" :class="expandedAlias === alias.address ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                </svg>
+              </button>
             </div>
-            <div class="mt-3">
-              <span class="mb-1.5 block text-xs text-ctp-subtext0">Spam threshold</span>
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-ctp-subtext0">1</span>
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  step="1"
-                  :value="alias.spamScoreThreshold ?? 5"
-                  :aria-label="`Spam threshold for ${alias.address}`"
-                  class="w-full accent-ctp-mauve"
-                  @input="updateAliasThreshold(alias.address, ($event.target as HTMLInputElement).value)"
-                />
-                <span class="text-xs text-ctp-subtext0">10</span>
-                <span class="ml-2 min-w-[1.5rem] text-center text-sm font-medium text-ctp-text">{{ alias.spamScoreThreshold ?? '–' }}</span>
+            <!-- Expandable details -->
+            <div v-if="expandedAlias === alias.address" class="mt-2 space-y-3 border-t border-ctp-surface0 pt-3">
+              <div>
+                <span class="mb-1.5 block text-xs text-ctp-subtext0">Spam threshold</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-ctp-subtext0">1</span>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    step="1"
+                    :value="alias.spamScoreThreshold ?? 5"
+                    :aria-label="`Spam threshold for ${alias.address}`"
+                    class="w-full accent-ctp-mauve"
+                    @input="updateAliasThreshold(alias.address, ($event.target as HTMLInputElement).value)"
+                  />
+                  <span class="text-xs text-ctp-subtext0">10</span>
+                  <span class="ml-2 min-w-[1.5rem] text-center text-sm font-medium text-ctp-text">{{ alias.spamScoreThreshold ?? '–' }}</span>
+                </div>
+                <div class="mt-2 flex items-center justify-between">
+                  <p class="text-xs text-ctp-subtext0">
+                    <template v-if="alias.spamScoreThreshold == null">Using account default threshold</template>
+                    <template v-else-if="alias.spamScoreThreshold <= 3">Very aggressive — most emails from unknown senders will be quarantined</template>
+                    <template v-else-if="alias.spamScoreThreshold <= 6">Balanced — catches obvious spam while allowing most legitimate mail</template>
+                    <template v-else-if="alias.spamScoreThreshold <= 9">Permissive — only flags the most obvious spam</template>
+                    <template v-else>Disabled — no spam filtering</template>
+                  </p>
+                  <button
+                    v-if="alias.spamScoreThreshold != null"
+                    class="shrink-0 text-xs text-ctp-subtext0 hover:text-ctp-text"
+                    @click="updateAliasThreshold(alias.address, '')"
+                  >
+                    Use account default
+                  </button>
+                </div>
               </div>
-              <div class="mt-2 flex items-center justify-between">
-                <p class="text-xs text-ctp-subtext0">
-                  <template v-if="alias.spamScoreThreshold == null">Using account default threshold</template>
-                  <template v-else-if="alias.spamScoreThreshold <= 3">Very aggressive — most emails from unknown senders will be quarantined</template>
-                  <template v-else-if="alias.spamScoreThreshold <= 6">Balanced — catches obvious spam while allowing most legitimate mail</template>
-                  <template v-else-if="alias.spamScoreThreshold <= 9">Permissive — only flags the most obvious spam</template>
-                  <template v-else>Disabled — no spam filtering</template>
-                </p>
-                <button
-                  v-if="alias.spamScoreThreshold != null"
-                  class="shrink-0 text-xs text-ctp-subtext0 hover:text-ctp-text"
-                  @click="updateAliasThreshold(alias.address, '')"
-                >
-                  Use account default
-                </button>
-              </div>
+              <button
+                class="text-xs text-ctp-red hover:text-ctp-red/80"
+                @click="deleteAddress(alias.address)"
+              >
+                Remove alias
+              </button>
             </div>
           </div>
         </div>
@@ -1580,5 +1604,46 @@ const TABS: { key: TabKey; label: string }[] = [
       @select="(mode) => updateNewAddressHandling(mode as 'auto_allow' | 'block_until_approved')"
       @close="newAddressHandlingModalOpen = false"
     />
+
+    <!-- Add alias modal -->
+    <Teleport to="body">
+      <div
+        v-if="addAliasModalOpen"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        aria-hidden="true"
+        @click.self="addAliasModalOpen = false"
+      >
+        <div role="dialog" aria-modal="true" aria-label="Add alias" class="w-full max-w-sm rounded-xl border border-ctp-surface1 bg-ctp-base p-6 shadow-xl">
+          <h2 class="mb-4 text-sm font-semibold text-ctp-text">Add alias</h2>
+          <form @submit.prevent="addAddress">
+            <input
+              v-model="newAddress"
+              type="email"
+              aria-label="New email address"
+              placeholder="you@domain.com"
+              class="mb-4 w-full rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+              autofocus
+            />
+            <div class="flex justify-end gap-2">
+              <button
+                type="button"
+                class="rounded-lg border border-ctp-surface1 px-4 py-2 text-sm text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
+                @click="addAliasModalOpen = false"
+              >
+                Cancel
+              </button>
+              <AsyncButton
+                type="submit"
+                :action="addAddress"
+                :disabled="!newAddress.trim()"
+                class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
+              >
+                Add
+              </AsyncButton>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

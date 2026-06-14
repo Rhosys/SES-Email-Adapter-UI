@@ -83,7 +83,11 @@ describe('SettingsView — spam threshold input', () => {
     }
     const wrapper = await mountEmailsTab([alias])
 
-    // Find the per-alias range slider
+    // Expand the alias row to reveal the slider
+    const expandBtn = wrapper.find('[aria-label="Toggle details for inbox@test.com"]')
+    await expandBtn.trigger('click')
+    await flushPromises()
+
     const aliasList = wrapper.find('.divide-y.divide-ctp-surface0.rounded-lg.border.border-ctp-surface0')
     const slider = aliasList.find('input[type="range"]')
     expect(slider.exists()).toBe(true)
@@ -99,6 +103,11 @@ describe('SettingsView — spam threshold input', () => {
       updatedAt: '2025-01-01T00:00:00Z',
     }
     const wrapper = await mountEmailsTab([alias])
+
+    // Expand the alias row to reveal threshold text
+    const expandBtn = wrapper.find('[aria-label="Toggle details for inbox@test.com"]')
+    await expandBtn.trigger('click')
+    await flushPromises()
 
     expect(wrapper.text()).toContain('Using account default threshold')
   })
@@ -117,7 +126,11 @@ describe('SettingsView — spam threshold input', () => {
 
     const wrapper = await mountEmailsTab([alias])
 
-    // Set the range slider to 10 via input event
+    // Expand the alias row to reveal the slider
+    const expandBtn = wrapper.find('[aria-label="Toggle details for inbox@test.com"]')
+    await expandBtn.trigger('click')
+    await flushPromises()
+
     const aliasList = wrapper.find('.divide-y.divide-ctp-surface0.rounded-lg.border.border-ctp-surface0')
     const slider = aliasList.find('input[type="range"]')
     await slider.setValue('10')
@@ -139,6 +152,11 @@ describe('SettingsView — spam threshold input', () => {
     vi.mocked(api.updateAlias).mockResolvedValue(ok(updatedAlias))
 
     const wrapper = await mountEmailsTab([alias])
+
+    // Expand the alias row to reveal the reset button
+    const expandBtn = wrapper.find('[aria-label="Toggle details for inbox@test.com"]')
+    await expandBtn.trigger('click')
+    await flushPromises()
 
     // Click the "Use account default" button to clear the threshold
     const resetBtn = wrapper.findAll('button').find(b => b.text() === 'Use account default')
