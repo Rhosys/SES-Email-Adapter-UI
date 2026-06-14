@@ -42,8 +42,6 @@ function navigateToView(v: { workflow?: string; labels?: string[] }) {
 
 const viewsLoaded = computed(() => !viewsStore.loading)
 const sortedViews = computed(() => viewsStore.sortedViews)
-const labels = computed(() => labelsStore.items)
-const labelsExpanded = ref(true)
 
 // Account switcher (shown at bottom when multiple accounts)
 const accountSwitcherOpen = ref(false)
@@ -157,6 +155,17 @@ const accountSwitcherOpen = ref(false)
           </svg>
           Labels
         </RouterLink>
+        <div v-if="labelsStore.items.length > 0" class="ml-6 mt-0.5 space-y-0.5">
+          <RouterLink
+            v-for="label in labelsStore.items"
+            :key="label.label"
+            :to="{ path: '/search', query: { label: label.name } }"
+            class="flex items-center gap-2 rounded px-2 py-1 text-xs text-ctp-subtext0 hover:bg-ctp-surface0/50 hover:text-ctp-text"
+          >
+            <span class="h-2 w-2 shrink-0 rounded-full" :style="{ backgroundColor: label.color ?? '#cba6f7' }" />
+            <span class="truncate">{{ label.icon ? `${label.icon} ` : '' }}{{ label.name }}</span>
+          </RouterLink>
+        </div>
 
         <RouterLink
           to="/settings"
@@ -181,36 +190,7 @@ const accountSwitcherOpen = ref(false)
         </RouterLink>
       </div>
 
-      <!-- Labels — expandable -->
-      <div v-if="labels.length > 0" class="mt-4 px-2">
-        <button
-          class="mb-1 flex w-full items-center justify-between px-3"
-          @click="labelsExpanded = !labelsExpanded"
-        >
-          <span class="text-xs font-medium uppercase tracking-wide text-ctp-subtext0">Labels</span>
-          <svg
-            class="h-3 w-3 text-ctp-subtext0 transition-transform"
-            :class="labelsExpanded ? 'rotate-0' : '-rotate-90'"
-            viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"
-          >
-            <path d="M2 5.5l6 6 6-6H2z" />
-          </svg>
-        </button>
-        <template v-if="labelsExpanded">
-          <RouterLink
-            v-for="label in labels"
-            :key="label.label"
-            :to="`/?label=${label.label}`"
-            class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ctp-subtext1 transition-colors hover:bg-ctp-surface0/50 hover:text-ctp-text"
-          >
-            <span
-              class="h-2 w-2 shrink-0 rounded-full"
-              :style="{ backgroundColor: label.color ?? 'currentColor' }"
-            />
-            <span class="truncate">{{ label.name }}</span>
-          </RouterLink>
-        </template>
-      </div>
+
 
       <!-- Views — always expanded -->
       <div v-if="viewsLoaded && sortedViews.length > 0" class="mt-4 px-2">
