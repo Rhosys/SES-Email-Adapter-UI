@@ -132,7 +132,6 @@ watch(
       <StatusTabs :active-tab="arcsStore.activeTab" @change="handleTabChange" />
 
       <BulkActionBar
-        v-if="arcsStore.selectedIds.size > 0"
         :count="arcsStore.selectedIds.size"
         :pending="arcsStore.bulkActionPending"
         :archive-action="handleBulkArchive"

@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 
-defineProps<{ count: number; pending: boolean; archiveAction: () => Promise<unknown>; labelAction: (label: string) => Promise<unknown> }>()
+const props = defineProps<{ count: number; pending: boolean; archiveAction: () => Promise<unknown>; labelAction: (label: string) => Promise<unknown> }>()
 const emit = defineEmits<{
   (e: 'clear'): void
 }>()
+
+const isEmpty = computed(() => props.count === 0)
 
 const labelInput = ref('')
 
@@ -21,9 +23,10 @@ function labelActionWrapper(action: (label: string) => Promise<unknown>) {
 
 <template>
   <div
-    class="mb-2 flex flex-wrap items-center gap-3 rounded border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm"
+    class="mb-2 flex flex-wrap items-center gap-3 rounded border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm transition-opacity"
+    :class="{ 'pointer-events-none opacity-50': isEmpty }"
   >
-    <span class="text-ctp-subtext1">{{ count }} selected</span>
+    <span class="text-ctp-subtext1">{{ count || 0 }} selected</span>
 
     <AsyncButton
       :action="archiveAction"
