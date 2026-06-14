@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, computed } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
+import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useSignalsStore } from '@/stores/signals'
 import { useArcsStore } from '@/stores/arcs'
 import { useAccountStore } from '@/stores/account'
 import { useToast } from '@/composables/useToast'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { api } from '@/lib/api'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { retentionExpiresAt } from '@/lib/retention'
@@ -14,12 +15,15 @@ import SignalRenderer from '@/components/SignalRenderer.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
 import ReplyComposer from '@/components/ReplyComposer.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 
 const route = useRoute()
+const router = useRouter()
 const signalsStore = useSignalsStore()
 const arcsStore = useArcsStore()
 const accountStore = useAccountStore()
 const { showUndo } = useToast()
+const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
 const arcId = computed(() => route.params.id as string)
 
@@ -80,13 +84,27 @@ async function archive() {
   )
 }
 
+async function deleteArc() {
+  const confirmed = await confirmAction({
+    title: 'Delete thread',
+    message: 'Permanently delete this thread and all its messages? This cannot be undone.',
+    confirmLabel: 'Delete',
+    confirmVariant: 'danger',
+  })
+  if (!confirmed) return
+  const id = accountStore.accountId
+  if (!id) return
+  await api.patchArc(id, arcId.value, { status: 'deleted' })
+  void router.push('/')
+}
+
 async function loadMore() {
   await signalsStore.fetchMore(arcId.value)
 }
 </script>
 
 <template>
-  <div class="mx-auto max-w-3xl px-4 py-6">
+  <div class="arc-detail mx-auto max-w-3xl px-4 py-6">
     <!-- Back link -->
     <RouterLink
       to="/"
@@ -157,6 +175,14 @@ async function loadMore() {
               </svg>
               Archive
             </AsyncButton>
+            <AsyncButton
+              v-if="signalsStore.arc.status !== 'deleted'"
+              :action="deleteArc"
+              variant="outline"
+              class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-red hover:text-ctp-red"
+            >
+              Delete
+            </AsyncButton>
           </div>
         </div>
         <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-ctp-subtext0">
@@ -167,6 +193,10 @@ async function loadMore() {
         <div v-if="signalsStore.arc.subject && signalsStore.arc.summary !== signalsStore.arc.subject" class="mt-2">
           <span class="text-xs font-medium text-ctp-subtext0">Summary</span>
           <p class="text-sm text-ctp-subtext1">{{ signalsStore.arc.summary }}</p>
+          <div v-if="signalsStore.latestSignal && isInboundEmailSignal(signalsStore.latestSignal)" class="mt-1 text-xs text-ctp-subtext0">
+            <span>{{ signalsStore.latestSignal.data.subject }}</span>
+            <span v-if="signalsStore.latestSignal.data.recipientAddress" class="ml-2 text-ctp-subtext0">→ {{ signalsStore.latestSignal.data.recipientAddress }}</span>
+          </div>
         </div>
         <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-ctp-subtext0">
           <span class="capitalize">{{ signalsStore.arc.workflow }}</span>
@@ -227,5 +257,15 @@ async function loadMore() {
         <ReplyComposer :action="startDraft" />
       </div>
     </template>
+
+    <ConfirmDialog
+      :open="dialogOpen"
+      :title="dialogOptions.title"
+      :message="dialogOptions.message"
+      :confirm-label="dialogOptions.confirmLabel"
+      :confirm-variant="dialogOptions.confirmVariant"
+      @confirm="onConfirm"
+      @cancel="onCancel"
+    />
   </div>
 </template>
