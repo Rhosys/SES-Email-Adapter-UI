@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, inject } from 'vue'
+import { ref, computed, inject, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { Arc, Signal } from '@/types/server'
 import { NOW_KEY } from '@/composables/useRelativeTime'
@@ -26,16 +26,19 @@ const timestamp = computed(() =>
   now ? formatRelativeTime(props.arc.lastSignalAt, now.value) : '',
 )
 
-const expanded = ref(false)
+const expanded = ref(true)
 const signals = ref<Signal[]>([])
 const signalsLoading = ref(false)
 
-async function toggleExpand() {
-  expanded.value = !expanded.value
-  if (expanded.value && signals.value.length === 0) {
-    await loadSignals()
-  }
-}
+const bodySnippet = computed(() => {
+  if (signals.value.length === 0) return ''
+  const latest = signals.value[signals.value.length - 1]
+  if (latest.type !== 'email') return ''
+  const raw = latest.data.body ?? ''
+  // Strip HTML tags to get plain text
+  const text = raw.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+  return text.slice(0, 200)
+})
 
 async function loadSignals() {
   const id = accountStore.accountId
@@ -47,6 +50,10 @@ async function loadSignals() {
     signals.value = result.value.signals.filter((s) => s.status !== 'draft')
   }
 }
+
+onMounted(() => {
+  void loadSignals()
+})
 
 async function archiveArc() {
   const id = accountStore.accountId
@@ -63,7 +70,7 @@ function onSignalUndo() {
 </script>
 
 <template>
-  <div :data-arc-id="arc.arcId">
+  <div class="arc-row" :data-arc-id="arc.arcId">
     <!-- Arc row line -->
     <div
       class="group relative flex items-center gap-2 border-b border-ctp-surface0 px-3 py-3 transition-colors hover:bg-ctp-surface0"
@@ -75,19 +82,6 @@ function onSignalUndo() {
         class="absolute inset-y-0 left-0 w-0.5 rounded-r"
         :style="{ backgroundColor: stripeColor }"
       />
-
-      <!-- Expand chevron -->
-      <button
-        class="ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-ctp-subtext0 transition-transform hover:text-ctp-text"
-        :class="{ 'rotate-90': expanded }"
-        :aria-expanded="expanded"
-        :aria-label="`${expanded ? 'Collapse' : 'Expand'} signals for: ${arc.summary}`"
-        @click="toggleExpand"
-      >
-        <svg class="h-3 w-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-          <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </button>
 
       <!-- Checkbox -->
       <div class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100" :class="{ 'opacity-100': selected }">
@@ -112,6 +106,7 @@ function onSignalUndo() {
         <p class="truncate text-sm text-ctp-text" :class="{ 'font-semibold': isUnread }">
           {{ arc.subject ?? arc.summary }}
         </p>
+        <span class="text-xs text-ctp-subtext0">{{ timestamp }}</span>
         <div class="mt-0.5 flex flex-wrap items-center gap-1">
           <LabelChip v-for="label in arc.labels" :key="label" :label="label" />
         </div>
@@ -119,16 +114,6 @@ function onSignalUndo() {
 
       <!-- Action buttons — visible on row hover -->
       <div class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-        <RouterLink
-          :to="{ name: 'arc-detail', params: { id: arc.arcId } }"
-          class="flex h-7 items-center gap-1 rounded border border-ctp-surface1 px-2 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
-          title="Reply"
-        >
-          <svg class="h-3 w-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path d="M6 3.5L1 8l5 4.5V9.5c4.5 0 7.5 1.5 9 4.5-.5-4.5-3-8-9-8V3.5z"/>
-          </svg>
-          Reply
-        </RouterLink>
         <button
           v-if="arc.status === 'active'"
           class="flex h-7 items-center gap-1 rounded border border-ctp-surface1 px-2 text-xs text-ctp-subtext1 hover:border-ctp-red hover:text-ctp-red"
@@ -142,10 +127,9 @@ function onSignalUndo() {
         </button>
       </div>
 
-      <!-- Timestamp + urgency -->
+      <!-- Urgency -->
       <div class="flex shrink-0 flex-col items-end gap-1">
         <UrgencyBadge :urgency="arc.urgency" />
-        <span class="text-xs text-ctp-subtext0">{{ timestamp }}</span>
       </div>
     </div>
 
@@ -164,6 +148,7 @@ function onSignalUndo() {
         :signal="signal"
         @undo="onSignalUndo"
       />
+      <p v-if="bodySnippet" class="pl-14 pr-3 py-1 text-xs text-ctp-subtext0 line-clamp-2">{{ bodySnippet }}</p>
       <div
         v-if="!signalsLoading && signals.length === 0"
         class="py-2 pl-14 pr-3 text-xs text-ctp-subtext0"
