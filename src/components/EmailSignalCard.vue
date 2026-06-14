@@ -202,16 +202,16 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
 </script>
 
 <template>
-  <div class="rounded-lg border border-ctp-surface1 bg-ctp-mantle">
+  <div class="signal-card rounded-lg border border-ctp-surface1 bg-ctp-mantle transition-colors hover:border-ctp-mauve/50">
     <!-- Card header -->
-    <div class="flex items-start gap-3 px-4 py-3">
+    <div class="signal-card__header flex items-start gap-3 px-4 py-3">
       <button
-        class="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-ctp-surface0/70"
+        class="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left transition-colors"
         :aria-expanded="expanded"
         @click="expanded = !expanded"
       >
         <div class="flex items-center gap-2">
-          <span class="text-sm font-medium text-ctp-text">{{ fromLabel }}</span>
+          <span class="text-sm font-medium text-ctp-text"><span class="text-ctp-subtext0">From </span>{{ fromLabel }}</span>
           <span
             v-if="hasSpamWarning"
             class="text-xs text-ctp-peach"
@@ -230,7 +230,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
         </div>
         <span class="text-xs text-ctp-subtext0">{{ sentAt }}</span>
         <span v-if="replyToLabel" class="text-xs text-ctp-peach" title="Reply-To differs from sender">↩ {{ replyToLabel }}</span>
-        <span v-if="envelopeSender" class="text-xs text-ctp-subtext0" :title="`Envelope: ${envelopeSender}`">✉ {{ envelopeSender }}</span>
+        <span v-if="envelopeSender" class="inline-flex items-center gap-0.5 text-xs text-ctp-subtext0" :title="`Envelope: ${envelopeSender}`"><svg class="inline h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Secured by {{ envelopeSender }}</span>
         <span v-if="attachmentCount > 0" class="text-xs text-ctp-subtext0" :title="`${attachmentCount} attachment${attachmentCount > 1 ? 's' : ''}`">📎 {{ attachmentCount }}</span>
       </button>
 
@@ -248,7 +248,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
       <span v-if="undoError" class="mt-1 shrink-0 text-xs text-ctp-red">{{ undoError }}</span>
 
       <!-- Overflow menu -->
-      <div class="relative shrink-0">
+      <div class="relative shrink-0 self-start">
         <button
           class="flex h-9 w-9 items-center justify-center rounded-lg text-ctp-subtext0 transition-colors hover:bg-ctp-surface1 hover:text-ctp-text"
           aria-label="Signal actions"
@@ -300,7 +300,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
 
     <!-- Email body -->
     <template v-if="expanded && signal.type === 'email'">
-      <div class="border-t border-ctp-surface1">
+      <div class="signal-card__body border-t border-ctp-surface1">
         <div v-if="signal.data.body" class="relative overflow-hidden bg-white" data-testid="email-body-container">
           <iframe
             :srcdoc="signal.data.body"
