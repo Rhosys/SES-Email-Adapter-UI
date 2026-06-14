@@ -1066,36 +1066,37 @@ const TABS: { key: TabKey; label: string }[] = [
           <div class="p-4">
             <p class="mb-0.5 text-sm font-medium text-ctp-text">Default spam threshold</p>
             <p class="mb-3 text-xs text-ctp-subtext0">Used by aliases that haven't set their own threshold</p>
-            <div class="flex items-center gap-1">
-              <button
-                v-for="n in 10"
-                :key="n"
-                type="button"
-                class="flex h-7 w-7 items-center justify-center rounded text-xs font-medium transition-colors"
-                :class="
-                  accountStore.account?.filtering?.spamScoreThreshold === n
-                    ? 'bg-ctp-mauve text-ctp-base'
-                    : 'bg-ctp-surface0 text-ctp-subtext1 hover:bg-ctp-surface1 hover:text-ctp-text'
-                "
-                @click="updateAccountSpamThreshold(String(n))"
-              >
-                {{ n }}
-              </button>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-ctp-subtext0">1</span>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                step="1"
+                :value="accountStore.account?.filtering?.spamScoreThreshold ?? 5"
+                aria-label="Account default spam threshold"
+                class="w-full accent-ctp-mauve"
+                @input="updateAccountSpamThreshold(($event.target as HTMLInputElement).value)"
+              />
+              <span class="text-xs text-ctp-subtext0">10</span>
+              <span class="ml-2 min-w-[1.5rem] text-center text-sm font-medium text-ctp-text">{{ accountStore.account?.filtering?.spamScoreThreshold ?? '–' }}</span>
+            </div>
+            <div class="mt-2 flex items-center justify-between">
+              <p class="text-xs text-ctp-subtext0">
+                <template v-if="accountStore.account?.filtering?.spamScoreThreshold == null">No account default — each alias decides independently</template>
+                <template v-else-if="accountStore.account.filtering.spamScoreThreshold <= 3">Very aggressive — most emails from unknown senders will be quarantined</template>
+                <template v-else-if="accountStore.account.filtering.spamScoreThreshold <= 6">Balanced — catches obvious spam while allowing most legitimate mail</template>
+                <template v-else-if="accountStore.account.filtering.spamScoreThreshold <= 9">Permissive — only flags the most obvious spam</template>
+                <template v-else>Disabled — no spam filtering</template>
+              </p>
               <button
                 v-if="accountStore.account?.filtering?.spamScoreThreshold != null"
-                class="ml-2 text-xs text-ctp-subtext0 hover:text-ctp-text"
+                class="shrink-0 text-xs text-ctp-subtext0 hover:text-ctp-text"
                 @click="updateAccountSpamThreshold('')"
               >
-                Reset
+                Use account default
               </button>
             </div>
-            <p class="mt-1.5 text-xs text-ctp-subtext0">
-              <template v-if="accountStore.account?.filtering?.spamScoreThreshold == null">No account default — each alias decides independently</template>
-              <template v-else-if="accountStore.account.filtering.spamScoreThreshold <= 3">Very aggressive — most emails from unknown senders will be quarantined</template>
-              <template v-else-if="accountStore.account.filtering.spamScoreThreshold <= 6">Balanced — catches obvious spam while allowing most legitimate mail</template>
-              <template v-else-if="accountStore.account.filtering.spamScoreThreshold <= 9">Permissive — only flags the most obvious spam</template>
-              <template v-else>Disabled — no spam filtering</template>
-            </p>
           </div>
         </div>
         <!-- Add address -->
@@ -1164,36 +1165,37 @@ const TABS: { key: TabKey; label: string }[] = [
             </div>
             <div class="mt-3">
               <span class="mb-1.5 block text-xs text-ctp-subtext0">Spam threshold</span>
-              <div class="flex items-center gap-1">
-                <button
-                  v-for="n in 10"
-                  :key="n"
-                  type="button"
-                  class="flex h-7 w-7 items-center justify-center rounded text-xs font-medium transition-colors"
-                  :class="
-                    alias.spamScoreThreshold === n
-                      ? 'bg-ctp-mauve text-ctp-base'
-                      : 'bg-ctp-surface0 text-ctp-subtext1 hover:bg-ctp-surface1 hover:text-ctp-text'
-                  "
-                  @click="updateAliasThreshold(alias.address, String(n))"
-                >
-                  {{ n }}
-                </button>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-ctp-subtext0">1</span>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  step="1"
+                  :value="alias.spamScoreThreshold ?? 5"
+                  :aria-label="`Spam threshold for ${alias.address}`"
+                  class="w-full accent-ctp-mauve"
+                  @input="updateAliasThreshold(alias.address, ($event.target as HTMLInputElement).value)"
+                />
+                <span class="text-xs text-ctp-subtext0">10</span>
+                <span class="ml-2 min-w-[1.5rem] text-center text-sm font-medium text-ctp-text">{{ alias.spamScoreThreshold ?? '–' }}</span>
+              </div>
+              <div class="mt-2 flex items-center justify-between">
+                <p class="text-xs text-ctp-subtext0">
+                  <template v-if="alias.spamScoreThreshold == null">Using account default threshold</template>
+                  <template v-else-if="alias.spamScoreThreshold <= 3">Very aggressive — most emails from unknown senders will be quarantined</template>
+                  <template v-else-if="alias.spamScoreThreshold <= 6">Balanced — catches obvious spam while allowing most legitimate mail</template>
+                  <template v-else-if="alias.spamScoreThreshold <= 9">Permissive — only flags the most obvious spam</template>
+                  <template v-else>Disabled — no spam filtering</template>
+                </p>
                 <button
                   v-if="alias.spamScoreThreshold != null"
-                  class="ml-2 text-xs text-ctp-subtext0 hover:text-ctp-text"
+                  class="shrink-0 text-xs text-ctp-subtext0 hover:text-ctp-text"
                   @click="updateAliasThreshold(alias.address, '')"
                 >
-                  Reset
+                  Use account default
                 </button>
               </div>
-              <p class="mt-1.5 text-xs text-ctp-subtext0">
-                <template v-if="alias.spamScoreThreshold == null">Using account default threshold</template>
-                <template v-else-if="alias.spamScoreThreshold <= 3">Very aggressive — most emails from unknown senders will be quarantined</template>
-                <template v-else-if="alias.spamScoreThreshold <= 6">Balanced — catches obvious spam while allowing most legitimate mail</template>
-                <template v-else-if="alias.spamScoreThreshold <= 9">Permissive — only flags the most obvious spam</template>
-                <template v-else>Disabled — no spam filtering</template>
-              </p>
             </div>
           </div>
         </div>

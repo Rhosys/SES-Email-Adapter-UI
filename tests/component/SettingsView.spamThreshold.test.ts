@@ -83,12 +83,11 @@ describe('SettingsView — spam threshold input', () => {
     }
     const wrapper = await mountEmailsTab([alias])
 
-    // Scope to the alias list (not the account-defaults card above it)
+    // Find the per-alias range slider
     const aliasList = wrapper.find('.divide-y.divide-ctp-surface0.rounded-lg.border.border-ctp-surface0')
-    const buttons = aliasList.findAll('button').filter(b => b.text().match(/^\d+$/))
-    const btn5 = buttons.find(b => b.text() === '5')
-    expect(btn5).toBeDefined()
-    expect(btn5!.classes()).toContain('bg-ctp-mauve')
+    const slider = aliasList.find('input[type="range"]')
+    expect(slider.exists()).toBe(true)
+    expect((slider.element as HTMLInputElement).value).toBe('5')
   })
 
   it('shows placeholder "account default" when threshold is undefined', async () => {
@@ -101,11 +100,6 @@ describe('SettingsView — spam threshold input', () => {
     }
     const wrapper = await mountEmailsTab([alias])
 
-    // Scope to the alias list — no button should be highlighted, description shows account default
-    const aliasList = wrapper.find('.divide-y.divide-ctp-surface0.rounded-lg.border.border-ctp-surface0')
-    const buttons = aliasList.findAll('button').filter(b => b.text().match(/^\d+$/))
-    const highlighted = buttons.filter(b => b.classes().includes('bg-ctp-mauve'))
-    expect(highlighted.length).toBe(0)
     expect(wrapper.text()).toContain('Using account default threshold')
   })
 
@@ -123,12 +117,10 @@ describe('SettingsView — spam threshold input', () => {
 
     const wrapper = await mountEmailsTab([alias])
 
-    // Scope to the alias list to avoid clicking the account-defaults picker
+    // Set the range slider to 10 via input event
     const aliasList = wrapper.find('.divide-y.divide-ctp-surface0.rounded-lg.border.border-ctp-surface0')
-    const buttons = aliasList.findAll('button').filter(b => b.text().match(/^\d+$/))
-    const btn10 = buttons.find(b => b.text() === '10')
-    expect(btn10).toBeDefined()
-    await btn10!.trigger('click')
+    const slider = aliasList.find('input[type="range"]')
+    await slider.setValue('10')
     await flushPromises()
 
     expect(api.updateAlias).toHaveBeenCalledWith('acc_1', 'inbox@test.com', { spamScoreThreshold: 10 })
@@ -148,8 +140,8 @@ describe('SettingsView — spam threshold input', () => {
 
     const wrapper = await mountEmailsTab([alias])
 
-    // Click the Reset button to clear the threshold
-    const resetBtn = wrapper.findAll('button').find(b => b.text() === 'Reset')
+    // Click the "Use account default" button to clear the threshold
+    const resetBtn = wrapper.findAll('button').find(b => b.text() === 'Use account default')
     expect(resetBtn).toBeDefined()
     await resetBtn!.trigger('click')
     await flushPromises()
