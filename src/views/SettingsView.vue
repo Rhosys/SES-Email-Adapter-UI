@@ -326,10 +326,12 @@ async function updateAccountSpamThreshold(raw: string) {
 
 async function deleteAddress(address: string) {
   if (!accountStore.accountId) return
+  const accountDefaultPolicy = accountStore.account?.filtering?.defaultUnknownSenderPolicy ?? 'quarantine_visible'
+  const accountDefaultPolicyLabel = FILTER_MODES.find((m) => m.value === accountDefaultPolicy)?.label ?? accountDefaultPolicy
   const confirmed = await confirmAction({
-    title: 'Remove address',
-    message: `Remove ${address}? Emails sent to this address will no longer be received.`,
-    confirmLabel: 'Remove',
+    title: 'Delete Alias',
+    message: `Delete <strong>${address}</strong>?\n\nEmails sent to this alias will be ${accountDefaultPolicyLabel.toLowerCase()}`,
+    confirmLabel: 'Delete',
     confirmVariant: 'danger',
   })
   if (!confirmed) return
@@ -1085,7 +1087,7 @@ const TABS: { key: TabKey; label: string }[] = [
                 @input="updateAccountSpamThreshold(($event.target as HTMLInputElement).value)"
               />
               <span class="text-xs text-ctp-subtext0">10</span>
-              <span class="ml-2 min-w-[1.5rem] text-center text-sm font-medium text-ctp-text">{{ accountStore.account?.filtering?.spamScoreThreshold ?? '–' }}</span>
+              <span class="ml-2 min-w-[1.5rem] text-center text-sm font-medium text-ctp-text">{{ accountStore.account?.filtering?.spamScoreThreshold ?? 'Off' }}</span>
             </div>
             <div class="mt-2 flex items-center justify-between">
               <p class="text-xs text-ctp-subtext0">
@@ -1154,25 +1156,27 @@ const TABS: { key: TabKey; label: string }[] = [
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div v-for="alias in filteredAliases" :key="alias.alias" class="px-4 py-2.5">
             <!-- Compact single-line row -->
-            <div class="flex items-center justify-between gap-2">
+            <div
+              role="button"
+              tabindex="0"
+              class="flex items-center justify-between gap-2 cursor-pointer"
+              :aria-expanded="expandedAlias === alias.address"
+              :aria-label="`Toggle details for ${alias.address}`"
+              @click="expandedAlias = expandedAlias === alias.address ? null : alias.address"
+              @keydown.enter="expandedAlias = expandedAlias === alias.address ? null : alias.address"
+              @keydown.space.prevent="expandedAlias = expandedAlias === alias.address ? null : alias.address"
+            >
               <p class="min-w-0 flex-1 truncate text-sm font-medium text-ctp-text">{{ alias.address }}</p>
               <button
                 type="button"
                 class="shrink-0 rounded-full border border-ctp-surface1 px-2.5 py-0.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
-                @click="filterModalAlias = alias; filterModalOpen = true"
+                @click.stop="filterModalAlias = alias; filterModalOpen = true"
               >
                 {{ FILTER_MODES.find((m) => m.value === alias.unknownSenderPolicy)?.label ?? alias.unknownSenderPolicy }}
               </button>
-              <button
-                type="button"
-                class="shrink-0 rounded p-1 text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text"
-                :aria-label="`Toggle details for ${alias.address}`"
-                @click="expandedAlias = expandedAlias === alias.address ? null : alias.address"
-              >
-                <svg class="h-4 w-4 transition-transform" :class="expandedAlias === alias.address ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
-                </svg>
-              </button>
+              <svg class="h-4 w-4 shrink-0 text-ctp-subtext0 transition-transform" :class="expandedAlias === alias.address ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+              </svg>
             </div>
             <!-- Expandable details -->
             <div v-if="expandedAlias === alias.address" class="mt-2 space-y-3 border-t border-ctp-surface0 pt-3">
@@ -1191,7 +1195,7 @@ const TABS: { key: TabKey; label: string }[] = [
                     @input="updateAliasThreshold(alias.address, ($event.target as HTMLInputElement).value)"
                   />
                   <span class="text-xs text-ctp-subtext0">10</span>
-                  <span class="ml-2 min-w-[1.5rem] text-center text-sm font-medium text-ctp-text">{{ alias.spamScoreThreshold ?? '–' }}</span>
+                  <span class="ml-2 min-w-[1.5rem] text-center text-sm font-medium text-ctp-text">{{ alias.spamScoreThreshold ?? 'Off' }}</span>
                 </div>
                 <div class="mt-2 flex items-center justify-between">
                   <p class="text-xs text-ctp-subtext0">
