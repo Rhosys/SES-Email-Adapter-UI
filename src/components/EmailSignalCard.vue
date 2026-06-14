@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import type { Signal } from '@/types/server'
 import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
 import { useAccountStore } from '@/stores/account'
@@ -10,7 +9,6 @@ import { useGestureHandler } from '@/composables/useGestureHandler'
 const props = defineProps<{ signal: Signal; duplicates?: Signal[] }>()
 const emit = defineEmits<{ undo: [] }>()
 
-const router = useRouter()
 const accountStore = useAccountStore()
 const expanded = ref(true)
 const menuOpen = ref(false)
@@ -83,11 +81,6 @@ const sentAt = computed(() => {
     timeStyle: 'short',
   })
 })
-
-function viewOriginal() {
-  menuOpen.value = false
-  void router.push({ name: 'arc-detail', params: { id: props.signal.arcId } })
-}
 
 async function undoSend() {
   menuOpen.value = false
@@ -188,9 +181,9 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
 <template>
   <div class="rounded-lg border border-ctp-surface1 bg-ctp-mantle">
     <!-- Card header -->
-    <div class="flex items-center px-4 py-3">
+    <div class="flex items-start gap-3 px-4 py-3">
       <button
-        class="min-w-0 flex-1 text-left"
+        class="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-ctp-surface0/70"
         :aria-expanded="expanded"
         @click="expanded = !expanded"
       >
@@ -213,18 +206,15 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
           ⚠ BCC — alias not in To or CC
         </div>
         <span class="text-xs text-ctp-subtext0">{{ sentAt }}</span>
-        <!-- Reply-To indicator -->
         <span v-if="replyToLabel" class="text-xs text-ctp-peach" title="Reply-To differs from sender">↩ {{ replyToLabel }}</span>
-        <!-- Envelope sender indicator -->
         <span v-if="envelopeSender" class="text-xs text-ctp-subtext0" :title="`Envelope: ${envelopeSender}`">✉ {{ envelopeSender }}</span>
-        <!-- Attachment indicator -->
         <span v-if="attachmentCount > 0" class="text-xs text-ctp-subtext0" :title="`${attachmentCount} attachment${attachmentCount > 1 ? 's' : ''}`">📎 {{ attachmentCount }}</span>
       </button>
 
       <!-- Duplicate count badge -->
       <button
         v-if="duplicates && duplicates.length > 0"
-        class="mr-2 shrink-0 rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1 hover:bg-ctp-surface2"
+        class="mt-1 shrink-0 rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1 hover:bg-ctp-surface2"
         :aria-expanded="showDuplicates"
         @click.stop="showDuplicates = !showDuplicates"
       >
@@ -232,48 +222,38 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
       </button>
 
       <!-- Undo error inline -->
-      <span v-if="undoError" class="mr-2 shrink-0 text-xs text-ctp-red">{{ undoError }}</span>
-
-      <!-- Collapse toggle -->
-      <span class="mr-2 shrink-0 text-xs text-ctp-subtext0" aria-hidden="true">{{ expanded ? '▲' : '▼' }}</span>
+      <span v-if="undoError" class="mt-1 shrink-0 text-xs text-ctp-red">{{ undoError }}</span>
 
       <!-- Overflow menu -->
       <div class="relative shrink-0">
         <button
-          class="flex h-6 w-6 items-center justify-center rounded text-ctp-subtext0 hover:bg-ctp-surface1 hover:text-ctp-text"
+          class="flex h-9 w-9 items-center justify-center rounded-lg text-ctp-subtext0 transition-colors hover:bg-ctp-surface1 hover:text-ctp-text"
           aria-label="Signal actions"
           aria-haspopup="true"
           :aria-expanded="menuOpen"
           @click.stop="menuOpen = !menuOpen"
         >
-          <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <circle cx="8" cy="2.5" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="8" cy="13.5" r="1.5" />
           </svg>
         </button>
 
         <div
           v-if="menuOpen"
-          class="absolute right-0 top-full z-20 min-w-44 rounded-lg border border-ctp-surface1 bg-ctp-mantle py-1 shadow-lg"
+          class="absolute right-0 top-full z-20 min-w-48 rounded-lg border border-ctp-surface1 bg-ctp-mantle py-1.5 shadow-lg"
           role="menu"
         >
           <button
-            class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
+            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
             role="menuitem"
             @click="viewRawSignal"
           >
-            View raw data
-          </button>
-          <button
-            class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
-            role="menuitem"
-            @click="viewOriginal"
-          >
-            View original email
+            Show headers
           </button>
           <button
             v-if="isUserSent"
             :disabled="undoPending"
-            class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-ctp-red hover:bg-ctp-surface0 disabled:opacity-50"
+            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0 disabled:opacity-50"
             role="menuitem"
             @click="undoSend"
           >
