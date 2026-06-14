@@ -238,11 +238,11 @@ const newAddressHandlingModalOpen = ref(false)
 
 const FILTER_MODES: { value: UnknownSenderPolicy; label: string; description: string }[] = [
   { value: 'allow_all', label: 'Allow all', description: 'All senders pass through' },
-  { value: 'quarantine_visible', label: 'Quarantine (visible)', description: 'Unknown senders held for review' },
-  { value: 'quarantine_hidden', label: 'Quarantine (hidden)', description: 'Unknown senders silently held' },
-  { value: 'block_hidden', label: 'Block silently', description: 'Unknown senders silently discarded' },
-  { value: 'block_reject', label: 'Block & reject', description: 'Unknown senders receive a bounce' },
-  { value: 'violate_report', label: 'Violation report', description: 'Report as a policy violation' },
+  { value: 'quarantine_visible', label: 'Quarantine and notify', description: 'Unknown senders held for review, you get notified' },
+  { value: 'quarantine_hidden', label: 'Quarantine', description: 'Unknown senders silently held for review' },
+  { value: 'block_hidden', label: 'Block email', description: 'Unknown senders silently discarded' },
+  { value: 'block_reject', label: 'Block and deny', description: 'Unknown senders receive a bounce' },
+  { value: 'violate_report', label: 'Report Violation', description: 'Report as a policy violation' },
 ]
 
 const NEW_ADDRESS_HANDLING_MODES = [
@@ -563,7 +563,7 @@ onMounted(async () => {
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'profile', label: 'Profile' },
-  { key: 'emails', label: 'Email addresses' },
+  { key: 'emails', label: 'Aliases' },
   { key: 'domains', label: 'Domains' },
   { key: 'forwarding', label: 'Forwarding' },
   { key: 'compose', label: 'Compose' },
