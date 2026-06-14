@@ -67,11 +67,34 @@ const attachmentCount = computed(() => {
 
 const rawSignalJson = ref('')
 const showRawModal = ref(false)
+const showOriginalModal = ref(false)
+const rawCopied = ref(false)
+const originalCopied = ref(false)
 
 function viewRawSignal() {
   menuOpen.value = false
   rawSignalJson.value = JSON.stringify(props.signal, null, 2)
   showRawModal.value = true
+}
+
+function viewOriginalEmail() {
+  menuOpen.value = false
+  showOriginalModal.value = true
+}
+
+function copyRawJson() {
+  void navigator.clipboard.writeText(rawSignalJson.value).then(() => {
+    rawCopied.value = true
+    setTimeout(() => { rawCopied.value = false }, 1500)
+  })
+}
+
+function copyOriginalHtml() {
+  if (!isEmailSignal(props.signal) || !props.signal.data.body) return
+  void navigator.clipboard.writeText(props.signal.data.body).then(() => {
+    originalCopied.value = true
+    setTimeout(() => { originalCopied.value = false }, 1500)
+  })
 }
 
 const sentAt = computed(() => {
@@ -251,6 +274,14 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
             Show headers
           </button>
           <button
+            v-if="isEmailSignal(signal) && signal.data.body"
+            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
+            role="menuitem"
+            @click="viewOriginalEmail"
+          >
+            View original email
+          </button>
+          <button
             v-if="isUserSent"
             :disabled="undoPending"
             class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0 disabled:opacity-50"
@@ -333,13 +364,40 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
 
   <!-- Raw signal data modal -->
   <Teleport to="body">
-    <div v-if="showRawModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80" aria-hidden="true" @click.self="showRawModal = false">
+    <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -->
+    <div v-if="showRawModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80" @click.self="showRawModal = false">
       <div class="relative max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl border border-ctp-surface1 bg-ctp-mantle p-4 shadow-2xl">
         <div class="mb-3 flex items-center justify-between">
           <h3 class="text-sm font-semibold text-ctp-text">Signal data</h3>
-          <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="showRawModal = false">Close</button>
+          <div class="flex items-center gap-3">
+            <button class="text-xs text-ctp-subtext0 hover:text-ctp-mauve" @click="copyRawJson">{{ rawCopied ? '✓ Copied' : 'Copy' }}</button>
+            <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="showRawModal = false">Close</button>
+          </div>
         </div>
         <pre class="overflow-auto rounded-lg bg-ctp-base p-3 font-mono text-xs text-ctp-text">{{ rawSignalJson }}</pre>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Original email modal -->
+  <Teleport to="body">
+    <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -->
+    <div v-if="showOriginalModal && isEmailSignal(signal) && signal.data.body" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80" @click.self="showOriginalModal = false">
+      <div class="relative max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-xl border border-ctp-surface1 bg-white shadow-2xl">
+        <div class="flex items-center justify-between border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
+          <h3 class="text-sm font-semibold text-ctp-text">Original email</h3>
+          <div class="flex items-center gap-3">
+            <button class="text-xs text-ctp-subtext0 hover:text-ctp-mauve" @click="copyOriginalHtml">{{ originalCopied ? '✓ Copied' : 'Copy HTML' }}</button>
+            <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="showOriginalModal = false">Close</button>
+          </div>
+        </div>
+        <iframe
+          :srcdoc="signal.data.body"
+          sandbox="allow-popups allow-popups-to-escape-sandbox"
+          referrerpolicy="no-referrer"
+          class="h-[80vh] w-full border-none"
+          title="Original email content"
+        />
       </div>
     </div>
   </Teleport>
