@@ -101,6 +101,21 @@ async function deleteArc() {
 async function loadMore() {
   await signalsStore.fetchMore(arcId.value)
 }
+
+async function removeLabel(label: string) {
+  const confirmed = await confirmAction({
+    title: 'Remove label',
+    message: `Remove "${label}" from this thread?`,
+    confirmLabel: 'Remove',
+    confirmVariant: 'danger',
+  })
+  if (!confirmed) return
+  const id = accountStore.accountId
+  if (!id || !signalsStore.arc) return
+  const currentLabels = signalsStore.arc.labels.filter((l) => l !== label)
+  const result = await api.patchArc(id, arcId.value, { labels: currentLabels })
+  if (result.isOk()) await signalsStore.fetchAll(arcId.value)
+}
 </script>
 
 <template>
@@ -205,7 +220,7 @@ async function loadMore() {
           <span v-if="signalsStore.arc.status === 'deleted' && signalsStore.arc.deletedAt">
             · Deleted on {{ new Date(signalsStore.arc.deletedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
           </span>
-          <span v-if="signalsStore.arc.urgency" class="capitalize"
+          <span v-if="signalsStore.arc.urgency && signalsStore.arc.urgency !== 'normal'" class="capitalize"
             >· {{ signalsStore.arc.urgency }}</span
           >
           <span v-if="availableUntil" class="text-ctp-subtext0"
@@ -213,13 +228,14 @@ async function loadMore() {
           >
         </div>
         <div class="mt-2 flex flex-wrap gap-1">
-          <span
+          <button
             v-for="label in signalsStore.arc.labels"
             :key="label"
-            class="rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1"
+            class="cursor-pointer rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1 hover:opacity-70"
+            @click="removeLabel(label)"
           >
             {{ label }}
-          </span>
+          </button>
         </div>
       </div>
 
