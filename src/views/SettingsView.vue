@@ -631,6 +631,7 @@ const TABS: { key: TabKey; label: string }[] = [
           <div class="min-w-0 flex-1">
             <p v-if="identity?.name" class="truncate text-sm font-semibold text-ctp-text">{{ identity.name }}</p>
             <p v-if="identity?.email" class="truncate text-xs text-ctp-subtext0">{{ identity.email }}</p>
+            <p v-if="identity?.userId ?? identity?.sub" class="mt-1 font-mono text-xs text-ctp-subtext0">{{ identity?.userId ?? identity?.sub }}</p>
           </div>
         </div>
 
@@ -638,83 +639,6 @@ const TABS: { key: TabKey; label: string }[] = [
         <div>
           <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Account ID</span>
           <p class="font-mono text-xs text-ctp-subtext0">{{ accountStore.accountId }}</p>
-        </div>
-
-        <!-- Notification preferences -->
-        <div class="rounded-lg border border-ctp-surface1 p-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-ctp-text">Email notifications</p>
-              <p class="text-xs text-ctp-subtext0">
-                Receive digest emails about quarantine and alerts
-              </p>
-            </div>
-            <button
-              role="switch"
-              :aria-checked="emailNotifEnabled"
-              :aria-label="emailNotifEnabled ? 'Disable email notifications' : 'Enable email notifications'"
-              class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
-              :class="emailNotifEnabled ? 'bg-ctp-mauve' : 'bg-ctp-surface1'"
-              @click="emailNotifEnabled = !emailNotifEnabled"
-            >
-              <span
-                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                :class="emailNotifEnabled ? 'translate-x-4' : 'translate-x-0.5'"
-              />
-            </button>
-          </div>
-
-          <div v-if="emailNotifEnabled" class="mt-4 space-y-3">
-            <div>
-              <label for="notif-address" class="mb-1 block text-xs text-ctp-subtext0">Notification address</label>
-              <input
-                id="notif-address"
-                v-model="emailNotifAddress"
-                type="email"
-                placeholder="you@example.com"
-                class="w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
-              />
-            </div>
-            <div>
-              <span class="mb-1 block text-xs text-ctp-subtext0">Frequency</span>
-              <div class="flex gap-2">
-                <button
-                  v-for="freq in ['instant', 'hourly', 'daily'] as const"
-                  :key="freq"
-                  :aria-pressed="emailNotifFrequency === freq"
-                  class="rounded-full border px-3 py-1 text-xs transition-colors"
-                  :class="
-                    emailNotifFrequency === freq
-                      ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
-                      : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2'
-                  "
-                  @click="emailNotifFrequency = freq"
-                >
-                  {{ freq.charAt(0).toUpperCase() + freq.slice(1) }}
-                </button>
-              </div>
-              <p class="mt-1 text-xs text-ctp-subtext0">
-                <template v-if="emailNotifFrequency === 'instant'">Sent as each event arrives</template>
-                <template v-else-if="emailNotifFrequency === 'hourly'">One digest per hour if anything new</template>
-                <template v-else>One daily summary at 8 AM UTC</template>
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex gap-2">
-          <AsyncButton
-            :action="saveNotifications"
-            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
-          >
-            Save preferences
-          </AsyncButton>
-          <button
-            class="rounded-lg border border-ctp-surface1 px-4 py-2 text-sm text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
-            @click="sendTestNotification"
-          >
-            Send test notification
-          </button>
         </div>
 
         <!-- Profile sub-tabs -->
@@ -778,6 +702,78 @@ const TABS: { key: TabKey; label: string }[] = [
               </button>
             </div>
             <ShortcutHelpOverlay v-model:open="shortcutHelpOpen" />
+          </section>
+
+          <!-- Email notifications -->
+          <section class="rounded-lg border border-ctp-surface1 p-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-sm font-medium text-ctp-text">Email notifications</h2>
+                <p class="mt-0.5 text-xs text-ctp-subtext0">
+                  Receive digest emails about quarantine and alerts
+                </p>
+              </div>
+              <button
+                role="switch"
+                :aria-checked="emailNotifEnabled"
+                :aria-label="emailNotifEnabled ? 'Disable email notifications' : 'Enable email notifications'"
+                class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
+                :class="emailNotifEnabled ? 'bg-ctp-mauve' : 'bg-ctp-surface1'"
+                @click="emailNotifEnabled = !emailNotifEnabled; saveNotifications()"
+              >
+                <span
+                  class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                  :class="emailNotifEnabled ? 'translate-x-4' : 'translate-x-0.5'"
+                />
+              </button>
+            </div>
+
+            <div v-if="emailNotifEnabled" class="mt-4 space-y-3">
+              <div>
+                <label for="notif-address" class="mb-1 block text-xs text-ctp-subtext0">Notification address</label>
+                <input
+                  id="notif-address"
+                  v-model="emailNotifAddress"
+                  type="email"
+                  placeholder="you@example.com"
+                  class="w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                  @change="saveNotifications()"
+                />
+              </div>
+              <div>
+                <span class="mb-1 block text-xs text-ctp-subtext0">Frequency</span>
+                <div class="flex gap-2">
+                  <button
+                    v-for="freq in ['instant', 'hourly', 'daily'] as const"
+                    :key="freq"
+                    :aria-pressed="emailNotifFrequency === freq"
+                    class="rounded-full border px-3 py-1 text-xs transition-colors"
+                    :class="
+                      emailNotifFrequency === freq
+                        ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
+                        : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2'
+                    "
+                    @click="emailNotifFrequency = freq; saveNotifications()"
+                  >
+                    {{ freq.charAt(0).toUpperCase() + freq.slice(1) }}
+                  </button>
+                </div>
+                <p class="mt-1 text-xs text-ctp-subtext0">
+                  <template v-if="emailNotifFrequency === 'instant'">Sent as each event arrives</template>
+                  <template v-else-if="emailNotifFrequency === 'hourly'">One digest per hour if anything new</template>
+                  <template v-else>One daily summary at 8 AM UTC</template>
+                </p>
+              </div>
+            </div>
+
+            <div class="mt-3">
+              <button
+                class="rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
+                @click="sendTestNotification"
+              >
+                Send test notification
+              </button>
+            </div>
           </section>
         </template>
 
