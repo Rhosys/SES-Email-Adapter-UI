@@ -421,7 +421,7 @@ onMounted(async () => {
         <!-- Variable reference -->
         <details class="rounded border border-ctp-surface1 text-xs">
           <summary class="cursor-pointer px-3 py-2 text-ctp-subtext0 hover:text-ctp-text select-none">
-            Available variables
+            Template Properties
           </summary>
           <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 px-3 py-2 pb-3">
             <code class="font-mono text-ctp-mauve">&#123;&#123;from.address&#125;&#125;</code><span class="text-ctp-subtext0">Sender email address</span>
@@ -431,6 +431,18 @@ onMounted(async () => {
             <code class="font-mono text-ctp-mauve">&#123;&#123;receivedAt&#125;&#125;</code><span class="text-ctp-subtext0">ISO timestamp the email was received</span>
             <code class="font-mono text-ctp-mauve">&#123;&#123;arcId&#125;&#125;</code><span class="text-ctp-subtext0">Thread / arc identifier</span>
             <code class="font-mono text-ctp-mauve">&#123;&#123;accountId&#125;&#125;</code><span class="text-ctp-subtext0">Your account ID</span>
+            <!-- Dynamic properties (functions) -->
+            <template v-for="fn in draftFunctions.filter(f => f.name.trim())" :key="fn.name">
+              <code class="font-mono text-ctp-green">&#123;&#123;fn.{{ fn.name }}&#125;&#125;</code><span class="text-ctp-subtext0">Dynamic property</span>
+            </template>
+          </div>
+          <div class="border-t border-ctp-surface0 px-3 py-2">
+            <button
+              class="text-xs text-ctp-mauve hover:text-ctp-mauve/80"
+              @click="addFunction"
+            >
+              ＋ Add dynamic property
+            </button>
           </div>
         </details>
 
@@ -524,11 +536,11 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Functions -->
+        <!-- Dynamic Properties -->
         <div>
           <div class="mb-2 flex items-center justify-between">
             <div>
-              <p class="text-xs font-medium text-ctp-text">Functions</p>
+              <p class="text-xs font-medium text-ctp-text">Dynamic Properties</p>
               <p class="text-xs text-ctp-subtext0">
                 Each receives <code class="font-mono">(signal, arc)</code> and returns a string.
                 Use <code class="font-mono">&#123;&#123;fn.name&#125;&#125;</code> in the body.
@@ -538,7 +550,7 @@ onMounted(async () => {
               class="rounded border border-ctp-surface1 px-2.5 py-1 text-xs text-ctp-subtext1 hover:text-ctp-text"
               @click="addFunction"
             >
-              + Add function
+              ＋ Add dynamic property
             </button>
           </div>
 
