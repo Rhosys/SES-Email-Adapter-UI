@@ -228,9 +228,16 @@ onMounted(async () => {
           v-if="showLabelForm"
           class="mb-4 rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4"
         >
-          <h3 class="mb-3 text-sm font-medium">
-            {{ editingLabel ? 'Edit label' : 'New label' }}
-          </h3>
+          <div class="mb-3 flex items-center gap-3">
+            <span
+              class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
+              :style="{ backgroundColor: labelColor }"
+            >
+              <span v-if="labelIcon">{{ labelIcon }}</span>
+              {{ labelName || 'Label name' }}
+            </span>
+            <span class="text-xs text-ctp-subtext0">{{ editingLabel ? 'Editing' : 'New label' }}</span>
+          </div>
           <div class="space-y-3">
             <div>
               <label for="label-name" class="mb-1 block text-xs text-ctp-subtext0">Name</label>
@@ -248,8 +255,8 @@ onMounted(async () => {
                 <button
                   v-for="color in PRESET_COLORS"
                   :key="color"
-                  class="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
-                  :class="labelColor === color ? 'border-ctp-text' : 'border-transparent'"
+                  class="h-6 w-6 rounded-full border-2 transition-transform"
+                  :class="labelColor === color ? 'ring-2 ring-offset-2 ring-offset-ctp-mantle ring-white scale-125 border-transparent' : 'border-transparent hover:scale-110'"
                   :style="{ backgroundColor: color }"
                   :aria-label="`Select color ${color}`"
                   @click="labelColor = color"
@@ -269,6 +276,7 @@ onMounted(async () => {
                 id="label-icon"
                 v-model="labelIcon"
                 type="text"
+                maxlength="1"
                 placeholder="e.g. 📧"
                 class="w-24 rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
               />

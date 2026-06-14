@@ -121,7 +121,7 @@ watch(
 </script>
 
 <template>
-  <div>
+  <div class="inbox-view">
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
       <h1 class="text-lg font-semibold">Inbox</h1>
     </header>
@@ -143,7 +143,7 @@ watch(
         v-if="arcsStore.loading"
         role="status"
         aria-label="Loading inbox…"
-        class="animate-pulse divide-y divide-ctp-surface0"
+        class="inbox-skeleton-loader animate-pulse divide-y divide-ctp-surface0"
       >
         <div v-for="i in 8" :key="i" class="flex items-center gap-3 px-3 py-3">
           <div class="ml-2 h-4 w-4 shrink-0 rounded bg-ctp-surface1" />
