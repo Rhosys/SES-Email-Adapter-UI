@@ -20,6 +20,14 @@ vi.mock('@/lib/api', async (importOriginal) => {
   }
 })
 
+vi.mock('@/lib/auth', () => ({
+  loginClient: {
+    getUserIdentity: vi.fn(() => null),
+    getUserProfile: vi.fn(() => Promise.resolve({ linkedIdentities: [] })),
+    getDevices: vi.fn(() => Promise.resolve([])),
+  },
+}))
+
 import { api } from '@/lib/api'
 
 const testAccount: Account = {
