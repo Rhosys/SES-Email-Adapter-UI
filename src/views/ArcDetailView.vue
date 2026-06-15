@@ -96,7 +96,7 @@ async function loadMore() {
 
 const showReply = computed(() => {
   const workflow = signalsStore.arc?.workflow
-  return workflow !== 'auth' && workflow !== 'test' && workflow !== 'status'
+  return workflow !== 'test'
 })
 
 async function startDraft() {
