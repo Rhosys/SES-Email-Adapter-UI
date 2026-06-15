@@ -156,6 +156,20 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
     return { status: 200, body: allSignals[0] ?? { signalId: 'sig_1', status: 'block_reject' } }
   }
 
+  // POST /accounts/:accountId/arcs/:arcId/signals — create draft
+  if (method === 'POST' && match('/accounts/:accountId/arcs/:arcId/signals', url)) {
+    const draftParams = match('/accounts/:accountId/arcs/:arcId/signals', url)!
+    return { status: 201, body: {
+      signalId: 'sig_draft_' + Date.now(),
+      arcId: draftParams.arcId,
+      source: 'user',
+      status: 'draft',
+      type: 'email',
+      createdAt: new Date().toISOString(),
+      data: { from: { address: 'you@demo.catchmail.app' }, to: [], cc: [], bcc: [], subject: '', body: '', attachments: [], sendInitiatedAt: '' }
+    }}
+  }
+
   // POST catch-all for mutation endpoints
   if (method === 'POST') {
     if (url.includes('/rules')) return { status: 201, body: mockRules[0] }
