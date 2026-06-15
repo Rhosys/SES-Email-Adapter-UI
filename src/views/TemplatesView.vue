@@ -338,7 +338,7 @@ onMounted(async () => {
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-lg font-semibold">Templates</h1>
+          <h1 class="text-lg font-semibold">Auto-Draft Email Templates</h1>
           <p class="mt-0.5 text-xs text-ctp-subtext0">
             Reusable email bodies for auto-reply and auto-draft rule actions
           </p>
@@ -490,7 +490,7 @@ onMounted(async () => {
           </div>
           <div class="border-t border-ctp-surface0 px-3 py-2">
             <button
-              class="text-xs text-ctp-mauve hover:text-ctp-mauve/80"
+              class="text-xs text-ctp-green border border-ctp-green/30 bg-ctp-green/10 rounded px-2 py-1 hover:bg-ctp-green/20"
               @click="addFunction"
             >
               ＋ Add dynamic property
