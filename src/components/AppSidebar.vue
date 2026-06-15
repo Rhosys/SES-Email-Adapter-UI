@@ -54,9 +54,7 @@ const accountSwitcherOpen = ref(false)
   >
     <!-- Brand -->
     <div class="flex h-11 items-center border-b border-ctp-surface0 px-4">
-      <span class="text-sm font-semibold text-ctp-text">
-        {{ accountStore.account?.name ?? 'SES Adapter' }}
-      </span>
+      <span class="text-sm font-semibold text-ctp-text">Numaeel</span>
     </div>
 
     <nav class="flex-1 overflow-y-auto py-2">
