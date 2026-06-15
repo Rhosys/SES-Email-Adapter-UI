@@ -37,10 +37,21 @@ router.isReady().then(() => {
         <span class="text-lg font-medium text-ctp-text">Numaeel</span>
       </div>
       <div class="h-1 w-32 overflow-hidden rounded-full bg-ctp-surface0">
-        <div class="h-full w-1/3 animate-pulse rounded-full bg-ctp-mauve" />
+        <div class="loading-bar h-full rounded-full bg-ctp-mauve" />
       </div>
     </div>
   </div>
 
   <RouterView v-else />
 </template>
+
+<style scoped>
+@keyframes loading-slide {
+  0% { width: 0%; transform: translateX(0); }
+  50% { width: 60%; transform: translateX(20%); }
+  100% { width: 30%; transform: translateX(300%); }
+}
+.loading-bar {
+  animation: loading-slide 1.5s ease-in-out infinite;
+}
+</style>

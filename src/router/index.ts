@@ -157,9 +157,16 @@ router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return true
 
   // Block until the user's session is fully resolved (login redirect processed, token available).
-  // waitForUserSession resolves once authenticate() or userSessionExists() has completed.
+  // The Numaeel loading screen in App.vue stays visible while this guard is pending.
   const authenticated = await loginClient.userSessionExists()
-  if (!authenticated) return { name: 'login', query: { redirect: to.fullPath } }
+  if (!authenticated) {
+    // Trigger Authress login redirect. This will navigate the browser away.
+    // The guard never resolves — Numaeel screen stays up until the browser redirects.
+    const redirectUrl = `${window.location.origin}/login?redirect=${encodeURIComponent(to.fullPath)}`
+    await loginClient.authenticate({ redirectUrl })
+    // If authenticate() somehow returns without redirecting (edge case), block navigation.
+    return false
+  }
 
   // Onboarding manages its own account creation — let it through always
   if (to.name === 'onboarding') return true
