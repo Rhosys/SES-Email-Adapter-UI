@@ -16,17 +16,17 @@ import { mockBilling } from './data/billing'
 
 export const handlers = [
   // ─── Accounts ────────────────────────────────────────────────────────────
-  http.get('*/accounts', () => {
+  http.get('/accounts', () => {
     return HttpResponse.json({ accounts: mockAccounts })
   }),
 
-  http.get('*/accounts/:accountId', ({ params }) => {
+  http.get('/accounts/:accountId', ({ params }) => {
     const account = mockAccounts.find((a) => a.accountId === params.accountId)
     if (!account) return new HttpResponse(null, { status: 404 })
     return HttpResponse.json(account)
   }),
 
-  http.post('*/accounts', async ({ request }) => {
+  http.post('/accounts', async ({ request }) => {
     const body = (await request.json()) as { name: string }
     const newAccount = {
       accountId: `acc_${Date.now()}`,
@@ -37,7 +37,7 @@ export const handlers = [
     return HttpResponse.json(newAccount, { status: 201 })
   }),
 
-  http.patch('*/accounts/:accountId', async ({ params, request }) => {
+  http.patch('/accounts/:accountId', async ({ params, request }) => {
     const account = mockAccounts.find((a) => a.accountId === params.accountId)
     if (!account) return new HttpResponse(null, { status: 404 })
     const body = (await request.json()) as Record<string, unknown>
@@ -45,7 +45,7 @@ export const handlers = [
   }),
 
   // ─── Arcs ───────────────────────────────────────────────────────────────
-  http.get('*/accounts/:accountId/arcs', ({ request }) => {
+  http.get('/accounts/:accountId/arcs', ({ request }) => {
     const url = new URL(request.url)
     const workflow = url.searchParams.get('workflow')
     const status = url.searchParams.get('status')
@@ -55,13 +55,13 @@ export const handlers = [
     return HttpResponse.json({ arcs: filtered, pagination: { cursor: null } })
   }),
 
-  http.get('*/accounts/:accountId/arcs/:arcId', ({ params }) => {
+  http.get('/accounts/:accountId/arcs/:arcId', ({ params }) => {
     const arc = mockArcs.find((a) => a.arcId === params.arcId)
     if (!arc) return new HttpResponse(null, { status: 404 })
     return HttpResponse.json(arc)
   }),
 
-  http.patch('*/accounts/:accountId/arcs/:arcId', async ({ params, request }) => {
+  http.patch('/accounts/:accountId/arcs/:arcId', async ({ params, request }) => {
     const arc = mockArcs.find((a) => a.arcId === params.arcId)
     if (!arc) return new HttpResponse(null, { status: 404 })
     const body = (await request.json()) as Record<string, unknown>
@@ -69,13 +69,13 @@ export const handlers = [
   }),
 
   // ─── Signals ────────────────────────────────────────────────────────────
-  http.get('*/accounts/:accountId/arcs/:arcId/signals', ({ params }) => {
+  http.get('/accounts/:accountId/arcs/:arcId/signals', ({ params }) => {
     const arcId = params.arcId as string
     const signals = mockSignals[arcId] ?? []
     return HttpResponse.json({ signals, pagination: { cursor: null } })
   }),
 
-  http.get('*/accounts/:accountId/signals', ({ request }) => {
+  http.get('/accounts/:accountId/signals', ({ request }) => {
     const url = new URL(request.url)
     const status = url.searchParams.get('status')
     if (status?.startsWith('quarantine')) {
@@ -85,15 +85,15 @@ export const handlers = [
     return HttpResponse.json({ signals: mockSystemSignals, pagination: { cursor: null } })
   }),
 
-  http.post('*/accounts/:accountId/signals/:signalId/quarantineResponse', () => {
+  http.post('/accounts/:accountId/signals/:signalId/quarantineResponse', () => {
     return HttpResponse.json({ signalId: 'sig_quar_1', status: 'active' })
   }),
 
-  http.post('*/accounts/:accountId/signals/:signalId/rsvp', () => {
+  http.post('/accounts/:accountId/signals/:signalId/rsvp', () => {
     return HttpResponse.json({ signalId: 'sig_travel1_cal', status: 'active' })
   }),
 
-  http.post('*/accounts/:accountId/arcs/:arcId/signals', async ({ request }) => {
+  http.post('/accounts/:accountId/arcs/:arcId/signals', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({
       signalId: `sig_draft_${Date.now()}`,
@@ -106,30 +106,30 @@ export const handlers = [
     }, { status: 201 })
   }),
 
-  http.put('*/accounts/:accountId/signals/:signalId', async ({ request }) => {
+  http.put('/accounts/:accountId/signals/:signalId', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({ signalId: 'sig_draft_1', status: 'draft', ...body })
   }),
 
-  http.post('*/accounts/:accountId/signals/:signalId/send', () => {
+  http.post('/accounts/:accountId/signals/:signalId/send', () => {
     return HttpResponse.json({ signalId: 'sig_draft_1', status: 'sent' })
   }),
 
-  http.patch('*/accounts/:accountId/signals/:signalId', async ({ request }) => {
+  http.patch('/accounts/:accountId/signals/:signalId', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({ signalId: 'sig_1', ...body })
   }),
 
-  http.delete('*/accounts/:accountId/signals/:signalId', () => {
+  http.delete('/accounts/:accountId/signals/:signalId', () => {
     return new HttpResponse(null, { status: 204 })
   }),
 
   // ─── Rules ──────────────────────────────────────────────────────────────
-  http.get('*/accounts/:accountId/rules', () => {
+  http.get('/accounts/:accountId/rules', () => {
     return HttpResponse.json({ rules: mockRules, pagination: { cursor: null } })
   }),
 
-  http.post('*/accounts/:accountId/rules', async ({ request }) => {
+  http.post('/accounts/:accountId/rules', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({
       ruleId: `rule_new_${Date.now()}`,
@@ -141,23 +141,23 @@ export const handlers = [
     }, { status: 201 })
   }),
 
-  http.patch('*/accounts/:accountId/rules/:ruleId', async ({ params, request }) => {
+  http.patch('/accounts/:accountId/rules/:ruleId', async ({ params, request }) => {
     const rule = mockRules.find((r) => r.ruleId === params.ruleId)
     if (!rule) return new HttpResponse(null, { status: 404 })
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({ ...rule, ...body, updatedAt: new Date().toISOString() })
   }),
 
-  http.delete('*/accounts/:accountId/rules/:ruleId', () => {
+  http.delete('/accounts/:accountId/rules/:ruleId', () => {
     return new HttpResponse(null, { status: 204 })
   }),
 
   // ─── Labels ─────────────────────────────────────────────────────────────
-  http.get('*/accounts/:accountId/labels', () => {
+  http.get('/accounts/:accountId/labels', () => {
     return HttpResponse.json({ labels: mockLabels, pagination: { cursor: null } })
   }),
 
-  http.post('*/accounts/:accountId/labels', async ({ request }) => {
+  http.post('/accounts/:accountId/labels', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({
       label: `lbl_${Date.now()}`,
@@ -166,23 +166,23 @@ export const handlers = [
     }, { status: 201 })
   }),
 
-  http.patch('*/accounts/:accountId/labels/:labelId', async ({ params, request }) => {
+  http.patch('/accounts/:accountId/labels/:labelId', async ({ params, request }) => {
     const label = mockLabels.find((l) => l.label === params.labelId)
     if (!label) return new HttpResponse(null, { status: 404 })
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({ ...label, ...body })
   }),
 
-  http.delete('*/accounts/:accountId/labels/:labelId', () => {
+  http.delete('/accounts/:accountId/labels/:labelId', () => {
     return new HttpResponse(null, { status: 204 })
   }),
 
   // ─── Views ──────────────────────────────────────────────────────────────
-  http.get('*/accounts/:accountId/views', () => {
+  http.get('/accounts/:accountId/views', () => {
     return HttpResponse.json({ views: mockViews, pagination: { cursor: null } })
   }),
 
-  http.post('*/accounts/:accountId/views', async ({ request }) => {
+  http.post('/accounts/:accountId/views', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({
       viewId: `view_${Date.now()}`,
@@ -196,23 +196,23 @@ export const handlers = [
     }, { status: 201 })
   }),
 
-  http.patch('*/accounts/:accountId/views/:viewId', async ({ params, request }) => {
+  http.patch('/accounts/:accountId/views/:viewId', async ({ params, request }) => {
     const view = mockViews.find((v) => v.viewId === params.viewId)
     if (!view) return new HttpResponse(null, { status: 404 })
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({ ...view, ...body, updatedAt: new Date().toISOString() })
   }),
 
-  http.delete('*/accounts/:accountId/views/:viewId', () => {
+  http.delete('/accounts/:accountId/views/:viewId', () => {
     return new HttpResponse(null, { status: 204 })
   }),
 
   // ─── Aliases ────────────────────────────────────────────────────────────
-  http.get('*/accounts/:accountId/aliases', () => {
+  http.get('/accounts/:accountId/aliases', () => {
     return HttpResponse.json({ aliases: mockAliases, pagination: { cursor: null } })
   }),
 
-  http.post('*/accounts/:accountId/aliases', async ({ request }) => {
+  http.post('/accounts/:accountId/aliases', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({
       alias: `alias_${Date.now()}`,
@@ -223,37 +223,37 @@ export const handlers = [
     }, { status: 201 })
   }),
 
-  http.patch('*/accounts/:accountId/aliases/:address', async ({ params, request }) => {
+  http.patch('/accounts/:accountId/aliases/:address', async ({ params, request }) => {
     const alias = mockAliases.find((a) => a.address === decodeURIComponent(params.address as string))
     if (!alias) return new HttpResponse(null, { status: 404 })
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({ ...alias, ...body, updatedAt: new Date().toISOString() })
   }),
 
-  http.delete('*/accounts/:accountId/aliases/:address', () => {
+  http.delete('/accounts/:accountId/aliases/:address', () => {
     return new HttpResponse(null, { status: 204 })
   }),
 
   // ─── Alias senders ──────────────────────────────────────────────────────
-  http.get('*/accounts/:accountId/aliases/:address/senders', () => {
+  http.get('/accounts/:accountId/aliases/:address/senders', () => {
     return HttpResponse.json({ senders: [] })
   }),
 
-  http.post('*/accounts/:accountId/aliases/:address/senders', async ({ request }) => {
+  http.post('/accounts/:accountId/aliases/:address/senders', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({ ...body, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, { status: 201 })
   }),
 
-  http.delete('*/accounts/:accountId/aliases/:address/senders/:sender', () => {
+  http.delete('/accounts/:accountId/aliases/:address/senders/:sender', () => {
     return new HttpResponse(null, { status: 204 })
   }),
 
   // ─── Domains ────────────────────────────────────────────────────────────
-  http.get('*/accounts/:accountId/domains', () => {
+  http.get('/accounts/:accountId/domains', () => {
     return HttpResponse.json({ domains: mockDomains, pagination: { cursor: null } })
   }),
 
-  http.post('*/accounts/:accountId/domains', async ({ request }) => {
+  http.post('/accounts/:accountId/domains', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({
       domainId: `dom_${Date.now()}`,
@@ -265,22 +265,22 @@ export const handlers = [
     }, { status: 201 })
   }),
 
-  http.patch('*/accounts/:accountId/domains/:domainId', ({ params }) => {
+  http.patch('/accounts/:accountId/domains/:domainId', ({ params }) => {
     const domain = mockDomains.find((d) => d.domainId === params.domainId)
     if (!domain) return new HttpResponse(null, { status: 404 })
     return HttpResponse.json({ ...domain, updatedAt: new Date().toISOString() })
   }),
 
-  http.delete('*/accounts/:accountId/domains/:domainId', () => {
+  http.delete('/accounts/:accountId/domains/:domainId', () => {
     return new HttpResponse(null, { status: 204 })
   }),
 
   // ─── Forwarding addresses ──────────────────────────────────────────────
-  http.get('*/accounts/:accountId/forwarding-addresses', () => {
+  http.get('/accounts/:accountId/forwarding-addresses', () => {
     return HttpResponse.json({ forwardingAddresses: mockForwardingAddresses, pagination: { cursor: null } })
   }),
 
-  http.post('*/accounts/:accountId/forwarding-addresses', async ({ request }) => {
+  http.post('/accounts/:accountId/forwarding-addresses', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({
       ...body,
@@ -289,16 +289,16 @@ export const handlers = [
     }, { status: 201 })
   }),
 
-  http.delete('*/accounts/:accountId/forwarding-addresses/:address', () => {
+  http.delete('/accounts/:accountId/forwarding-addresses/:address', () => {
     return new HttpResponse(null, { status: 204 })
   }),
 
   // ─── Team members ──────────────────────────────────────────────────────
-  http.get('*/accounts/:accountId/users', () => {
+  http.get('/accounts/:accountId/users', () => {
     return HttpResponse.json({ users: mockTeamMembers, pagination: { cursor: null } })
   }),
 
-  http.post('*/accounts/:accountId/users', async ({ request }) => {
+  http.post('/accounts/:accountId/users', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({
       userId: `usr_${Date.now()}`,
@@ -306,41 +306,41 @@ export const handlers = [
     }, { status: 201 })
   }),
 
-  http.patch('*/accounts/:accountId/users/:userId', async ({ params, request }) => {
+  http.patch('/accounts/:accountId/users/:userId', async ({ params, request }) => {
     const member = mockTeamMembers.find((m) => m.userId === params.userId)
     if (!member) return new HttpResponse(null, { status: 404 })
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({ ...member, ...body })
   }),
 
-  http.delete('*/accounts/:accountId/users/:userId', () => {
+  http.delete('/accounts/:accountId/users/:userId', () => {
     return new HttpResponse(null, { status: 204 })
   }),
 
   // ─── Audit log ─────────────────────────────────────────────────────────
-  http.get('*/accounts/:accountId/audit', () => {
+  http.get('/accounts/:accountId/audit', () => {
     return HttpResponse.json({ events: mockAuditEvents, pagination: { cursor: null } })
   }),
 
   // ─── Billing ───────────────────────────────────────────────────────────
-  http.get('*/accounts/:accountId/billing', () => {
+  http.get('/accounts/:accountId/billing', () => {
     return HttpResponse.json(mockBilling)
   }),
 
-  http.post('*/accounts/:accountId/billing/checkout-session', () => {
+  http.post('/accounts/:accountId/billing/checkout-session', () => {
     return HttpResponse.json({ url: 'https://checkout.stripe.com/mock-session' })
   }),
 
-  http.post('*/accounts/:accountId/billing/portal-session', () => {
+  http.post('/accounts/:accountId/billing/portal-session', () => {
     return HttpResponse.json({ url: 'https://billing.stripe.com/mock-portal' })
   }),
 
   // ─── Templates ─────────────────────────────────────────────────────────
-  http.get('*/accounts/:accountId/templates', () => {
+  http.get('/accounts/:accountId/templates', () => {
     return HttpResponse.json({ templates: mockTemplates, pagination: { cursor: null } })
   }),
 
-  http.post('*/accounts/:accountId/templates', async ({ request }) => {
+  http.post('/accounts/:accountId/templates', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({
       templateId: `tpl_${Date.now()}`,
@@ -350,14 +350,14 @@ export const handlers = [
     }, { status: 201 })
   }),
 
-  http.put('*/accounts/:accountId/templates/:templateId', async ({ params, request }) => {
+  http.put('/accounts/:accountId/templates/:templateId', async ({ params, request }) => {
     const template = mockTemplates.find((t) => t.templateId === params.templateId)
     if (!template) return new HttpResponse(null, { status: 404 })
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({ ...template, ...body, updatedAt: new Date().toISOString() })
   }),
 
-  http.delete('*/accounts/:accountId/templates/:templateId', () => {
+  http.delete('/accounts/:accountId/templates/:templateId', () => {
     return new HttpResponse(null, { status: 204 })
   }),
 ]
