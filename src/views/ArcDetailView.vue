@@ -36,6 +36,21 @@ const availableUntil = computed(() => {
   return retentionExpiresAt(arc.createdAt, arc.retentionDuration)
 })
 
+const showRetentionWarning = computed(() => {
+  if (!availableUntil.value) return false
+  const expiryDate = new Date(availableUntil.value)
+  const daysUntil = (expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+  return daysUntil < 30
+})
+
+const retentionMessage = computed(() => {
+  if (!availableUntil.value) return ''
+  const expiryDate = new Date(availableUntil.value)
+  const daysUntil = Math.round((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  if (daysUntil < 0) return `This thread was deleted ${Math.abs(daysUntil)} day${Math.abs(daysUntil) === 1 ? '' : 's'} ago`
+  return `This thread will be deleted in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`
+})
+
 onMounted(async () => {
   signalsStore.reset()
   await accountStore.fetchAccount()
@@ -227,8 +242,8 @@ async function removeLabel(label: string) {
       </div>
 
       <!-- Retention warning -->
-      <div v-if="availableUntil" class="mb-4 rounded-lg border border-ctp-peach/30 bg-ctp-peach/10 px-4 py-2 text-xs text-ctp-peach">
-        ⚠ This thread will be automatically deleted on {{ availableUntil }}
+      <div v-if="showRetentionWarning" class="mb-4 rounded-lg border border-ctp-peach/30 bg-ctp-peach/10 px-4 py-2 text-xs text-ctp-peach">
+        ⚠ {{ retentionMessage }}
       </div>
 
       <!-- Workflow panel (from latest signal with workflowData) -->
