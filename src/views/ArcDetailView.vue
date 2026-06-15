@@ -109,10 +109,31 @@ async function loadMore() {
   await signalsStore.fetchMore(arcId.value)
 }
 
-const showReply = computed(() => {
-  const workflow = signalsStore.arc?.workflow
-  return workflow !== 'test'
+const primaryBadgeLabel = computed(() => {
+  const arc = signalsStore.arc
+  if (!arc) return ''
+  if (arc.status === 'deleted') return 'Deleted'
+  const latestSignal = signalsStore.latestSignal
+  if (latestSignal && isInboundEmailSignal(latestSignal) && latestSignal.data.workflowData?.workflow === 'conversation' && latestSignal.data.workflowData.requiresReply) return 'Reply Needed'
+  if (arc.status === 'archived') return 'Archived'
+  return 'Active'
 })
+
+const primaryBadgeClass = computed(() => {
+  switch (primaryBadgeLabel.value) {
+    case 'Deleted': return 'bg-ctp-red/20 text-ctp-red'
+    case 'Reply Needed': return 'bg-ctp-peach/20 text-ctp-peach'
+    case 'Archived': return 'bg-ctp-surface1 text-ctp-subtext0'
+    default: return 'bg-ctp-green/20 text-ctp-green'
+  }
+})
+
+async function moveToInbox() {
+  const id = accountStore.accountId
+  if (!id) return
+  await api.patchArc(id, arcId.value, { status: 'active' })
+  await signalsStore.fetchAll(arcId.value)
+}
 
 async function startDraft() {
   await signalsStore.createDraft(arcId.value)
@@ -182,14 +203,31 @@ async function removeLabel(label: string) {
       <!-- Arc header -->
       <div class="mb-6">
         <div class="flex items-start justify-between gap-4">
-          <div class="flex items-center gap-2">
-            <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize" :class="{
-              'bg-ctp-green/20 text-ctp-green': signalsStore.arc.status === 'active',
-              'bg-ctp-surface1 text-ctp-subtext0': signalsStore.arc.status === 'archived',
-              'bg-ctp-red/20 text-ctp-red': signalsStore.arc.status === 'deleted',
-            }">{{ signalsStore.arc.status }}</span>
-            <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ signalsStore.arc.workflow }}</span>
-            <h1 class="text-lg font-semibold text-ctp-text">{{ signalsStore.arc.summary }}</h1>
+          <div class="min-w-0 flex-1">
+            <!-- Line 1: Primary badge + Summary -->
+            <div class="flex items-center gap-2">
+              <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" :class="primaryBadgeClass">{{ primaryBadgeLabel }}</span>
+              <h1 class="truncate text-lg font-semibold text-ctp-text">{{ signalsStore.arc.summary }}</h1>
+            </div>
+            <!-- Line 2: Subject -->
+            <p v-if="signalsStore.arc.subject" class="mt-1 text-sm text-ctp-subtext1">{{ signalsStore.arc.subject }}</p>
+            <!-- Line 3: From / Alias -->
+            <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-ctp-subtext1">
+              <span v-if="signalsStore.arc.senderAddress"><span class="text-ctp-overlay1">From:</span> {{ signalsStore.arc.senderAddress }}</span>
+              <span v-if="signalsStore.arc.recipientAddress"><span class="text-ctp-overlay1">Alias:</span> <span class="rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1">{{ signalsStore.arc.recipientAddress }}</span></span>
+            </div>
+            <!-- Line 4: Secondary badges (workflow, labels) -->
+            <div class="mt-2 flex flex-wrap items-center gap-1.5">
+              <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ signalsStore.arc.workflow }}</span>
+              <button
+                v-for="label in signalsStore.arc.labels"
+                :key="label"
+                class="cursor-pointer rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1 hover:opacity-70"
+                @click="removeLabel(label)"
+              >
+                {{ label }}
+              </button>
+            </div>
           </div>
           <div class="flex shrink-0 items-center gap-2">
             <AsyncButton
@@ -204,6 +242,14 @@ async function removeLabel(label: string) {
               Archive
             </AsyncButton>
             <AsyncButton
+              v-if="signalsStore.arc.status === 'archived'"
+              :action="moveToInbox"
+              variant="outline"
+              class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-green hover:text-ctp-green"
+            >
+              Move to Inbox
+            </AsyncButton>
+            <AsyncButton
               v-if="signalsStore.arc.status !== 'deleted'"
               :action="deleteArc"
               variant="outline"
@@ -211,33 +257,10 @@ async function removeLabel(label: string) {
             >
               <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
             </AsyncButton>
-            <button
-              v-if="showReply"
-              class="flex h-8 items-center gap-1.5 rounded-lg border border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
-              @click="startDraft"
-            >
-              Reply
-            </button>
           </div>
         </div>
-        <p v-if="signalsStore.arc.subject" class="mt-1 text-base text-ctp-text">{{ signalsStore.arc.subject }}</p>
-        <p v-if="signalsStore.arc.senderAddress" class="mt-1 text-sm text-ctp-subtext1"><span class="text-ctp-overlay1">From:</span> {{ signalsStore.arc.senderAddress }}</p>
-        <p v-if="signalsStore.arc.recipientAddress" class="mt-1 text-sm text-ctp-subtext1"><span class="text-ctp-overlay1">Alias:</span> <span class="rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1">{{ signalsStore.arc.recipientAddress }}</span></p>
-        <div class="mt-2 flex flex-wrap items-center gap-2">
-          <span v-if="signalsStore.arc.status === 'deleted' && signalsStore.arc.deletedAt" class="text-xs text-ctp-subtext0">
-            Deleted on {{ new Date(signalsStore.arc.deletedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
-          </span>
-          <span v-if="availableUntil" class="text-xs text-ctp-subtext0">Available until {{ availableUntil }}</span>
-        </div>
-        <div v-if="signalsStore.arc.labels.length > 0" class="mt-2 flex flex-wrap gap-1">
-          <button
-            v-for="label in signalsStore.arc.labels"
-            :key="label"
-            class="cursor-pointer rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1 hover:opacity-70"
-            @click="removeLabel(label)"
-          >
-            {{ label }}
-          </button>
+        <div v-if="signalsStore.arc.status === 'deleted' && signalsStore.arc.deletedAt" class="mt-2 text-xs text-ctp-subtext0">
+          Deleted on {{ new Date(signalsStore.arc.deletedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
         </div>
       </div>
 
