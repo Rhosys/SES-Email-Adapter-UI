@@ -4,7 +4,6 @@ import Handlebars from 'handlebars'
 import { marked } from 'marked'
 import { useTemplatesStore } from '@/stores/templates'
 import { useAccountStore } from '@/stores/account'
-import SignalBrowser from '@/components/SignalBrowser.vue'
 import { useHbsAutocomplete } from '@/composables/useHbsAutocomplete'
 import type { EmailTemplate, TemplateFunction } from '@/types/server'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
@@ -103,17 +102,78 @@ function openClone(tpl: EmailTemplate) {
   showEditor.value = true
 }
 
-// ─── Function editor ──────────────────────────────────────────────────────────
+// ─── Function editor (popup modal) ────────────────────────────────────────────
 
+const showFnEditor = ref(false)
 const editingFnIdx = ref<number | null>(null)
+const fnDraftName = ref('')
+const fnDraftCode = ref('')
+
+function openFnEditor(idx: number) {
+  editingFnIdx.value = idx
+  fnDraftName.value = draftFunctions.value[idx].name
+  fnDraftCode.value = draftFunctions.value[idx].code
+  showFnEditor.value = true
+}
 
 function addFunction() {
   draftFunctions.value = [...draftFunctions.value, { name: '', code: '(signal, arc) => {\n  \n}' }]
-  editingFnIdx.value = draftFunctions.value.length - 1
+  openFnEditor(draftFunctions.value.length - 1)
+}
+
+function saveFnEditor() {
+  if (editingFnIdx.value == null) return
+  const updated = [...draftFunctions.value]
+  updated[editingFnIdx.value] = { ...updated[editingFnIdx.value], name: fnDraftName.value, code: fnDraftCode.value }
+  draftFunctions.value = updated
+  showFnEditor.value = false
+  editingFnIdx.value = null
+}
+
+function cancelFnEditor() {
+  if (editingFnIdx.value == null) return
+  // If new and still unnamed+empty, remove it
+  const fn = draftFunctions.value[editingFnIdx.value]
+  if (!fn.name && fn.code === '(signal, arc) => {\n  \n}') {
+    draftFunctions.value = draftFunctions.value.filter((_, i) => i !== editingFnIdx.value)
+  }
+  showFnEditor.value = false
+  editingFnIdx.value = null
 }
 
 function removeFunction(idx: number) {
   draftFunctions.value = draftFunctions.value.filter((_, i) => i !== idx)
+}
+
+// ─── Property reference (shown in fn editor popup) ────────────────────────────
+
+interface PropInfo {
+  path: string
+  type: string
+  example: string
+  note?: string
+}
+
+const signalProps: PropInfo[] = [
+  { path: 'signal.data.from.name', type: 'string', example: 'Jane Smith', note: 'May be empty' },
+  { path: 'signal.data.from.address', type: 'string', example: 'jane@example.com' },
+  { path: 'signal.data.to[0].address', type: 'string', example: 'you@yourdomain.com', note: 'First recipient' },
+  { path: 'signal.data.subject', type: 'string', example: 'Quick question about your service' },
+  { path: 'signal.data.body', type: 'string?', example: 'Hi, I have a question…', note: 'Plain-text body' },
+  { path: 'signal.data.receivedAt', type: 'ISO string', example: new Date().toISOString().slice(0, 19) + 'Z' },
+  { path: 'signal.data.spamScore', type: 'number?', example: '0.02', note: '0 = clean, 1 = spam' },
+]
+
+const arcProps: PropInfo[] = [
+  { path: 'arc.workflow', type: 'string', example: 'conversation', note: 'auth | conversation | crm | package | travel…' },
+  { path: 'arc.summary', type: 'string', example: 'Customer asking about order #12345', note: 'AI summary' },
+  { path: 'arc.urgency', type: 'string', example: 'normal', note: 'critical | high | normal | low | silent' },
+  { path: 'arc.status', type: 'string', example: 'active', note: 'active | archived | deleted' },
+  { path: 'arc.labels', type: 'string[]', example: '[]', note: 'Applied label IDs' },
+]
+
+function copyPropPath(path: string) {
+  navigator.clipboard.writeText(path)
 }
 
 
@@ -421,7 +481,7 @@ onMounted(async () => {
             <code class="font-mono text-ctp-mauve">&#123;&#123;accountId&#125;&#125;</code><span class="text-ctp-subtext0">Your account ID</span>
             <!-- Dynamic properties (functions) -->
             <template v-for="fn in draftFunctions.filter(f => f.name.trim())" :key="fn.name">
-              <button class="text-left font-mono text-ctp-green hover:underline" @click="editingFnIdx = draftFunctions.indexOf(fn)">&#123;&#123;fn.{{ fn.name }}&#125;&#125;</button><span class="text-ctp-subtext0">Dynamic property</span>
+              <button class="text-left font-mono text-ctp-green hover:underline" @click="openFnEditor(draftFunctions.indexOf(fn))">&#123;&#123;fn.{{ fn.name }}&#125;&#125;</button><span class="text-ctp-subtext0">Dynamic property</span>
             </template>
           </div>
           <div class="border-t border-ctp-surface0 px-3 py-2">
@@ -543,7 +603,7 @@ onMounted(async () => {
             >
               <button
                 class="flex-1 text-left font-mono text-xs text-ctp-mauve hover:underline"
-                @click="editingFnIdx = idx"
+                @click="openFnEditor(idx)"
               >
                 fn.{{ fn.name || '(unnamed)' }}
               </button>
@@ -567,8 +627,7 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Signal browser -->
-        <SignalBrowser :functions="draftFunctions" />
+        <!-- Signal browser removed — properties reference moved into fn editor popup -->
 
         <!-- Save / cancel -->
         <div class="flex gap-3">
@@ -609,6 +668,93 @@ onMounted(async () => {
             <span v-if="c.example" class="ml-auto truncate text-ctp-subtext0">{{ c.example }}</span>
           </li>
         </ul>
+      </div>
+    </Teleport>
+
+    <!-- Function editor popup modal -->
+    <Teleport to="body">
+      <div
+        v-if="showFnEditor"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        @mousedown.self="cancelFnEditor"
+      >
+        <div class="flex h-[80vh] w-full max-w-4xl overflow-hidden rounded-xl border border-ctp-surface1 bg-ctp-base shadow-2xl">
+          <!-- Left: function name + code editor -->
+          <div class="flex flex-1 flex-col overflow-hidden border-r border-ctp-surface0">
+            <div class="flex items-center justify-between border-b border-ctp-surface0 px-4 py-3">
+              <h3 class="text-sm font-semibold text-ctp-text">Edit dynamic property</h3>
+              <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="cancelFnEditor">✕</button>
+            </div>
+            <div class="px-4 pt-3">
+              <label class="mb-1 block text-xs text-ctp-subtext0">Property name</label>
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-xs text-ctp-mauve">fn.</span>
+                <input
+                  v-model="fnDraftName"
+                  type="text"
+                  placeholder="myProperty"
+                  class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+                />
+              </div>
+              <p class="mt-1 text-xs text-ctp-subtext0">Use as <code class="font-mono text-ctp-mauve">&#123;&#123;fn.{{ fnDraftName || 'name' }}&#125;&#125;</code> in your template</p>
+            </div>
+            <div class="flex flex-1 flex-col overflow-hidden px-4 pb-4 pt-3">
+              <label class="mb-1 block text-xs text-ctp-subtext0">Function code</label>
+              <textarea
+                v-model="fnDraftCode"
+                spellcheck="false"
+                class="flex-1 resize-none rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 font-mono text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+                placeholder="(signal, arc) => {&#10;  return signal.data.from.name&#10;}"
+              />
+            </div>
+            <div class="flex gap-3 border-t border-ctp-surface0 px-4 py-3">
+              <button
+                class="rounded-lg bg-ctp-mauve px-4 py-1.5 text-sm font-medium text-ctp-base hover:opacity-90"
+                @click="saveFnEditor"
+              >
+                Save
+              </button>
+              <button class="text-sm text-ctp-subtext0 hover:text-ctp-text" @click="cancelFnEditor">
+                Cancel
+              </button>
+            </div>
+          </div>
+
+          <!-- Right: signal & arc properties reference -->
+          <div class="flex w-80 flex-col overflow-hidden">
+            <div class="border-b border-ctp-surface0 px-4 py-3">
+              <h4 class="text-xs font-semibold text-ctp-text">Available properties</h4>
+              <p class="mt-0.5 text-xs text-ctp-subtext0">Click to copy path</p>
+            </div>
+            <div class="flex-1 overflow-y-auto px-3 py-2 text-xs">
+              <p class="mb-1.5 font-medium text-ctp-text">signal</p>
+              <div class="mb-3 space-y-1">
+                <button
+                  v-for="p in signalProps"
+                  :key="p.path"
+                  class="flex w-full items-start gap-2 rounded px-1.5 py-1 text-left hover:bg-ctp-surface0 active:bg-ctp-surface1"
+                  @click="copyPropPath(p.path)"
+                >
+                  <code class="shrink-0 text-ctp-blue">{{ p.path }}</code>
+                  <span class="min-w-0 truncate text-ctp-subtext0">{{ p.note ?? p.example }}</span>
+                </button>
+              </div>
+
+              <p class="mb-1.5 font-medium text-ctp-text">arc</p>
+              <div class="space-y-1">
+                <button
+                  v-for="p in arcProps"
+                  :key="p.path"
+                  class="flex w-full items-start gap-2 rounded px-1.5 py-1 text-left hover:bg-ctp-surface0 active:bg-ctp-surface1"
+                  @click="copyPropPath(p.path)"
+                >
+                  <code class="shrink-0 text-ctp-blue">{{ p.path }}</code>
+                  <span class="min-w-0 truncate text-ctp-subtext0">{{ p.note ?? p.example }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </Teleport>
   </div>
