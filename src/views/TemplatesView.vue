@@ -675,6 +675,7 @@ onMounted(async () => {
 
     <!-- Function editor popup modal -->
     <Teleport to="body">
+      <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -->
       <div
         v-if="showFnEditor"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
@@ -688,10 +689,11 @@ onMounted(async () => {
               <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="cancelFnEditor">✕</button>
             </div>
             <div class="px-4 pt-3">
-              <label class="mb-1 block text-xs text-ctp-subtext0">Property name</label>
+              <label for="fn-prop-name" class="mb-1 block text-xs text-ctp-subtext0">Property name</label>
               <div class="flex items-center gap-2">
                 <span class="font-mono text-xs text-ctp-mauve">fn.</span>
                 <input
+                  id="fn-prop-name"
                   v-model="fnDraftName"
                   type="text"
                   placeholder="myProperty"
@@ -701,8 +703,9 @@ onMounted(async () => {
               <p class="mt-1 text-xs text-ctp-subtext0">Use as <code class="font-mono text-ctp-mauve">&#123;&#123;fn.{{ fnDraftName || 'name' }}&#125;&#125;</code> in your template</p>
             </div>
             <div class="flex flex-1 flex-col overflow-hidden px-4 pb-4 pt-3">
-              <label class="mb-1 block text-xs text-ctp-subtext0">Function code</label>
+              <label for="fn-prop-code" class="mb-1 block text-xs text-ctp-subtext0">Function code</label>
               <textarea
+                id="fn-prop-code"
                 v-model="fnDraftCode"
                 spellcheck="false"
                 class="flex-1 resize-none rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 font-mono text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
