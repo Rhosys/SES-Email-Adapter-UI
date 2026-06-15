@@ -156,7 +156,7 @@ async function removeLabel(label: string) {
 </script>
 
 <template>
-  <div class="arc-detail mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-6">
+  <div class="arc-detail mx-auto flex min-h-full max-w-3xl flex-col px-4 py-6">
     <!-- Back link -->
     <RouterLink
       to="/"

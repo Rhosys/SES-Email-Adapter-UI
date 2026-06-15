@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useSupportPanel } from '@/composables/useSupportPanel'
 import { loginClient } from '@/lib/auth'
@@ -9,8 +9,20 @@ const emit = defineEmits<{ toggleSidebar: [] }>()
 defineProps<{ showHamburger?: boolean; hideSettings?: boolean }>()
 
 const router = useRouter()
+const route = useRoute()
 const accountStore = useAccountStore()
 const { open: supportOpen } = useSupportPanel()
+
+// ── Account switcher (only visible during onboarding) ─────────────────────────
+const switcherOpen = ref(false)
+const showAccountSwitcher = computed(() =>
+  route.path === '/onboarding' && accountStore.accounts.length > 1,
+)
+
+function selectAccount(id: string) {
+  switcherOpen.value = false
+  accountStore.switchAccount(id)
+}
 
 // ── User menu ─────────────────────────────────────────────────────────────────
 interface Identity {
@@ -136,6 +148,31 @@ function onUserMenuFocusout(e: FocusEvent) {
 
     <!-- Right section: user avatar -->
     <div class="flex items-center gap-2">
+      <!-- Account switcher (onboarding only) -->
+      <div v-if="showAccountSwitcher" class="relative">
+        <button
+          type="button"
+          class="flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-ctp-subtext1 transition-colors hover:bg-ctp-surface0/50 hover:text-ctp-text"
+          @click="switcherOpen = !switcherOpen"
+        >
+          <span class="max-w-[120px] truncate">{{ accountStore.account?.name ?? 'Account' }}</span>
+          <svg class="h-3 w-3 shrink-0" :class="{ 'rotate-180': switcherOpen }" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4" /></svg>
+        </button>
+        <div v-if="switcherOpen" class="absolute right-0 top-full z-50 mt-1 min-w-[180px] overflow-hidden rounded-lg border border-ctp-surface1 bg-ctp-mantle shadow-lg">
+          <button
+            v-for="acc in accountStore.accounts"
+            :key="acc.accountId"
+            class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-ctp-surface0"
+            :class="acc.accountId === accountStore.accountId ? 'font-medium text-ctp-text' : 'text-ctp-subtext1'"
+            @click="selectAccount(acc.accountId)"
+          >
+            <span class="flex-1 truncate">{{ acc.name }}</span>
+          </button>
+        </div>
+        <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -->
+        <div v-if="switcherOpen" class="fixed inset-0 z-40" @click="switcherOpen = false" />
+      </div>
+
       <!-- User avatar + dropdown menu -->
       <div class="relative" @focusout="onUserMenuFocusout">
         <button
