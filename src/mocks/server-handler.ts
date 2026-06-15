@@ -82,7 +82,9 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
 
   // GET /accounts/:accountId/arcs/:arcId/signals
   if (method === 'GET' && match('/accounts/:accountId/arcs/:arcId/signals', url)) {
-    return { status: 200, body: { signals: mockSignals, pagination: { cursor: null } } }
+    const arcParams = match('/accounts/:accountId/arcs/:arcId/signals', url)!
+    const arcSignals = mockSignals[arcParams.arcId] ?? Object.values(mockSignals)[0] ?? []
+    return { status: 200, body: { signals: arcSignals, pagination: { cursor: null } } }
   }
 
   // GET /accounts/:accountId/signals (quarantine)

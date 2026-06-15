@@ -6,15 +6,18 @@ import { execSync } from 'node:child_process'
 
 /** Dev-only mock API middleware — serves mock data for /accounts/* routes when in mock mode. */
 function mockApiPlugin(): Plugin {
+  let isMockMode = false
   return {
     name: 'mock-api',
     apply: 'serve',
+    config(_cfg, { mode }) {
+      isMockMode = mode === 'mock'
+    },
     configureServer(server) {
-      // Only active in mock mode
-      if (process.env.VITE_MOCK !== 'true') return
+      if (!isMockMode) return
 
       server.middlewares.use(async (req, res, next) => {
-        if (!req.url?.startsWith('/accounts') && req.url !== '/accounts') {
+        if (!req.url?.startsWith('/accounts')) {
           return next()
         }
 
