@@ -134,29 +134,8 @@ function onUserMenuFocusout(e: FocusEvent) {
       <slot name="search" />
     </div>
 
-    <!-- Right section: account switcher + user avatar -->
+    <!-- Right section: user avatar -->
     <div class="flex items-center gap-2">
-      <!-- Account switcher (multiple accounts) -->
-      <div v-if="accountStore.accounts.length > 1" class="relative">
-        <select
-          class="appearance-none rounded-lg border border-ctp-surface1 bg-ctp-mantle px-2 py-1 pr-6 text-xs text-ctp-subtext1 hover:border-ctp-surface2 focus:border-ctp-mauve focus:outline-none"
-          :value="accountStore.accountId"
-          aria-label="Switch account"
-          @change="accountStore.switchAccount(($event.target as HTMLSelectElement).value)"
-        >
-          <option
-            v-for="acc in accountStore.accounts"
-            :key="acc.accountId"
-            :value="acc.accountId"
-          >
-            {{ acc.name || acc.accountId.slice(0, 8) }}
-          </option>
-        </select>
-        <svg class="pointer-events-none absolute right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-ctp-subtext0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-          <path d="M4 6l4 4 4-4" />
-        </svg>
-      </div>
-
       <!-- User avatar + dropdown menu -->
       <div class="relative" @focusout="onUserMenuFocusout">
         <button
