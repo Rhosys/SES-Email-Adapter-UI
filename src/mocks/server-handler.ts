@@ -83,7 +83,7 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
   // GET /accounts/:accountId/arcs/:arcId/signals
   if (method === 'GET' && match('/accounts/:accountId/arcs/:arcId/signals', url)) {
     const arcParams = match('/accounts/:accountId/arcs/:arcId/signals', url)!
-    const arcSignals = mockSignals[arcParams.arcId] ?? Object.values(mockSignals)[0] ?? []
+    const arcSignals = mockSignals[arcParams.arcId] ?? []
     return { status: 200, body: { signals: arcSignals, pagination: { cursor: null } } }
   }
 

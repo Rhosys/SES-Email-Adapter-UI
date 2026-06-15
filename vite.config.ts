@@ -26,10 +26,15 @@ function mockApiPlugin(): Plugin {
           const { handleMockRequest } = await server.ssrLoadModule('/src/mocks/server-handler.ts')
           const result = await handleMockRequest(req.method ?? 'GET', req.url)
           if (result) {
-            res.setHeader('Content-Type', 'application/json')
-            res.setHeader('Access-Control-Allow-Origin', '*')
-            res.statusCode = result.status
-            res.end(JSON.stringify(result.body))
+            if (result.status === 204) {
+              res.statusCode = 204
+              res.end()
+            } else {
+              res.setHeader('Content-Type', 'application/json')
+              res.setHeader('Access-Control-Allow-Origin', '*')
+              res.statusCode = result.status
+              res.end(JSON.stringify(result.body))
+            }
           } else {
             res.statusCode = 404
             res.end(JSON.stringify({ title: 'Not found' }))

@@ -185,6 +185,7 @@ watch(expanded, (v) => { if (!v) resetEmailZoom() })
 
 const iframeStyle = computed(() => ({
   minHeight: '200px',
+  maxHeight: 'calc(100vh - 200px)',
   border: 'none',
   display: 'block',
   transformOrigin: '0 0',
@@ -301,7 +302,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
     <!-- Email body -->
     <template v-if="expanded && signal.type === 'email'">
       <div class="signal-card__body border-t border-ctp-surface1">
-        <div v-if="signal.data.body" class="relative overflow-hidden bg-white" data-testid="email-body-container">
+        <div v-if="signal.data.body" class="relative overflow-auto bg-white min-h-[300px] max-h-[calc(100vh-200px)]" data-testid="email-body-container">
           <iframe
             :srcdoc="signal.data.body"
             sandbox="allow-popups allow-popups-to-escape-sandbox"

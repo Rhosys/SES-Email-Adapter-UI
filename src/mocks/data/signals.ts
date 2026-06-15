@@ -287,6 +287,33 @@ export const mockSignals: Record<string, Signal[]> = {
     },
   ],
 
+  // ─── payments — Stripe subscription renewal ─────────────────────────────────
+  arc_pay_2: [
+    {
+      signalId: 'sig_pay2_1',
+      arcId: 'arc_pay_2',
+      source: 'system',
+      status: 'active',
+      type: 'email',
+      createdAt: '2026-06-01T00:05:00Z',
+      data: {
+        receivedAt: '2026-06-01T00:05:00Z',
+        summary: 'Stripe subscription renewed — $29/mo for Pro plan',
+        from: { address: 'receipts@stripe.com', name: 'Stripe' },
+        to: [{ address: 'receipts@demo.catchmail.app' }],
+        cc: [],
+        subject: 'Receipt for your subscription renewal',
+        body: '<div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:600px;margin:0 auto;padding:40px 20px"><div style="text-align:center;margin-bottom:24px"><img src="https://stripe.com/img/v3/home/twitter.png" alt="Stripe" width="80"/></div><h2 style="color:#1a1a1a;font-size:18px;margin-bottom:16px">Payment receipt</h2><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:8px 0;color:#6b7280">Plan</td><td style="padding:8px 0;font-weight:600">Pro (monthly)</td></tr><tr><td style="padding:8px 0;color:#6b7280">Amount</td><td style="padding:8px 0;font-weight:600">$29.00</td></tr><tr><td style="padding:8px 0;color:#6b7280">Date</td><td style="padding:8px 0">June 1, 2026</td></tr><tr><td style="padding:8px 0;color:#6b7280">Card</td><td style="padding:8px 0">Visa ending in 4242</td></tr></table><p style="font-size:13px;color:#9ca3af">If you have questions, contact <a href="mailto:support@stripe.com" style="color:#635bff">support@stripe.com</a>.</p></div>',
+        attachments: [],
+        headers: { 'Return-Path': 'receipts@stripe.com' },
+        recipientAddress: 'receipts@demo.catchmail.app',
+        workflow: 'payments',
+        workflowData: { workflow: 'payments', paymentType: 'subscription_renewal', vendor: 'Stripe', amount: 29, currency: 'USD' },
+        spamScore: 0,
+      },
+    },
+  ],
+
   // ─── payments — failed payment ─────────────────────────────────────────────
   arc_pay_3: [
     {

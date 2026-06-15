@@ -4,7 +4,6 @@ import Handlebars from 'handlebars'
 import { marked } from 'marked'
 import { useTemplatesStore } from '@/stores/templates'
 import { useAccountStore } from '@/stores/account'
-import CodeEditor from '@/components/CodeEditor.vue'
 import SignalBrowser from '@/components/SignalBrowser.vue'
 import { useHbsAutocomplete } from '@/composables/useHbsAutocomplete'
 import type { EmailTemplate, TemplateFunction } from '@/types/server'
@@ -117,21 +116,7 @@ function removeFunction(idx: number) {
   draftFunctions.value = draftFunctions.value.filter((_, i) => i !== idx)
 }
 
-function _dropFnError(name: string) {
-  const next = { ...fnErrors.value }
-  delete next[name]
-  fnErrors.value = next
-}
 
-function updateFnName(idx: number, name: string) {
-  draftFunctions.value = draftFunctions.value.map((f, i) => (i === idx ? { ...f, name } : f))
-}
-
-function updateFnCode(idx: number, code: string) {
-  draftFunctions.value = draftFunctions.value.map((f, i) => (i === idx ? { ...f, code } : f))
-  const fn = draftFunctions.value[idx]
-  if (fn?.name && fnErrors.value[fn.name]) _dropFnError(fn.name)
-}
 
 // ─── Worker sandbox ───────────────────────────────────────────────────────────
 
@@ -539,7 +524,7 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Dynamic Properties (function editors) -->
+        <!-- Dynamic Properties (function list — click to edit in popup) -->
         <div v-if="draftFunctions.length > 0">
           <!-- Validation error summary -->
           <div
@@ -549,53 +534,35 @@ onMounted(async () => {
             Fix the errors below before saving.
           </div>
 
-          <div class="space-y-3">
+          <div class="space-y-1">
             <div
               v-for="(fn, idx) in draftFunctions"
               :key="idx"
-              class="rounded-lg border bg-ctp-mantle p-3"
+              class="flex items-center gap-2 rounded-lg border px-3 py-2"
               :class="fnErrors[fn.name] ? 'border-ctp-red' : 'border-ctp-surface1'"
             >
-              <div class="mb-2 flex items-center gap-2">
-                <code class="text-xs text-ctp-subtext0">fn.</code>
-                <input
-                  :id="`fn-name-${idx}`"
-                  :value="fn.name"
-                  type="text"
-                  :aria-label="`Function name ${idx + 1}`"
-                  placeholder="functionName"
-                  class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 font-mono text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-                  @input="updateFnName(idx, ($event.target as HTMLInputElement).value)"
-                />
-                <button
-                  class="text-xs text-ctp-subtext0 hover:text-ctp-red"
-                  @click="removeFunction(idx)"
-                >
-                  Remove
-                </button>
-              </div>
-              <CodeEditor
-                :model-value="fn.code"
-                min-height="7rem"
-                signal-completions
-                @update:model-value="updateFnCode(idx, $event)"
-              />
-              <!-- Per-function validation error -->
-              <div
+              <button
+                class="flex-1 text-left font-mono text-xs text-ctp-mauve hover:underline"
+                @click="editingFnIdx = idx"
+              >
+                fn.{{ fn.name || '(unnamed)' }}
+              </button>
+              <span
                 v-if="fn.name && fnErrors[fn.name]"
-                class="mt-2 flex items-start gap-1.5 rounded bg-ctp-red/10 px-2 py-1.5 font-mono text-xs text-ctp-red"
-              >
-                <span class="shrink-0">✕</span>
-                <span>{{ fnErrors[fn.name] }}</span>
-              </div>
-              <!-- Last execution error from backend -->
-              <div
+                class="text-xs text-ctp-red"
+                title="Has error"
+              >✕</span>
+              <span
                 v-if="fn.lastError && !fnErrors[fn.name]"
-                class="mt-2 flex items-start gap-1.5 rounded bg-ctp-peach/10 px-2 py-1.5 font-mono text-xs text-ctp-peach"
+                class="text-xs text-ctp-peach"
+                title="Last execution error"
+              >⚠</span>
+              <button
+                class="text-xs text-ctp-subtext0 hover:text-ctp-red"
+                @click="removeFunction(idx)"
               >
-                <span class="shrink-0">⚠</span>
-                <span>Last execution error: {{ fn.lastError }}</span>
-              </div>
+                Remove
+              </button>
             </div>
           </div>
         </div>

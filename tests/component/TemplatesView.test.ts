@@ -132,7 +132,7 @@ describe('TemplatesView — error indicator', () => {
     expect(wrapper.find('span.bg-ctp-red').exists()).toBe(false)
   })
 
-  it('shows lastError block in editor when function has lastError and no local validation error', async () => {
+  it('shows lastError indicator in editor when function has lastError and no local validation error', async () => {
     const tpl = mockTemplate({
       functions: [{ name: 'greet', code: '() => "hi"', lastError: 'TypeError: cannot read property' }],
     })
@@ -143,10 +143,9 @@ describe('TemplatesView — error indicator', () => {
     await editBtn!.trigger('click')
     await wrapper.vm.$nextTick()
 
-    const errorBlock = wrapper.find('.bg-ctp-peach\\/10')
-    expect(errorBlock.exists()).toBe(true)
-    expect(errorBlock.text()).toContain('Last execution error:')
-    expect(errorBlock.text()).toContain('TypeError: cannot read property')
+    const indicator = wrapper.find('span.text-ctp-peach[title="Last execution error"]')
+    expect(indicator.exists()).toBe(true)
+    expect(indicator.text()).toBe('⚠')
   })
 
   it('does not show lastError block in editor when function has no lastError', async () => {
@@ -176,20 +175,20 @@ describe('TemplatesView — error indicator', () => {
     await editBtn!.trigger('click')
     await wrapper.vm.$nextTick()
 
-    // Before save: backend error is visible (no local error yet)
-    expect(wrapper.find('.bg-ctp-peach\\/10').exists()).toBe(true)
+    // Before save: backend error indicator is visible (no local error yet)
+    expect(wrapper.find('span.text-ctp-peach[title="Last execution error"]').exists()).toBe(true)
 
     // Trigger save to run validation via mocked worker
     const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Save changes')
     await saveBtn!.trigger('click')
     await flushPromises()
 
-    // After validation, the local error block (bg-ctp-red/10) should show
-    const localError = wrapper.find('.bg-ctp-red\\/10')
+    // After validation, the local error indicator (✕) should show
+    const localError = wrapper.find('span.text-ctp-red[title="Has error"]')
     expect(localError.exists()).toBe(true)
 
-    // The backend lastError block (bg-ctp-peach/10) should NOT show
-    const backendError = wrapper.find('.bg-ctp-peach\\/10')
+    // The backend lastError indicator should NOT show (fnErrors takes precedence)
+    const backendError = wrapper.find('span.text-ctp-peach[title="Last execution error"]')
     expect(backendError.exists()).toBe(false)
   })
 })

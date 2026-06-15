@@ -13,7 +13,6 @@ import { groupByBodyFingerprint, attachLinkedSignals } from '@/lib/dedup'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
 import SignalRenderer from '@/components/SignalRenderer.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
-import ReplyComposer from '@/components/ReplyComposer.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 
@@ -33,6 +32,8 @@ const showReply = computed(() => {
 })
 
 const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalsStore.items)))
+
+const reversedSignals = computed(() => [...dedupedSignals.value].reverse())
 
 const availableUntil = computed(() => {
   const arc = signalsStore.arc
@@ -220,9 +221,7 @@ async function removeLabel(label: string) {
           <span v-if="signalsStore.arc.status === 'deleted' && signalsStore.arc.deletedAt">
             · Deleted on {{ new Date(signalsStore.arc.deletedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
           </span>
-          <span v-if="signalsStore.arc.urgency && signalsStore.arc.urgency !== 'normal'" class="capitalize"
-            >· {{ signalsStore.arc.urgency }}</span
-          >
+
           <span v-if="availableUntil" class="text-ctp-subtext0"
             >· Available until {{ availableUntil }}</span
           >
@@ -257,7 +256,7 @@ async function removeLabel(label: string) {
 
       <!-- Signal thread — received + draft signals -->
       <div class="space-y-4">
-        <template v-for="group in dedupedSignals" :key="group.signal.signalId">
+        <template v-for="group in reversedSignals" :key="group.signal.signalId">
           <DraftSignalCard
             v-if="group.signal.status === 'draft'"
             :signal="group.signal"
@@ -268,10 +267,7 @@ async function removeLabel(label: string) {
         </template>
       </div>
 
-      <!-- Reply composer (opened from header Reply button) -->
-      <div v-if="showReply" class="mt-6">
-        <ReplyComposer :action="startDraft" />
-      </div>
+
     </template>
 
     <ConfirmDialog
