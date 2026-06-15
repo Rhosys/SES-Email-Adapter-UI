@@ -26,11 +26,6 @@ const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel }
 
 const arcId = computed(() => route.params.id as string)
 
-const showReply = computed(() => {
-  const workflow = signalsStore.arc?.workflow
-  return workflow !== 'auth' && workflow !== 'test' && workflow !== 'status'
-})
-
 const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalsStore.items)))
 
 const reversedSignals = computed(() => [...dedupedSignals.value].reverse())
@@ -50,10 +45,6 @@ onMounted(async () => {
 onUnmounted(() => {
   signalsStore.reset()
 })
-
-async function startDraft() {
-  await signalsStore.createDraft(arcId.value)
-}
 
 function onDraftDiscard() {
   void signalsStore.fetchAll(arcId.value)
@@ -170,17 +161,6 @@ async function removeLabel(label: string) {
           <h1 class="text-xl font-semibold text-ctp-text">{{ signalsStore.arc.subject ?? signalsStore.arc.summary }}</h1>
           <div class="flex shrink-0 items-center gap-2">
             <AsyncButton
-              v-if="showReply"
-              :action="startDraft"
-              variant="outline"
-              class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
-            >
-              <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                <path d="M6 3.5L1 8l5 4.5V9.5c4.5 0 7.5 1.5 9 4.5-.5-4.5-3-8-9-8V3.5z"/>
-              </svg>
-              Reply
-            </AsyncButton>
-            <AsyncButton
               v-if="signalsStore.arc.status === 'active'"
               :action="archive"
               variant="outline"
@@ -209,10 +189,6 @@ async function removeLabel(label: string) {
         <div v-if="signalsStore.arc.subject && signalsStore.arc.summary !== signalsStore.arc.subject" class="mt-2">
           <span class="text-xs font-medium text-ctp-subtext0">Summary</span>
           <p class="text-sm text-ctp-subtext1">{{ signalsStore.arc.summary }}</p>
-          <div v-if="signalsStore.latestSignal && isInboundEmailSignal(signalsStore.latestSignal)" class="mt-1 text-xs text-ctp-subtext0">
-            <span>{{ signalsStore.latestSignal.data.subject }}</span>
-            <span v-if="signalsStore.latestSignal.data.recipientAddress" class="ml-2 text-ctp-subtext0">→ {{ signalsStore.latestSignal.data.recipientAddress }}</span>
-          </div>
         </div>
         <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-ctp-subtext0">
           <span class="capitalize">{{ signalsStore.arc.workflow }}</span>
