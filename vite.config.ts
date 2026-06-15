@@ -14,23 +14,27 @@ function getBuildCommit(): string {
   }
 }
 
-/** Injects %VITE_API_WS_URL% into index.html — derived from VITE_API_BASE_URL at build time. */
-function apiWsUrlPlugin(): Plugin {
+/** Injects environment variable placeholders into index.html at dev/build time. */
+function envHtmlPlugin(): Plugin {
   return {
-    name: 'api-ws-url',
+    name: 'env-html',
     transformIndexHtml(html) {
       const apiBase = process.env.VITE_API_BASE_URL ?? 'http://localhost:8787'
+      const authressUrl = process.env.VITE_AUTHRESS_LOGIN_URL ?? 'https://login.rhosys.cloud'
       const wsUrl = apiBase.startsWith('https://')
         ? apiBase.replace('https://', 'wss://')
         : apiBase.replace('http://', 'ws://')
-      return html.replaceAll('%VITE_API_WS_URL%', wsUrl)
+      return html
+        .replaceAll('%VITE_API_BASE_URL%', apiBase)
+        .replaceAll('%VITE_AUTHRESS_LOGIN_URL%', authressUrl)
+        .replaceAll('%VITE_API_WS_URL%', wsUrl)
     },
   }
 }
 
 export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? '/',
-  plugins: [vue(), tailwindcss(), apiWsUrlPlugin()],
+  plugins: [vue(), tailwindcss(), envHtmlPlugin()],
   define: {
     VERSION_INFO: JSON.stringify({
       releaseDate: new Date().toISOString(),
