@@ -6,12 +6,15 @@ import { useLabelsStore } from '@/stores/labels'
 import { useViewsStore } from '@/stores/views'
 import type { Label, View, Workflow } from '@/types/server'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 
 const route = useRoute()
 const router = useRouter()
 const accountStore = useAccountStore()
 const labelsStore = useLabelsStore()
 const viewsStore = useViewsStore()
+const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
 const activeTab = ref<'labels' | 'views'>('labels')
 
@@ -73,7 +76,8 @@ async function saveLabel() {
 }
 
 async function deleteLabel(label: Label) {
-  if (!confirm(`Delete label "${label.name}"?`)) return
+  const confirmed = await confirmAction({ title: 'Delete label', message: `Delete label "${label.name}"?`, confirmLabel: 'Delete', confirmVariant: 'danger' })
+  if (!confirmed) return
   await labelsStore.deleteLabel(label.label)
 }
 
@@ -141,7 +145,8 @@ async function saveView() {
 }
 
 async function deleteView(view: View) {
-  if (!confirm(`Delete view "${view.name}"?`)) return
+  const confirmed = await confirmAction({ title: 'Delete view', message: `Delete view "${view.name}"?`, confirmLabel: 'Delete', confirmVariant: 'danger' })
+  if (!confirmed) return
   await viewsStore.deleteView(view.viewId)
 }
 
@@ -478,5 +483,7 @@ onMounted(async () => {
         </TransitionGroup>
       </section>
     </main>
+
+    <ConfirmDialog :open="dialogOpen" :title="dialogOptions.title" :message="dialogOptions.message" :confirm-label="dialogOptions.confirmLabel" :confirm-variant="dialogOptions.confirmVariant" @confirm="onConfirm" @cancel="onCancel" />
   </div>
 </template>

@@ -5,11 +5,14 @@ import { marked } from 'marked'
 import { useTemplatesStore } from '@/stores/templates'
 import { useAccountStore } from '@/stores/account'
 import { useHbsAutocomplete } from '@/composables/useHbsAutocomplete'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import type { EmailTemplate, TemplateFunction } from '@/types/server'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 
 const store = useTemplatesStore()
 const accountStore = useAccountStore()
+const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
 // ─── Editor state ─────────────────────────────────────────────────────────────
 
@@ -87,7 +90,8 @@ async function save() {
 }
 
 async function remove(tpl: EmailTemplate) {
-  if (!confirm(`Delete "${tpl.name}"? Rules using this template will stop working.`)) return
+  const confirmed = await confirmAction({ title: 'Delete template', message: `Delete "${tpl.name}"? Rules using this template will stop working.`, confirmLabel: 'Delete', confirmVariant: 'danger' })
+  if (!confirmed) return
   await store.deleteTemplate(tpl.templateId)
 }
 
@@ -755,5 +759,7 @@ onMounted(async () => {
         </div>
       </div>
     </Teleport>
+
+    <ConfirmDialog :open="dialogOpen" :title="dialogOptions.title" :message="dialogOptions.message" :confirm-label="dialogOptions.confirmLabel" :confirm-variant="dialogOptions.confirmVariant" @confirm="onConfirm" @cancel="onCancel" />
   </div>
 </template>

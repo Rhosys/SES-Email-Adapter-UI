@@ -5,8 +5,10 @@ import { loginClient } from '@/lib/auth'
 import { UserConfigurationScreen } from '@authress/login'
 import type { DeviceType, Device, LinkedIdentity } from '@authress/login'
 import { useFeatureTour } from '@/composables/useFeatureTour'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import ShortcutHelpOverlay from '@/components/ShortcutHelpOverlay.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import AppNavbar from '@/components/AppNavbar.vue'
 import SupportPanel from '@/components/SupportPanel.vue'
 import { useSupportPanel } from '@/composables/useSupportPanel'
@@ -14,6 +16,7 @@ import { useSupportPanel } from '@/composables/useSupportPanel'
 const accountStore = useAccountStore()
 const { startTour } = useFeatureTour()
 const { open: supportOpen } = useSupportPanel()
+const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 const shortcutHelpOpen = ref(false)
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
@@ -90,12 +93,8 @@ function providerIcon(connectionId: string): string {
 
 async function disconnectIdentity(identity: LinkedIdentity) {
   if (!canDisconnect.value) return
-  if (
-    !confirm(
-      `Disconnect ${providerLabel(identity.connection.connectionId)}? You must keep at least one connection.`,
-    )
-  )
-    return
+  const confirmed = await confirmAction({ title: 'Disconnect identity', message: `Disconnect ${providerLabel(identity.connection.connectionId)}? You must keep at least one connection.`, confirmLabel: 'Disconnect', confirmVariant: 'danger' })
+  if (!confirmed) return
   disconnectPending.value = identity.connection.userId
   profileError.value = null
   try {
@@ -124,7 +123,8 @@ async function openMfaSetup() {
 }
 
 async function removeDevice(device: Device) {
-  if (!confirm(`Remove "${device.name}"?`)) return
+  const confirmed = await confirmAction({ title: 'Remove device', message: `Remove "${device.name}"?`, confirmLabel: 'Remove', confirmVariant: 'danger' })
+  if (!confirmed) return
   removePending.value = device.deviceId
   deviceError.value = null
   try {
@@ -495,4 +495,5 @@ async function registerPasskey() {
   </div>
 
   <SupportPanel :open="supportOpen" @close="supportOpen = false" />
+  <ConfirmDialog :open="dialogOpen" :title="dialogOptions.title" :message="dialogOptions.message" :confirm-label="dialogOptions.confirmLabel" :confirm-variant="dialogOptions.confirmVariant" @confirm="onConfirm" @cancel="onCancel" />
 </template>
