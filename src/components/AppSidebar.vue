@@ -57,7 +57,7 @@ const accountSwitcherOpen = ref(false)
       <span class="text-sm font-semibold text-ctp-text">Numaeel</span>
     </div>
 
-    <nav class="flex-1 overflow-y-auto py-2">
+    <nav class="flex-1 overflow-y-auto py-8">
       <!-- Main nav -->
       <div class="px-2">
         <RouterLink
