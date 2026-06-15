@@ -1,6 +1,6 @@
 import type { Signal } from '@/types/server'
 
-export const mockQuarantinedSignals: Signal[] = [
+export const mockQuarantinedSignalsVisible: Signal[] = [
   {
     signalId: 'sig_quar_1',
     source: 'system',
@@ -92,6 +92,9 @@ export const mockQuarantinedSignals: Signal[] = [
       spamScore: 0.2,
     },
   },
+]
+
+export const mockQuarantinedSignalsHidden: Signal[] = [
   {
     signalId: 'sig_quar_5',
     source: 'system',
@@ -112,6 +115,28 @@ export const mockQuarantinedSignals: Signal[] = [
       workflow: 'alert',
       workflowData: { workflow: 'alert', alertType: 'fraud_alert', service: 'Unknown', severity: 'critical', requiresAction: false },
       spamScore: 0.92,
+    },
+  },
+  {
+    signalId: 'sig_quar_6',
+    source: 'system',
+    status: 'quarantine_hidden',
+    type: 'email',
+    createdAt: '2026-06-04T07:30:00Z',
+    data: {
+      receivedAt: '2026-06-04T07:30:00Z',
+      summary: 'Nigerian prince advance-fee scam',
+      from: { address: 'prince.mubarak@gmail-secure-ng.com', name: 'Prince Mubarak' },
+      to: [{ address: 'hello@demo.catchmail.app' }],
+      cc: [],
+      subject: 'Confidential: Transfer of $12.5 Million USD',
+      body: '<div style="font-family:Times New Roman,serif;padding:24px"><p>Dear Friend,</p><p>I am Prince Mubarak, son of the late King of a West African nation. I need your help to transfer $12.5 million to your country. You will receive 30% for your assistance.</p><p>Please reply with your bank details urgently.</p><p>God bless you.</p></div>',
+      attachments: [],
+      headers: { 'Return-Path': 'prince.mubarak@gmail-secure-ng.com', 'X-Spam-Flag': 'YES' },
+      recipientAddress: 'hello@demo.catchmail.app',
+      workflow: 'crm',
+      workflowData: { workflow: 'crm', senderCompany: 'Unknown' },
+      spamScore: 0.98,
     },
   },
 ]

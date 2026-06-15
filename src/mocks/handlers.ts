@@ -8,7 +8,7 @@ import { mockAliases } from './data/aliases'
 import { mockDomains } from './data/domains'
 import { mockTemplates } from './data/templates'
 import { mockTeamMembers } from './data/team'
-import { mockQuarantinedSignals } from './data/quarantine'
+import { mockQuarantinedSignalsVisible, mockQuarantinedSignalsHidden } from './data/quarantine'
 import { mockViews } from './data/views'
 import { mockForwardingAddresses } from './data/forwarding'
 import { mockAuditEvents } from './data/audit'
@@ -78,9 +78,11 @@ export const handlers = [
   http.get('/accounts/:accountId/signals', ({ request }) => {
     const url = new URL(request.url)
     const status = url.searchParams.get('status')
+    if (status === 'quarantine_hidden') {
+      return HttpResponse.json({ signals: mockQuarantinedSignalsHidden, pagination: { cursor: null } })
+    }
     if (status?.startsWith('quarantine')) {
-      const filtered = mockQuarantinedSignals.filter((s) => s.status === status)
-      return HttpResponse.json({ signals: filtered, pagination: { cursor: null } })
+      return HttpResponse.json({ signals: mockQuarantinedSignalsVisible, pagination: { cursor: null } })
     }
     return HttpResponse.json({ signals: mockSystemSignals, pagination: { cursor: null } })
   }),

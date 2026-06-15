@@ -12,7 +12,7 @@ import { mockAliases } from './data/aliases'
 import { mockDomains } from './data/domains'
 import { mockTemplates } from './data/templates'
 import { mockTeamMembers } from './data/team'
-import { mockQuarantinedSignals } from './data/quarantine'
+import { mockQuarantinedSignalsVisible, mockQuarantinedSignalsHidden } from './data/quarantine'
 import { mockViews } from './data/views'
 import { mockForwardingAddresses } from './data/forwarding'
 import { mockAuditEvents } from './data/audit'
@@ -92,7 +92,12 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
 
   // GET /accounts/:accountId/signals (quarantine)
   if (method === 'GET' && match('/accounts/:accountId/signals', url)) {
-    return { status: 200, body: { signals: mockQuarantinedSignals, pagination: { cursor: null } } }
+    const urlObj = new URL(url, 'http://localhost')
+    const status = urlObj.searchParams.get('status')
+    if (status === 'quarantine_hidden') {
+      return { status: 200, body: { signals: mockQuarantinedSignalsHidden, pagination: { cursor: null } } }
+    }
+    return { status: 200, body: { signals: mockQuarantinedSignalsVisible, pagination: { cursor: null } } }
   }
 
   // GET /accounts/:accountId/rules
