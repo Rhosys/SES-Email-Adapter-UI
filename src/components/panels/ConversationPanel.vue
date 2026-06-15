@@ -2,20 +2,6 @@
 import type { ConversationData } from '@/types/server'
 
 defineProps<{ data: ConversationData }>()
-
-const sentimentLabel: Record<ConversationData['sentiment'], string> = {
-  positive: 'Positive',
-  neutral: 'Neutral',
-  negative: 'Negative',
-  urgent: 'Urgent',
-}
-
-const sentimentClass: Record<ConversationData['sentiment'], string> = {
-  positive: 'text-ctp-green',
-  neutral: 'text-ctp-subtext0',
-  negative: 'text-ctp-red',
-  urgent: 'text-ctp-peach',
-}
 </script>
 
 <template>
@@ -26,10 +12,6 @@ const sentimentClass: Record<ConversationData['sentiment'], string> = {
         class="rounded-full border border-ctp-peach px-2 py-0.5 text-xs text-ctp-peach"
       >
         Reply needed
-      </span>
-
-      <span class="text-xs" :class="sentimentClass[data.sentiment]">
-        {{ sentimentLabel[data.sentiment] }}
       </span>
     </div>
   </div>

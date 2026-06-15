@@ -227,7 +227,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
         @click="expanded = !expanded"
       >
         <div class="flex items-center gap-2">
-          <span class="text-sm text-ctp-text"><span class="font-medium">{{ fromName }}</span><span v-if="fromAddress" class="ml-1 text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span></span>
+          <span class="text-sm"><span class="text-ctp-subtext0">From:</span> <span class="text-ctp-text font-medium">{{ fromName }}</span><span v-if="fromAddress" class="ml-1 text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span></span>
           <span
             v-if="hasSpamWarning"
             class="text-xs text-ctp-peach"
@@ -235,17 +235,17 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
             >⚠ Possible spam</span
           >
         </div>
-        <div v-if="isEmailSignal(signal) && signal.data.to.length > 0" class="text-xs text-ctp-subtext0">
-          To: {{ signal.data.to.map((a) => a.name ?? a.address).join(', ') }}
+        <div v-if="isEmailSignal(signal) && signal.data.to.length > 0" class="text-xs">
+          <span class="text-ctp-subtext0">To:</span> <span class="text-ctp-text">{{ signal.data.to.map((a) => a.name ?? a.address).join(', ') }}</span>
         </div>
-        <div v-if="isEmailSignal(signal) && signal.data.cc.length > 0" class="text-xs text-ctp-subtext0">
-          CC: {{ signal.data.cc.map((a) => a.name ?? a.address).join(', ') }}
+        <div v-if="isEmailSignal(signal) && signal.data.cc.length > 0" class="text-xs">
+          <span class="text-ctp-subtext0">CC:</span> <span class="text-ctp-text">{{ signal.data.cc.map((a) => a.name ?? a.address).join(', ') }}</span>
         </div>
         <div v-if="isBcc" class="text-xs font-medium text-ctp-red">
           ⚠ BCC — alias not in To or CC
         </div>
         <div v-if="replyToLabel" class="text-xs text-ctp-peach" title="Reply-To differs from sender">↩ {{ replyToLabel }}</div>
-        <div v-if="envelopeSender" class="flex items-center gap-1 text-xs text-ctp-subtext0" :title="`Envelope: ${envelopeSender}`"><svg class="inline h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Secured by: {{ envelopeSender }}</div>
+        <div v-if="envelopeSender" class="flex items-center gap-1 text-xs text-ctp-subtext0" :title="`Envelope: ${envelopeSender}`"><svg class="inline h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> 🛡 Secured by: {{ envelopeSender }}</div>
         <div v-if="attachmentCount > 0" class="text-xs text-ctp-subtext0" :title="`${attachmentCount} attachment${attachmentCount > 1 ? 's' : ''}`">📎 {{ attachmentCount }}</div>
         <div class="text-xs text-ctp-subtext0">{{ sentAt }}</div>
       </button>
