@@ -28,7 +28,16 @@ export function useCountdown(expiresAt: Date | null) {
     const seconds = Math.floor(ms / 1000)
 
     if (seconds <= 0) {
-      return { remaining: 0, isExpired: true, urgencyLevel: 'expired', display: 'Expired' }
+      const agoSeconds = Math.abs(seconds)
+      const agoMinutes = Math.floor(agoSeconds / 60)
+      const agoHours = Math.floor(agoMinutes / 60)
+      const agoDays = Math.floor(agoHours / 24)
+      let display: string
+      if (agoDays > 0) display = `Expired ${agoDays}d ago`
+      else if (agoHours > 0) display = `Expired ${agoHours}h ago`
+      else if (agoMinutes > 0) display = `Expired ${agoMinutes}m ago`
+      else display = 'Expired just now'
+      return { remaining: 0, isExpired: true, urgencyLevel: 'expired', display }
     }
 
     const minutes = Math.floor(seconds / 60)

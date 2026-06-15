@@ -21,7 +21,7 @@ describe('useCountdown', () => {
     const state = useCountdown(past)
     expect(state.value.isExpired).toBe(true)
     expect(state.value.urgencyLevel).toBe('expired')
-    expect(state.value.display).toBe('Expired')
+    expect(state.value.display).toBe('Expired just now')
   })
 
   it('returns critical urgency for < 2 minutes', () => {
