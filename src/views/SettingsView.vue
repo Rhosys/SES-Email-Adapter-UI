@@ -983,11 +983,13 @@ const TABS: { key: TabKey; label: string }[] = [
                   <span class="text-sm text-ctp-text">{{ device.name }}</span>
                 </div>
                 <button
-                  class="text-xs text-ctp-red hover:text-ctp-red/80 disabled:opacity-40"
+                  class="text-ctp-subtext0 hover:text-ctp-red disabled:opacity-40"
                   :disabled="removePending === device.deviceId"
+                  title="Remove"
                   @click="removeDevice(device)"
                 >
-                  {{ removePending === device.deviceId ? 'Removing…' : 'Remove' }}
+                  <svg v-if="removePending !== device.deviceId" class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
+                  <span v-else class="text-xs">…</span>
                 </button>
               </li>
             </ul>
@@ -1244,10 +1246,11 @@ const TABS: { key: TabKey; label: string }[] = [
                 </div>
               </div>
               <button
-                class="text-xs text-ctp-red hover:text-ctp-red/80"
+                class="text-ctp-subtext0 hover:text-ctp-red"
+                title="Remove alias"
                 @click="deleteAddress(alias.address)"
               >
-                Remove alias
+                <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
               </button>
             </div>
           </div>
@@ -1459,10 +1462,11 @@ const TABS: { key: TabKey; label: string }[] = [
               <p v-else class="text-xs text-ctp-yellow">Pending verification</p>
             </div>
             <button
-              class="text-xs text-ctp-red hover:text-ctp-red/80"
+              class="text-ctp-subtext0 hover:text-ctp-red"
+              title="Remove"
               @click="removeForwarding(fwd.address)"
             >
-              Remove
+              <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
             </button>
           </div>
         </div>
@@ -1584,10 +1588,11 @@ const TABS: { key: TabKey; label: string }[] = [
               <option v-for="role in ROLES" :key="role" :value="role">{{ role }}</option>
             </select>
             <button
-              class="text-xs text-ctp-red hover:text-ctp-red/80"
+              class="text-ctp-subtext0 hover:text-ctp-red"
+              title="Remove"
               @click="removeMember(member.userId, member.name ?? member.email ?? member.userId)"
             >
-              Remove
+              <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
             </button>
           </div>
         </div>

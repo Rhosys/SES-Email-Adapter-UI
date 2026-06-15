@@ -184,7 +184,7 @@ describe('RulesView', () => {
     vi.mocked(api.deleteRule).mockResolvedValue(ok(undefined))
     const wrapper = mountView()
     await flushPromises()
-    await wrapper.find('button.text-ctp-red').trigger('click')
+    await wrapper.find('button[title="Delete"]').trigger('click')
     await flushPromises()
     await wrapper.vm.$nextTick()
     // ConfirmDialog should now be open — find the confirm button by its red/mauve bg class
@@ -199,7 +199,7 @@ describe('RulesView', () => {
     vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
     const wrapper = mountView()
     await flushPromises()
-    await wrapper.find('button.text-ctp-red').trigger('click')
+    await wrapper.find('button[title="Delete"]').trigger('click')
     await flushPromises()
     // ConfirmDialog should now be open — click the cancel button
     const cancelBtn = wrapper.findAll('button').find((b) => b.text() === 'Cancel')
