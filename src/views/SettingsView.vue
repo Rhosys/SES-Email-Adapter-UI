@@ -430,6 +430,18 @@ const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   viewer: 'Read-only access',
 }
 
+// ─── User ID copy ─────────────────────────────────────────────────────────────
+const userIdCopied = ref(false)
+
+function copyUserId() {
+  const id = identity.value?.userId ?? identity.value?.sub
+  if (!id) return
+  void navigator.clipboard.writeText(id).then(() => {
+    userIdCopied.value = true
+    setTimeout(() => { userIdCopied.value = false }, 1500)
+  })
+}
+
 // ─── DNS copy-to-clipboard ───────────────────────────────────────────────────
 const copiedDns = ref<Set<string>>(new Set())
 
@@ -633,7 +645,24 @@ const TABS: { key: TabKey; label: string }[] = [
           <div class="min-w-0 flex-1">
             <p v-if="identity?.name" class="truncate text-sm font-semibold text-ctp-text">{{ identity.name }}</p>
             <p v-if="identity?.email" class="truncate text-xs text-ctp-subtext0">{{ identity.email }}</p>
-            <p v-if="identity?.userId ?? identity?.sub" class="mt-1 font-mono text-xs text-ctp-subtext0">{{ identity?.userId ?? identity?.sub }}</p>
+            <div v-if="identity?.userId ?? identity?.sub" class="mt-1 flex items-center gap-1.5">
+              <p class="truncate font-mono text-xs text-ctp-subtext0">{{ identity?.userId ?? identity?.sub }}</p>
+              <button
+                type="button"
+                class="shrink-0 transition-colors"
+                :class="userIdCopied ? 'text-ctp-green' : 'text-ctp-subtext0 hover:text-ctp-text'"
+                :aria-label="userIdCopied ? 'Copied!' : 'Copy user ID'"
+                @click="copyUserId"
+              >
+                <svg v-if="userIdCopied" class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2.5 8.5l4 4 7-7"/>
+                </svg>
+                <svg v-else class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M5 2h7a1 1 0 011 1v9" stroke-linecap="round"/>
+                  <rect x="2" y="4" width="9" height="10" rx="1"/>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
