@@ -227,7 +227,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
         @click="expanded = !expanded"
       >
         <div class="flex items-center gap-2">
-          <span class="text-sm text-ctp-text"><span class="text-ctp-subtext0">From </span><span class="font-medium">{{ fromName }}</span><span v-if="fromAddress" class="ml-1 text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span></span>
+          <span class="text-sm text-ctp-text"><span class="font-medium">{{ fromName }}</span><span v-if="fromAddress" class="ml-1 text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span></span>
           <span
             v-if="hasSpamWarning"
             class="text-xs text-ctp-peach"
