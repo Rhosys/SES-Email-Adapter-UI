@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 import { useLabelsStore } from '@/stores/labels'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 
-const props = defineProps<{ count: number; pending: boolean; archiveAction: () => Promise<unknown>; labelAction: (label: string) => Promise<unknown> }>()
+const props = defineProps<{ count: number; pending: boolean; archiveAction: () => Promise<unknown>; deleteAction: () => Promise<unknown>; labelAction: (label: string) => Promise<unknown> }>()
 const emit = defineEmits<{
   (e: 'clear'): void
 }>()
@@ -76,6 +76,18 @@ function labelActionWrapper(action: (label: string) => Promise<unknown>) {
       class="rounded bg-ctp-surface0 px-3 py-1.5 text-ctp-text hover:bg-ctp-surface1"
     >
       Archive
+    </AsyncButton>
+
+    <AsyncButton
+      :action="deleteAction"
+      :disabled="pending"
+      variant="ghost"
+      class="rounded bg-ctp-surface0 px-2 py-1.5 text-ctp-subtext0 hover:text-ctp-red"
+      title="Delete"
+    >
+      <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/>
+      </svg>
     </AsyncButton>
 
     <form ref="dropdownRef" class="relative flex flex-wrap items-center gap-1" @submit.prevent="labelActionWrapper(labelAction)()">

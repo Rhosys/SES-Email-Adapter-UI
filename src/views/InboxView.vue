@@ -98,6 +98,10 @@ async function handleBulkArchive() {
   await arcsStore.bulkArchive()
 }
 
+async function handleBulkDelete() {
+  await arcsStore.bulkDelete()
+}
+
 async function handleBulkLabel(label: string) {
   await arcsStore.bulkLabel(label)
 }
@@ -135,6 +139,7 @@ watch(
         :count="arcsStore.selectedIds.size"
         :pending="arcsStore.bulkActionPending"
         :archive-action="handleBulkArchive"
+        :delete-action="handleBulkDelete"
         :label-action="handleBulkLabel"
         @clear="arcsStore.clearSelection()"
       />

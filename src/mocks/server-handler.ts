@@ -65,7 +65,10 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
 
   // GET /accounts/:accountId/arcs
   if (method === 'GET' && match('/accounts/:accountId/arcs', url)) {
-    return { status: 200, body: { arcs: mockArcs, pagination: { cursor: null } } }
+    const qs = url.split('?')[1] ?? ''
+    const statusParam = new URLSearchParams(qs).get('status')
+    const filtered = statusParam ? mockArcs.filter(a => a.status === statusParam) : mockArcs
+    return { status: 200, body: { arcs: filtered, pagination: { cursor: null } } }
   }
 
   // GET /accounts/:accountId/arcs/:arcId

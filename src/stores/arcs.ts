@@ -172,6 +172,30 @@ export const useArcsStore = defineStore('arcs', () => {
     await fetchArcs(true)
   }
 
+  async function bulkDelete() {
+    const id = accountStore.accountId
+    if (!id) return
+    const ids = [...selectedIds.value]
+    _byAccount.value = {
+      ..._byAccount.value,
+      [id]: {
+        items: (_byAccount.value[id]?.items ?? []).filter((a) => !selectedIds.value.has(a.arcId)),
+        nextCursor: _byAccount.value[id]?.nextCursor,
+      },
+    }
+    clearSelection()
+    bulkActionPending.value = true
+    const results = await Promise.all(
+      ids.map((arcId) => api.patchArc(id, arcId, { status: 'deleted' as ArcStatus })),
+    )
+    bulkActionPending.value = false
+    const failed = results.filter((r) => r.isErr())
+    if (failed.length > 0) {
+      error.value = `Failed to delete ${failed.length} arc(s)`
+      await fetchArcs(true)
+    }
+  }
+
   async function refreshArc(arcId: string) {
     const id = accountStore.accountId
     if (!id) return
@@ -256,6 +280,7 @@ export const useArcsStore = defineStore('arcs', () => {
     selectAll,
     clearSelection,
     bulkArchive,
+    bulkDelete,
     bulkLabel,
     archiveArc,
     labelArc,

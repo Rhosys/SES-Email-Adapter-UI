@@ -40,20 +40,21 @@ describe('ArcRow', () => {
     expect(wrapper.text()).toContain('Hello from the team')
   })
 
-  it('shows label chips for each label', () => {
+  it('shows label dots for each label', () => {
     const wrapper = mountArc(baseArc)
-    expect(wrapper.text()).toContain('urgent')
+    const dots = wrapper.findAll('.rounded-full.bg-ctp-mauve')
+    expect(dots.length).toBe(1)
   })
 
-  it('does not apply font-semibold (unread tracking not in wire shape)', () => {
+  it('applies font-semibold to sender', () => {
     const wrapper = mountArc(baseArc)
-    expect(wrapper.html()).not.toContain('font-semibold')
+    expect(wrapper.html()).toContain('font-semibold')
   })
 
-  it('does not apply font-semibold when arc has read marker', () => {
+  it('applies font-semibold regardless of read marker', () => {
     const readArc = { ...baseArc, lastUserConfirmedAt: '2025-01-01T12:00:00Z' }
     const wrapper = mountArc(readArc as Arc)
-    expect(wrapper.html()).not.toContain('font-semibold')
+    expect(wrapper.html()).toContain('font-semibold')
   })
 
   it('emits toggle-select with arc id on checkbox change', async () => {
@@ -68,10 +69,10 @@ describe('ArcRow', () => {
     expect(checkbox.checked).toBe(true)
   })
 
-  it('renders multiple labels', () => {
+  it('renders multiple label dots', () => {
     const arc = { ...baseArc, labels: ['label-a', 'label-b'] }
     const wrapper = mountArc(arc)
-    expect(wrapper.text()).toContain('label-a')
-    expect(wrapper.text()).toContain('label-b')
+    const dots = wrapper.findAll('.rounded-full.bg-ctp-mauve')
+    expect(dots.length).toBe(2)
   })
 })
