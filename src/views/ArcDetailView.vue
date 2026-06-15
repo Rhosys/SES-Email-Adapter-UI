@@ -256,19 +256,11 @@ async function removeLabel(label: string) {
             @discard="onDraftDiscard"
             @sent="onDraftSent"
           />
-          <SignalRenderer v-else :signal="group.signal" :duplicates="group.duplicates" :linked-signal="group.linkedSignal" @undo="onSignalUndo" />
+          <SignalRenderer v-else :signal="group.signal" :duplicates="group.duplicates" :linked-signal="group.linkedSignal" @undo="onSignalUndo" @reply="startDraft" />
         </template>
       </div>
 
-      <!-- Reply footer -->
-      <div v-if="showReply" class="sticky bottom-0 border-t border-ctp-surface0 bg-ctp-base px-4 py-3">
-        <button
-          class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
-          @click="startDraft"
-        >
-          Reply
-        </button>
-      </div>
+
 
 
     </template>

@@ -7,7 +7,7 @@ import { api } from '@/lib/api'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 
 const props = defineProps<{ signal: Signal; duplicates?: Signal[] }>()
-const emit = defineEmits<{ undo: [] }>()
+const emit = defineEmits<{ undo: []; reply: [] }>()
 
 const accountStore = useAccountStore()
 const expanded = ref(true)
@@ -360,6 +360,16 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
         <p v-else class="px-4 py-3 text-sm text-ctp-subtext0">(No content)</p>
       </div>
     </template>
+
+    <!-- Signal footer — only when expanded -->
+    <div v-if="expanded && signal.type === 'email'" class="flex justify-end border-t border-ctp-surface1 px-4 py-2">
+      <button
+        class="rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
+        @click="$emit('reply')"
+      >
+        Reply
+      </button>
+    </div>
 
     <!-- Earlier copies -->
     <template v-if="showDuplicates && duplicates && duplicates.length > 0">
