@@ -40,7 +40,7 @@ const showRetentionWarning = computed(() => {
   if (!availableUntil.value) return false
   const expiryDate = new Date(availableUntil.value)
   const daysUntil = (expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-  return daysUntil < 30
+  return daysUntil <= 30
 })
 
 const retentionMessage = computed(() => {
