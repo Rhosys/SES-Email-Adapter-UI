@@ -5,11 +5,9 @@ import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import type { Arc, Rule, Signal, Alias } from '@/types/server'
 import { isEmailSignal } from '@/lib/signal-guards'
-import { useRelativeTime } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 
-useRelativeTime()
 const now = inject(NOW_KEY)
 
 const route = useRoute()

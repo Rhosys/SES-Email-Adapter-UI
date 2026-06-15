@@ -18,6 +18,9 @@ import { useRealtime } from '@/composables/useRealtime'
 import { useFeatureTour } from '@/composables/useFeatureTour'
 import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
+import { useRelativeTime } from '@/composables/useRelativeTime'
+
+useRelativeTime()
 
 const accountStore = useAccountStore()
 const labelsStore = useLabelsStore()

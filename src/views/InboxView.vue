@@ -3,7 +3,6 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useArcsStore } from '@/stores/arcs'
-import { useRelativeTime } from '@/composables/useRelativeTime'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import StatusTabs from '@/components/StatusTabs.vue'
 import BulkActionBar from '@/components/BulkActionBar.vue'
@@ -17,8 +16,6 @@ const router = useRouter()
 const accountStore = useAccountStore()
 const arcsStore = useArcsStore()
 const { onAction, offAction } = useKeyboardShortcuts()
-
-useRelativeTime()
 
 const VALID_TABS = ['active', 'archived', 'all'] as const
 type TabKey = (typeof VALID_TABS)[number]
