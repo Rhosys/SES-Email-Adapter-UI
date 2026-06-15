@@ -6,7 +6,7 @@ import CalendarEventCard from '@/components/CalendarEventCard.vue'
 import CalendarResponseCard from '@/components/CalendarResponseCard.vue'
 import SystemAlertCard from '@/components/SystemAlertCard.vue'
 
-defineProps<{ signal: Signal; duplicates?: Signal[]; linkedSignal?: Signal }>()
+defineProps<{ signal: Signal; linkedSignal?: Signal }>()
 defineEmits<{ undo: []; reply: [] }>()
 </script>
 

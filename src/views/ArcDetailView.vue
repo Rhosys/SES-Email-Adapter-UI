@@ -214,7 +214,9 @@ async function removeLabel(label: string) {
             <!-- Line 3: From / Alias -->
             <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-ctp-subtext1">
               <span v-if="signalsStore.arc.senderAddress"><span class="text-ctp-overlay1">From:</span> {{ signalsStore.arc.senderAddress }}</span>
-              <span v-if="signalsStore.arc.recipientAddress"><span class="text-ctp-overlay1">Alias:</span> <span class="rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1">{{ signalsStore.arc.recipientAddress }}</span></span>
+            </div>
+            <div v-if="signalsStore.arc.recipientAddress" class="mt-1 text-sm text-ctp-subtext1">
+              <span class="text-ctp-overlay1">Alias:</span> <span class="text-ctp-sapphire">{{ signalsStore.arc.recipientAddress }}</span>
             </div>
             <!-- Line 4: Secondary badges (workflow, labels) -->
             <div class="mt-2 flex flex-wrap items-center gap-1.5">
@@ -294,7 +296,7 @@ async function removeLabel(label: string) {
             @discard="onDraftDiscard"
             @sent="onDraftSent"
           />
-          <SignalRenderer v-else :signal="group.signal" :duplicates="group.duplicates" :linked-signal="group.linkedSignal" @undo="onSignalUndo" @reply="startDraft" />
+          <SignalRenderer v-else :signal="group.signal" :linked-signal="group.linkedSignal" @undo="onSignalUndo" @reply="startDraft" />
         </template>
       </div>
 
