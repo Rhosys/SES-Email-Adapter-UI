@@ -142,6 +142,12 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
     return { status: 200, body: mockBilling }
   }
 
+  // POST /accounts/:accountId/signals/:signalId/quarantineResponse
+  if (method === 'POST' && url.includes('/quarantineResponse')) {
+    const allSignals = Object.values(mockSignals).flat()
+    return { status: 200, body: allSignals[0] ?? { signalId: 'sig_1', status: 'block_reject' } }
+  }
+
   // POST catch-all for mutation endpoints
   if (method === 'POST') {
     if (url.includes('/rules')) return { status: 201, body: mockRules[0] }
@@ -151,17 +157,21 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
     if (url.includes('/templates')) return { status: 201, body: mockTemplates[0] }
     if (url.includes('/users')) return { status: 201, body: mockTeamMembers[0] }
     if (url.includes('/forwarding-addresses')) return { status: 201, body: mockForwardingAddresses[0] }
-    if (url.includes('/signals')) return { status: 200, body: mockSignals[0] }
+    if (url.includes('/signals')) return { status: 200, body: Object.values(mockSignals).flat()[0] }
     if (url.includes('/billing')) return { status: 200, body: { url: 'https://example.com' } }
   }
 
   // PATCH catch-all
   if (method === 'PATCH') {
-    if (url.includes('/rules/')) return { status: 200, body: mockRules[0] }
+    if (url.includes('/rules/')) {
+      const ruleId = url.split('/rules/')[1]?.split('?')[0]
+      const rule = mockRules.find(r => r.ruleId === ruleId) ?? mockRules[0]
+      return { status: 200, body: rule }
+    }
     if (url.includes('/labels/')) return { status: 200, body: mockLabels[0] }
     if (url.includes('/aliases/')) return { status: 200, body: mockAliases[0] }
     if (url.includes('/domains/')) return { status: 200, body: mockDomains[0] }
-    if (url.includes('/signals/')) return { status: 200, body: mockSignals[0] }
+    if (url.includes('/signals/')) return { status: 200, body: Object.values(mockSignals).flat()[0] }
     if (url.includes('/users/')) return { status: 200, body: mockTeamMembers[0] }
     return { status: 200, body: mockAccounts[0] }
   }

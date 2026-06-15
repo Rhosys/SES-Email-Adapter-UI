@@ -98,7 +98,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<Result<
       if (body?.title) message = body.title
       return err(new ApiError(res.status, message))
     }
-    const data = (await res.json()) as T
+    const data = res.status === 204 ? (undefined as T) : (await res.json()) as T
     return ok(data)
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Network error'
