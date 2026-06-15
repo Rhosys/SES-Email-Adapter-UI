@@ -99,11 +99,11 @@ const accountSwitcherOpen = ref(false)
         </RouterLink>
 
         <RouterLink
-          to="/search?status=draft"
+          to="/drafts"
           data-tour="nav-drafts"
           class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
           :class="
-            route.fullPath.includes('status=draft')
+            route.path === '/drafts'
               ? 'bg-ctp-surface0 text-ctp-text font-medium'
               : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
           "
@@ -114,6 +114,9 @@ const accountSwitcherOpen = ref(false)
           </svg>
           Drafts
         </RouterLink>
+
+        <!-- Separator between inbox items and configuration -->
+        <div class="my-3 border-t border-ctp-surface0" />
 
         <RouterLink
           to="/rules"

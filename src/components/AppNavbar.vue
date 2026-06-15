@@ -123,7 +123,7 @@ function onUserMenuFocusout(e: FocusEvent) {
 
 <template>
   <header
-    class="flex h-11 shrink-0 items-center gap-3 border-b border-ctp-surface0 bg-ctp-mantle px-4"
+    class="flex shrink-0 items-center gap-3 border-b border-ctp-surface0 bg-ctp-mantle px-4 py-8"
   >
     <!-- Hamburger (mobile only) -->
     <button
