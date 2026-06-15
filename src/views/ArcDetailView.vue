@@ -174,7 +174,7 @@ async function removeLabel(label: string) {
               'bg-ctp-red/20 text-ctp-red': signalsStore.arc.status === 'deleted',
             }">{{ signalsStore.arc.status }}</span>
             <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ signalsStore.arc.workflow }}</span>
-            <h1 class="text-xl font-semibold text-ctp-text">{{ signalsStore.arc.summary }}</h1>
+            <h1 class="text-lg font-semibold text-ctp-text">{{ signalsStore.arc.summary }}</h1>
           </div>
           <div class="flex shrink-0 items-center gap-2">
             <AsyncButton
@@ -205,9 +205,9 @@ async function removeLabel(label: string) {
             </button>
           </div>
         </div>
-        <p v-if="signalsStore.arc.subject" class="mt-1 text-sm text-ctp-subtext1">{{ signalsStore.arc.subject }}</p>
-        <p v-if="signalsStore.arc.senderAddress" class="mt-1 text-xs text-ctp-subtext0"><span class="text-ctp-overlay1">From:</span> {{ signalsStore.arc.senderAddress }}</p>
-        <p v-if="signalsStore.arc.recipientAddress" class="mt-1 text-xs text-ctp-subtext0"><span class="text-ctp-overlay1">Alias:</span> <span class="rounded-full bg-ctp-surface1 px-2 py-0.5 text-ctp-subtext1">{{ signalsStore.arc.recipientAddress }}</span></p>
+        <p v-if="signalsStore.arc.subject" class="mt-1 text-base text-ctp-text">{{ signalsStore.arc.subject }}</p>
+        <p v-if="signalsStore.arc.senderAddress" class="mt-1 text-sm text-ctp-subtext1"><span class="text-ctp-overlay1">From:</span> {{ signalsStore.arc.senderAddress }}</p>
+        <p v-if="signalsStore.arc.recipientAddress" class="mt-1 text-sm text-ctp-subtext1"><span class="text-ctp-overlay1">Alias:</span> <span class="rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1">{{ signalsStore.arc.recipientAddress }}</span></p>
         <div class="mt-2 flex flex-wrap items-center gap-2">
           <span v-if="signalsStore.arc.status === 'deleted' && signalsStore.arc.deletedAt" class="text-xs text-ctp-subtext0">
             Deleted on {{ new Date(signalsStore.arc.deletedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
