@@ -171,15 +171,19 @@ describe('RuleEditorView — new rule', () => {
 
   it('shows rule tester section', async () => {
     const wrapper = await mountEditor()
-    expect(wrapper.text()).toContain('Test this rule')
+    expect(wrapper.text()).toContain('Rule tester')
   })
 
   it('run test shows match for matching address', async () => {
     const wrapper = await mountEditor()
     await wrapper.find('input[placeholder="value"]').setValue('spam@evil.com')
+    // Open the accordion
+    const details = wrapper.find('details')
+    ;(details.element as HTMLDetailsElement).open = true
+    details.element.dispatchEvent(new Event('toggle'))
+    await wrapper.vm.$nextTick()
     await wrapper.find('input[placeholder="user@example.com"]').setValue('spam@evil.com')
-    const runTestBtn = wrapper.findAll('button').find((b) => b.text() === 'Run test')
-    await runTestBtn!.trigger('click')
+    await wrapper.vm.$nextTick()
     await wrapper.vm.$nextTick()
     expect(wrapper.text()).toContain('Rule matches this email')
   })
@@ -187,9 +191,13 @@ describe('RuleEditorView — new rule', () => {
   it('run test shows no match for different address', async () => {
     const wrapper = await mountEditor()
     await wrapper.find('input[placeholder="value"]').setValue('spam@evil.com')
+    // Open the accordion
+    const details = wrapper.find('details')
+    ;(details.element as HTMLDetailsElement).open = true
+    details.element.dispatchEvent(new Event('toggle'))
+    await wrapper.vm.$nextTick()
     await wrapper.find('input[placeholder="user@example.com"]').setValue('good@safe.com')
-    const runTestBtn = wrapper.findAll('button').find((b) => b.text() === 'Run test')
-    await runTestBtn!.trigger('click')
+    await wrapper.vm.$nextTick()
     await wrapper.vm.$nextTick()
     expect(wrapper.text()).toContain('Rule does not match')
   })
@@ -255,121 +263,6 @@ describe('RuleEditorView — edit existing rule', () => {
     const wrapper = await mountEditor('/rules/rule_1')
     const valueInput = wrapper.find('input[placeholder="value"]').element as HTMLInputElement
     expect(valueInput.value).toBe('spam@evil.com')
-  })
-})
-
-describe('RuleEditorView — per-action disable toggle', () => {
-  beforeEach(() => {
-    pinia = createPinia()
-    setActivePinia(pinia)
-    vi.clearAllMocks()
-    useAccountStore().account = testAccount
-    vi.mocked(api.listAccounts).mockResolvedValue(ok([testAccount]))
-    vi.mocked(api.listLabels).mockResolvedValue(ok([]))
-  })
-
-  it('renders "Disabled" text and opacity-50 when action has disabled: true', async () => {
-    vi.mocked(api.listRules).mockResolvedValue(
-      ok([mockRule({ actions: [{ type: 'block_hidden', disabled: true }] })]),
-    )
-    await useRulesStore().fetchRules()
-    const wrapper = await mountEditor('/rules/rule_1')
-
-    const actionRow = wrapper.find('.opacity-50')
-    expect(actionRow.exists()).toBe(true)
-
-    const toggleBtn = wrapper.findAll('button').find(
-      (b) => b.text() === 'Disabled' && b.classes().includes('bg-ctp-surface1'),
-    )
-    expect(toggleBtn).toBeDefined()
-  })
-
-  it('renders "Enabled" text and normal opacity when action has disabled: false', async () => {
-    vi.mocked(api.listRules).mockResolvedValue(
-      ok([mockRule({ actions: [{ type: 'block_hidden', disabled: false }] })]),
-    )
-    await useRulesStore().fetchRules()
-    const wrapper = await mountEditor('/rules/rule_1')
-
-    const actionRows = wrapper.findAll('.flex.flex-wrap.items-center.gap-3.rounded-lg')
-    const actionRow = actionRows.find((row) => row.text().includes('Block (hidden)'))
-    expect(actionRow).toBeDefined()
-    expect(actionRow!.classes()).not.toContain('opacity-50')
-
-    const toggleBtn = wrapper.findAll('button').find(
-      (b) => b.text() === 'Enabled' && b.classes().includes('bg-ctp-green/15'),
-    )
-    expect(toggleBtn).toBeDefined()
-  })
-
-  it('renders "Enabled" text and normal opacity when disabled is undefined', async () => {
-    vi.mocked(api.listRules).mockResolvedValue(
-      ok([mockRule({ actions: [{ type: 'block_hidden' }] })]),
-    )
-    await useRulesStore().fetchRules()
-    const wrapper = await mountEditor('/rules/rule_1')
-
-    const actionRows = wrapper.findAll('.flex.flex-wrap.items-center.gap-3.rounded-lg')
-    const actionRow = actionRows.find((row) => row.text().includes('Block (hidden)'))
-    expect(actionRow).toBeDefined()
-    expect(actionRow!.classes()).not.toContain('opacity-50')
-
-    const toggleBtn = wrapper.findAll('button').find(
-      (b) => b.text() === 'Enabled' && b.classes().includes('bg-ctp-green/15'),
-    )
-    expect(toggleBtn).toBeDefined()
-  })
-
-  it('clicking toggle flips disabled from false to true', async () => {
-    vi.mocked(api.listRules).mockResolvedValue(
-      ok([mockRule({ actions: [{ type: 'block_hidden', disabled: false }] })]),
-    )
-    await useRulesStore().fetchRules()
-    const wrapper = await mountEditor('/rules/rule_1')
-
-    // Find the action-level Enabled toggle (has ml-auto, not the rule-level switch)
-    const toggleBtn = wrapper.findAll('button').find(
-      (b) => b.text() === 'Enabled' && b.classes().includes('ml-auto'),
-    )
-    expect(toggleBtn).toBeDefined()
-    await toggleBtn!.trigger('click')
-    await wrapper.vm.$nextTick()
-
-    // After clicking, the action row should have opacity-50 and show "Disabled"
-    const actionRow = wrapper.find('.opacity-50')
-    expect(actionRow.exists()).toBe(true)
-
-    const disabledBtn = wrapper.findAll('button').find(
-      (b) => b.text() === 'Disabled' && b.classes().includes('bg-ctp-surface1') && b.classes().includes('ml-auto'),
-    )
-    expect(disabledBtn).toBeDefined()
-  })
-
-  it('clicking toggle flips disabled from true to false', async () => {
-    vi.mocked(api.listRules).mockResolvedValue(
-      ok([mockRule({ actions: [{ type: 'block_hidden', disabled: true }] })]),
-    )
-    await useRulesStore().fetchRules()
-    const wrapper = await mountEditor('/rules/rule_1')
-
-    // Find the Disabled toggle button in the action row
-    const toggleBtn = wrapper.findAll('button').find(
-      (b) => b.text() === 'Disabled' && b.classes().includes('bg-ctp-surface1'),
-    )
-    expect(toggleBtn).toBeDefined()
-    await toggleBtn!.trigger('click')
-    await wrapper.vm.$nextTick()
-
-    // After clicking, opacity-50 should be gone and show "Enabled"
-    const actionRows = wrapper.findAll('.flex.flex-wrap.items-center.gap-3.rounded-lg')
-    const actionRow = actionRows.find((row) => row.text().includes('Block (hidden)'))
-    expect(actionRow).toBeDefined()
-    expect(actionRow!.classes()).not.toContain('opacity-50')
-
-    const enabledBtn = wrapper.findAll('button').find(
-      (b) => b.text() === 'Enabled' && b.classes().includes('bg-ctp-green/15'),
-    )
-    expect(enabledBtn).toBeDefined()
   })
 })
 

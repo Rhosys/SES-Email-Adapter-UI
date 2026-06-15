@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useRulesStore } from '@/stores/rules'
@@ -110,7 +110,41 @@ function runTest() {
   }
 }
 
+const testerOpen = ref(false)
+
+// Auto-run test whenever conditions or test inputs change (while tester is open)
+watchEffect(() => {
+  if (!testerOpen.value) return
+  // Touch reactive deps to trigger re-run
+  const _g = JSON.stringify(groups.value)
+  const _t = JSON.stringify(testInput.value)
+  void _g
+  void _t
+  // Only run if there's any test input
+  if (testInput.value.fromAddress || testInput.value.subject || testInput.value.workflow || testInput.value.spamScore) {
+    runTest()
+  }
+})
+
 // ─── Actions editor ───────────────────────────────────────────────────────────
+
+const ACTION_COLORS: Partial<Record<RuleActionType, string>> = {
+  block_hidden: 'text-ctp-red bg-ctp-red/10',
+  block_reject: 'text-ctp-red bg-ctp-red/10',
+  quarantine: 'text-ctp-peach bg-ctp-peach/10',
+  quarantine_hidden: 'text-ctp-peach bg-ctp-peach/10',
+  archive: 'text-ctp-subtext0 bg-ctp-surface1',
+  assign_label: 'text-ctp-blue bg-ctp-blue/10',
+  approve_sender: 'text-ctp-green bg-ctp-green/10',
+  forward: 'text-ctp-sapphire bg-ctp-sapphire/10',
+  auto_draft: 'text-ctp-mauve bg-ctp-mauve/10',
+  webhook: 'text-ctp-mauve bg-ctp-mauve/10',
+  assign_workflow: 'text-ctp-teal bg-ctp-teal/10',
+  set_urgency: 'text-ctp-yellow bg-ctp-yellow/10',
+  suppress_notification: 'text-ctp-lavender bg-ctp-lavender/10',
+  pong: 'text-ctp-green bg-ctp-green/10',
+  forwardCalendarInvite: 'text-ctp-sapphire bg-ctp-sapphire/10',
+}
 
 interface ActionMeta {
   type: RuleActionType
@@ -505,10 +539,10 @@ watch(signalAction, (val) => {
             v-for="(act, idx) in actions"
             :key="idx"
             class="flex flex-wrap items-center gap-3 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2"
-            :class="{ 'opacity-50': act.disabled }"
           >
             <span
-              class="rounded-full bg-ctp-surface1 px-2.5 py-0.5 text-xs font-medium text-ctp-text"
+              class="rounded-full px-2.5 py-0.5 text-xs font-medium"
+              :class="ACTION_COLORS[act.type] ?? 'text-ctp-subtext0 bg-ctp-surface1'"
             >
               {{ actionLabel(act.type) }}
             </span>
@@ -603,14 +637,7 @@ watch(signalAction, (val) => {
             </template>
 
             <button
-              class="ml-auto rounded-full px-2 py-0.5 text-xs transition-colors"
-              :class="act.disabled ? 'bg-ctp-surface1 text-ctp-subtext0' : 'bg-ctp-green/15 text-ctp-green'"
-              @click="updateAction(idx, { disabled: !act.disabled })"
-            >
-              {{ act.disabled ? 'Disabled' : 'Enabled' }}
-            </button>
-            <button
-              class="text-xs text-ctp-subtext0 hover:text-ctp-red"
+              class="ml-auto text-xs text-ctp-subtext0 hover:text-ctp-red"
               @click="removeAction(idx)"
             >
               ✕
@@ -651,68 +678,74 @@ watch(signalAction, (val) => {
         </button>
       </section>
 
-      <!-- Rule tester (only for visual builder) -->
-      <section v-if="conditionType === 'json_logic'" class="mb-6 rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
-        <h3 class="mb-3 text-xs font-medium text-ctp-subtext1">Test this rule</h3>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label for="test-from" class="mb-1 block text-xs text-ctp-subtext0">Sender address</label>
-            <input
-              id="test-from"
-              v-model="testInput.fromAddress"
-              type="email"
-              placeholder="user@example.com"
-              class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-            />
+      <!-- Rule tester (only for visual builder) — collapsible accordion -->
+      <section v-if="conditionType === 'json_logic'" class="mb-6">
+        <details class="rounded-lg border border-ctp-surface1 bg-ctp-mantle" @toggle="(e: Event) => { testerOpen = (e.target as HTMLDetailsElement).open }">
+          <summary class="cursor-pointer select-none px-4 py-3 text-xs font-medium text-ctp-subtext1 hover:text-ctp-text">
+            Rule tester
+            <span
+              v-if="testResult !== null"
+              class="ml-2 text-xs font-medium"
+              :class="testResult ? 'text-ctp-green' : 'text-ctp-subtext0'"
+            >
+              {{ testResult ? '✓ Match' : '✗ No match' }}
+            </span>
+          </summary>
+          <div class="border-t border-ctp-surface0 px-4 py-3">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label for="test-from" class="mb-1 block text-xs text-ctp-subtext0">Sender address</label>
+                <input
+                  id="test-from"
+                  v-model="testInput.fromAddress"
+                  type="email"
+                  placeholder="user@example.com"
+                  class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+                />
+              </div>
+              <div>
+                <label for="test-subject" class="mb-1 block text-xs text-ctp-subtext0">Subject</label>
+                <input
+                  id="test-subject"
+                  v-model="testInput.subject"
+                  type="text"
+                  placeholder="Email subject"
+                  class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+                />
+              </div>
+              <div>
+                <label for="test-workflow" class="mb-1 block text-xs text-ctp-subtext0">Workflow</label>
+                <input
+                  id="test-workflow"
+                  v-model="testInput.workflow"
+                  type="text"
+                  placeholder="e.g. conversation"
+                  class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+                />
+              </div>
+              <div>
+                <label for="test-spam" class="mb-1 block text-xs text-ctp-subtext0">Spam score (0–10)</label>
+                <input
+                  id="test-spam"
+                  v-model="testInput.spamScore"
+                  type="number"
+                  min="0"
+                  max="10"
+                  placeholder="0"
+                  class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+                />
+              </div>
+            </div>
+            <div v-if="testResult !== null" class="mt-3">
+              <span
+                class="text-xs font-medium"
+                :class="testResult ? 'text-ctp-green' : 'text-ctp-subtext0'"
+              >
+                {{ testResult ? '✓ Rule matches this email' : '✗ Rule does not match' }}
+              </span>
+            </div>
           </div>
-          <div>
-            <label for="test-subject" class="mb-1 block text-xs text-ctp-subtext0">Subject</label>
-            <input
-              id="test-subject"
-              v-model="testInput.subject"
-              type="text"
-              placeholder="Email subject"
-              class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-            />
-          </div>
-          <div>
-            <label for="test-workflow" class="mb-1 block text-xs text-ctp-subtext0">Workflow</label>
-            <input
-              id="test-workflow"
-              v-model="testInput.workflow"
-              type="text"
-              placeholder="e.g. conversation"
-              class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-            />
-          </div>
-          <div>
-            <label for="test-spam" class="mb-1 block text-xs text-ctp-subtext0">Spam score (0–10)</label>
-            <input
-              id="test-spam"
-              v-model="testInput.spamScore"
-              type="number"
-              min="0"
-              max="10"
-              placeholder="0"
-              class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-            />
-          </div>
-        </div>
-        <div class="mt-3 flex items-center gap-3">
-          <button
-            class="rounded bg-ctp-surface1 px-3 py-1.5 text-xs font-medium text-ctp-text hover:bg-ctp-surface2"
-            @click="runTest"
-          >
-            Run test
-          </button>
-          <span
-            v-if="testResult !== null"
-            class="text-xs font-medium"
-            :class="testResult ? 'text-ctp-green' : 'text-ctp-subtext0'"
-          >
-            {{ testResult ? '✓ Rule matches this email' : '✗ Rule does not match' }}
-          </span>
-        </div>
+        </details>
       </section>
 
       <!-- Save -->
