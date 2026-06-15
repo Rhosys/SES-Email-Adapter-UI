@@ -490,7 +490,7 @@ onUnmounted(() => {
     <AppNavbar hide-settings />
 
     <!-- Progress pills -->
-    <header class="border-b border-ctp-surface0 bg-ctp-mantle px-6 py-3">
+    <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
       <div class="mx-auto max-w-2xl">
         <div class="mb-2 flex items-center justify-between">
           <span class="text-xs font-medium text-ctp-subtext0">Setup</span>
