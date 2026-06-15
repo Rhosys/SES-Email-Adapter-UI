@@ -4,6 +4,44 @@ import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath, URL } from 'node:url'
 import { execSync } from 'node:child_process'
 
+/** Dev-only mock API middleware — serves mock data for /accounts/* routes when in mock mode. */
+function mockApiPlugin(): Plugin {
+  return {
+    name: 'mock-api',
+    apply: 'serve',
+    configureServer(server) {
+      // Only active in mock mode
+      if (process.env.VITE_MOCK !== 'true') return
+
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url?.startsWith('/accounts') && req.url !== '/accounts') {
+          return next()
+        }
+
+        // Dynamically import handlers — they use the mock data
+        try {
+          const { handleMockRequest } = await server.ssrLoadModule('/src/mocks/server-handler.ts')
+          const result = await handleMockRequest(req.method ?? 'GET', req.url)
+          if (result) {
+            res.setHeader('Content-Type', 'application/json')
+            res.setHeader('Access-Control-Allow-Origin', '*')
+            res.statusCode = result.status
+            res.end(JSON.stringify(result.body))
+          } else {
+            res.statusCode = 404
+            res.end(JSON.stringify({ title: 'Not found' }))
+          }
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('[mock-api]', e)
+          res.statusCode = 500
+          res.end(JSON.stringify({ title: 'Mock handler error' }))
+        }
+      })
+    },
+  }
+}
+
 function getBuildCommit(): string {
   try {
     return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
@@ -34,7 +72,7 @@ function envHtmlPlugin(): Plugin {
 
 export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? '/',
-  plugins: [vue(), tailwindcss(), envHtmlPlugin()],
+  plugins: [mockApiPlugin(), vue(), tailwindcss(), envHtmlPlugin()],
   define: {
     VERSION_INFO: JSON.stringify({
       releaseDate: new Date().toISOString(),

@@ -9,9 +9,8 @@ import { loginClient } from './lib/auth'
 import { useAccountStore } from './stores/account'
 
 async function enableMocking() {
-  if (import.meta.env.VITE_MOCK !== 'true') return
-  const { worker } = await import('./mocks/browser')
-  await worker.start({ onUnhandledRequest: 'bypass' })
+  // Mock mode now uses Vite server middleware — no browser-side setup needed.
+  // The Vite plugin intercepts /accounts/* requests and returns mock data directly.
 }
 
 enableMocking().then(() => {
