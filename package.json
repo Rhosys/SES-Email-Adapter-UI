@@ -6,7 +6,7 @@
   "scripts": {
     "landing": "serve landing -l 8080",
     "dev": "vite",
-    "dev:mock": "VITE_MOCK=true vite",
+    "dev:mock": "vite --mode mock",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview --port 4173",
     "test:unit": "vitest run",
