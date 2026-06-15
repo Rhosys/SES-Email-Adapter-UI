@@ -329,8 +329,8 @@ async function deleteAddress(address: string) {
   const accountDefaultPolicy = accountStore.account?.filtering?.defaultUnknownSenderPolicy ?? 'quarantine_visible'
   const accountDefaultPolicyLabel = FILTER_MODES.find((m) => m.value === accountDefaultPolicy)?.label ?? accountDefaultPolicy
   const confirmed = await confirmAction({
-    title: 'Delete Alias',
-    message: `Delete <strong>${address}</strong>?\n\nEmails sent to this alias will be ${accountDefaultPolicyLabel.toLowerCase()}`,
+    title: `Delete ${address}`,
+    message: `Emails sent to this alias will be handled by your account default policy (${accountDefaultPolicyLabel}).`,
     confirmLabel: 'Delete',
     confirmVariant: 'danger',
   })
@@ -1116,7 +1116,7 @@ const TABS: { key: TabKey; label: string }[] = [
                 @input="updateAccountSpamThreshold(($event.target as HTMLInputElement).value)"
               />
               <span class="text-xs text-ctp-subtext0">10</span>
-              <span class="ml-2 min-w-[1.5rem] text-center text-sm font-medium text-ctp-text">{{ accountStore.account?.filtering?.spamScoreThreshold ?? 'Off' }}</span>
+              <span class="ml-2 min-w-[1.5rem] text-center text-sm font-medium text-ctp-text">{{ accountStore.account?.filtering?.spamScoreThreshold ?? '–' }}</span>
             </div>
             <div class="mt-2 flex items-center justify-between">
               <p class="text-xs text-ctp-subtext0">
@@ -1224,7 +1224,7 @@ const TABS: { key: TabKey; label: string }[] = [
                     @input="updateAliasThreshold(alias.address, ($event.target as HTMLInputElement).value)"
                   />
                   <span class="text-xs text-ctp-subtext0">10</span>
-                  <span class="ml-2 min-w-[1.5rem] text-center text-sm font-medium text-ctp-text">{{ alias.spamScoreThreshold ?? 'Off' }}</span>
+                  <span class="ml-2 min-w-[1.5rem] text-center text-sm font-medium text-ctp-text">{{ alias.spamScoreThreshold ?? '–' }}</span>
                 </div>
                 <div class="mt-2 flex items-center justify-between">
                   <p class="text-xs text-ctp-subtext0">
