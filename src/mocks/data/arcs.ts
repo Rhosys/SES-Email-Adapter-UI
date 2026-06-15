@@ -15,6 +15,7 @@ export const mockArcs: Arc[] = [
     senderAddress: 'noreply@stripe.com',
     recipientAddress: 'hello@demo.catchmail.app',
     subject: 'Your Stripe verification code is 847291',
+    retentionDuration: 'P1M',
   },
   // auth — magic link from Notion
   {
@@ -240,6 +241,7 @@ export const mockArcs: Arc[] = [
     senderAddress: 'alerts@letsencrypt.org',
     recipientAddress: 'hello@demo.catchmail.app',
     subject: 'Action required: Certificate for api.example.com expires soon',
+    retentionDuration: 'P1M',
   },
   // content — newsletter Morning Brew
   {
@@ -255,6 +257,7 @@ export const mockArcs: Arc[] = [
     senderAddress: 'newsletter@morningbrew.com',
     recipientAddress: 'newsletters@demo.catchmail.app',
     subject: 'Morning Brew ☕ — AI regulation roundup',
+    retentionDuration: 'P1M',
   },
   // content — product update Linear
   {
