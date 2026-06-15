@@ -627,8 +627,6 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Signal browser removed — properties reference moved into fn editor popup -->
-
         <!-- Save / cancel -->
         <div class="flex gap-3">
           <AsyncButton
