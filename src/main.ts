@@ -12,18 +12,6 @@ async function enableMocking() {
   if (import.meta.env.VITE_MOCK !== 'true') return
   const { worker } = await import('./mocks/browser')
   await worker.start({ onUnhandledRequest: 'bypass' })
-
-  // Bypass auth in mock mode — stub loginClient methods so the router guard passes
-  loginClient.userSessionExists = async () => true
-  loginClient.ensureToken = async () => 'mock-token'
-  loginClient.waitForUserSession = async () => {}
-  loginClient.getUserIdentity = () => ({
-    userId: 'usr_mock_123',
-    sub: 'usr_mock_123',
-    email: 'warren@example.com',
-    name: 'Warren Parad',
-    picture: null,
-  })
 }
 
 enableMocking().then(() => {

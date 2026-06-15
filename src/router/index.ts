@@ -160,12 +160,12 @@ router.beforeEach(async (to) => {
   // The Numaeel loading screen in App.vue stays visible while this guard is pending.
   const authenticated = await loginClient.userSessionExists()
   if (!authenticated) {
-    // Trigger Authress login redirect. This will navigate the browser away.
-    // The guard never resolves — Numaeel screen stays up until the browser redirects.
+    // Trigger Authress login redirect. This navigates the browser away.
+    // Return a never-resolving promise so the router stays pending
+    // and App.vue keeps showing the Numaeel loading screen.
     const redirectUrl = `${window.location.origin}/login?redirect=${encodeURIComponent(to.fullPath)}`
-    await loginClient.authenticate({ redirectUrl })
-    // If authenticate() somehow returns without redirecting (edge case), block navigation.
-    return false
+    loginClient.authenticate({ redirectUrl })
+    return new Promise<boolean>(() => {})
   }
 
   // Onboarding manages its own account creation — let it through always
