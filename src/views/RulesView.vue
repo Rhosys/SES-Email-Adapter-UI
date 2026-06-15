@@ -41,6 +41,9 @@ const ACTION_COLORS: Partial<Record<RuleActionType, string>> = {
   assign_label: 'text-ctp-blue bg-ctp-blue/10',
   approve_sender: 'text-ctp-green bg-ctp-green/10',
   forward: 'text-ctp-sapphire bg-ctp-sapphire/10',
+  set_urgency: 'text-ctp-yellow bg-ctp-yellow/10',
+  suppress_notification: 'text-ctp-lavender bg-ctp-lavender/10',
+  pong: 'text-ctp-teal bg-ctp-teal/10',
   auto_draft: 'text-ctp-mauve bg-ctp-mauve/10',
   webhook: 'text-ctp-mauve bg-ctp-mauve/10',
 }
