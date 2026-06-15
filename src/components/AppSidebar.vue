@@ -99,6 +99,23 @@ const accountSwitcherOpen = ref(false)
         </RouterLink>
 
         <RouterLink
+          to="/search?status=draft"
+          data-tour="nav-drafts"
+          class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
+          :class="
+            route.fullPath.includes('status=draft')
+              ? 'bg-ctp-surface0 text-ctp-text font-medium'
+              : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
+          "
+        >
+          <!-- Pencil icon -->
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M12.146.146a.5.5 0 01.708 0l3 3a.5.5 0 010 .708l-10 10a.5.5 0 01-.168.11l-5 2a.5.5 0 01-.65-.65l2-5a.5.5 0 01.11-.168l10-10zM11.207 2.5L13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 01.5.5v.5h.5a.5.5 0 01.5.5v.5h.293l6.5-6.5z"/>
+          </svg>
+          Drafts
+        </RouterLink>
+
+        <RouterLink
           to="/rules"
           data-tour="nav-rules"
           class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"

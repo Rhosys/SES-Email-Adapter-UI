@@ -154,7 +154,7 @@ async function discard() {
           Draft
         </span>
         <span class="truncate text-sm text-ctp-subtext1">
-          {{ fromAddress || 'No sender selected' }} → {{ toLabel }}
+          {{ subject || toLabel || 'New draft' }}
         </span>
         <span v-if="saving" class="shrink-0 text-xs text-ctp-subtext0">saving…</span>
       </div>

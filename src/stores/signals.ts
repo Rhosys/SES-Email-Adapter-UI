@@ -75,12 +75,41 @@ export const useSignalsStore = defineStore('signals', () => {
     if (!accountId) return err(new NoCurrentAccountError())
     // Use the latest non-draft signal as the reply target
     const replyTo = items.value.find((s) => s.status !== 'draft') ?? items.value[0]
-    const replyToAddress = replyTo && replyTo.type === 'email' ? replyTo.data.from.address : ''
-    const replyToSubject = replyTo && replyTo.type === 'email' ? replyTo.data.subject : ''
+
+    let fromAddress = ''
+    let toAddresses: { address: string }[] = []
+    let replySubject = ''
+
+    if (replyTo && replyTo.type === 'email' && 'recipientAddress' in replyTo.data) {
+      const data = replyTo.data as { from: { address: string }; to: { address: string }[]; cc: { address: string }[]; recipientAddress: string; subject: string }
+      const alias = data.recipientAddress?.toLowerCase() ?? ''
+
+      // From: the alias we received the email on
+      fromAddress = data.recipientAddress ?? ''
+
+      // To: original sender + all original to + all cc — minus the alias
+      const allRecipients = [
+        { address: data.from.address },
+        ...data.to,
+        ...data.cc,
+      ]
+      const seen = new Set<string>()
+      toAddresses = allRecipients.filter((a) => {
+        const lower = a.address.toLowerCase()
+        if (lower === alias || seen.has(lower)) return false
+        seen.add(lower)
+        return true
+      })
+
+      // Subject: "Re: " prefix unless already present
+      const subj = data.subject ?? ''
+      replySubject = /^re:\s/i.test(subj) ? subj : `Re: ${subj}`
+    }
+
     const result = await api.createDraftSignal(accountId, arcId, {
-      from: { address: '' },
-      to: replyToAddress ? [{ address: replyToAddress }] : [],
-      subject: replyToSubject ? `Re: ${replyToSubject}` : '',
+      from: { address: fromAddress },
+      to: toAddresses,
+      subject: replySubject,
     })
     if (result.isErr()) {
       error.value = result.error.message
