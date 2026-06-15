@@ -167,7 +167,14 @@ async function removeLabel(label: string) {
       <!-- Arc header -->
       <div class="mb-6">
         <div class="flex items-start justify-between gap-4">
-          <h1 class="text-xl font-semibold text-ctp-text">{{ signalsStore.arc.subject ?? signalsStore.arc.summary }}</h1>
+          <div class="flex items-center gap-2">
+            <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize" :class="{
+              'bg-ctp-green/20 text-ctp-green': signalsStore.arc.status === 'active',
+              'bg-ctp-surface1 text-ctp-subtext0': signalsStore.arc.status === 'archived',
+              'bg-ctp-red/20 text-ctp-red': signalsStore.arc.status === 'deleted',
+            }">{{ signalsStore.arc.status }}</span>
+            <h1 class="text-xl font-semibold text-ctp-text">{{ signalsStore.arc.summary }}</h1>
+          </div>
           <div class="flex shrink-0 items-center gap-2">
             <AsyncButton
               v-if="signalsStore.arc.status === 'active'"
@@ -197,28 +204,17 @@ async function removeLabel(label: string) {
             </button>
           </div>
         </div>
-        <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-ctp-subtext0">
-          <span v-if="signalsStore.arc.senderAddress" class="font-medium text-ctp-text">{{ signalsStore.arc.senderAddress }}</span>
-          <span v-if="signalsStore.arc.senderAddress && signalsStore.arc.recipientAddress">→</span>
-          <span v-if="signalsStore.arc.recipientAddress">{{ signalsStore.arc.recipientAddress }}</span>
-        </div>
-        <div v-if="signalsStore.arc.subject && signalsStore.arc.summary !== signalsStore.arc.subject" class="mt-2">
-          <span class="text-xs font-medium text-ctp-subtext0">Summary</span>
-          <p class="text-sm text-ctp-subtext1">{{ signalsStore.arc.summary }}</p>
-        </div>
-        <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-ctp-subtext0">
-          <span class="capitalize">{{ signalsStore.arc.workflow }}</span>
-          <span>·</span>
-          <span class="capitalize">{{ signalsStore.arc.status }}</span>
-          <span v-if="signalsStore.arc.status === 'deleted' && signalsStore.arc.deletedAt">
-            · Deleted on {{ new Date(signalsStore.arc.deletedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
+        <p v-if="signalsStore.arc.subject" class="mt-1 text-sm text-ctp-subtext1">{{ signalsStore.arc.subject }}</p>
+        <p v-if="signalsStore.arc.senderAddress" class="mt-1 text-xs text-ctp-subtext0"><span class="text-ctp-overlay1">From:</span> {{ signalsStore.arc.senderAddress }}</p>
+        <p v-if="signalsStore.arc.recipientAddress" class="mt-1 text-xs text-ctp-subtext0"><span class="text-ctp-overlay1">Alias:</span> <span class="rounded-full bg-ctp-surface1 px-2 py-0.5 text-ctp-subtext1">{{ signalsStore.arc.recipientAddress }}</span></p>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ signalsStore.arc.workflow }}</span>
+          <span v-if="signalsStore.arc.status === 'deleted' && signalsStore.arc.deletedAt" class="text-xs text-ctp-subtext0">
+            Deleted on {{ new Date(signalsStore.arc.deletedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
           </span>
-
-          <span v-if="availableUntil" class="text-ctp-subtext0"
-            >· Available until {{ availableUntil }}</span
-          >
+          <span v-if="availableUntil" class="text-xs text-ctp-subtext0">Available until {{ availableUntil }}</span>
         </div>
-        <div class="mt-2 flex flex-wrap gap-1">
+        <div v-if="signalsStore.arc.labels.length > 0" class="mt-2 flex flex-wrap gap-1">
           <button
             v-for="label in signalsStore.arc.labels"
             :key="label"
