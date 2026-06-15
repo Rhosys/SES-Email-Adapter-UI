@@ -45,11 +45,6 @@ export const router = createRouter({
           component: () => import('@/views/QuarantineView.vue'),
         },
         {
-          path: 'drafts',
-          name: 'drafts',
-          component: () => import('@/views/DraftsView.vue'),
-        },
-        {
           path: 'search',
           name: 'search',
           component: () => import('@/views/SearchView.vue'),

@@ -114,8 +114,8 @@ if (query.value) {
     </header>
 
     <main class="mx-auto max-w-3xl px-4 py-6">
-      <!-- Search input -->
-      <form class="mb-6 flex gap-2" @submit.prevent="doSearch">
+      <!-- Search input (hidden when viewing drafts) -->
+      <form v-if="!route.query.status" class="mb-6 flex gap-2" @submit.prevent="doSearch">
         <input
           v-model="query"
           type="search"
