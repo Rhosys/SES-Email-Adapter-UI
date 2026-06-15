@@ -487,7 +487,7 @@ onUnmounted(() => {
 <template>
   <div class="flex min-h-screen flex-col bg-ctp-base text-ctp-text">
     <!-- Top nav -->
-    <AppNavbar />
+    <AppNavbar hide-settings />
 
     <!-- Progress pills -->
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-6 py-3">
