@@ -69,11 +69,6 @@ const subject = computed(() => inboundData.value?.subject ?? '')
             <span class="font-normal text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span>
           </p>
           <div class="flex shrink-0 items-center gap-1.5">
-            <span
-              v-if="isHidden"
-              class="rounded bg-ctp-surface1 px-1.5 py-0.5 text-xs text-ctp-subtext0"
-              >Silently held</span
-            >
             <span class="text-xs text-ctp-subtext0">{{ timestamp }}</span>
           </div>
         </div>
