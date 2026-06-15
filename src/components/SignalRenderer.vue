@@ -11,7 +11,7 @@ defineEmits<{ undo: []; reply: [] }>()
 </script>
 
 <template>
-  <EmailSignalCard v-if="signal.type === 'email'" :signal="signal" :duplicates="duplicates ?? []" @undo="$emit('undo')" @reply="$emit('reply')" />
+  <EmailSignalCard v-if="signal.type === 'email'" :signal="signal" @undo="$emit('undo')" @reply="$emit('reply')" />
   <DeliverabilityCard v-else-if="signal.type === 'deliverability'" :signal="signal" :linked-signal="linkedSignal" />
   <CalendarEventCard v-else-if="signal.type === 'calendar_event'" :signal="signal" :linked-signal="linkedSignal" />
   <CalendarResponseCard v-else-if="signal.type === 'calendar_response'" :signal="signal" :linked-signal="linkedSignal" />

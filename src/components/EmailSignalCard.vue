@@ -6,7 +6,7 @@ import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 
-const props = defineProps<{ signal: Signal; duplicates?: Signal[] }>()
+const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ undo: []; reply: [] }>()
 
 const accountStore = useAccountStore()
@@ -245,7 +245,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
           ⚠ BCC — alias not in To or CC
         </div>
         <div v-if="replyToLabel" class="text-xs text-ctp-peach" title="Reply-To differs from sender">↩ {{ replyToLabel }}</div>
-        <div v-if="envelopeSender" class="flex items-center gap-0.5 text-xs text-ctp-subtext0" :title="`Envelope: ${envelopeSender}`"><svg class="inline h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Secured by {{ envelopeSender }}</div>
+        <div v-if="envelopeSender" class="flex items-center gap-1 text-xs text-ctp-subtext0" :title="`Envelope: ${envelopeSender}`"><svg class="inline h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Secured by: {{ envelopeSender }}</div>
         <div v-if="attachmentCount > 0" class="text-xs text-ctp-subtext0" :title="`${attachmentCount} attachment${attachmentCount > 1 ? 's' : ''}`">📎 {{ attachmentCount }}</div>
         <div class="text-xs text-ctp-subtext0">{{ sentAt }}</div>
       </button>
