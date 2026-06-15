@@ -99,11 +99,11 @@ const accountSwitcherOpen = ref(false)
         </RouterLink>
 
         <RouterLink
-          to="/drafts"
+          to="/search?status=draft"
           data-tour="nav-drafts"
           class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
           :class="
-            route.path === '/drafts'
+            route.fullPath.includes('status=draft')
               ? 'bg-ctp-surface0 text-ctp-text font-medium'
               : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
           "
@@ -114,6 +114,28 @@ const accountSwitcherOpen = ref(false)
           </svg>
           Drafts
         </RouterLink>
+
+        <!-- Views — always expanded -->
+        <div v-if="viewsLoaded && sortedViews.length > 0" class="mt-2 px-2">
+          <div class="mb-1 flex items-center justify-between px-3">
+            <span class="text-xs font-medium uppercase tracking-wide text-ctp-subtext0">Views</span>
+          </div>
+          <button
+            v-for="view in sortedViews"
+            :key="view.viewId"
+            type="button"
+            draggable="true"
+            class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-ctp-subtext1 transition-colors hover:bg-ctp-surface0/50 hover:text-ctp-text"
+            @click="navigateToView(view)"
+            @keydown.enter="navigateToView(view)"
+            @dragstart="onDragStart(view.viewId)"
+            @dragover="onDragOver"
+            @drop="onDrop(view.viewId)"
+          >
+            <span class="shrink-0 text-xs" aria-hidden="true">{{ view.icon ?? '📋' }}</span>
+            <span class="truncate">{{ view.name }}</span>
+          </button>
+        </div>
 
         <!-- Separator between inbox items and configuration -->
         <div class="my-3 border-t border-ctp-surface0" />
@@ -210,27 +232,6 @@ const accountSwitcherOpen = ref(false)
 
 
 
-      <!-- Views — always expanded -->
-      <div v-if="viewsLoaded && sortedViews.length > 0" class="mt-4 px-2">
-        <div class="mb-1 flex items-center justify-between px-3">
-          <span class="text-xs font-medium uppercase tracking-wide text-ctp-subtext0">Views</span>
-        </div>
-        <button
-          v-for="view in sortedViews"
-          :key="view.viewId"
-          type="button"
-          draggable="true"
-          class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-ctp-subtext1 transition-colors hover:bg-ctp-surface0/50 hover:text-ctp-text"
-          @click="navigateToView(view)"
-          @keydown.enter="navigateToView(view)"
-          @dragstart="onDragStart(view.viewId)"
-          @dragover="onDragOver"
-          @drop="onDrop(view.viewId)"
-        >
-          <span class="shrink-0 text-xs" aria-hidden="true">{{ view.icon ?? '📋' }}</span>
-          <span class="truncate">{{ view.name }}</span>
-        </button>
-      </div>
     </nav>
 
     <!-- Account switcher -->
