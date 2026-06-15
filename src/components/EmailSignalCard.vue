@@ -314,12 +314,13 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
           />
 
           <!-- Transparent gesture capture overlay.
-               Always covers the iframe because touch events that start inside
-               a sandboxed iframe don't bubble to the parent document. -->
+               Only shown when zoomed — at 1× the iframe scrolls natively.
+               Touch events that start inside a sandboxed iframe don't bubble
+               to the parent document, so this overlay captures gestures. -->
           <div
+            v-if="emailScale > 1"
             ref="gestureOverlayRef"
             class="absolute inset-0"
-            :class="emailScale > 1 ? '' : 'pointer-events-none'"
             :style="{ touchAction: overlayTouchAction }"
             aria-hidden="true"
           />

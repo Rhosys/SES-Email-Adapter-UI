@@ -94,6 +94,15 @@ async function loadMore() {
   await signalsStore.fetchMore(arcId.value)
 }
 
+const showReply = computed(() => {
+  const workflow = signalsStore.arc?.workflow
+  return workflow !== 'auth' && workflow !== 'test' && workflow !== 'status'
+})
+
+async function startDraft() {
+  await signalsStore.createDraft(arcId.value)
+}
+
 async function removeLabel(label: string) {
   const confirmed = await confirmAction({
     title: 'Remove label',
@@ -179,6 +188,13 @@ async function removeLabel(label: string) {
             >
               <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
             </AsyncButton>
+            <button
+              v-if="showReply"
+              class="flex h-8 items-center gap-1.5 rounded-lg border border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
+              @click="startDraft"
+            >
+              Reply
+            </button>
           </div>
         </div>
         <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-ctp-subtext0">
