@@ -120,7 +120,7 @@ async function removeLabel(label: string) {
 </script>
 
 <template>
-  <div class="arc-detail mx-auto max-w-3xl px-4 py-6">
+  <div class="arc-detail mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-6">
     <!-- Back link -->
     <RouterLink
       to="/"
@@ -173,6 +173,7 @@ async function removeLabel(label: string) {
               'bg-ctp-surface1 text-ctp-subtext0': signalsStore.arc.status === 'archived',
               'bg-ctp-red/20 text-ctp-red': signalsStore.arc.status === 'deleted',
             }">{{ signalsStore.arc.status }}</span>
+            <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ signalsStore.arc.workflow }}</span>
             <h1 class="text-xl font-semibold text-ctp-text">{{ signalsStore.arc.summary }}</h1>
           </div>
           <div class="flex shrink-0 items-center gap-2">
@@ -208,7 +209,6 @@ async function removeLabel(label: string) {
         <p v-if="signalsStore.arc.senderAddress" class="mt-1 text-xs text-ctp-subtext0"><span class="text-ctp-overlay1">From:</span> {{ signalsStore.arc.senderAddress }}</p>
         <p v-if="signalsStore.arc.recipientAddress" class="mt-1 text-xs text-ctp-subtext0"><span class="text-ctp-overlay1">Alias:</span> <span class="rounded-full bg-ctp-surface1 px-2 py-0.5 text-ctp-subtext1">{{ signalsStore.arc.recipientAddress }}</span></p>
         <div class="mt-2 flex flex-wrap items-center gap-2">
-          <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ signalsStore.arc.workflow }}</span>
           <span v-if="signalsStore.arc.status === 'deleted' && signalsStore.arc.deletedAt" class="text-xs text-ctp-subtext0">
             Deleted on {{ new Date(signalsStore.arc.deletedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
           </span>
@@ -224,6 +224,11 @@ async function removeLabel(label: string) {
             {{ label }}
           </button>
         </div>
+      </div>
+
+      <!-- Retention warning -->
+      <div v-if="availableUntil" class="mb-4 rounded-lg border border-ctp-peach/30 bg-ctp-peach/10 px-4 py-2 text-xs text-ctp-peach">
+        ⚠ This thread will be automatically deleted on {{ availableUntil }}
       </div>
 
       <!-- Workflow panel (from latest signal with workflowData) -->
@@ -253,6 +258,16 @@ async function removeLabel(label: string) {
           />
           <SignalRenderer v-else :signal="group.signal" :duplicates="group.duplicates" :linked-signal="group.linkedSignal" @undo="onSignalUndo" />
         </template>
+      </div>
+
+      <!-- Reply footer -->
+      <div v-if="showReply" class="sticky bottom-0 border-t border-ctp-surface0 bg-ctp-base px-4 py-3">
+        <button
+          class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
+          @click="startDraft"
+        >
+          Reply
+        </button>
       </div>
 
 
