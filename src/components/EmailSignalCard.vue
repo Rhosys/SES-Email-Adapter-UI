@@ -73,7 +73,20 @@ const originalCopied = ref(false)
 
 function viewRawSignal() {
   menuOpen.value = false
-  rawSignalJson.value = JSON.stringify(props.signal, null, 2)
+  if (!isEmailSignal(props.signal)) return
+  const d = props.signal.data
+  const lines: string[] = []
+  if (d.from) lines.push(`From: ${d.from.name ? `${d.from.name} <${d.from.address}>` : d.from.address}`)
+  if ('to' in d && d.to.length > 0) lines.push(`To: ${d.to.map((a) => a.name ? `${a.name} <${a.address}>` : a.address).join(', ')}`)
+  if ('cc' in d && d.cc.length > 0) lines.push(`CC: ${d.cc.map((a) => a.name ? `${a.name} <${a.address}>` : a.address).join(', ')}`)
+  if (d.subject) lines.push(`Subject: ${d.subject}`)
+  if ('receivedAt' in d) lines.push(`Date: ${d.receivedAt}`)
+  if ('headers' in d && d.headers) {
+    for (const [key, value] of Object.entries(d.headers)) {
+      lines.push(`${key}: ${value}`)
+    }
+  }
+  rawSignalJson.value = lines.join('\n')
   showRawModal.value = true
 }
 
@@ -371,7 +384,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
     <div v-if="showRawModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80" @click.self="showRawModal = false">
       <div class="relative max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl border border-ctp-surface1 bg-ctp-mantle p-4 shadow-2xl">
         <div class="mb-3 flex items-center justify-between">
-          <h3 class="text-sm font-semibold text-ctp-text">Signal data</h3>
+          <h3 class="text-sm font-semibold text-ctp-text">Headers</h3>
           <div class="flex items-center gap-3">
             <button class="text-xs text-ctp-subtext0 hover:text-ctp-mauve" @click="copyRawJson">{{ rawCopied ? '✓ Copied' : 'Copy' }}</button>
             <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="showRawModal = false">Close</button>
@@ -382,25 +395,19 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
     </div>
   </Teleport>
 
-  <!-- Original email modal -->
+  <!-- Original email modal — raw source text -->
   <Teleport to="body">
     <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -->
     <div v-if="showOriginalModal && isEmailSignal(signal) && signal.data.body" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80" @click.self="showOriginalModal = false">
-      <div class="relative max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-xl border border-ctp-surface1 bg-white shadow-2xl">
+      <div class="relative max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-xl border border-ctp-surface1 bg-ctp-mantle shadow-2xl">
         <div class="flex items-center justify-between border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
-          <h3 class="text-sm font-semibold text-ctp-text">Original email</h3>
+          <h3 class="text-sm font-semibold text-ctp-text">Original email source</h3>
           <div class="flex items-center gap-3">
-            <button class="text-xs text-ctp-subtext0 hover:text-ctp-mauve" @click="copyOriginalHtml">{{ originalCopied ? '✓ Copied' : 'Copy HTML' }}</button>
+            <button class="text-xs text-ctp-subtext0 hover:text-ctp-mauve" @click="copyOriginalHtml">{{ originalCopied ? '✓ Copied' : 'Copy source' }}</button>
             <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="showOriginalModal = false">Close</button>
           </div>
         </div>
-        <iframe
-          :srcdoc="signal.data.body"
-          sandbox="allow-popups allow-popups-to-escape-sandbox"
-          referrerpolicy="no-referrer"
-          class="h-[80vh] w-full border-none"
-          title="Original email content"
-        />
+        <pre class="max-h-[80vh] overflow-auto p-4 font-mono text-xs text-ctp-text">{{ signal.data.body }}</pre>
       </div>
     </div>
   </Teleport>
