@@ -361,12 +361,15 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
       </div>
     </template>
 
-    <!-- Signal footer — only when expanded -->
-    <div v-if="expanded && signal.type === 'email'" class="flex justify-end border-t border-ctp-surface1 px-4 py-2">
+    <!-- Signal footer — reply action -->
+    <div v-if="expanded && signal.type === 'email'" class="flex justify-end border-t border-ctp-surface0 px-4 py-2">
       <button
-        class="rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
+        class="flex items-center gap-1.5 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
         @click="$emit('reply')"
       >
+        <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M6 3.5L1 8l5 4.5V9.5c4.5 0 7.5 1.5 9 4.5-.5-4.5-3-8-9-8V3.5z"/>
+        </svg>
         Reply
       </button>
     </div>
