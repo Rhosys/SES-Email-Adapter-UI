@@ -14,16 +14,18 @@ const expanded = ref(true)
 const menuOpen = ref(false)
 const undoPending = ref(false)
 const undoError = ref<string | null>(null)
-const showDuplicates = ref(false)
-
-const receivedCount = computed(() => (props.duplicates?.length ?? 0) + 1)
-
 const isUserSent = computed(() => props.signal.source === 'user')
 
-const fromLabel = computed(() => {
+const fromName = computed(() => {
   if (!isEmailSignal(props.signal)) return ''
-  const { name, address } = props.signal.data.from
-  return name ? `${name} <${address}>` : address
+  return props.signal.data.from.name ?? props.signal.data.from.address
+})
+
+const fromAddress = computed(() => {
+  if (!isEmailSignal(props.signal)) return ''
+  // Only show address separately when there's also a display name
+  if (!props.signal.data.from.name) return ''
+  return props.signal.data.from.address
 })
 
 const hasSpamWarning = computed(() => {
@@ -225,7 +227,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
         @click="expanded = !expanded"
       >
         <div class="flex items-center gap-2">
-          <span class="text-sm font-medium text-ctp-text"><span class="text-ctp-subtext0">From </span>{{ fromLabel }}</span>
+          <span class="text-sm text-ctp-text"><span class="text-ctp-subtext0">From </span><span class="font-medium">{{ fromName }}</span><span v-if="fromAddress" class="ml-1 text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span></span>
           <span
             v-if="hasSpamWarning"
             class="text-xs text-ctp-peach"
@@ -242,20 +244,10 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
         <div v-if="isBcc" class="text-xs font-medium text-ctp-red">
           ⚠ BCC — alias not in To or CC
         </div>
-        <span class="text-xs text-ctp-subtext0">{{ sentAt }}</span>
-        <span v-if="replyToLabel" class="text-xs text-ctp-peach" title="Reply-To differs from sender">↩ {{ replyToLabel }}</span>
-        <span v-if="envelopeSender" class="inline-flex items-center gap-0.5 text-xs text-ctp-subtext0" :title="`Envelope: ${envelopeSender}`"><svg class="inline h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Secured by {{ envelopeSender }}</span>
-        <span v-if="attachmentCount > 0" class="text-xs text-ctp-subtext0" :title="`${attachmentCount} attachment${attachmentCount > 1 ? 's' : ''}`">📎 {{ attachmentCount }}</span>
-      </button>
-
-      <!-- Duplicate count badge -->
-      <button
-        v-if="duplicates && duplicates.length > 0"
-        class="mt-1 shrink-0 rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1 hover:bg-ctp-surface2"
-        :aria-expanded="showDuplicates"
-        @click.stop="showDuplicates = !showDuplicates"
-      >
-        × {{ receivedCount }}
+        <div v-if="replyToLabel" class="text-xs text-ctp-peach" title="Reply-To differs from sender">↩ {{ replyToLabel }}</div>
+        <div v-if="envelopeSender" class="flex items-center gap-0.5 text-xs text-ctp-subtext0" :title="`Envelope: ${envelopeSender}`"><svg class="inline h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Secured by {{ envelopeSender }}</div>
+        <div v-if="attachmentCount > 0" class="text-xs text-ctp-subtext0" :title="`${attachmentCount} attachment${attachmentCount > 1 ? 's' : ''}`">📎 {{ attachmentCount }}</div>
+        <div class="text-xs text-ctp-subtext0">{{ sentAt }}</div>
       </button>
 
       <!-- Undo error inline -->
@@ -374,21 +366,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
       </button>
     </div>
 
-    <!-- Earlier copies -->
-    <template v-if="showDuplicates && duplicates && duplicates.length > 0">
-      <div class="border-t border-ctp-surface1 px-4 py-2">
-        <p class="mb-1 text-xs font-medium text-ctp-subtext0">Earlier copies</p>
-        <ul class="space-y-0.5">
-          <li
-            v-for="dup in duplicates"
-            :key="dup.signalId"
-            class="text-xs text-ctp-subtext0"
-          >
-            {{ isInboundEmailSignal(dup) ? new Date(dup.data.receivedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '' }}
-          </li>
-        </ul>
-      </div>
-    </template>
+
   </div>
 
   <!-- Raw signal data modal -->
