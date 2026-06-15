@@ -37,10 +37,10 @@ watch(
 
 const ARTICLES = [
   {
-    title: 'Inbox and arc lifecycle',
+    title: 'Inbox and thread lifecycle',
     excerpt:
-      'Arcs group related emails into threads. New signals arrive in your inbox; archive to dismiss, or let rules handle them automatically.',
-    tags: ['inbox', 'arc', 'archive', 'signal'],
+      'Threads group related emails together. New signals arrive in your inbox; archive to dismiss, or let rules handle them automatically.',
+    tags: ['inbox', 'thread', 'archive', 'signal'],
   },
   {
     title: 'Setting up rules',
@@ -57,7 +57,7 @@ const ARTICLES = [
   {
     title: 'Labels and saved views',
     excerpt:
-      'Labels tag arcs for organisation. Saved views are reusable filters — by label, workflow, sender, or status — accessible from the sidebar.',
+      'Labels tag threads for organisation. Saved views are reusable filters — by label, workflow, sender, or status — accessible from the sidebar.',
     tags: ['labels', 'views', 'filters', 'sidebar'],
   },
   {
@@ -81,8 +81,8 @@ const ARTICLES = [
   {
     title: 'Search',
     excerpt:
-      'Use the search bar to find arcs, senders, aliases, or rules. The sidebar shows a quick preview; the full search page shows all results.',
-    tags: ['search', 'arcs', 'aliases', 'rules', 'find'],
+      'Use the search bar to find threads, senders, aliases, or rules. The sidebar shows a quick preview; the full search page shows all results.',
+    tags: ['search', 'threads', 'aliases', 'rules', 'find'],
   },
 ]
 

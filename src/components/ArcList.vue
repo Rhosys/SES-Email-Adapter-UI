@@ -34,7 +34,7 @@ function handleSelectAll(event: Event) {
           type="checkbox"
           :checked="allSelected"
           class="h-4 w-4 rounded border-ctp-overlay0 bg-ctp-surface1 accent-ctp-blue"
-          aria-label="Select all arcs"
+          aria-label="Select all threads"
           @change="handleSelectAll"
         />
       </div>

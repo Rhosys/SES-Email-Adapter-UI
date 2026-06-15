@@ -43,18 +43,18 @@ export function useRealtime() {
   function handleEvent(event: RealtimeEvent) {
     switch (event.type) {
       case 'signal:created':
-        // Update the arc in the inbox list
+        // Update the thread in the inbox list
         void arcsStore.refreshArc(event.arcId)
-        // If the detail view for this arc is open, pull the updated arc + its signals
+        // If the detail view for this thread is open, pull the updated thread + its signals
         if (signalsStore.arc?.arcId === event.arcId) {
           void signalsStore.fetchAll(event.arcId)
         }
         fireNotification(event)
         break
       case 'arc:updated':
-        // Update just this arc in the inbox list
+        // Update just this thread in the inbox list
         void arcsStore.refreshArc(event.arcId)
-        // If the detail view for this arc is open, refresh it too
+        // If the detail view for this thread is open, refresh it too
         if (signalsStore.arc?.arcId === event.arcId) {
           void signalsStore.fetchAll(event.arcId)
         }

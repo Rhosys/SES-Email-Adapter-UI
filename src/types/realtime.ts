@@ -10,7 +10,7 @@ export interface SignalCreatedEvent {
   type: 'signal:created'
   arcId: string
   signalId: string
-  urgency: ArcUrgency   // urgency of the arc after this signal lands
+  urgency: ArcUrgency   // urgency of the thread after this signal lands
   from: { address: string; name?: string }
   subject: string
 }

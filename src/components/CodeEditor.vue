@@ -71,7 +71,7 @@ const catppuccinTheme = EditorView.theme(
   { dark: true },
 )
 
-// Signal and arc property completions for function code editors
+// Signal and thread property completions for function code editors
 const SIGNAL_ARC_ITEMS = [
   { label: 'signal', type: 'variable', detail: 'Signal object' },
   { label: 'signal.from', type: 'property', detail: 'EmailAddress' },

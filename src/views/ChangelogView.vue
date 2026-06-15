@@ -9,7 +9,7 @@ const ENTRIES = [
       'Quarantine — review held signals, allow or reject, create rules from held signals',
       'Rules engine — visual condition builder with AND/OR groups, 14 action types',
       'Labels and custom sidebar views with drag-to-reorder',
-      'Search across arcs, aliases, and rules',
+      'Search across threads, aliases, and rules',
       'Settings — email addresses, domains, DNS verification, forwarding, team, notifications',
       'User profile — linked identities, passkeys, active sessions',
       'Onboarding wizard — domain setup, DNS records, filter mode selection',

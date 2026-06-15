@@ -3,7 +3,7 @@ import type { Arc } from '@/types/server'
 export const mockArcs: Arc[] = [
   // auth — OTP from Stripe
   {
-    arcId: 'arc_auth_1',
+    arcId: 'thr_auth_1',
     workflow: 'auth',
     labels: [],
     status: 'active',
@@ -19,7 +19,7 @@ export const mockArcs: Arc[] = [
   },
   // auth — magic link from Notion
   {
-    arcId: 'arc_auth_2',
+    arcId: 'thr_auth_2',
     workflow: 'auth',
     labels: [],
     status: 'archived',
@@ -34,7 +34,7 @@ export const mockArcs: Arc[] = [
   },
   // conversation — back and forth with colleague
   {
-    arcId: 'arc_conv_1',
+    arcId: 'thr_conv_1',
     workflow: 'conversation',
     labels: ['lbl_6'],
     status: 'active',
@@ -49,7 +49,7 @@ export const mockArcs: Arc[] = [
   },
   // conversation — negative sentiment
   {
-    arcId: 'arc_conv_2',
+    arcId: 'thr_conv_2',
     workflow: 'conversation',
     labels: ['lbl_5', 'lbl_6'],
     status: 'active',
@@ -64,7 +64,7 @@ export const mockArcs: Arc[] = [
   },
   // crm — recruiter
   {
-    arcId: 'arc_crm_1',
+    arcId: 'thr_crm_1',
     workflow: 'crm',
     labels: [],
     status: 'active',
@@ -79,7 +79,7 @@ export const mockArcs: Arc[] = [
   },
   // crm — sales outreach
   {
-    arcId: 'arc_crm_2',
+    arcId: 'thr_crm_2',
     workflow: 'crm',
     labels: [],
     status: 'archived',
@@ -94,7 +94,7 @@ export const mockArcs: Arc[] = [
   },
   // package — Amazon shipped
   {
-    arcId: 'arc_pkg_1',
+    arcId: 'thr_pkg_1',
     workflow: 'package',
     labels: ['lbl_7'],
     status: 'active',
@@ -109,7 +109,7 @@ export const mockArcs: Arc[] = [
   },
   // package — DHL delivery
   {
-    arcId: 'arc_pkg_2',
+    arcId: 'thr_pkg_2',
     workflow: 'package',
     labels: ['lbl_7'],
     status: 'active',
@@ -124,7 +124,7 @@ export const mockArcs: Arc[] = [
   },
   // travel — flight booking
   {
-    arcId: 'arc_travel_1',
+    arcId: 'thr_travel_1',
     workflow: 'travel',
     labels: ['lbl_4'],
     status: 'active',
@@ -139,7 +139,7 @@ export const mockArcs: Arc[] = [
   },
   // travel — hotel reservation
   {
-    arcId: 'arc_travel_2',
+    arcId: 'thr_travel_2',
     workflow: 'travel',
     labels: ['lbl_4'],
     status: 'active',
@@ -154,7 +154,7 @@ export const mockArcs: Arc[] = [
   },
   // payments — Hetzner invoice
   {
-    arcId: 'arc_pay_1',
+    arcId: 'thr_pay_1',
     workflow: 'payments',
     labels: ['lbl_1', 'lbl_3'],
     status: 'active',
@@ -169,7 +169,7 @@ export const mockArcs: Arc[] = [
   },
   // payments — Stripe subscription renewal
   {
-    arcId: 'arc_pay_2',
+    arcId: 'thr_pay_2',
     workflow: 'payments',
     labels: ['lbl_1', 'lbl_3'],
     status: 'archived',
@@ -184,7 +184,7 @@ export const mockArcs: Arc[] = [
   },
   // payments — failed payment
   {
-    arcId: 'arc_pay_3',
+    arcId: 'thr_pay_3',
     workflow: 'payments',
     labels: ['lbl_3', 'lbl_5'],
     status: 'active',
@@ -199,7 +199,7 @@ export const mockArcs: Arc[] = [
   },
   // alert — suspicious login GitHub
   {
-    arcId: 'arc_alert_1',
+    arcId: 'thr_alert_1',
     workflow: 'alert',
     labels: ['lbl_5'],
     status: 'active',
@@ -214,7 +214,7 @@ export const mockArcs: Arc[] = [
   },
   // alert — CI failure
   {
-    arcId: 'arc_alert_2',
+    arcId: 'thr_alert_2',
     workflow: 'alert',
     labels: ['lbl_6'],
     status: 'active',
@@ -229,7 +229,7 @@ export const mockArcs: Arc[] = [
   },
   // alert — cert expiry
   {
-    arcId: 'arc_alert_3',
+    arcId: 'thr_alert_3',
     workflow: 'alert',
     labels: ['lbl_5'],
     status: 'active',
@@ -245,7 +245,7 @@ export const mockArcs: Arc[] = [
   },
   // content — newsletter Morning Brew
   {
-    arcId: 'arc_content_1',
+    arcId: 'thr_content_1',
     workflow: 'content',
     labels: ['lbl_2'],
     status: 'active',
@@ -261,7 +261,7 @@ export const mockArcs: Arc[] = [
   },
   // content — product update Linear
   {
-    arcId: 'arc_content_2',
+    arcId: 'thr_content_2',
     workflow: 'content',
     labels: ['lbl_2'],
     status: 'active',
@@ -276,7 +276,7 @@ export const mockArcs: Arc[] = [
   },
   // onboarding — welcome email
   {
-    arcId: 'arc_onboard_1',
+    arcId: 'thr_onboard_1',
     workflow: 'onboarding',
     labels: [],
     status: 'archived',
@@ -291,7 +291,7 @@ export const mockArcs: Arc[] = [
   },
   // status — terms update Google
   {
-    arcId: 'arc_status_1',
+    arcId: 'thr_status_1',
     workflow: 'status',
     labels: [],
     status: 'archived',
@@ -306,7 +306,7 @@ export const mockArcs: Arc[] = [
   },
   // healthcare — appointment reminder
   {
-    arcId: 'arc_health_1',
+    arcId: 'thr_health_1',
     workflow: 'healthcare',
     labels: ['lbl_8'],
     status: 'active',
@@ -321,7 +321,7 @@ export const mockArcs: Arc[] = [
   },
   // job — interview request
   {
-    arcId: 'arc_job_1',
+    arcId: 'thr_job_1',
     workflow: 'job',
     labels: [],
     status: 'active',
@@ -336,7 +336,7 @@ export const mockArcs: Arc[] = [
   },
   // job — application status
   {
-    arcId: 'arc_job_2',
+    arcId: 'thr_job_2',
     workflow: 'job',
     labels: [],
     status: 'archived',
@@ -351,7 +351,7 @@ export const mockArcs: Arc[] = [
   },
   // support — ticket opened
   {
-    arcId: 'arc_support_1',
+    arcId: 'thr_support_1',
     workflow: 'support',
     labels: [],
     status: 'active',
@@ -366,7 +366,7 @@ export const mockArcs: Arc[] = [
   },
   // support — agent response
   {
-    arcId: 'arc_support_2',
+    arcId: 'thr_support_2',
     workflow: 'support',
     labels: [],
     status: 'active',
@@ -381,7 +381,7 @@ export const mockArcs: Arc[] = [
   },
   // test — test email from setup
   {
-    arcId: 'arc_test_1',
+    arcId: 'thr_test_1',
     workflow: 'test',
     labels: [],
     status: 'archived',
@@ -394,9 +394,9 @@ export const mockArcs: Arc[] = [
     recipientAddress: 'hello@demo.catchmail.app',
     subject: 'Test email — CatchMail setup verification',
   },
-  // deleted arc for testing
+  // deleted thread for testing
   {
-    arcId: 'arc_deleted_1',
+    arcId: 'thr_deleted_1',
     workflow: 'content',
     labels: ['lbl_2'],
     status: 'deleted',

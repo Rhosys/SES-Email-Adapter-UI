@@ -40,7 +40,7 @@ export const useArcsStore = defineStore('arcs', () => {
     () => items.value.length > 0 && items.value.every((a) => selectedIds.value.has(a.arcId)),
   )
 
-  // Auth+critical arcs are pinned to the top — domain rule from WORKFLOW_UX_SPEC
+  // Auth+critical threads are pinned to the top — domain rule from WORKFLOW_UX_SPEC
   const sortedItems = computed<Arc[]>(() => {
     const authCritical = items.value.filter(
       (a) => a.workflow === 'auth' && a.urgency === 'critical',
@@ -145,7 +145,7 @@ export const useArcsStore = defineStore('arcs', () => {
     bulkActionPending.value = false
     const failed = results.filter((r) => r.isErr())
     if (failed.length > 0) {
-      error.value = `Failed to archive ${failed.length} arc(s)`
+      error.value = `Failed to archive ${failed.length} thread(s)`
       // Re-fetch to restore consistent state
       await fetchArcs(true)
     }
@@ -166,7 +166,7 @@ export const useArcsStore = defineStore('arcs', () => {
     bulkActionPending.value = false
     const failed = results.filter((r) => r.isErr())
     if (failed.length > 0) {
-      error.value = `Failed to label ${failed.length} arc(s)`
+      error.value = `Failed to label ${failed.length} thread(s)`
     }
     // Re-fetch to pick up server-side label normalization
     await fetchArcs(true)
@@ -191,7 +191,7 @@ export const useArcsStore = defineStore('arcs', () => {
     bulkActionPending.value = false
     const failed = results.filter((r) => r.isErr())
     if (failed.length > 0) {
-      error.value = `Failed to delete ${failed.length} arc(s)`
+      error.value = `Failed to delete ${failed.length} thread(s)`
       await fetchArcs(true)
     }
   }
@@ -211,7 +211,7 @@ export const useArcsStore = defineStore('arcs', () => {
         items:
           idx >= 0
             ? existing.map((a) => (a.arcId === arcId ? updated : a))
-            : [updated, ...existing], // new arc — prepend
+            : [updated, ...existing], // new thread — prepend
       },
     }
   }

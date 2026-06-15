@@ -99,7 +99,7 @@ export const handlers = [
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({
       signalId: `sig_draft_${Date.now()}`,
-      arcId: 'arc_conv_1',
+      arcId: 'thr_conv_1',
       source: 'user',
       status: 'draft',
       type: 'email',

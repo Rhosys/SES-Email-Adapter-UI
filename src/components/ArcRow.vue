@@ -47,7 +47,7 @@ async function deleteArc() {
           type="checkbox"
           :checked="selected"
           class="h-4 w-4 rounded border-ctp-overlay0 bg-ctp-surface1 accent-ctp-blue"
-          :aria-label="`Select arc: ${arc.summary}`"
+          :aria-label="`Select thread: ${arc.summary}`"
           @change="emit('toggle-select', arc.arcId)"
         />
       </div>
