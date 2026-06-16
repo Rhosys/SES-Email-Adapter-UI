@@ -169,6 +169,13 @@ export interface MatchedRuleResult {
   statusChange?: string
 }
 
+export type UnsubscribeMethod = 'server' | 'website' | 'mailto'
+
+export interface UnsubscribeInfo {
+  type: UnsubscribeMethod
+  url: string
+}
+
 export interface InboundEmailSignalData {
   receivedAt: string
   summary: string
@@ -186,6 +193,7 @@ export interface InboundEmailSignalData {
   workflowData?: WorkflowData
   spamScore: number
   matchedRules?: MatchedRuleResult[]
+  unsubscribe?: UnsubscribeInfo
 }
 
 export interface OutboundEmailSignalData {
@@ -431,7 +439,6 @@ export interface ContentData {
   discountCode?: string
   discountAmount?: string
   expiryDate?: string
-  unsubscribeUrl?: string
 }
 
 export interface StatusData {

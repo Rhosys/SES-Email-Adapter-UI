@@ -47,6 +47,13 @@ Backend fields that exist on the frontend type but aren't yet surfaced in any UI
 
 ## Open tasks
 
+- [ ] **Unsubscribe UI** — the backend now exposes `signal.data.unsubscribe: { type: "server" | "website" | "mailto", url: string }` on inbound email signals (extracted from `List-Unsubscribe` / `List-Unsubscribe-Post` headers). The UI needs:
+  - An unsubscribe button/action on arc rows and arc detail for signals where `unsubscribe` is present.
+  - If `type === "server"`: call `POST /accounts/:id/arcs/:arcId/unsubscribe` — backend fires RFC 8058 one-click POST. Show success/failure toast.
+  - If `type === "website"`: open the URL in a new browser tab (user must complete on the sender's site).
+  - If `type === "mailto"`: show a disabled/coming-soon state or hide — backend returns 202 pending.
+  - The old `workflowData.unsubscribeUrl` field on `ContentData` has been removed — the mock data already uses the new `unsubscribe` property on signal data.
+
 - [ ] **Review feature tour implementation in Kiro** — validate that the tour step targets, spotlight behaviour, and completion/skip persistence work correctly end-to-end.
 
 - [ ] **Deduplicate signals with identical bodies in arc detail view** — when multiple signals on the same arc have identical text bodies (different headers/metadata), collapse them into a single displayed signal with a "received N times" indicator. Compute body fingerprint (SHA-256 of normalized text body) client-side at render time. Show the most recent signal's headers; collapsed duplicates accessible via expand. Edge case: duplicate critical notifications still reach the user via push (backend sends per-signal) — this dedup is display-only, not notification suppression.

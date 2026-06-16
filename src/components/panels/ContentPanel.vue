@@ -56,16 +56,6 @@ const typeLabel: Record<ContentData['contentType'], string> = {
       </span>
     </div>
 
-    <!-- Unsubscribe -->
-    <div v-if="data.unsubscribeUrl" class="mt-3">
-      <a
-        :href="data.unsubscribeUrl"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="text-xs text-ctp-subtext0 hover:text-ctp-text"
-      >
-        Unsubscribe →
-      </a>
-    </div>
+    <!-- Unsubscribe — now handled at signal level via signal.data.unsubscribe -->
   </div>
 </template>
