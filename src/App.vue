@@ -3,17 +3,14 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const resolving = ref(true)
+// Start resolved if router is already ready (HMR case), otherwise wait for initial navigation
+const resolving = ref(!router.currentRoute.value.matched.length)
 
-// Only show loading screen on initial app load — once the first route resolves,
-// subsequent navigations are handled by route components with their own skeletons.
-router.isReady().then(() => {
-  resolving.value = false
-})
+if (resolving.value) {
+  router.isReady().then(() => { resolving.value = false })
+}
 
-router.onError(() => {
-  resolving.value = false
-})
+router.onError(() => { resolving.value = false })
 </script>
 
 <template>
