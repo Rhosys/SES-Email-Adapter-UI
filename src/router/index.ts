@@ -153,19 +153,20 @@ const ROUTE_TITLES: Record<string, string> = {
 
 const APP_NAME = 'SES Email Adapter'
 
+// Track whether auth has been confirmed once this session — skip re-check on subsequent navigations
+let authConfirmed = false
+
 router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return true
 
-  // Block until the user's session is fully resolved (login redirect processed, token available).
-  // The Numaeel loading screen in App.vue stays visible while this guard is pending.
-  const authenticated = await loginClient.userSessionExists()
-  if (!authenticated) {
-    // Trigger Authress login redirect. This navigates the browser away.
-    // Return a never-resolving promise so the router stays pending
-    // and App.vue keeps showing the Numaeel loading screen.
-    const redirectUrl = `${window.location.origin}/login?redirect=${encodeURIComponent(to.fullPath)}`
-    loginClient.authenticate({ redirectUrl })
-    return new Promise<boolean>(() => {})
+  if (!authConfirmed) {
+    const authenticated = await loginClient.userSessionExists()
+    if (!authenticated) {
+      const redirectUrl = `${window.location.origin}/login?redirect=${encodeURIComponent(to.fullPath)}`
+      loginClient.authenticate({ redirectUrl })
+      return new Promise<boolean>(() => {})
+    }
+    authConfirmed = true
   }
 
   // Onboarding manages its own account creation — let it through always
