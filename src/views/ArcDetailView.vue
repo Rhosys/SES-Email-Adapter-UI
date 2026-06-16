@@ -91,6 +91,18 @@ async function archive() {
   )
 }
 
+async function unsubscribe() {
+  const result = await arcsStore.unsubscribeArc(arcId.value)
+  if (result.isErr()) return
+  const url = result.value.url
+  void router.push('/')
+  if (url) window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+const hasUnsubscribe = computed(() =>
+  signalsStore.items.some((s) => isInboundEmailSignal(s) && s.data.unsubscribe),
+)
+
 async function deleteArc() {
   const confirmed = await confirmAction({
     title: 'Delete thread',
@@ -232,6 +244,17 @@ async function removeLabel(label: string) {
             </div>
           </div>
           <div class="flex shrink-0 items-center gap-2">
+            <AsyncButton
+              v-if="hasUnsubscribe && signalsStore.arc.status === 'active'"
+              :action="unsubscribe"
+              variant="outline"
+              class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-peach hover:text-ctp-peach"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM4.5 7.5h7v1h-7v-1z"/>
+              </svg>
+              Unsubscribe
+            </AsyncButton>
             <AsyncButton
               v-if="signalsStore.arc.status === 'active'"
               :action="archive"

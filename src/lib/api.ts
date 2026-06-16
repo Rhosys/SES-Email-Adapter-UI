@@ -152,6 +152,12 @@ export const api = {
     })
   },
 
+  unsubscribeArc(accountId: string, arcId: string): Promise<Result<{ status: string; url?: string }, ApiError>> {
+    return request<{ status: string; url?: string }>(`/accounts/${accountId}/arcs/${arcId}/unsubscribe`, {
+      method: 'POST',
+    })
+  },
+
   listSignals(
     accountId: string,
     arcId: string,

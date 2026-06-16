@@ -260,6 +260,22 @@ export const useArcsStore = defineStore('arcs', () => {
     return ok(result.value)
   }
 
+  async function unsubscribeArc(arcId: string): Promise<Result<{ status: string; url?: string }, ApiError | NoCurrentAccountError>> {
+    const id = accountStore.accountId
+    if (!id) return err(new NoCurrentAccountError())
+    const result = await api.unsubscribeArc(id, arcId)
+    if (result.isErr()) return err(result.error)
+    // Arc is now archived — remove from active list
+    if (activeTab.value === 'active') {
+      const existing = _byAccount.value[id]?.items ?? []
+      _byAccount.value = {
+        ..._byAccount.value,
+        [id]: { ..._byAccount.value[id], items: existing.filter((a) => a.arcId !== arcId) },
+      }
+    }
+    return ok(result.value)
+  }
+
   return {
     items,
     sortedItems,
@@ -284,6 +300,7 @@ export const useArcsStore = defineStore('arcs', () => {
     bulkLabel,
     archiveArc,
     labelArc,
+    unsubscribeArc,
     removeArc,
   }
 })
