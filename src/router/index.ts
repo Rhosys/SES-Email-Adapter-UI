@@ -45,6 +45,11 @@ export const router = createRouter({
           component: () => import('@/views/QuarantineView.vue'),
         },
         {
+          path: 'drafts',
+          name: 'drafts',
+          component: () => import('@/views/DraftsView.vue'),
+        },
+        {
           path: 'search',
           name: 'search',
           component: () => import('@/views/SearchView.vue'),
@@ -134,6 +139,7 @@ const ROUTE_TITLES: Record<string, string> = {
   inbox: 'Inbox',
   'arc-detail': 'Conversation',
   quarantine: 'Quarantine',
+  drafts: 'Drafts',
   search: 'Search',
   labels: 'Labels & Views',
   rules: 'Rules',
@@ -153,20 +159,14 @@ const ROUTE_TITLES: Record<string, string> = {
 
 const APP_NAME = 'SES Email Adapter'
 
-// Track whether auth has been confirmed once this session — skip re-check on subsequent navigations
-let authConfirmed = false
-
 router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return true
 
-  if (!authConfirmed) {
-    const authenticated = await loginClient.userSessionExists()
-    if (!authenticated) {
-      const redirectUrl = `${window.location.origin}/login?redirect=${encodeURIComponent(to.fullPath)}`
-      loginClient.authenticate({ redirectUrl })
-      return new Promise<boolean>(() => {})
-    }
-    authConfirmed = true
+  const authenticated = await loginClient.userSessionExists()
+  if (!authenticated) {
+    const redirectUrl = `${window.location.origin}/login?redirect=${encodeURIComponent(to.fullPath)}`
+    loginClient.authenticate({ redirectUrl })
+    return new Promise<boolean>(() => {});
   }
 
   // Onboarding manages its own account creation — let it through always
