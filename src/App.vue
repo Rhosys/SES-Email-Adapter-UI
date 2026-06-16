@@ -5,22 +5,13 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const resolving = ref(true)
 
-router.beforeEach(() => {
-  resolving.value = true
-})
-
-router.afterEach(() => {
-  resolving.value = false
-})
-
-// Also clear on first navigation error (e.g. redirect loop)
-router.onError(() => {
-  resolving.value = false
-})
-
-// Initial route is already resolved by the time App mounts if navigation is sync,
-// but the auth guard is async — so we wait for the first afterEach to fire.
+// Only show loading screen on initial app load — once the first route resolves,
+// subsequent navigations are handled by route components with their own skeletons.
 router.isReady().then(() => {
+  resolving.value = false
+})
+
+router.onError(() => {
   resolving.value = false
 })
 </script>
