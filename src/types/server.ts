@@ -87,7 +87,6 @@ export interface NotificationSettings {
 
 export interface AccountFilteringConfig {
   defaultUnknownSenderPolicy?: UnknownSenderPolicy
-  newAddressHandling?: 'auto_allow' | 'block_until_approved'
   spamScoreThreshold?: number
 }
 

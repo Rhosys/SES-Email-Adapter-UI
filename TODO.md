@@ -267,3 +267,8 @@ interface EmailTemplate {
 ### Rules
 
 - [ ] **Rules tab text contrast** — the empty state description text is small and dim. Review font sizes and contrast against the Templates empty state (which looks correct) and match styling.
+
+
+## Merge "New address handling" into "Default filter mode"
+
+- [x] **Rename "Default filter mode" → "New address handling" in the UI** — the account-level `defaultUnknownSenderPolicy` field is what actually controls how new/unknown addresses are treated. The UI currently shows two separate settings: "Default filter mode" (the real enum: allow_all, quarantine_visible, etc.) and "New address handling" (a redundant auto_allow/block_until_approved toggle). Merge them: remove the separate "New address handling" toggle entirely, rename the "Default filter mode" setting to use the title and help text that currently belongs to "New address handling" (since that copy better explains the user intent), but keep the underlying API property as `defaultUnknownSenderPolicy` with its full enum of values. The result: one setting, named "New address handling", backed by `defaultUnknownSenderPolicy`, with all six policy values available.

@@ -243,7 +243,6 @@ const filteredAliases = computed(() => {
 const filterModalOpen = ref(false)
 const filterModalAlias = ref<Alias | null>(null)
 const defaultPolicyModalOpen = ref(false)
-const newAddressHandlingModalOpen = ref(false)
 
 const FILTER_MODES: { value: UnknownSenderPolicy; label: string; description: string }[] = [
   { value: 'allow_all', label: 'Allow all', description: 'All senders pass through' },
@@ -252,11 +251,6 @@ const FILTER_MODES: { value: UnknownSenderPolicy; label: string; description: st
   { value: 'block_hidden', label: 'Block email', description: 'Unknown senders silently discarded' },
   { value: 'block_reject', label: 'Block and deny', description: 'Unknown senders receive a bounce' },
   { value: 'violate_report', label: 'Report Violation', description: 'Report as a policy violation' },
-]
-
-const NEW_ADDRESS_HANDLING_MODES = [
-  { value: 'auto_allow', label: 'Auto-allow', description: 'Emails to unrecognised addresses are accepted and a new alias is created automatically' },
-  { value: 'block_until_approved', label: 'Block until approved', description: 'Emails to unrecognised addresses are held until you manually create or approve the alias' },
 ]
 
 async function loadAliases() {
@@ -303,14 +297,6 @@ async function updateDefaultPolicy(policy: UnknownSenderPolicy) {
   if (!accountStore.accountId) return
   const result = await api.updateAccount(accountStore.accountId, {
     filtering: { ...accountStore.account?.filtering, defaultUnknownSenderPolicy: policy },
-  })
-  if (result.isOk()) accountStore.account = result.value
-}
-
-async function updateNewAddressHandling(value: 'auto_allow' | 'block_until_approved') {
-  if (!accountStore.accountId) return
-  const result = await api.updateAccount(accountStore.accountId, {
-    filtering: { ...accountStore.account?.filtering, newAddressHandling: value },
   })
   if (result.isOk()) accountStore.account = result.value
 }
@@ -1077,17 +1063,7 @@ const TABS: { key: TabKey; label: string }[] = [
           <div class="flex items-center justify-between gap-4 p-4">
             <div>
               <p class="text-sm font-medium text-ctp-text">Default filter mode</p>
-              <p class="mt-0.5 text-xs text-ctp-subtext0">Applied to aliases that don't have a specific policy set</p>
-            </div>
-            <button
-              type="button"
-              class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-xs text-ctp-text transition-colors hover:border-ctp-mauve"
-              @click="defaultPolicyModalOpen = true"
-            >
-              {{ FILTER_MODES.find((m) => m.value === (accountStore.account?.filtering?.defaultUnknownSenderPolicy ?? 'quarantine_visible'))?.label }}
-            </button>
-          </div>
-          <!-- New address handling -->
+          <!-- New address handling (formerly "Default filter mode") -->
           <div class="flex items-center justify-between gap-4 p-4">
             <div>
               <p class="text-sm font-medium text-ctp-text">New address handling</p>
@@ -1096,9 +1072,9 @@ const TABS: { key: TabKey; label: string }[] = [
             <button
               type="button"
               class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-xs text-ctp-text transition-colors hover:border-ctp-mauve"
-              @click="newAddressHandlingModalOpen = true"
+              @click="defaultPolicyModalOpen = true"
             >
-              {{ NEW_ADDRESS_HANDLING_MODES.find((m) => m.value === (accountStore.account?.filtering?.newAddressHandling ?? 'auto_allow'))?.label }}
+              {{ FILTER_MODES.find((m) => m.value === (accountStore.account?.filtering?.defaultUnknownSenderPolicy ?? 'quarantine_visible'))?.label }}
             </button>
           </div>
           <!-- Account-level spam threshold -->
@@ -1621,22 +1597,12 @@ const TABS: { key: TabKey; label: string }[] = [
 
     <FilterModeModal
       :open="defaultPolicyModalOpen"
-      title="Account default filter mode"
-      subtitle="Applied to aliases that don't have a specific policy set."
+      title="New address handling"
+      subtitle="What happens when an email arrives for an address not yet in your alias list."
       :current-mode="accountStore.account?.filtering?.defaultUnknownSenderPolicy ?? 'quarantine_visible'"
       :modes="FILTER_MODES"
       @select="(mode) => updateDefaultPolicy(mode as UnknownSenderPolicy)"
       @close="defaultPolicyModalOpen = false"
-    />
-
-    <FilterModeModal
-      :open="newAddressHandlingModalOpen"
-      title="New address handling"
-      subtitle="What happens when an email arrives for an address not yet in your alias list."
-      :current-mode="accountStore.account?.filtering?.newAddressHandling ?? 'auto_allow'"
-      :modes="NEW_ADDRESS_HANDLING_MODES"
-      @select="(mode) => updateNewAddressHandling(mode as 'auto_allow' | 'block_until_approved')"
-      @close="newAddressHandlingModalOpen = false"
     />
 
     <!-- Add alias modal -->
