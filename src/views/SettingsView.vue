@@ -21,6 +21,7 @@ import type {
   UnknownSenderPolicy,
   TeamMember,
   UserRole,
+  RetentionDuration,
 } from '@/types/server'
 
 const route = useRoute()
@@ -28,7 +29,7 @@ const router = useRouter()
 const accountStore = useAccountStore()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
-type TabKey = 'profile' | 'emails' | 'domains' | 'forwarding' | 'compose' | 'team'
+type TabKey = 'profile' | 'emails' | 'domains' | 'forwarding' | 'email' | 'team'
 const activeTab = ref<TabKey>('profile')
 
 // ─── Profile tab ─────────────────────────────────────────────────────────────
@@ -221,6 +222,62 @@ async function saveCalendarForwarding() {
     setTimeout(() => {
       calendarForwardingSaved.value = false
     }, 2000)
+  }
+}
+
+// ─── Retention duration (Email tab) ──────────────────────────────────────────
+interface RetentionOption {
+  value: RetentionDuration
+  label: string
+  minPlan: 'free' | 'pro' | 'premium'
+}
+
+const RETENTION_OPTIONS: RetentionOption[] = [
+  { value: 'P1M', label: '1 month', minPlan: 'free' },
+  { value: 'P2M', label: '2 months', minPlan: 'free' },
+  { value: 'P3M', label: '3 months', minPlan: 'free' },
+  { value: 'P5M', label: '5 months', minPlan: 'free' },
+  { value: 'P6M', label: '6 months', minPlan: 'free' },
+  { value: 'P1Y', label: '1 year', minPlan: 'pro' },
+  { value: 'P2Y', label: '2 years', minPlan: 'pro' },
+  { value: 'P5Y', label: '5 years', minPlan: 'pro' },
+  { value: 'P10Y', label: '10 years', minPlan: 'pro' },
+  { value: 'Infinity', label: 'Forever', minPlan: 'premium' },
+]
+
+const PLAN_RANK: Record<string, number> = { free: 0, starter: 1, pro: 2, premium: 3 }
+
+const currentPlanRank = computed(() => {
+  const plan = accountStore.account?.billingPlan ?? 'free'
+  return PLAN_RANK[plan] ?? 0
+})
+
+const retentionOptions = computed(() =>
+  RETENTION_OPTIONS.map((opt) => ({
+    ...opt,
+    available: currentPlanRank.value >= (PLAN_RANK[opt.minPlan] ?? 0),
+    badge: opt.minPlan !== 'free' ? opt.minPlan.charAt(0).toUpperCase() + opt.minPlan.slice(1) : null,
+  })),
+)
+
+const selectedRetention = ref<RetentionDuration | undefined>(undefined)
+const retentionPending = ref(false)
+const retentionUpgradePrompt = ref(false)
+
+async function updateRetention(value: RetentionDuration) {
+  const opt = retentionOptions.value.find((o) => o.value === value)
+  if (!opt?.available) {
+    retentionUpgradePrompt.value = true
+    return
+  }
+  if (!accountStore.accountId) return
+  retentionUpgradePrompt.value = false
+  retentionPending.value = true
+  const result = await api.updateAccount(accountStore.accountId, { retentionDuration: value })
+  retentionPending.value = false
+  if (result.isOk()) {
+    accountStore.account = result.value
+    selectedRetention.value = value
   }
 }
 
@@ -552,6 +609,7 @@ onMounted(async () => {
   if (accountStore.account) {
     afterSendAction.value = accountStore.account.afterSendAction ?? 'keep_active'
     calendarForwardingAddress.value = accountStore.account.defaultCalendarInviteForwardingAddress ?? ''
+    selectedRetention.value = accountStore.account.retentionDuration
     emailNotifAddress.value = accountStore.account.notifications?.email?.address ?? ''
     emailNotifEnabled.value = accountStore.account.notifications?.email?.enabled ?? false
     emailNotifFrequency.value = accountStore.account.notifications?.email?.frequency ?? 'daily'
@@ -564,7 +622,7 @@ onMounted(async () => {
     'emails',
     'domains',
     'forwarding',
-    'compose',
+    'email',
     'team',
   ]
   const tab = route.query.tab as TabKey | undefined
@@ -576,7 +634,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'emails', label: 'Aliases' },
   { key: 'domains', label: 'Domains' },
   { key: 'forwarding', label: 'Forwarding' },
-  { key: 'compose', label: 'Compose' },
+  { key: 'email', label: 'Email' },
   { key: 'team', label: 'Team' },
 ]
 </script>
@@ -1059,10 +1117,6 @@ const TABS: { key: TabKey; label: string }[] = [
         </div>
         <!-- Account-level filtering defaults -->
         <div class="mb-6 divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface1 bg-ctp-mantle">
-          <!-- Default filter mode -->
-          <div class="flex items-center justify-between gap-4 p-4">
-            <div>
-              <p class="text-sm font-medium text-ctp-text">Default filter mode</p>
           <!-- New address handling (formerly "Default filter mode") -->
           <div class="flex items-center justify-between gap-4 p-4">
             <div>
@@ -1448,8 +1502,9 @@ const TABS: { key: TabKey; label: string }[] = [
         </div>
       </section>
 
-      <!-- ── Compose tab ──────────────────────────────────────────────── -->
-      <section v-else-if="activeTab === 'compose'" class="space-y-6">
+      <!-- ── Email tab ──────────────────────────────────────────────── -->
+      <section v-else-if="activeTab === 'email'" class="space-y-6">
+        <!-- After send -->
         <div>
           <span class="mb-1 block text-xs font-medium text-ctp-subtext0">After send</span>
           <p class="mb-2 text-xs text-ctp-subtext0">What happens to the conversation after you send a reply</p>
@@ -1470,6 +1525,48 @@ const TABS: { key: TabKey; label: string }[] = [
               {{ option.label }}
             </AsyncButton>
           </div>
+        </div>
+
+        <!-- Data retention -->
+        <div class="border-t border-ctp-surface0 pt-5">
+          <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Data retention</span>
+          <p class="mb-3 text-xs text-ctp-subtext0">How long conversations are kept</p>
+
+          <div class="relative">
+            <select
+              :value="selectedRetention"
+              :disabled="retentionPending"
+              aria-label="Retention duration"
+              class="w-full appearance-none rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 pr-8 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none disabled:opacity-50"
+              @change="updateRetention(($event.target as HTMLSelectElement).value as RetentionDuration)"
+            >
+              <option v-if="!selectedRetention" value="" disabled selected>Select duration…</option>
+              <option
+                v-for="opt in retentionOptions"
+                :key="opt.value"
+                :value="opt.value"
+                :disabled="!opt.available"
+              >
+                {{ opt.label }}{{ !opt.available ? ` 🔒 ${opt.badge}` : '' }}
+              </option>
+            </select>
+            <svg class="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ctp-subtext0" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+            </svg>
+          </div>
+
+          <!-- Upgrade prompt -->
+          <div
+            v-if="retentionUpgradePrompt"
+            class="mt-2 rounded border border-ctp-yellow/40 bg-ctp-yellow/10 px-3 py-2 text-xs text-ctp-yellow"
+          >
+            This retention duration requires a higher plan.
+            <router-link to="/billing" class="font-medium underline hover:text-ctp-text">Upgrade</router-link>
+          </div>
+
+          <p class="mt-3 text-xs text-ctp-subtext0">
+            Applies to all conversations that receive new messages. Existing inactive threads keep their current retention.
+          </p>
         </div>
       </section>
 
