@@ -10,8 +10,8 @@ let tickInterval: ReturnType<typeof setInterval> | null = null
 onMounted(() => { tickInterval = setInterval(() => { _tick.value++ }, 250) })
 onUnmounted(() => { if (tickInterval) clearInterval(tickInterval) })
 
-const R = 15
-const CIRCUM = 2 * Math.PI * R  // ≈ 94.25
+const R = 30
+const CIRCUM = 2 * Math.PI * R  // ≈ 188.5
 
 function remaining(toast: ToastItem): number {
   void _tick.value  // reactive dependency
@@ -45,50 +45,50 @@ function formatRemaining(ms: number): string {
           v-for="toast in toasts"
           :key="toast.id"
           role="status"
-          class="pointer-events-auto flex w-96 max-w-[calc(100vw-3rem)] items-center gap-3 rounded-2xl border border-ctp-surface1 bg-ctp-mantle px-4 py-3.5 shadow-2xl"
+          class="pointer-events-auto flex w-[48rem] max-w-[calc(100vw-3rem)] items-center gap-5 rounded-3xl border border-ctp-surface1 bg-ctp-mantle px-8 py-7 shadow-2xl"
         >
           <!-- Countdown ring -->
           <div class="shrink-0">
             <svg
-              :width="36"
-              :height="36"
-              viewBox="0 0 36 36"
+              :width="72"
+              :height="72"
+              viewBox="0 0 72 72"
               aria-hidden="true"
               overflow="visible"
             >
               <!-- Track -->
               <circle
-                cx="18"
-                cy="18"
+                cx="36"
+                cy="36"
                 :r="R"
                 fill="none"
-                stroke-width="3"
+                stroke-width="5"
                 style="stroke: var(--color-ctp-surface1)"
               />
               <!-- Draining indicator -->
               <circle
-                cx="18"
-                cy="18"
+                cx="36"
+                cy="36"
                 :r="R"
                 fill="none"
-                stroke-width="3"
+                stroke-width="5"
                 stroke-linecap="round"
                 :stroke-dasharray="CIRCUM"
                 :stroke-dashoffset="CIRCUM * (1 - fraction(toast))"
                 style="
                   stroke: var(--color-ctp-mauve);
                   transform: rotate(-90deg);
-                  transform-origin: 18px 18px;
+                  transform-origin: 36px 36px;
                   transition: stroke-dashoffset 0.25s linear;
                 "
               />
               <!-- Countdown text -->
               <text
-                x="18"
-                y="18"
+                x="36"
+                y="36"
                 text-anchor="middle"
                 dominant-baseline="central"
-                :font-size="remaining(toast) >= 60_000 ? 5 : 6.5"
+                :font-size="remaining(toast) >= 60_000 ? 10 : 13"
                 font-family="ui-monospace, monospace"
                 style="fill: var(--color-ctp-subtext0)"
               >
@@ -99,16 +99,16 @@ function formatRemaining(ms: number): string {
 
           <!-- Message -->
           <div class="min-w-0 flex-1">
-            <p class="text-sm font-semibold text-ctp-text">{{ toast.message }}</p>
-            <p v-if="toast.submessage" class="mt-0.5 truncate text-xs text-ctp-subtext0">
+            <p class="text-xl font-semibold text-ctp-text">{{ toast.message }}</p>
+            <p v-if="toast.submessage" class="mt-1 truncate text-base text-ctp-subtext0">
               {{ toast.submessage }}
             </p>
           </div>
 
           <!-- Actions -->
-          <div class="flex shrink-0 items-center gap-2">
+          <div class="flex shrink-0 items-center gap-3">
             <button
-              class="rounded-lg bg-ctp-mauve px-3.5 py-1.5 text-sm font-semibold text-ctp-base transition-opacity hover:opacity-90 active:scale-95"
+              class="rounded-xl bg-ctp-mauve px-6 py-3 text-lg font-semibold text-ctp-base transition-opacity hover:opacity-90 active:scale-95"
               @click="undo(toast.id)"
             >
               {{ toast.undoLabel }}
@@ -116,11 +116,11 @@ function formatRemaining(ms: number): string {
             <!-- ✕ only on undo-type toasts; deferred toasts commit on dismiss so we omit it -->
             <button
               v-if="toast.type === 'undo'"
-              class="flex h-7 w-7 items-center justify-center rounded-lg text-ctp-subtext0 transition-colors hover:bg-ctp-surface0 hover:text-ctp-text"
+              class="flex h-10 w-10 items-center justify-center rounded-xl text-ctp-subtext0 transition-colors hover:bg-ctp-surface0 hover:text-ctp-text"
               aria-label="Dismiss"
               @click="dismiss(toast.id)"
             >
-              <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <svg class="h-5 w-5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                 <path d="M2.146 2.854a.5.5 0 11.708-.708L8 7.293l5.146-5.147a.5.5 0 01.708.708L8.707 8l5.147 5.146a.5.5 0 01-.708.708L8 8.707l-5.146 5.147a.5.5 0 01-.708-.708L7.293 8 2.146 2.854z"/>
               </svg>
             </button>
