@@ -160,6 +160,15 @@ const ROUTE_TITLES: Record<string, string> = {
 const APP_NAME = 'SES Email Adapter'
 
 router.beforeEach(async (to) => {
+  // Cross-cutting: detect ?accountId= and set account context before any other guard logic
+  const queryAccountId = to.query.accountId as string | undefined
+  if (queryAccountId) {
+    const accountStore = useAccountStore()
+    accountStore.startFetch(queryAccountId)
+    const { accountId: _, ...rest } = to.query
+    return { ...to, query: rest, replace: true }
+  }
+
   if (!to.meta.requiresAuth) return true
 
   const authenticated = await loginClient.userSessionExists()
