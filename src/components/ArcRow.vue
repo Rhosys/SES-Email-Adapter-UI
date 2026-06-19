@@ -26,6 +26,13 @@ async function archiveArc() {
   if (result.isOk()) arcsStore.removeArc(props.arc.arcId)
 }
 
+async function unarchiveArc() {
+  const id = accountStore.accountId
+  if (!id) return
+  const result = await api.patchArc(id, props.arc.arcId, { status: 'active' })
+  if (result.isOk()) arcsStore.removeArc(props.arc.arcId)
+}
+
 async function deleteArc() {
   const id = accountStore.accountId
   if (!id) return
@@ -69,10 +76,10 @@ async function deleteArc() {
         </div>
       </RouterLink>
 
-      <!-- Action buttons — visible on row hover -->
-      <div class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+      <!-- Action buttons — visible on row hover, tab-dependent -->
+      <div v-if="arcsStore.activeTab !== 'all'" class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
         <button
-          v-if="arc.status === 'active'"
+          v-if="arcsStore.activeTab === 'active'"
           class="flex h-7 items-center gap-1 rounded border border-ctp-surface1 px-2 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
           title="Archive"
           @click.prevent="archiveArc"
@@ -82,12 +89,13 @@ async function deleteArc() {
           </svg>
         </button>
         <button
-          class="flex h-7 items-center rounded border border-ctp-surface1 px-2 text-ctp-subtext0 hover:border-ctp-red hover:text-ctp-red"
-          title="Delete"
-          @click.prevent="deleteArc"
+          v-if="arcsStore.activeTab === 'archived'"
+          class="flex h-7 items-center gap-1 rounded border border-ctp-surface1 px-2 text-xs text-ctp-subtext1 hover:border-ctp-green hover:text-ctp-green"
+          title="Move to Inbox"
+          @click.prevent="unarchiveArc"
         >
-          <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/>
+          <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2 8h12M8 2v12M5 5l3-3 3 3"/>
           </svg>
         </button>
       </div>
