@@ -18,6 +18,8 @@ import { mockForwardingAddresses } from './data/forwarding'
 import { mockAuditEvents } from './data/audit'
 import { mockBilling } from './data/billing'
 
+import { mockSenders } from './data/senders'
+
 interface MockResponse {
   status: number
   body: unknown
@@ -108,6 +110,24 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
   // GET /accounts/:accountId/labels
   if (method === 'GET' && match('/accounts/:accountId/labels', url)) {
     return { status: 200, body: { labels: mockLabels, pagination: { cursor: null } } }
+  }
+
+  // GET /accounts/:accountId/aliases/:address/senders
+  if (method === 'GET' && match('/accounts/:accountId/aliases/:address/senders', url)) {
+    const senderParams = match('/accounts/:accountId/aliases/:address/senders', url)!
+    const address = decodeURIComponent(senderParams.address)
+    const senders = mockSenders[address] ?? []
+    return { status: 200, body: { senders } }
+  }
+
+  // PUT /accounts/:accountId/aliases/:address/senders/:domain
+  if (method === 'PUT' && match('/accounts/:accountId/aliases/:address/senders/:domain', url)) {
+    const putParams = match('/accounts/:accountId/aliases/:address/senders/:domain', url)!
+    const address = decodeURIComponent(putParams.address)
+    const senderDomain = decodeURIComponent(putParams.domain)
+    const senders = mockSenders[address] ?? []
+    const existing = senders.find((s) => s.sender === senderDomain)
+    return { status: 200, body: existing ?? { alias: address, sender: senderDomain, policy: 'allow', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } }
   }
 
   // GET /accounts/:accountId/aliases
