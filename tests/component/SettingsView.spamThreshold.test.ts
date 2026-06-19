@@ -14,6 +14,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
     api: {
       listAccounts: vi.fn(),
       listAliases: vi.fn(),
+      listAliasSenders: vi.fn(),
       updateAlias: vi.fn(),
       updateAccount: vi.fn(),
     },
@@ -70,6 +71,7 @@ describe('SettingsView — spam threshold input', () => {
     useAccountStore().account = testAccount
     vi.mocked(api.listAccounts).mockResolvedValue(ok([testAccount]))
     vi.mocked(api.updateAccount).mockResolvedValue(ok(testAccount))
+    vi.mocked(api.listAliasSenders).mockResolvedValue(ok([]))
   })
 
   it('displays current spamScoreThreshold value in the input', async () => {

@@ -104,7 +104,12 @@ function toggleExpanded(e: Event) {
   <div
     class="stats-widget mb-4 rounded-lg border border-ctp-surface0 bg-ctp-mantle transition-colors hover:border-ctp-surface1"
     :class="{ 'cursor-pointer': !uiStore.statsWidgetExpanded }"
+    role="button"
+    tabindex="0"
+    :aria-label="!uiStore.statsWidgetExpanded ? 'Expand stats widget' : undefined"
     @click="!uiStore.statsWidgetExpanded && toggleExpanded($event)"
+    @keydown.enter="!uiStore.statsWidgetExpanded && toggleExpanded($event)"
+    @keydown.space.prevent="!uiStore.statsWidgetExpanded && toggleExpanded($event)"
   >
     <div class="flex items-center justify-between px-3 py-2">
       <span class="text-xs font-medium text-ctp-subtext0 transition-colors hover:text-ctp-text">Stats</span>
