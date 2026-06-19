@@ -741,8 +741,8 @@ export interface StatsDataPoint {
 
 export interface StatsResponse {
   totals: StatsTotals
-  daily?: StatsDataPoint[]
-  monthly?: StatsDataPoint[]
+  daily: StatsDataPoint[]
+  monthly: StatsDataPoint[]
 }
 
 // ─── Pagination ───────────────────────────────────────────────────────────────
