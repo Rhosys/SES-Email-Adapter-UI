@@ -24,6 +24,7 @@ import type {
   Rule,
   Signal,
   SignalStatus,
+  StatsResponse,
   TeamMember,
   TemplateFunction,
   UnknownSenderPolicy,
@@ -53,6 +54,7 @@ export interface ArcListParams {
 export interface PatchArcBody {
   status?: ArcStatus
   labels?: string[]
+  followupAt?: string
 }
 
 export interface QuarantineSignalListParams {
@@ -410,11 +412,23 @@ export const api = {
   addAliasSender(
     accountId: string,
     address: string,
-    body: { sender: string; policy: SenderPolicy },
+    body: { domain: string; policy: SenderPolicy },
   ): Promise<Result<AliasSender, ApiError>> {
     return request<AliasSender>(
       `/accounts/${accountId}/aliases/${encodeURIComponent(address)}/senders`,
       { method: 'POST', body: JSON.stringify(body) },
+    )
+  },
+
+  updateAliasSender(
+    accountId: string,
+    address: string,
+    senderDomain: string,
+    body: { policy: SenderPolicy },
+  ): Promise<Result<AliasSender, ApiError>> {
+    return request<AliasSender>(
+      `/accounts/${accountId}/aliases/${encodeURIComponent(address)}/senders/${encodeURIComponent(senderDomain)}`,
+      { method: 'PUT', body: JSON.stringify(body) },
     )
   },
 
@@ -475,6 +489,13 @@ export const api = {
   deleteForwardingAddress(accountId: string, address: string): Promise<Result<void, ApiError>> {
     return request<void>(`/accounts/${accountId}/forwarding-addresses/${encodeURIComponent(address)}`, {
       method: 'DELETE',
+    })
+  },
+
+  verifyForwardingAddress(accountId: string, address: string, token: string): Promise<Result<void, ApiError>> {
+    return request<void>(`/accounts/${accountId}/forwarding-addresses/${encodeURIComponent(address)}/verify`, {
+      method: 'POST',
+      body: JSON.stringify({ token }),
     })
   },
 
@@ -550,6 +571,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     })
+  },
+
+  // ─── Stats ──────────────────────────────────────────────────────────────────
+
+  getStats(accountId: string): Promise<Result<StatsResponse, ApiError>> {
+    return request<StatsResponse>(`/accounts/${accountId}/stats`)
   },
 
   // ─── Email templates ────────────────────────────────────────────────────────

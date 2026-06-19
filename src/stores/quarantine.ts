@@ -197,7 +197,7 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     actionPending.value = new Set([...actionPending.value, signalId])
     const sender = fromAddress.includes('@') ? fromAddress.split('@')[1] : fromAddress
     const [aliasResult, responseResult] = await Promise.all([
-      api.addAliasSender(id, toAddress, { sender, policy: 'block_hidden' }),
+      api.addAliasSender(id, toAddress, { domain: sender, policy: 'block_hidden' }),
       api.quarantineResponse(id, signalId, 'block_hidden'),
     ])
     actionPending.value = new Set([...actionPending.value].filter((x) => x !== signalId))

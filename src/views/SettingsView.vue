@@ -13,10 +13,13 @@ import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import FilterModeModal from '@/components/ui/FilterModeModal.vue'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
+import { useToast } from '@/composables/useToast'
 import type {
   Domain,
   DnsRecord,
   Alias,
+  AliasSender,
+  SenderPolicy,
   ForwardingAddress,
   UnknownSenderPolicy,
   TeamMember,
@@ -28,6 +31,7 @@ const route = useRoute()
 const router = useRouter()
 const accountStore = useAccountStore()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
+const { deferAction } = useToast()
 
 type TabKey = 'profile' | 'emails' | 'domains' | 'forwarding' | 'email' | 'team'
 const activeTab = ref<TabKey>('profile')
@@ -291,6 +295,55 @@ const aliasSearch = ref('')
 const addAliasModalOpen = ref(false)
 const expandedAlias = ref<string | null>(null)
 
+// ─── Senders per alias (lazy-loaded on expand) ────────────────────────────────
+const aliasSenders = ref<Map<string, AliasSender[]>>(new Map())
+const aliasSendersLoading = ref<Set<string>>(new Set())
+
+const SENDER_POLICIES: { value: SenderPolicy; label: string }[] = [
+  { value: 'allow', label: 'Allow' },
+  { value: 'block_hidden', label: 'Block' },
+  { value: 'block_reject', label: 'Block & bounce' },
+  { value: 'violate_report', label: 'Report violation' },
+]
+
+async function loadSendersForAlias(address: string) {
+  if (!accountStore.accountId) return
+  if (aliasSenders.value.has(address)) return
+  aliasSendersLoading.value.add(address)
+  const result = await api.listAliasSenders(accountStore.accountId, address)
+  aliasSendersLoading.value.delete(address)
+  if (result.isOk()) {
+    aliasSenders.value.set(address, result.value)
+  }
+}
+
+async function updateSenderPolicy(address: string, senderDomain: string, policy: SenderPolicy) {
+  if (!accountStore.accountId) return
+  const result = await api.updateAliasSender(accountStore.accountId, address, senderDomain, { policy })
+  if (result.isOk()) {
+    const current = aliasSenders.value.get(address) ?? []
+    aliasSenders.value.set(address, current.map((s) => (s.sender === senderDomain ? result.value : s)))
+  }
+}
+
+async function removeSender(address: string, senderDomain: string) {
+  if (!accountStore.accountId) return
+  const result = await api.removeAliasSender(accountStore.accountId, address, senderDomain)
+  if (result.isOk()) {
+    const current = aliasSenders.value.get(address) ?? []
+    aliasSenders.value.set(address, current.filter((s) => s.sender !== senderDomain))
+  }
+}
+
+function toggleAliasExpand(address: string) {
+  if (expandedAlias.value === address) {
+    expandedAlias.value = null
+  } else {
+    expandedAlias.value = address
+    loadSendersForAlias(address)
+  }
+}
+
 const filteredAliases = computed(() => {
   if (!aliasSearch.value.trim()) return aliases.value
   const q = aliasSearch.value.toLowerCase()
@@ -418,6 +471,26 @@ async function recheckDomain(domainId: string) {
   }
 }
 
+async function deleteDomain(domainId: string) {
+  if (!accountStore.accountId) return
+  const confirmed = await confirmAction({
+    title: 'Delete domain',
+    message: 'This will delete all aliases on this domain. You will no longer receive email for this domain. All DNS configuration will be removed.',
+    confirmLabel: 'Delete',
+    confirmVariant: 'danger',
+  })
+  if (!confirmed) return
+  const removed = domains.value.find((d) => d.domainId === domainId)
+  if (!removed) return
+  domains.value = domains.value.filter((d) => d.domainId !== domainId)
+  const acctId = accountStore.accountId
+  deferAction('Domain deleted', async () => {
+    await api.deleteDomain(acctId, domainId)
+  }, 8000, {
+    onUndo: () => { domains.value = [...domains.value, removed] },
+  })
+}
+
 const STATUS_COLORS: Record<string, string> = {
   verified: 'text-ctp-green',
   pending: 'text-ctp-yellow',
@@ -429,6 +502,8 @@ const forwarding = ref<ForwardingAddress[]>([])
 const forwardingLoading = ref(false)
 const newForwardAddress = ref('')
 const addForwardPending = ref(false)
+const verifySuccess = ref('')
+const verifyError = ref('')
 
 async function loadForwarding() {
   if (!accountStore.accountId) return
@@ -616,6 +691,21 @@ onMounted(async () => {
   }
   // Load security profile data eagerly (for Profile tab)
   void loadSecurityProfile()
+  // Handle forwarding address verification from email link
+  const verifyAddress = route.query.verifyAddress as string | undefined
+  const token = route.query.token as string | undefined
+  if (verifyAddress && token && accountStore.accountId) {
+    const result = await api.verifyForwardingAddress(accountStore.accountId, verifyAddress, token)
+    if (result.isOk()) {
+      verifySuccess.value = `${verifyAddress} verified successfully`
+      await loadForwarding()
+    } else {
+      verifyError.value = result.error.message || 'Verification failed'
+    }
+    const { verifyAddress: _va, token: _tk, ...rest } = route.query
+    void router.replace({ query: rest })
+    activeTab.value = 'forwarding'
+  }
   // Hydrate active tab from URL
   const VALID_TABS: TabKey[] = [
     'profile',
@@ -1223,9 +1313,9 @@ const TABS: { key: TabKey; label: string }[] = [
               class="flex items-center justify-between gap-2 cursor-pointer"
               :aria-expanded="expandedAlias === alias.address"
               :aria-label="`Toggle details for ${alias.address}`"
-              @click="expandedAlias = expandedAlias === alias.address ? null : alias.address"
-              @keydown.enter="expandedAlias = expandedAlias === alias.address ? null : alias.address"
-              @keydown.space.prevent="expandedAlias = expandedAlias === alias.address ? null : alias.address"
+              @click="toggleAliasExpand(alias.address)"
+              @keydown.enter="toggleAliasExpand(alias.address)"
+              @keydown.space.prevent="toggleAliasExpand(alias.address)"
             >
               <p class="min-w-0 flex-1 truncate text-sm font-medium text-ctp-text">{{ alias.address }}</p>
               <button
@@ -1273,6 +1363,44 @@ const TABS: { key: TabKey; label: string }[] = [
                   >
                     Use account default
                   </button>
+                </div>
+              </div>
+              <!-- Senders list -->
+              <div>
+                <span class="mb-1.5 block text-xs text-ctp-subtext0">Known senders</span>
+                <div v-if="aliasSendersLoading.has(alias.address)" class="animate-pulse space-y-1.5">
+                  <div v-for="i in 2" :key="i" class="flex items-center gap-2">
+                    <div class="h-3.5 flex-1 rounded bg-ctp-surface1" :style="{ maxWidth: `${80 + i * 30}px` }" />
+                    <div class="h-5 w-14 rounded-full bg-ctp-surface1" />
+                  </div>
+                </div>
+                <div v-else-if="!aliasSenders.get(alias.address)?.length" class="text-xs text-ctp-subtext0">
+                  No senders recorded yet — senders appear here as emails arrive
+                </div>
+                <div v-else class="space-y-1">
+                  <div
+                    v-for="sender in aliasSenders.get(alias.address)"
+                    :key="sender.sender"
+                    class="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-ctp-surface0/50"
+                  >
+                    <span class="min-w-0 flex-1 truncate text-xs text-ctp-text">{{ sender.sender }}</span>
+                    <select
+                      :value="sender.policy"
+                      :aria-label="`Policy for ${sender.sender}`"
+                      class="rounded border border-ctp-surface1 bg-ctp-mantle px-1.5 py-0.5 text-xs text-ctp-text"
+                      @change="updateSenderPolicy(alias.address, sender.sender, ($event.target as HTMLSelectElement).value as SenderPolicy)"
+                    >
+                      <option v-for="opt in SENDER_POLICIES" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                    <button
+                      type="button"
+                      class="text-ctp-subtext0 hover:text-ctp-red"
+                      title="Remove sender"
+                      @click="removeSender(alias.address, sender.sender)"
+                    >
+                      <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+                    </button>
+                  </div>
                 </div>
               </div>
               <button
@@ -1366,6 +1494,13 @@ const TABS: { key: TabKey; label: string }[] = [
               >
                 Re-check DNS
               </AsyncButton>
+              <button
+                type="button"
+                class="rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-red transition-colors hover:border-ctp-red/50 hover:bg-ctp-red/10"
+                @click="deleteDomain(domain.domainId)"
+              >
+                Delete
+              </button>
             </div>
             <!-- DNS records — two-tier display -->
             <div v-if="domain.records?.length" class="border-t border-ctp-surface0">
@@ -1414,6 +1549,13 @@ const TABS: { key: TabKey; label: string }[] = [
 
       <!-- ── Forwarding tab ─────────────────────────────────────────────── -->
       <section v-else-if="activeTab === 'forwarding'">
+        <!-- Verification feedback -->
+        <div v-if="verifySuccess" class="mb-4 rounded-lg border border-ctp-green bg-ctp-green/10 px-4 py-3 text-sm text-ctp-green">
+          {{ verifySuccess }}
+        </div>
+        <div v-if="verifyError" class="mb-4 rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red">
+          {{ verifyError }}
+        </div>
         <!-- Calendar forwarding address -->
         <div class="mb-6 rounded-lg border border-ctp-surface1 p-4">
           <label for="calendar-forwarding" class="mb-1 block text-xs font-medium text-ctp-subtext0">Calendar invite forwarding</label>

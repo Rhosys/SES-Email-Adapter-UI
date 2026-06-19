@@ -230,7 +230,7 @@ describe('quarantineStore', () => {
     expect(result).toBe(true)
     expect(store.quarantineVisible).toHaveLength(0)
     expect(vi.mocked(api.addAliasSender)).toHaveBeenCalledWith('acc_1', 'inbox@example.com', {
-      sender: 'example.com',
+      domain: 'example.com',
       policy: 'block_hidden',
     })
     expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'block_hidden')
