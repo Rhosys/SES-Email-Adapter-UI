@@ -10,6 +10,7 @@ import ArcList from '@/components/ArcList.vue'
 import InboxError from '@/components/InboxError.vue'
 import InboxEmpty from '@/components/InboxEmpty.vue'
 import InboxZeroCelebration from '@/components/InboxZeroCelebration.vue'
+import StatsWidget from '@/components/StatsWidget.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -128,6 +129,8 @@ watch(
     </header>
 
     <main class="mx-auto max-w-4xl px-4 py-4">
+      <StatsWidget />
+
       <InboxError v-if="arcsStore.error" :message="arcsStore.error" />
 
       <StatusTabs :active-tab="arcsStore.activeTab" @change="handleTabChange" />

@@ -21,7 +21,7 @@ const router = useRouter()
 const signalsStore = useSignalsStore()
 const arcsStore = useArcsStore()
 const accountStore = useAccountStore()
-const { showUndo } = useToast()
+const { showUndo, deferAction } = useToast()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
 const arcId = computed(() => route.params.id as string)
@@ -84,11 +84,11 @@ async function archive() {
       const accountId = accountStore.accountId
       if (!accountId) return
       await api.patchArc(accountId, id, { status: 'active' })
-      await signalsStore.fetchAll(id)
     },
     8_000,
     { submessage: summary ? summary.slice(0, 70) : undefined },
   )
+  void router.push('/')
 }
 
 async function unsubscribe() {
@@ -111,9 +111,17 @@ async function deleteArc() {
     confirmVariant: 'danger',
   })
   if (!confirmed) return
-  const id = accountStore.accountId
-  if (!id) return
-  await api.patchArc(id, arcId.value, { status: 'deleted' })
+  const accountId = accountStore.accountId
+  if (!accountId) return
+  const id = arcId.value
+  deferAction(
+    'Thread deleted',
+    async () => {
+      await api.patchArc(accountId, id, { status: 'deleted' })
+    },
+    8_000,
+    { undoLabel: 'Undo' },
+  )
   void router.push('/')
 }
 
@@ -289,10 +297,23 @@ async function removeLabel(label: string) {
         </div>
       </div>
 
-      <!-- Retention warning -->
-      <div v-if="showRetentionWarning" class="mb-4 rounded-lg border border-ctp-peach/30 bg-ctp-peach/10 px-4 py-2 text-xs text-ctp-peach">
+      <!-- Retention: always-visible expiry date -->
+      <RouterLink
+        v-if="availableUntil"
+        :to="{ name: 'settings', query: { tab: 'email' } }"
+        class="mb-2 block cursor-pointer text-xs text-ctp-subtext0 no-underline hover:text-ctp-text hover:underline"
+      >
+        Available until {{ availableUntil }}
+      </RouterLink>
+
+      <!-- Retention warning (≤30 days) -->
+      <RouterLink
+        v-if="showRetentionWarning"
+        :to="{ name: 'settings', query: { tab: 'email' } }"
+        class="mb-4 block cursor-pointer rounded-lg border border-ctp-peach/30 bg-ctp-peach/10 px-4 py-2 text-xs text-ctp-peach no-underline hover:bg-ctp-peach/15"
+      >
         ⚠ {{ retentionMessage }}
-      </div>
+      </RouterLink>
 
       <!-- Workflow panel (from latest signal with workflowData) -->
       <div v-if="signalsStore.latestSignal && isInboundEmailSignal(signalsStore.latestSignal) && signalsStore.latestSignal.data.workflowData" class="mb-6">

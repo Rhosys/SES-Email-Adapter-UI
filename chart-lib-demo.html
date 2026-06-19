@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chart Library Comparison: ApexCharts vs ECharts</title>
+<style>
+  :root {
+    --ctp-base: #1e1e2e;
+    --ctp-mantle: #181825;
+    --ctp-surface0: #313244;
+    --ctp-surface1: #45475a;
+    --ctp-text: #cdd6f4;
+    --ctp-subtext0: #a6adc8;
+    --ctp-green: #a6e3a1;
+    --ctp-yellow: #f9e2af;
+    --ctp-red: #f38ba8;
+    --ctp-mauve: #cba6f7;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--ctp-base); color: var(--ctp-text); font-family: system-ui, sans-serif; padding: 2rem; }
+  h1 { font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--ctp-subtext0); }
+  h2 { font-size: 1rem; margin: 2rem 0 1rem; color: var(--ctp-mauve); }
+  .widget { background: var(--ctp-mantle); border: 1px solid var(--ctp-surface0); border-radius: 12px; padding: 1rem 1.25rem; display: flex; align-items: center; gap: 1.5rem; cursor: pointer; transition: border-color 0.2s; }
+  .widget:hover { border-color: var(--ctp-mauve); }
+  .donut-section { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; flex-shrink: 0; }
+  .donut-container { width: 80px; height: 80px; }
+  .link { font-size: 0.65rem; color: var(--ctp-mauve); text-decoration: none; }
+  .link:hover { text-decoration: underline; }
+  .totals { display: flex; flex-direction: column; gap: 0.5rem; min-width: 100px; }
+  .total-row { display: flex; align-items: baseline; gap: 0.5rem; }
+  .total-value { font-size: 1.1rem; font-weight: 600; }
+  .total-label { font-size: 0.6rem; color: var(--ctp-subtext0); }
+  .green { color: var(--ctp-green); }
+  .yellow { color: var(--ctp-yellow); }
+  .red { color: var(--ctp-red); }
+  .chart-container { flex: 1; height: 80px; min-width: 0; }
+  .apexcharts-tooltip { background: #313244 !important; border: 1px solid #45475a !important; color: #cdd6f4 !important; font-size: 11px !important; border-radius: 4px !important; box-shadow: none !important; }
+  .apexcharts-tooltip-title { background: #313244 !important; border-bottom: 1px solid #45475a !important; color: #a6adc8 !important; font-size: 11px !important; padding: 4px 8px !important; }
+  .apexcharts-tooltip-series-group { padding: 2px 8px !important; }
+  .apexcharts-tooltip-y-group { padding: 0 !important; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body>
+<h1>Stats Widget: ApexCharts vs ECharts</h1>
+<p style="color: var(--ctp-subtext0); font-size: 0.8rem; margin-bottom: 1rem;">Donut: hover highlights segment + shows tooltip. Link under donut. Whole widget is clickable.</p>
+
+<script>
+const days = Array.from({ length: 30 }, (_, i) => new Date(2026, 5, i + 1).toISOString().slice(0, 10));
+const allowed = [42,38,45,50,35,48,52,40,44,47,39,51,46,43,38,55,41,49,36,53,44,47,40,50,45,42,48,37,51,43];
+const quarantined = [3,5,2,4,6,3,2,5,4,3,6,2,4,3,5,2,4,3,6,2,5,3,4,2,5,4,3,6,2,4];
+const blocked = [1,2,1,0,1,2,1,1,0,1,2,1,0,1,1,2,0,1,1,2,1,0,1,2,1,1,0,2,1,1];
+const totalAllowed = allowed.reduce((a, b) => a + b, 0);
+const totalQuarantined = quarantined.reduce((a, b) => a + b, 0);
+const totalBlocked = blocked.reduce((a, b) => a + b, 0);
+</script>
+
+<h2>ApexCharts</h2>
+<div class="widget">
+  <div class="donut-section">
+    <div class="donut-container" id="apex-donut"></div>
+    <a href="#" class="link">View full stats →</a>
+  </div>
+  <div class="totals">
+    <div class="total-row"><span class="total-value green" id="apex-allowed"></span><span class="total-label">Allowed</span></div>
+    <div class="total-row"><span class="total-value yellow" id="apex-quarantined"></span><span class="total-label">Quarantined</span></div>
+    <div class="total-row"><span class="total-value red" id="apex-blocked"></span><span class="total-label">Blocked</span></div>
+  </div>
+  <div class="chart-container" id="apex-area"></div>
+</div>
+
+<h2>ECharts</h2>
+<div class="widget">
+  <div class="donut-section">
+    <div class="donut-container" id="echarts-donut"></div>
+    <a href="#" class="link">View full stats →</a>
+  </div>
+  <div class="totals">
+    <div class="total-row"><span class="total-value green" id="echarts-allowed"></span><span class="total-label">Allowed</span></div>
+    <div class="total-row"><span class="total-value yellow" id="echarts-quarantined"></span><span class="total-label">Quarantined</span></div>
+    <div class="total-row"><span class="total-value red" id="echarts-blocked"></span><span class="total-label">Blocked</span></div>
+  </div>
+  <div class="chart-container" id="echarts-area"></div>
+</div>
+
+<script>
+document.getElementById('apex-allowed').textContent = totalAllowed.toLocaleString();
+document.getElementById('apex-quarantined').textContent = totalQuarantined.toLocaleString();
+document.getElementById('apex-blocked').textContent = totalBlocked.toLocaleString();
+document.getElementById('echarts-allowed').textContent = totalAllowed.toLocaleString();
+document.getElementById('echarts-quarantined').textContent = totalQuarantined.toLocaleString();
+document.getElementById('echarts-blocked').textContent = totalBlocked.toLocaleString();
+
+// ─── ApexCharts ─────────────────────────────────────────────────────────────
+new ApexCharts(document.getElementById('apex-donut'), {
+  chart: { type: 'donut', width: 80, height: 80, sparkline: { enabled: true } },
+  series: [totalAllowed, totalQuarantined, totalBlocked],
+  labels: ['Allowed', 'Quarantined', 'Blocked'],
+  colors: ['#a6e3a1', '#f9e2af', '#f38ba8'],
+  plotOptions: { pie: { donut: { size: '65%' }, expandOnClick: false } },
+  states: { hover: { filter: { type: 'lighten', value: 0.15 } }, active: { filter: { type: 'none' } } },
+  stroke: { width: 0 },
+  legend: { show: false },
+  tooltip: { enabled: true, theme: 'dark', fillSeriesColor: false, style: { fontSize: '11px' }, y: { formatter: (val) => val.toLocaleString() } },
+  dataLabels: { enabled: false },
+}).render();
+
+new ApexCharts(document.getElementById('apex-area'), {
+  chart: { type: 'area', height: 80, sparkline: { enabled: true }, stacked: true },
+  series: [
+    { name: 'Allowed', data: allowed },
+    { name: 'Quarantined', data: quarantined },
+    { name: 'Blocked', data: blocked },
+  ],
+  colors: ['#a6e3a1', '#f9e2af', '#f38ba8'],
+  fill: { type: 'solid', opacity: [0.4, 0.5, 0.6] },
+  stroke: { width: 1.5, curve: 'smooth' },
+  xaxis: { categories: days, labels: { show: false }, axisBorder: { show: false }, axisTicks: { show: false } },
+  yaxis: { show: false },
+  grid: { show: false },
+  tooltip: { enabled: true, theme: 'dark', x: { format: 'MMM dd' }, style: { fontSize: '11px' }, fillSeriesColor: false, marker: { show: true } },
+  legend: { show: false },
+}).render();
+
+// ─── ECharts ────────────────────────────────────────────────────────────────
+const echartsDonut = echarts.init(document.getElementById('echarts-donut'), null, { renderer: 'canvas' });
+echartsDonut.setOption({
+  tooltip: { trigger: 'item', confine: true, backgroundColor: '#313244', borderColor: '#45475a', textStyle: { color: '#cdd6f4', fontSize: 11 }, formatter: '{b}: {c} ({d}%)' },
+  series: [{
+    type: 'pie',
+    radius: ['55%', '85%'],
+    label: { show: false },
+    emphasis: { scale: true, scaleSize: 4, itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.3)' } },
+    data: [
+      { value: totalAllowed, name: 'Allowed', itemStyle: { color: '#a6e3a1' } },
+      { value: totalQuarantined, name: 'Quarantined', itemStyle: { color: '#f9e2af' } },
+      { value: totalBlocked, name: 'Blocked', itemStyle: { color: '#f38ba8' } },
+    ],
+    itemStyle: { borderWidth: 0 },
+  }],
+});
+
+const echartsArea = echarts.init(document.getElementById('echarts-area'), null, { renderer: 'canvas' });
+echartsArea.setOption({
+  grid: { left: 0, right: 0, top: 0, bottom: 0 },
+  xAxis: { type: 'category', data: days, show: false },
+  yAxis: { type: 'value', show: false },
+  tooltip: { trigger: 'axis', backgroundColor: '#313244', borderColor: '#45475a', textStyle: { color: '#cdd6f4', fontSize: 11 } },
+  series: [
+    { name: 'Allowed', type: 'line', stack: 'total', areaStyle: { opacity: 0.4 }, lineStyle: { width: 1.5 }, symbol: 'none', smooth: true, data: allowed, color: '#a6e3a1' },
+    { name: 'Quarantined', type: 'line', stack: 'total', areaStyle: { opacity: 0.5 }, lineStyle: { width: 1.5 }, symbol: 'none', smooth: true, data: quarantined, color: '#f9e2af' },
+    { name: 'Blocked', type: 'line', stack: 'total', areaStyle: { opacity: 0.6 }, lineStyle: { width: 1.5 }, symbol: 'none', smooth: true, data: blocked, color: '#f38ba8' },
+  ],
+});
+
+window.addEventListener('resize', () => { echartsDonut.resize(); echartsArea.resize(); });
+</script>
+</body>
+</html>

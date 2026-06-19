@@ -724,6 +724,27 @@ export interface BillingInfo {
   trialEnd?: string
 }
 
+// ─── Stats ─────────────────────────────────────────────────────────────────────
+
+export interface StatsTotals {
+  allowed: number
+  quarantined: number
+  blocked: number
+}
+
+export interface StatsDataPoint {
+  date: string
+  allowed: number
+  quarantined: number
+  blocked: number
+}
+
+export interface StatsResponse {
+  totals: StatsTotals
+  daily?: StatsDataPoint[]
+  monthly?: StatsDataPoint[]
+}
+
 // ─── Pagination ───────────────────────────────────────────────────────────────
 
 export interface Pagination {

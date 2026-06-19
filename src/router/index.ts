@@ -103,6 +103,11 @@ export const router = createRouter({
           name: 'changelog',
           component: () => import('@/views/ChangelogView.vue'),
         },
+        {
+          path: 'stats',
+          name: 'stats',
+          component: () => import('@/views/StatsView.vue'),
+        },
       ],
     },
 

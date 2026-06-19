@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { marked } from 'marked'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
@@ -12,7 +13,10 @@ const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ discard: []; sent: [] }>()
 
 const accountStore = useAccountStore()
+const router = useRouter()
 const { deferAction, undo: undoToast } = useToast()
+
+const afterSendAction = computed(() => accountStore.account?.afterSendAction ?? 'keep_active')
 
 // Parse existing from address (empty for brand-new drafts)
 function splitAddress(address: string): [string, string] {
@@ -85,47 +89,68 @@ async function persistDraft() {
   if (result.isErr()) error.value = result.error.message
 }
 
-async function send() {
+async function sendAndArchive() {
   if (!accountStore.accountId || !canSend.value) return
   error.value = null
   await persistDraft()
 
   const accountId = accountStore.accountId
   const signalId = props.signal.signalId
-
-  sendState.value = 'sending'
-  const result = await api.sendSignal(accountId, signalId)
-  if (result.isErr()) {
-    sendState.value = 'idle'
-    error.value = result.error.message
-    return
-  }
+  const sigArcId = props.signal.arcId
+  if (!sigArcId) return
 
   sendState.value = 'cancellable'
+  void router.push('/')
 
   const id = deferAction(
-    'Email sent',
+    'Email sent + archived',
     async () => {
-      // Toast expired — signal is now live. Parent re-fetches to show EmailSignalCard with undo button.
+      const result = await api.sendSignal(accountId, signalId)
+      if (result.isOk()) {
+        await api.patchArc(accountId, sigArcId, { status: 'archived' })
+      }
       sendState.value = 'idle'
       toastId.value = null
       emit('sent')
     },
-    30_000,
+    8_000,
     {
       submessage: `To: ${toLabel.value}`,
       undoLabel: 'Cancel send',
-      onUndo: async () => {
-        const cancelResult = await api.patchSignal(accountId, signalId, { status: 'draft' })
-        sendState.value = 'idle'
-        toastId.value = null
-        if (cancelResult.isOk()) {
-          emit('discard')
-        } else {
-          error.value = 'Email already delivered — cancel was too late'
-          emit('sent')
-        }
-      },
+    },
+  )
+  toastId.value = id
+}
+
+async function sendAndWait() {
+  if (!accountStore.accountId || !canSend.value) return
+  error.value = null
+  await persistDraft()
+
+  const accountId = accountStore.accountId
+  const signalId = props.signal.signalId
+  const sigArcId = props.signal.arcId
+  if (!sigArcId) return
+
+  sendState.value = 'cancellable'
+  void router.push('/')
+
+  const followupAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+  const id = deferAction(
+    'Email sent — follow up in 7 days',
+    async () => {
+      const result = await api.sendSignal(accountId, signalId)
+      if (result.isOk()) {
+        await api.patchArc(accountId, sigArcId, { followupAt })
+      }
+      sendState.value = 'idle'
+      toastId.value = null
+      emit('sent')
+    },
+    8_000,
+    {
+      submessage: `To: ${toLabel.value}`,
+      undoLabel: 'Cancel send',
     },
   )
   toastId.value = id
@@ -290,13 +315,20 @@ async function discard() {
           </button>
         </template>
         <template v-else>
-          <button
+          <AsyncButton
+            :action="sendAndArchive"
             :disabled="!canSend"
-            class="rounded bg-ctp-mauve px-4 py-1.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            @click="send"
+            :variant="afterSendAction === 'archive' ? 'primary' : 'outline'"
           >
-            {{ sendState === 'sending' ? 'Sending…' : 'Send' }}
-          </button>
+            Send + Archive
+          </AsyncButton>
+          <AsyncButton
+            :action="sendAndWait"
+            :disabled="!canSend"
+            :variant="afterSendAction !== 'archive' ? 'primary' : 'outline'"
+          >
+            Send + Wait
+          </AsyncButton>
           <AsyncButton
             :action="discard"
             variant="ghost"
