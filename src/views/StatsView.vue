@@ -1,44 +1,24 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { LineChart, BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import { useAccountStore } from '@/stores/account'
-import { api } from '@/lib/api'
-import type { StatsResponse } from '@/types/server'
+import { useStatsStore } from '@/stores/stats'
 
 use([LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
-const accountStore = useAccountStore()
-const stats = ref<StatsResponse | null>(null)
-const loading = ref(true)
-const error = ref<string | null>(null)
+const statsStore = useStatsStore()
 
-async function fetchStats() {
-  const id = accountStore.accountId
-  if (!id) {
-    loading.value = false
-    return
-  }
-  loading.value = true
-  error.value = null
-  const result = await api.getStats(id)
-  loading.value = false
-  if (result.isOk()) {
-    stats.value = result.value
-  } else {
-    error.value = result.error.message
-  }
-}
+onMounted(() => {
+  void statsStore.fetchStats()
+})
 
-onMounted(fetchStats)
-
-const totals = computed(() => stats.value?.totals ?? { allowed: 0, quarantined: 0, blocked: 0 })
+const totals = computed(() => statsStore.stats.totals)
 
 const dailyAreaOption = computed(() => {
-  const daily = stats.value?.daily ?? []
+  const daily = statsStore.stats.daily
   const dates = daily.map((d) => d.date)
   return {
     tooltip: { trigger: 'axis' as const, confine: true },
@@ -95,7 +75,7 @@ const dailyAreaOption = computed(() => {
 })
 
 const monthlyBarOption = computed(() => {
-  const monthly = stats.value?.monthly ?? []
+  const monthly = statsStore.stats.monthly
   const dates = monthly.map((d) => d.date)
   return {
     tooltip: { trigger: 'axis' as const, confine: true },
@@ -142,8 +122,8 @@ const monthlyBarOption = computed(() => {
   }
 })
 
-const hasDaily = computed(() => (stats.value?.daily?.length ?? 0) > 0)
-const hasMonthly = computed(() => (stats.value?.monthly?.length ?? 0) > 0)
+const hasDaily = computed(() => statsStore.stats.daily.length > 0)
+const hasMonthly = computed(() => statsStore.stats.monthly.length > 0)
 </script>
 
 <template>
@@ -151,7 +131,7 @@ const hasMonthly = computed(() => (stats.value?.monthly?.length ?? 0) > 0)
     <h1 class="text-lg font-semibold text-ctp-text">Stats</h1>
 
     <!-- Loading skeleton -->
-    <div v-if="loading" class="mt-6 space-y-4">
+    <div v-if="statsStore.loading" class="mt-6 space-y-4">
       <div class="flex gap-6">
         <div v-for="i in 3" :key="i" class="h-16 w-32 animate-pulse rounded-lg bg-ctp-surface0" />
       </div>
@@ -160,11 +140,11 @@ const hasMonthly = computed(() => (stats.value?.monthly?.length ?? 0) > 0)
     </div>
 
     <!-- Error state -->
-    <div v-else-if="error" class="mt-6 flex flex-col items-center gap-4 rounded-lg border border-ctp-surface0 bg-ctp-mantle p-8">
-      <p class="text-sm text-ctp-red">{{ error }}</p>
+    <div v-else-if="statsStore.error" class="mt-6 flex flex-col items-center gap-4 rounded-lg border border-ctp-surface0 bg-ctp-mantle p-8">
+      <p class="text-sm text-ctp-red">{{ statsStore.error }}</p>
       <button
         class="rounded-md bg-ctp-blue px-4 py-2 text-sm font-medium text-ctp-base transition-colors hover:bg-ctp-sapphire"
-        @click="fetchStats"
+        @click="statsStore.fetchStats"
       >
         Retry
       </button>
