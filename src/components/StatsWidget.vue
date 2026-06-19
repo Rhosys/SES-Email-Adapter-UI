@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -7,32 +7,19 @@ import { PieChart, LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useUiStore } from '@/stores/ui'
-import { useAccountStore } from '@/stores/account'
-import { api } from '@/lib/api'
-import type { StatsResponse } from '@/types/server'
+import { useStatsStore } from '@/stores/stats'
 
 use([PieChart, LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
 const uiStore = useUiStore()
-const accountStore = useAccountStore()
-const stats = ref<StatsResponse | null>(null)
-const loading = ref(true)
+const statsStore = useStatsStore()
 
-onMounted(async () => {
-  const id = accountStore.accountId
-  if (!id) {
-    loading.value = false
-    return
-  }
-  const result = await api.getStats(id)
-  loading.value = false
-  if (result.isOk()) {
-    stats.value = result.value
-  }
+onMounted(() => {
+  void statsStore.fetchStats()
 })
 
 const donutOption = computed(() => {
-  const totals = stats.value?.totals ?? { allowed: 0, quarantined: 0, blocked: 0 }
+  const totals = statsStore.stats.totals
   return {
     tooltip: { trigger: 'item' as const, confine: true },
     series: [
@@ -52,7 +39,7 @@ const donutOption = computed(() => {
 })
 
 const areaOption = computed(() => {
-  const daily = stats.value?.daily ?? []
+  const daily = statsStore.stats.daily
   const dates = daily.map((d) => d.date)
   return {
     grid: { top: 4, right: 4, bottom: 4, left: 4 },
@@ -91,7 +78,7 @@ const areaOption = computed(() => {
   }
 })
 
-const totals = computed(() => stats.value?.totals ?? { allowed: 0, quarantined: 0, blocked: 0 })
+const totals = computed(() => statsStore.stats.totals)
 
 function toggleExpanded(e: Event) {
   e.preventDefault()
@@ -130,7 +117,7 @@ function toggleExpanded(e: Event) {
       :to="{ name: 'stats' }"
       class="block cursor-pointer px-3 pb-3 no-underline hover:bg-ctp-surface0/30"
     >
-      <div v-if="loading" class="flex h-20 items-center justify-center">
+      <div v-if="statsStore.loading" class="flex h-20 items-center justify-center">
         <div class="h-5 w-5 animate-spin rounded-full border-2 border-ctp-surface1 border-t-ctp-mauve" />
       </div>
 
