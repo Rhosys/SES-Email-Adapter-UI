@@ -116,7 +116,7 @@ onBeforeUnmount(() => {
             class="rounded-lg bg-ctp-mauve px-4 py-1.5 text-sm font-medium text-ctp-base hover:opacity-90"
             @click="emit('close')"
           >
-            Done
+            Cancel
           </button>
         </div>
       </div>

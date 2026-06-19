@@ -1305,7 +1305,7 @@ const TABS: { key: TabKey; label: string }[] = [
           </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
-          <div v-for="alias in filteredAliases" :key="alias.alias" class="px-4 py-2.5" :class="expandedAlias === alias.address ? 'bg-ctp-surface0/30 border-l-2 border-l-ctp-mauve' : ''">
+          <div v-for="alias in filteredAliases" :key="alias.address" class="px-4 py-2.5" :class="expandedAlias === alias.address ? 'bg-ctp-surface0/30 border-l-2 border-l-ctp-mauve' : ''">
             <!-- Compact single-line row -->
             <div
               role="button"
