@@ -766,22 +766,3 @@ export interface UpdateDraftSignalBody {
   textBody?: string
 }
 
-// ─── Stats ──────────────────────────────────────────────────────────────────
-
-export interface StatsTotals {
-  allowed: number
-  quarantined: number
-  blocked: number
-}
-
-export interface StatsDailyBucket {
-  date: string
-  allowed: number
-  quarantined: number
-  blocked: number
-}
-
-export interface StatsResponse {
-  totals: StatsTotals
-  daily: StatsDailyBucket[]
-}
