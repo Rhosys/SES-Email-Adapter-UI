@@ -32,7 +32,7 @@ export default [
       ...tsPlugin.configs.recommended.rules,
       'no-undef': 'off', // TypeScript's own checker handles this for .ts/.vue files
       'no-console': 'warn',
-      '@typescript-eslint/no-unused-vars': 'error',
+      '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true }],
       'vue/multi-word-component-names': 'off',
       'vue/first-attribute-linebreak': 'off',
       // autofocus on a page's primary input (search, first field) is acceptable per WCAG

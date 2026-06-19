@@ -32,13 +32,6 @@ async function unarchiveArc() {
   const result = await api.patchArc(id, props.arc.arcId, { status: 'active' })
   if (result.isOk()) arcsStore.removeArc(props.arc.arcId)
 }
-
-async function deleteArc() {
-  const id = accountStore.accountId
-  if (!id) return
-  const result = await api.patchArc(id, props.arc.arcId, { status: 'deleted' })
-  if (result.isOk()) arcsStore.removeArc(props.arc.arcId)
-}
 </script>
 
 <template>

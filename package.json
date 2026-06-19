@@ -26,6 +26,7 @@
     "@catppuccin/palette": "^1.7.1",
     "@codemirror/lang-javascript": "^6.2.5",
     "codemirror": "^6.0.2",
+    "echarts": "^6.1.0",
     "handlebars": "^4.7.9",
     "marked": "^18.0.3",
     "neverthrow": "^8.2.0",
@@ -33,6 +34,7 @@
     "posthog-js": "^1.373.5",
     "textarea-caret": "^3.1.0",
     "vue": "^3.5.13",
+    "vue-echarts": "^8.0.1",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
