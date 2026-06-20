@@ -45,6 +45,11 @@ export const router = createRouter({
           component: () => import('@/views/QuarantineView.vue'),
         },
         {
+          path: 'quarantine/:id',
+          name: 'quarantine-detail',
+          component: () => import('@/views/QuarantineDetailView.vue'),
+        },
+        {
           path: 'drafts',
           name: 'drafts',
           component: () => import('@/views/DraftsView.vue'),
@@ -144,6 +149,7 @@ const ROUTE_TITLES: Record<string, string> = {
   inbox: 'Inbox',
   'arc-detail': 'Conversation',
   quarantine: 'Quarantine',
+  'quarantine-detail': 'Quarantined email',
   drafts: 'Drafts',
   search: 'Search',
   labels: 'Labels & Views',
