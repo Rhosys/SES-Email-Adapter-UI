@@ -237,6 +237,7 @@ async function removeLabel(label: string) {
           <div
             v-if="overflowOpen"
             role="menu"
+            tabindex="-1"
             class="absolute right-0 top-full z-10 mt-1 w-44 rounded-lg border border-ctp-surface0 bg-ctp-base py-1 shadow-lg"
             @click="overflowOpen = false"
             @keydown.escape="overflowOpen = false"
