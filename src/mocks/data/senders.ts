@@ -13,7 +13,7 @@ export const mockSenders: Record<string, AliasSender[]> = {
   ],
   'newsletters@demo.catchmail.app': [
     { alias: 'newsletters@demo.catchmail.app', sender: 'substack.com', policy: 'allow', createdAt: '2026-02-15T00:00:00Z', updatedAt: '2026-02-15T00:00:00Z' },
-    { alias: 'newsletters@demo.catchmail.app', sender: 'spammer.net', policy: 'violate_report', createdAt: '2026-05-01T00:00:00Z', updatedAt: '2026-05-01T00:00:00Z' },
+    { alias: 'newsletters@demo.catchmail.app', sender: 'spammer.net', policy: 'report_violation', createdAt: '2026-05-01T00:00:00Z', updatedAt: '2026-05-01T00:00:00Z' },
   ],
   'work@demo.catchmail.app': [],
   'spam-trap@demo.catchmail.app': [],

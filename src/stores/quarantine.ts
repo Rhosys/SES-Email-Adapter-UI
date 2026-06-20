@@ -207,22 +207,6 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     return true
   }
 
-  async function rejectForAlias(signalId: string, toAddress: string, fromAddress: string) {
-    const id = accountStore.accountId
-    if (!id) return false
-    actionPending.value = new Set([...actionPending.value, signalId])
-    const sender = fromAddress.includes('@') ? fromAddress.split('@')[1] : fromAddress
-    const [aliasResult, responseResult] = await Promise.all([
-      api.addAliasSender(id, toAddress, { domain: sender, policy: 'block_hidden' }),
-      api.quarantineResponse(id, signalId, 'block_hidden'),
-    ])
-    actionPending.value = new Set([...actionPending.value].filter((x) => x !== signalId))
-    if (aliasResult.isErr()) { error.value = aliasResult.error.message; return false }
-    if (responseResult.isErr()) { error.value = responseResult.error.message; return false }
-    _removeSignal(id, signalId)
-    return true
-  }
-
   function setFilters(next: Partial<QuarantineFilters>) {
     filters.value = { ...filters.value, ...next }
   }
@@ -247,7 +231,6 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     fetchVisibleCount,
     allow,
     reject,
-    rejectForAlias,
     setFilters,
     clearError,
   }

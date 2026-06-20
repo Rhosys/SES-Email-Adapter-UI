@@ -3,8 +3,8 @@ import type { WebsiteDeploymentOptions } from 'aws-architect'
 
 const [, , action, version] = process.argv
 
-if (action !== 'publish' && action !== 'delete') {
-  console.error('Usage: tsx scripts/deploy-website.ts <publish|delete> <version>')
+if (action !== 'publish') {
+  console.error('Usage: tsx scripts/deploy-website.ts publish <version>')
   console.error('  version: "main" for root deployment, or "pr/my-branch" for PR previews')
   process.exit(1)
 }
@@ -38,35 +38,30 @@ const awsArchitect = new AwsArchitect(
 const isMain = version === 'main'
 const s3Prefix = isMain ? '' : version
 
-if (action === 'delete') {
-  await awsArchitect.deleteWebsiteVersion(s3Prefix)
-  console.log(`Deleted s3://${bucket}/${s3Prefix || '(root)'}/`)
-} else {
-  // PR previews are ephemeral — never cache anything so every push is seen immediately.
-  // Main builds use stale-while-revalidate so users get instant responses while the
-  // browser quietly refreshes in the background; stale-if-error keeps the site up
-  // during brief origin outages.
+// PR previews are ephemeral — never cache anything so every push is seen immediately.
+// Main builds use stale-while-revalidate so users get instant responses while the
+// browser quietly refreshes in the background; stale-if-error keeps the site up
+// during brief origin outages.
 
-  const swrPolicy = 'public, max-age=300, stale-while-revalidate=86400, stale-if-error=86400'
+const swrPolicy = 'public, max-age=300, stale-while-revalidate=86400, stale-if-error=86400'
 
-  const options: WebsiteDeploymentOptions = {
-    cacheControlRegexMap: [
-      // Content-hashed Vite bundles — fingerprinted filenames are safe to cache forever.
-      // CloudFront serves /assets/* from a dedicated origin with its own cache policy.
-      {
-        regex: /^assets\//,
-        value: isMain ? 'public, max-age=31536000, immutable' : 'no-store',
-      },
-      // HTML entry point — short SWR so updates reach users within 5 min.
-      { explicit: 'index.html', value: isMain ? swrPolicy : 'no-store' },
-      // Web app manifest — same cadence as HTML.
-      { explicit: 'manifest.json', value: isMain ? swrPolicy : 'no-store' },
-      // Favicon has no content hash — cache for 1 day on main, bust on next deploy.
-      { explicit: 'favicon.svg', value: isMain ? 'public, max-age=86400' : 'no-store' },
-      // Catch-all (robots.txt, etc.)
-      { value: isMain ? swrPolicy : 'no-store' },
-    ],
-  }
-  await awsArchitect.publishWebsite(s3Prefix, options)
-  console.log(`Published s3://${bucket}/${s3Prefix || '(root)'}/`)
+const options: WebsiteDeploymentOptions = {
+  cacheControlRegexMap: [
+    // Content-hashed Vite bundles — fingerprinted filenames are safe to cache forever.
+    // CloudFront serves /assets/* from a dedicated origin with its own cache policy.
+    {
+      regex: /^assets\//,
+      value: isMain ? 'public, max-age=31536000, immutable' : 'no-store',
+    },
+    // HTML entry point — short SWR so updates reach users within 5 min.
+    { explicit: 'index.html', value: isMain ? swrPolicy : 'no-store' },
+    // Web app manifest — same cadence as HTML.
+    { explicit: 'manifest.json', value: isMain ? swrPolicy : 'no-store' },
+    // Favicon has no content hash — cache for 1 day on main, bust on next deploy.
+    { explicit: 'favicon.svg', value: isMain ? 'public, max-age=86400' : 'no-store' },
+    // Catch-all (robots.txt, etc.)
+    { value: isMain ? swrPolicy : 'no-store' },
+  ],
 }
+await awsArchitect.publishWebsite(s3Prefix, options)
+console.log(`Published s3://${bucket}/${s3Prefix || '(root)'}/`)

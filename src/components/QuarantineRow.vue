@@ -5,14 +5,10 @@ import type { Signal } from '@/types/server'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
-import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 const props = defineProps<{
   signal: Signal
   pending: boolean
-  allowAction: (signalId: string) => Promise<unknown>
-  rejectAction: (signalId: string) => Promise<unknown>
-  rejectForAliasAction: (signalId: string, toAddress: string, fromAddress: string) => Promise<unknown>
 }>()
 
 const now = inject(NOW_KEY)

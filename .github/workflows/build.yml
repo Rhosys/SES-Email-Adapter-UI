@@ -2,10 +2,9 @@ name: Build and Deploy
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
   push:
     branches: [main]
-  delete:
   workflow_dispatch:
 
 permissions:
@@ -241,78 +240,4 @@ jobs:
               })
             }
 
-  # ── Delete PR preview from S3 when branch is gone ─────────────────────────
-  cleanup:
-    if: >
-      (github.event_name == 'pull_request' && github.event.action == 'closed') ||
-      (github.event_name == 'delete' && github.event.ref_type == 'branch')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
 
-      - name: Setup environment
-        uses: ./.github/actions/setup
-        with:
-          aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
-
-      - name: Compute cleanup prefix
-        run: |
-          if [ "${{ github.event_name }}" = "delete" ]; then
-            BRANCH="${{ github.event.ref }}"
-          else
-            BRANCH="${{ github.head_ref }}"
-          fi
-          SLUG=$(echo "$BRANCH" \
-            | tr '[:upper:]' '[:lower:]' \
-            | sed 's/[^a-z0-9]/-/g' \
-            | sed 's/-\+/-/g' \
-            | sed 's/^-\|-$//g' \
-            | cut -c1-63)
-          echo "CLEANUP_PREFIX=pr/${SLUG}" >> "$GITHUB_ENV"
-        shell: bash
-
-      - name: Install OpenTofu
-        uses: opentofu/setup-opentofu@v2
-        with:
-          tofu_version: latest
-
-      - name: Read infra outputs from backend state
-        run: |
-          set -euo pipefail
-
-          git clone --no-checkout --depth 1 \
-            https://github.com/rhosys/SES-Email-Adapter.git /tmp/ses-backend
-          cd /tmp/ses-backend
-          git sparse-checkout set deploy
-          git checkout
-
-          tofu -chdir=deploy init -input=false \
-            -backend-config="bucket=rhosys-opentofu-${{ secrets.AWS_ACCOUNT_ID }}-eu-central-1" \
-            -backend-config="key=SES-Email-Adapter/terraform.tfstate" \
-            -backend-config="region=eu-central-1"
-
-          echo "=== ALL available OpenTofu outputs ==="
-          tofu -chdir=deploy output -json 2>&1 || echo "(tofu output -json failed)"
-          echo ""
-
-          SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name)
-          CF_ID=$(tofu -chdir=deploy output -raw cloudfront_distribution_id)
-
-          [ -n "$SITE_BUCKET" ] || { echo "::error::site_bucket_name output is empty"; exit 1; }
-          [ -n "$CF_ID" ]       || { echo "::error::cloudfront_distribution_id output is empty"; exit 1; }
-
-          echo "SITE_BUCKET_NAME=${SITE_BUCKET}" >> "$GITHUB_ENV"
-          echo "CLOUDFRONT_DISTRIBUTION_ID=${CF_ID}" >> "$GITHUB_ENV"
-        shell: bash
-
-      - name: Delete website version from S3
-        run: npm run deploy:website -- delete "${{ env.CLEANUP_PREFIX }}"
-        env:
-          SITE_BUCKET_NAME: ${{ env.SITE_BUCKET_NAME }}
-
-      - name: Invalidate CloudFront
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
-            --paths "/${{ env.CLEANUP_PREFIX }}/*"
-        shell: bash
