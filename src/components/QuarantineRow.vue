@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
+import { RouterLink } from 'vue-router'
 import type { Signal } from '@/types/server'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { NOW_KEY } from '@/composables/useRelativeTime'
@@ -63,17 +64,22 @@ const subject = computed(() => inboundData.value?.subject ?? '')
 
       <!-- Content -->
       <div class="min-w-0 flex-1">
-        <div class="flex items-center justify-between gap-2">
-          <p class="truncate text-sm font-medium text-ctp-text">
-            {{ fromDisplay }}
-            <span class="font-normal text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span>
-          </p>
-          <div class="flex shrink-0 items-center gap-1.5">
-            <span class="text-xs text-ctp-subtext0">{{ timestamp }}</span>
+        <RouterLink
+          :to="{ name: 'quarantine-detail', params: { id: signal.signalId } }"
+          class="block w-full min-w-0 text-left"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <p class="truncate text-sm font-medium text-ctp-text">
+              {{ fromDisplay }}
+              <span class="font-normal text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span>
+            </p>
+            <div class="flex shrink-0 items-center gap-1.5">
+              <span class="text-xs text-ctp-subtext0">{{ timestamp }}</span>
+            </div>
           </div>
-        </div>
 
-        <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ subject }}</p>
+          <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ subject }}</p>
+        </RouterLink>
 
         <!-- Matched rule IDs -->
         <div v-if="matchedRules.length" class="mt-1 flex flex-wrap gap-1">

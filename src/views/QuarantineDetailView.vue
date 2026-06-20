@@ -1,0 +1,243 @@
+<script setup lang="ts">
+import { onMounted, ref, computed } from 'vue'
+import { useRoute, useRouter, RouterLink } from 'vue-router'
+import { useQuarantineStore } from '@/stores/quarantine'
+import { useRulesStore } from '@/stores/rules'
+import { useAccountStore } from '@/stores/account'
+import { isInboundEmailSignal } from '@/lib/signal-guards'
+import { ACTION_LABELS, ACTION_COLORS, conditionSummary } from '@/lib/rule-display'
+import SignalRenderer from '@/components/SignalRenderer.vue'
+import AsyncButton from '@/components/ui/AsyncButton.vue'
+
+const route = useRoute()
+const router = useRouter()
+const quarantineStore = useQuarantineStore()
+const rulesStore = useRulesStore()
+const accountStore = useAccountStore()
+
+const signalId = computed(() => route.params.id as string)
+const loading = ref(true)
+const notFound = ref(false)
+
+const signal = computed(() =>
+  [...quarantineStore.quarantineVisible, ...quarantineStore.quarantineHidden].find(
+    (s) => s.signalId === signalId.value,
+  ) ?? null,
+)
+
+const inboundData = computed(() => (signal.value && isInboundEmailSignal(signal.value) ? signal.value.data : null))
+const matchedRules = computed(() => inboundData.value?.matchedRules ?? [])
+const isHidden = computed(() => signal.value?.status === 'quarantine_hidden')
+const pending = computed(() => (signal.value ? quarantineStore.actionPending.has(signal.value.signalId) : false))
+
+const expandedRuleIds = ref<Set<string>>(new Set())
+function toggleRule(ruleId: string) {
+  const next = new Set(expandedRuleIds.value)
+  if (next.has(ruleId)) next.delete(ruleId)
+  else next.add(ruleId)
+  expandedRuleIds.value = next
+}
+
+function ruleFor(ruleId: string) {
+  return rulesStore.items.find((r) => r.ruleId === ruleId)
+}
+
+onMounted(async () => {
+  loading.value = true
+  await accountStore.fetchAccount()
+  if (!signal.value) {
+    await quarantineStore.fetchSignals(true)
+  }
+  await rulesStore.fetchRules()
+  loading.value = false
+  notFound.value = !signal.value
+})
+
+async function allow() {
+  if (!signal.value) return
+  const ok = await quarantineStore.allow(signal.value.signalId)
+  if (ok) void router.push('/quarantine')
+}
+
+async function reject() {
+  if (!signal.value) return
+  const ok = await quarantineStore.reject(signal.value.signalId)
+  if (ok) void router.push('/quarantine')
+}
+
+async function rejectForAlias() {
+  if (!signal.value || !inboundData.value) return
+  const toAddress = inboundData.value.to[0]?.address ?? ''
+  const fromAddress = inboundData.value.from.address
+  if (!toAddress) return
+  const ok = await quarantineStore.rejectForAlias(signal.value.signalId, toAddress, fromAddress)
+  if (ok) void router.push('/quarantine')
+}
+</script>
+
+<template>
+  <div class="quarantine-detail mx-auto flex min-h-full max-w-3xl flex-col px-4 py-6">
+    <RouterLink
+      to="/quarantine"
+      class="mb-4 inline-flex items-center gap-1 text-sm text-ctp-subtext0 hover:text-ctp-text"
+    >
+      ← Back to quarantine
+    </RouterLink>
+
+    <!-- Loading -->
+    <div
+      v-if="loading"
+      role="status"
+      aria-label="Loading quarantined email…"
+      class="animate-pulse"
+    >
+      <div class="mb-6 space-y-2">
+        <div class="h-6 w-2/3 rounded bg-ctp-surface1" />
+        <div class="h-3 w-32 rounded bg-ctp-surface1" />
+      </div>
+      <div class="rounded-lg border border-ctp-surface0 bg-ctp-mantle p-4">
+        <div class="mb-3 flex items-center gap-2">
+          <div class="h-3 w-28 rounded bg-ctp-surface1" />
+        </div>
+        <div class="space-y-2">
+          <div class="h-4 w-full rounded bg-ctp-surface1" />
+          <div class="h-4 w-3/4 rounded bg-ctp-surface1" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Not found -->
+    <div
+      v-else-if="notFound"
+      role="alert"
+      class="rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
+    >
+      This email is no longer in quarantine — it may have already been allowed or rejected.
+    </div>
+
+    <template v-else-if="signal && inboundData">
+      <!-- Header -->
+      <div class="mb-6">
+        <div class="flex items-center gap-2">
+          <span
+            class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
+            :class="isHidden ? 'bg-ctp-surface1 text-ctp-subtext0' : 'bg-ctp-mauve/15 text-ctp-mauve'"
+          >
+            {{ isHidden ? 'Silently held' : 'Quarantined' }}
+          </span>
+          <h1 class="truncate text-lg font-semibold text-ctp-text">{{ inboundData.subject || '(no subject)' }}</h1>
+        </div>
+        <div class="mt-1 text-sm text-ctp-subtext1">
+          <span class="text-ctp-overlay1">From:</span>
+          {{ inboundData.from.name || inboundData.from.address }}
+          <span v-if="inboundData.from.name" class="text-ctp-subtext0">&lt;{{ inboundData.from.address }}&gt;</span>
+        </div>
+        <div v-if="inboundData.recipientAddress" class="mt-1 text-sm text-ctp-subtext1">
+          <span class="text-ctp-overlay1">Alias:</span> <span class="text-ctp-sapphire">{{ inboundData.recipientAddress }}</span>
+        </div>
+      </div>
+
+      <!-- Matched rules -->
+      <div v-if="matchedRules.length" class="mb-6">
+        <h2 class="mb-2 text-xs font-medium uppercase tracking-wide text-ctp-subtext0">Matched rules</h2>
+        <div class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
+          <div v-for="matched in matchedRules" :key="matched.ruleId" class="px-4 py-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                class="flex items-center gap-1 text-sm font-medium text-ctp-text hover:text-ctp-mauve"
+                :aria-expanded="expandedRuleIds.has(matched.ruleId)"
+                @click="toggleRule(matched.ruleId)"
+              >
+                <svg
+                  class="h-3 w-3 shrink-0 transition-transform"
+                  :class="{ 'rotate-90': expandedRuleIds.has(matched.ruleId) }"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M6 4l4 4-4 4V4z" />
+                </svg>
+                {{ ruleFor(matched.ruleId)?.name ?? matched.ruleId }}
+              </button>
+              <span
+                v-for="action in matched.actions"
+                :key="action.type"
+                class="rounded-full px-2 py-0.5 text-xs font-medium"
+                :class="ACTION_COLORS[action.type] ?? 'text-ctp-subtext0 bg-ctp-surface1'"
+              >
+                {{ ACTION_LABELS[action.type] ?? action.type }}
+              </span>
+              <RouterLink
+                :to="`/rules/${matched.ruleId}`"
+                class="ml-auto flex shrink-0 items-center gap-1 text-xs text-ctp-subtext0 hover:text-ctp-text"
+                title="Open this rule in the rule editor"
+              >
+                Open rule
+                <svg class="h-3 w-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M6 3h7v7M13 3L3 13" />
+                </svg>
+              </RouterLink>
+            </div>
+
+            <div v-if="expandedRuleIds.has(matched.ruleId)" class="mt-2 rounded-lg bg-ctp-surface0 px-3 py-2">
+              <p v-if="ruleFor(matched.ruleId)" class="font-mono text-xs text-ctp-subtext0">
+                {{ conditionSummary(ruleFor(matched.ruleId)!) }}
+              </p>
+              <p v-else class="text-xs text-ctp-subtext0">Rule details unavailable — it may have been deleted.</p>
+              <div v-if="matched.labelsAdded.length" class="mt-1.5 flex flex-wrap gap-1">
+                <span
+                  v-for="label in matched.labelsAdded"
+                  :key="label"
+                  class="rounded bg-ctp-surface1 px-1.5 py-0.5 text-xs text-ctp-subtext1"
+                >
+                  {{ label }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Email body -->
+      <SignalRenderer :signal="signal" />
+
+      <!-- Actions -->
+      <div class="mt-4 flex flex-wrap items-center gap-2">
+        <AsyncButton
+          :action="allow"
+          :disabled="pending"
+          variant="ghost"
+          class="rounded bg-ctp-green/15 px-3 py-1.5 text-xs font-medium text-ctp-green hover:bg-ctp-green/25"
+        >
+          Allow
+        </AsyncButton>
+        <AsyncButton
+          :action="reject"
+          :disabled="pending"
+          variant="ghost"
+          title="Return a delivery failure to the sender's server"
+          class="rounded bg-ctp-red/15 px-3 py-1.5 text-xs font-medium text-ctp-red hover:bg-ctp-red/25"
+        >
+          Reject
+        </AsyncButton>
+        <RouterLink
+          :to="`/rules/new?signalId=${signal.signalId}&action=block_hidden`"
+          class="rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:text-ctp-text"
+        >
+          Create rule to reject similar
+        </RouterLink>
+        <AsyncButton
+          v-if="inboundData.to[0]?.address"
+          :action="rejectForAlias"
+          :disabled="pending"
+          variant="outline"
+          class="px-3 py-1.5 text-xs text-ctp-subtext1 hover:text-ctp-text"
+          :title="`Block ${inboundData.from.address} for ${inboundData.to[0]?.address}`"
+        >
+          Reject sender using this alias
+        </AsyncButton>
+      </div>
+    </template>
+  </div>
+</template>
