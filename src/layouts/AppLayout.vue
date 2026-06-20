@@ -41,6 +41,39 @@ const searchInput = ref<HTMLInputElement | null>(null)
 const hasSearched = ref(false)
 const sidebarOpen = ref(false)
 
+// ── Edge swipe to open/close sidebar (mobile) ─────────────────────────────────
+let swipeStartX = 0
+let swipeStartY = 0
+let swipeStartTime = 0
+let swipeTracking = false
+
+function onMainTouchStart(e: TouchEvent) {
+  if (e.touches.length !== 1) return
+  const t = e.touches[0]
+  swipeStartX = t.clientX
+  swipeStartY = t.clientY
+  swipeStartTime = Date.now()
+  // Track if touch starts within 30px of left edge (to open) or anywhere (to close)
+  swipeTracking = swipeStartX < 30 || sidebarOpen.value
+}
+
+function onMainTouchEnd(e: TouchEvent) {
+  if (!swipeTracking || e.changedTouches.length !== 1) return
+  swipeTracking = false
+  const t = e.changedTouches[0]
+  const dx = t.clientX - swipeStartX
+  const dy = t.clientY - swipeStartY
+  const elapsed = Date.now() - swipeStartTime
+  if (elapsed > 300 || Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return
+  // Only apply on mobile (< 640px)
+  if (window.innerWidth >= 640) return
+  if (dx > 0 && swipeStartX < 30 && !sidebarOpen.value) {
+    sidebarOpen.value = true
+  } else if (dx < 0 && sidebarOpen.value) {
+    sidebarOpen.value = false
+  }
+}
+
 // Close sidebar on navigation (mobile)
 watch(
   () => route.path,
@@ -274,7 +307,11 @@ onMounted(async () => {
 
     <AppSidebar :open="sidebarOpen" />
 
-    <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+    <div
+      class="flex min-w-0 flex-1 flex-col overflow-hidden"
+      @touchstart.passive="onMainTouchStart"
+      @touchend="onMainTouchEnd"
+    >
       <AppNavbar show-hamburger @toggle-sidebar="sidebarOpen = !sidebarOpen">
         <template #search>
           <form class="flex w-full max-w-xl items-center gap-2" @submit.prevent="submitSearch">

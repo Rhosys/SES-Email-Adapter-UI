@@ -560,6 +560,10 @@ function copyUserId() {
   })
 }
 
+async function signOut() {
+  await loginClient.logout()
+}
+
 // ─── DNS copy-to-clipboard ───────────────────────────────────────────────────
 const copiedDns = ref<Set<string>>(new Set())
 
@@ -719,14 +723,22 @@ onMounted(async () => {
   if (tab && VALID_TABS.includes(tab)) await switchTab(tab)
 })
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: 'profile', label: 'Profile' },
-  { key: 'emails', label: 'Aliases' },
-  { key: 'domains', label: 'Domains' },
-  { key: 'forwarding', label: 'Forwarding' },
-  { key: 'email', label: 'Email' },
-  { key: 'team', label: 'Team' },
+const TABS: { key: TabKey; label: string; description: string }[] = [
+  { key: 'profile', label: 'Profile', description: 'Your identity, security, and linked accounts' },
+  { key: 'emails', label: 'Aliases', description: 'Manage email addresses and sender policies' },
+  { key: 'domains', label: 'Domains', description: 'DNS setup and domain verification' },
+  { key: 'forwarding', label: 'Forwarding', description: 'Forward emails to external addresses' },
+  { key: 'email', label: 'Email', description: 'Compose behavior and retention' },
+  { key: 'team', label: 'Team', description: 'Members, roles, and invitations' },
 ]
+
+const tabPickerOpen = ref(false)
+const activeTabLabel = computed(() => TABS.find((t) => t.key === activeTab.value)?.label ?? 'Settings')
+
+function onTabPick(key: string) {
+  tabPickerOpen.value = false
+  void switchTab(key as TabKey)
+}
 </script>
 
 <template>
@@ -735,8 +747,8 @@ const TABS: { key: TabKey; label: string }[] = [
       <h1 class="text-lg font-semibold">Settings</h1>
     </header>
 
-    <!-- Tab bar -->
-    <div class="border-b border-ctp-surface0 bg-ctp-mantle px-4">
+    <!-- Tab bar (desktop) -->
+    <div class="hidden border-b border-ctp-surface0 bg-ctp-mantle px-4 sm:block">
       <div role="tablist" class="flex gap-1 overflow-x-auto">
         <button
           v-for="tab in TABS"
@@ -755,6 +767,31 @@ const TABS: { key: TabKey; label: string }[] = [
         </button>
       </div>
     </div>
+
+    <!-- Tab picker button (mobile) -->
+    <div class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-2 sm:hidden">
+      <button
+        type="button"
+        class="flex w-full items-center justify-between rounded-lg border border-ctp-surface1 px-4 py-3 text-left"
+        @click="tabPickerOpen = true"
+      >
+        <span class="text-base font-medium text-ctp-text">{{ activeTabLabel }}</span>
+        <svg class="h-4 w-4 text-ctp-subtext0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M4 6l4 4 4-4" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Tab picker modal (mobile) -->
+    <FilterModeModal
+      :open="tabPickerOpen"
+      title="Settings"
+      subtitle="Choose a settings section"
+      :current-mode="activeTab"
+      :modes="TABS.map((t) => ({ value: t.key, label: t.label, description: t.description }))"
+      @select="onTabPick"
+      @close="tabPickerOpen = false"
+    />
 
     <main class="mx-auto max-w-2xl px-4 py-6">
       <!-- ── Profile tab ─────────────────────────────────────────────── -->
@@ -798,6 +835,13 @@ const TABS: { key: TabKey; label: string }[] = [
               </button>
             </div>
           </div>
+          <button
+            type="button"
+            class="shrink-0 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-red hover:text-ctp-red"
+            @click="signOut"
+          >
+            Sign out
+          </button>
         </div>
 
         <!-- Account ID -->

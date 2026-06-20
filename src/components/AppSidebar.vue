@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useLabelsStore } from '@/stores/labels'
 import { useViewsStore } from '@/stores/views'
 import { useAccountStore } from '@/stores/account'
+import { loginClient } from '@/lib/auth'
 
 defineProps<{ open: boolean }>()
 
@@ -12,6 +13,40 @@ const router = useRouter()
 const labelsStore = useLabelsStore()
 const viewsStore = useViewsStore()
 const accountStore = useAccountStore()
+
+// ── User identity for mobile profile row ──────────────────────────────────────
+interface Identity {
+  userId?: string
+  sub?: string
+  email?: string
+  name?: string
+  picture?: string
+}
+const identity = ref<Identity | null>(null)
+
+onMounted(() => {
+  identity.value = loginClient.getUserIdentity() as Identity | null
+})
+
+const displayName = computed(() => identity.value?.name ?? identity.value?.email ?? null)
+const email = computed(() => identity.value?.email ?? null)
+const picture = computed(() => identity.value?.picture ?? null)
+const initials = computed(() => {
+  const n = identity.value?.name
+  if (n) {
+    const parts = n.trim().split(/\s+/)
+    return parts.length >= 2
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : n.slice(0, 2).toUpperCase()
+  }
+  const e = identity.value?.email
+  if (e) return e.slice(0, 2).toUpperCase()
+  return '?'
+})
+
+function navigateToProfile() {
+  void router.push('/settings?tab=profile')
+}
 
 const isActive = (path: string) => route.path === path || route.path.startsWith(path + '/')
 const exactActive = (path: string) => route.path === path
@@ -63,7 +98,7 @@ const accountSwitcherOpen = ref(false)
         <RouterLink
           to="/"
           data-tour="nav-inbox"
-          class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
+          class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
           :class="
             exactActive('/')
               ? 'bg-ctp-surface0 text-ctp-text font-medium'
@@ -71,7 +106,7 @@ const accountSwitcherOpen = ref(false)
           "
         >
           <!-- Inbox icon -->
-          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path
               d="M1 2.5A1.5 1.5 0 012.5 1h11A1.5 1.5 0 0115 2.5v11a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 13.5v-11zM2.5 2a.5.5 0 00-.5.5V9h2.5a.5.5 0 01.5.5 2.5 2.5 0 005 0 .5.5 0 01.5-.5H13V2.5a.5.5 0 00-.5-.5h-10z"
             />
@@ -82,7 +117,7 @@ const accountSwitcherOpen = ref(false)
         <RouterLink
           to="/quarantine"
           data-tour="nav-quarantine"
-          class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
+          class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
           :class="
             isActive('/quarantine')
               ? 'bg-ctp-surface0 text-ctp-text font-medium'
@@ -90,7 +125,7 @@ const accountSwitcherOpen = ref(false)
           "
         >
           <!-- Shield icon -->
-          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path
               d="M8 1l6 2v4c0 3.5-2.5 6.3-6 7.5C2.5 13.3 0 10.5 0 7V3l8-2zm0 1.5L1.5 4.3V7c0 2.8 2 5.1 6.5 6.3C12.5 12.1 14.5 9.8 14.5 7V4.3L8 2.5z"
             />
@@ -101,7 +136,7 @@ const accountSwitcherOpen = ref(false)
         <RouterLink
           to="/drafts"
           data-tour="nav-drafts"
-          class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
+          class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
           :class="
             route.path === '/drafts'
               ? 'bg-ctp-surface0 text-ctp-text font-medium'
@@ -109,7 +144,7 @@ const accountSwitcherOpen = ref(false)
           "
         >
           <!-- Pencil icon -->
-          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path d="M12.146.146a.5.5 0 01.708 0l3 3a.5.5 0 010 .708l-10 10a.5.5 0 01-.168.11l-5 2a.5.5 0 01-.65-.65l2-5a.5.5 0 01.11-.168l10-10zM11.207 2.5L13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 01.5.5v.5h.5a.5.5 0 01.5.5v.5h.293l6.5-6.5z"/>
           </svg>
           Drafts
@@ -143,7 +178,7 @@ const accountSwitcherOpen = ref(false)
         <RouterLink
           to="/rules"
           data-tour="nav-rules"
-          class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
+          class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
           :class="
             isActive('/rules')
               ? 'bg-ctp-surface0 text-ctp-text font-medium'
@@ -151,7 +186,7 @@ const accountSwitcherOpen = ref(false)
           "
         >
           <!-- List icon -->
-          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path
               fill-rule="evenodd"
               d="M2.5 12a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5z"
@@ -163,7 +198,7 @@ const accountSwitcherOpen = ref(false)
         <RouterLink
           to="/templates"
           data-tour="nav-templates"
-          class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
+          class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
           :class="
             isActive('/templates')
               ? 'bg-ctp-surface0 text-ctp-text font-medium'
@@ -171,7 +206,7 @@ const accountSwitcherOpen = ref(false)
           "
         >
           <!-- Document icon -->
-          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path d="M4 0a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4.5L9.5 0H4zm5 1v3.5H12L9 1zM4 7h8v1H4V7zm0 2h8v1H4V9zm0 2h5v1H4v-1z"/>
           </svg>
           Templates
@@ -180,7 +215,7 @@ const accountSwitcherOpen = ref(false)
         <RouterLink
           to="/labels"
           data-tour="nav-labels"
-          class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
+          class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
           :class="
             isActive('/labels')
               ? 'bg-ctp-surface0 text-ctp-text font-medium'
@@ -188,7 +223,7 @@ const accountSwitcherOpen = ref(false)
           "
         >
           <!-- Tag icon -->
-          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path
               d="M1 1h6.5a1 1 0 01.707.293l6 6a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-6-6A1 1 0 011 7.5V1zm1.5 1.5v5l5.5 5.5 4-4L7 3.5H2.5zM4 4.5a.5.5 0 100 1 .5.5 0 000-1z"
             />
@@ -210,7 +245,7 @@ const accountSwitcherOpen = ref(false)
         <RouterLink
           to="/settings"
           data-tour="nav-settings"
-          class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
+          class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
           :class="
             isActive('/settings')
               ? 'bg-ctp-surface0 text-ctp-text font-medium'
@@ -218,7 +253,7 @@ const accountSwitcherOpen = ref(false)
           "
         >
           <!-- Gear icon -->
-          <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path
               d="M8 4.754a3.246 3.246 0 100 6.492 3.246 3.246 0 000-6.492zM5.754 8a2.246 2.246 0 114.492 0 2.246 2.246 0 01-4.492 0z"
             />
@@ -233,6 +268,35 @@ const accountSwitcherOpen = ref(false)
 
 
     </nav>
+
+    <!-- Mobile user profile (visible only below sm) -->
+    <div class="border-t border-ctp-surface0 px-2 py-2 sm:hidden">
+      <button
+        type="button"
+        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-ctp-surface0/50"
+        @click="navigateToProfile"
+      >
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-ctp-surface1">
+          <img
+            v-if="picture"
+            :src="picture"
+            :alt="displayName ?? 'Profile'"
+            class="h-full w-full object-cover"
+            referrerpolicy="no-referrer"
+          />
+          <span
+            v-else
+            class="flex h-full w-full items-center justify-center bg-ctp-surface1 text-xs font-semibold text-ctp-subtext1"
+          >
+            {{ initials }}
+          </span>
+        </span>
+        <div class="min-w-0 flex-1">
+          <p v-if="displayName" class="truncate text-sm font-medium text-ctp-text">{{ displayName }}</p>
+          <p v-if="email && email !== displayName" class="truncate text-xs text-ctp-subtext0">{{ email }}</p>
+        </div>
+      </button>
+    </div>
 
     <!-- Account switcher -->
     <div v-if="accountStore.accounts.length > 1" class="relative border-t border-ctp-surface0 px-2 py-2">
