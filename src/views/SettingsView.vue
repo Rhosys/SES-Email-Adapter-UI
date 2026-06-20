@@ -303,7 +303,7 @@ const SENDER_POLICIES: { value: SenderPolicy; label: string }[] = [
   { value: 'allow', label: 'Allow' },
   { value: 'block_hidden', label: 'Block' },
   { value: 'block_reject', label: 'Block & bounce' },
-  { value: 'violate_report', label: 'Report violation' },
+  { value: 'report_violation', label: 'Report violation' },
 ]
 
 async function loadSendersForAlias(address: string) {
@@ -360,7 +360,7 @@ const FILTER_MODES: { value: UnknownSenderPolicy; label: string; description: st
   { value: 'quarantine_hidden', label: 'Quarantine', description: 'Unknown senders silently held for review' },
   { value: 'block_hidden', label: 'Block email', description: 'Unknown senders silently discarded' },
   { value: 'block_reject', label: 'Block and deny', description: 'Unknown senders receive a bounce' },
-  { value: 'violate_report', label: 'Report Violation', description: 'Report as a policy violation' },
+  { value: 'report_violation', label: 'Report Violation', description: 'Report as a policy violation' },
 ]
 
 async function loadAliases() {

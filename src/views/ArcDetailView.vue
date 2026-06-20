@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, computed } from 'vue'
+import { onMounted, onUnmounted, computed, ref } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useSignalsStore } from '@/stores/signals'
 import { useArcsStore } from '@/stores/arcs'
@@ -23,6 +23,8 @@ const arcsStore = useArcsStore()
 const accountStore = useAccountStore()
 const { showUndo, deferAction } = useToast()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
+
+const overflowOpen = ref(false)
 
 const arcId = computed(() => route.params.id as string)
 
@@ -176,14 +178,79 @@ async function removeLabel(label: string) {
 </script>
 
 <template>
-  <div class="arc-detail mx-auto flex min-h-full max-w-3xl flex-col px-4 py-6">
-    <!-- Back link -->
-    <RouterLink
-      to="/"
-      class="mb-4 inline-flex items-center gap-1 text-sm text-ctp-subtext0 hover:text-ctp-text"
-    >
-      ← Back to inbox
-    </RouterLink>
+  <div class="arc-detail mx-auto flex min-h-full max-w-[1200px] flex-col px-4 py-6">
+    <!-- Top bar: Back link + actions -->
+    <div class="mb-4 flex items-center justify-between gap-4">
+      <RouterLink
+        to="/"
+        class="inline-flex items-center gap-1 text-sm text-ctp-subtext0 hover:text-ctp-text"
+      >
+        ← Back to inbox
+      </RouterLink>
+
+      <div v-if="signalsStore.arc" class="flex items-center gap-2">
+        <AsyncButton
+          v-if="hasUnsubscribe && signalsStore.arc.status === 'active'"
+          :action="unsubscribe"
+          variant="outline"
+          class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-peach hover:text-ctp-peach"
+        >
+          <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM4.5 7.5h7v1h-7v-1z"/>
+          </svg>
+          Unsubscribe
+        </AsyncButton>
+        <AsyncButton
+          v-if="signalsStore.arc.status === 'active'"
+          :action="archive"
+          variant="outline"
+          class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-red hover:text-ctp-red"
+        >
+          <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M1.5 2h13l-1 2H2.5L1.5 2zm.5 3h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V5zm4 2v5h5V7H6z"/>
+          </svg>
+          Archive
+        </AsyncButton>
+        <AsyncButton
+          v-if="signalsStore.arc.status === 'archived'"
+          :action="moveToInbox"
+          variant="outline"
+          class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-green hover:text-ctp-green"
+        >
+          Move to Inbox
+        </AsyncButton>
+
+        <!-- Overflow menu -->
+        <div v-if="signalsStore.arc.status !== 'deleted'" class="relative">
+          <button
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded border border-ctp-surface1 text-ctp-subtext1 hover:border-ctp-overlay0 hover:text-ctp-text"
+            aria-label="More actions"
+            @click="overflowOpen = !overflowOpen"
+          >
+            <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <circle cx="8" cy="3" r="1.5" />
+              <circle cx="8" cy="8" r="1.5" />
+              <circle cx="8" cy="13" r="1.5" />
+            </svg>
+          </button>
+          <div
+            v-if="overflowOpen"
+            class="absolute right-0 top-full z-10 mt-1 w-44 rounded-lg border border-ctp-surface0 bg-ctp-base py-1 shadow-lg"
+            @click="overflowOpen = false"
+          >
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0"
+              @click="deleteArc()"
+            >
+              <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
+              Delete thread
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Loading -->
     <div
@@ -222,75 +289,31 @@ async function removeLabel(label: string) {
     <template v-else-if="signalsStore.arc">
       <!-- Arc header -->
       <div class="mb-6">
-        <div class="flex items-start justify-between gap-4">
-          <div class="min-w-0 flex-1">
-            <!-- Line 1: Primary badge + Summary -->
-            <div class="flex items-center gap-2">
-              <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" :class="primaryBadgeClass">{{ primaryBadgeLabel }}</span>
-              <h1 class="truncate text-lg font-semibold text-ctp-text">{{ signalsStore.arc.summary }}</h1>
-            </div>
-            <!-- Line 2: Subject -->
-            <p v-if="signalsStore.arc.subject" class="mt-1 text-sm text-ctp-subtext1">{{ signalsStore.arc.subject }}</p>
-            <!-- Line 3: From / Alias -->
-            <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-ctp-subtext1">
-              <span v-if="signalsStore.arc.senderAddress"><span class="text-ctp-overlay1">From:</span> {{ signalsStore.arc.senderAddress }}</span>
-            </div>
-            <div v-if="signalsStore.arc.recipientAddress" class="mt-1 text-sm text-ctp-subtext1">
-              <span class="text-ctp-overlay1">Alias:</span> <span class="text-ctp-sapphire">{{ signalsStore.arc.recipientAddress }}</span>
-            </div>
-            <!-- Line 4: Secondary badges (workflow, labels) -->
-            <div class="mt-2 flex flex-wrap items-center gap-1.5">
-              <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ signalsStore.arc.workflow }}</span>
-              <button
-                v-for="label in signalsStore.arc.labels"
-                :key="label"
-                class="cursor-pointer rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1 hover:opacity-70"
-                @click="removeLabel(label)"
-              >
-                {{ label }}
-              </button>
-            </div>
-          </div>
-          <div class="flex shrink-0 items-center gap-2">
-            <AsyncButton
-              v-if="hasUnsubscribe && signalsStore.arc.status === 'active'"
-              :action="unsubscribe"
-              variant="outline"
-              class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-peach hover:text-ctp-peach"
-            >
-              <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM4.5 7.5h7v1h-7v-1z"/>
-              </svg>
-              Unsubscribe
-            </AsyncButton>
-            <AsyncButton
-              v-if="signalsStore.arc.status === 'active'"
-              :action="archive"
-              variant="outline"
-              class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-red hover:text-ctp-red"
-            >
-              <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                <path d="M1.5 2h13l-1 2H2.5L1.5 2zm.5 3h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V5zm4 2v5h5V7H6z"/>
-              </svg>
-              Archive
-            </AsyncButton>
-            <AsyncButton
-              v-if="signalsStore.arc.status === 'archived'"
-              :action="moveToInbox"
-              variant="outline"
-              class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-green hover:text-ctp-green"
-            >
-              Move to Inbox
-            </AsyncButton>
-            <AsyncButton
-              v-if="signalsStore.arc.status !== 'deleted'"
-              :action="deleteArc"
-              variant="outline"
-              class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-red hover:text-ctp-red"
-            >
-              <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
-            </AsyncButton>
-          </div>
+        <!-- Line 1: Primary badge + Summary (multiline allowed) -->
+        <div class="flex items-start gap-2">
+          <span class="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" :class="primaryBadgeClass">{{ primaryBadgeLabel }}</span>
+          <h1 class="text-lg font-semibold text-ctp-text">{{ signalsStore.arc.summary }}</h1>
+        </div>
+        <!-- Line 2: Subject -->
+        <p v-if="signalsStore.arc.subject" class="mt-1 text-sm text-ctp-subtext1">{{ signalsStore.arc.subject }}</p>
+        <!-- Line 3: From / Alias -->
+        <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-ctp-subtext1">
+          <span v-if="signalsStore.arc.senderAddress"><span class="text-ctp-overlay1">From:</span> {{ signalsStore.arc.senderAddress }}</span>
+        </div>
+        <div v-if="signalsStore.arc.recipientAddress" class="mt-1 text-sm text-ctp-subtext1">
+          <span class="text-ctp-overlay1">Alias:</span> <span class="text-ctp-sapphire">{{ signalsStore.arc.recipientAddress }}</span>
+        </div>
+        <!-- Line 4: Secondary badges (workflow, labels) -->
+        <div class="mt-2 flex flex-wrap items-center gap-1.5">
+          <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ signalsStore.arc.workflow }}</span>
+          <button
+            v-for="label in signalsStore.arc.labels"
+            :key="label"
+            class="cursor-pointer rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1 hover:opacity-70"
+            @click="removeLabel(label)"
+          >
+            {{ label }}
+          </button>
         </div>
         <div v-if="signalsStore.arc.status === 'deleted' && signalsStore.arc.deletedAt" class="mt-2 text-xs text-ctp-subtext0">
           Deleted on {{ new Date(signalsStore.arc.deletedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
@@ -343,10 +366,6 @@ async function removeLabel(label: string) {
           <SignalRenderer v-else :signal="group.signal" :linked-signal="group.linkedSignal" @undo="onSignalUndo" @reply="startDraft" />
         </template>
       </div>
-
-
-
-
     </template>
 
     <ConfirmDialog

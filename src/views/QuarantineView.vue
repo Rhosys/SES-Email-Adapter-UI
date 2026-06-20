@@ -46,18 +46,6 @@ function onUpdateFilters(next: Partial<Filters>) {
   store.setFilters(next)
 }
 
-async function onAllow(signalId: string) {
-  await store.allow(signalId)
-}
-
-async function onReject(signalId: string) {
-  await store.reject(signalId)
-}
-
-async function onRejectForAlias(signalId: string, toAddress: string, fromAddress: string) {
-  await store.rejectForAlias(signalId, toAddress, fromAddress)
-}
-
 async function loadMore() {
   await store.fetchMore()
 }
@@ -128,9 +116,6 @@ async function loadMore() {
               :key="signal.signalId"
               :signal="signal"
               :pending="store.actionPending.has(signal.signalId)"
-              :allow-action="onAllow"
-              :reject-action="onReject"
-              :reject-for-alias-action="onRejectForAlias"
             />
           </TransitionGroup>
         </section>
@@ -162,9 +147,6 @@ async function loadMore() {
               :key="signal.signalId"
               :signal="signal"
               :pending="store.actionPending.has(signal.signalId)"
-              :allow-action="onAllow"
-              :reject-action="onReject"
-              :reject-for-alias-action="onRejectForAlias"
             />
           </TransitionGroup>
         </section>

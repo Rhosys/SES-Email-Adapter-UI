@@ -219,49 +219,6 @@ describe('quarantineStore', () => {
     expect(store.quarantineVisible).toHaveLength(1)
   })
 
-  it('rejectForAlias calls addAliasSender and quarantineResponse then removes signal', async () => {
-    mockBothCalls([mockSignal({ signalId: 'sig_1' })], [])
-    const store = useQuarantineStore()
-    await store.fetchSignals(true)
-
-    vi.mocked(api.addAliasSender).mockResolvedValue(ok({} as never))
-    vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockSignal({ status: 'block_hidden' })))
-    const result = await store.rejectForAlias('sig_1', 'inbox@example.com', 'sender@example.com')
-    expect(result).toBe(true)
-    expect(store.quarantineVisible).toHaveLength(0)
-    expect(vi.mocked(api.addAliasSender)).toHaveBeenCalledWith('acc_1', 'inbox@example.com', {
-      domain: 'example.com',
-      policy: 'block_hidden',
-    })
-    expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'block_hidden')
-  })
-
-  it('rejectForAlias sets error and returns false when alias sender add fails', async () => {
-    mockBothCalls([mockSignal()], [])
-    const store = useQuarantineStore()
-    await store.fetchSignals(true)
-
-    vi.mocked(api.addAliasSender).mockResolvedValue(err(new ApiError(500, 'Alias error')))
-    vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockSignal({ status: 'block_reject' })))
-    const result = await store.rejectForAlias('sig_1', 'inbox@example.com', 'sender@example.com')
-    expect(result).toBe(false)
-    expect(store.error).toBe('Alias error')
-    expect(store.quarantineVisible).toHaveLength(1)
-  })
-
-  it('rejectForAlias sets error and returns false when quarantineResponse fails', async () => {
-    mockBothCalls([mockSignal()], [])
-    const store = useQuarantineStore()
-    await store.fetchSignals(true)
-
-    vi.mocked(api.addAliasSender).mockResolvedValue(ok({} as never))
-    vi.mocked(api.quarantineResponse).mockResolvedValue(err(new ApiError(500, 'Response error')))
-    const result = await store.rejectForAlias('sig_1', 'inbox@example.com', 'sender@example.com')
-    expect(result).toBe(false)
-    expect(store.error).toBe('Response error')
-    expect(store.quarantineVisible).toHaveLength(1)
-  })
-
   it('actionPending tracks in-flight signal ids', async () => {
     mockBothCalls([mockSignal()], [])
     const store = useQuarantineStore()

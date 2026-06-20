@@ -20,7 +20,7 @@ export type Workflow =
   | 'support'
   | 'test'
 
-export type ArcStatus = 'active' | 'archived' | 'deleted' | 'violate_report'
+export type ArcStatus = 'active' | 'archived' | 'deleted' | 'report_violation'
 
 export type ArcUrgency = 'critical' | 'high' | 'normal' | 'low' | 'silent'
 
@@ -28,7 +28,7 @@ export type SignalStatus =
   | 'active'
   | 'block_hidden'
   | 'block_reject'
-  | 'violate_report'
+  | 'report_violation'
   | 'quarantine_visible'
   | 'quarantine_hidden'
   | 'draft'
@@ -45,9 +45,9 @@ export type UnknownSenderPolicy =
   | 'quarantine_hidden'
   | 'block_hidden'
   | 'block_reject'
-  | 'violate_report'
+  | 'report_violation'
 
-export type SenderPolicy = 'allow' | 'block_hidden' | 'block_reject' | 'violate_report'
+export type SenderPolicy = 'allow' | 'block_hidden' | 'block_reject' | 'report_violation'
 
 export type UserRole = 'admin' | 'member' | 'viewer'
 
