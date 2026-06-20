@@ -23,14 +23,20 @@ async function archiveArc() {
   const id = accountStore.accountId
   if (!id) return
   const result = await api.patchArc(id, props.arc.arcId, { status: 'archived' })
-  if (result.isOk()) arcsStore.removeArc(props.arc.arcId)
+  if (result.isOk()) {
+    arcsStore.removeArc(props.arc.arcId)
+    arcsStore.activeCount = Math.max(0, arcsStore.activeCount - 1)
+  }
 }
 
 async function unarchiveArc() {
   const id = accountStore.accountId
   if (!id) return
   const result = await api.patchArc(id, props.arc.arcId, { status: 'active' })
-  if (result.isOk()) arcsStore.removeArc(props.arc.arcId)
+  if (result.isOk()) {
+    arcsStore.removeArc(props.arc.arcId)
+    arcsStore.activeCount += 1
+  }
 }
 </script>
 
