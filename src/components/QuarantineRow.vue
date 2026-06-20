@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject } from 'vue'
+import { computed, inject, ref } from 'vue'
 import type { Signal } from '@/types/server'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { NOW_KEY } from '@/composables/useRelativeTime'
@@ -30,6 +30,18 @@ const toAddress = computed(() => inboundData.value?.to[0]?.address ?? '')
 const fromAddress = computed(() => inboundData.value?.from.address ?? '')
 const fromDisplay = computed(() => inboundData.value?.from.name || inboundData.value?.from.address || '')
 const subject = computed(() => inboundData.value?.subject ?? '')
+
+const expanded = ref(false)
+
+function fitHeight(e: Event) {
+  const iframe = e.target as HTMLIFrameElement
+  try {
+    const h = iframe.contentDocument?.documentElement.scrollHeight
+    if (h) iframe.style.height = `${h}px`
+  } catch {
+    // Cross-origin sandbox blocked contentDocument access — keep CSS min-height
+  }
+}
 </script>
 
 <template>
@@ -63,17 +75,24 @@ const subject = computed(() => inboundData.value?.subject ?? '')
 
       <!-- Content -->
       <div class="min-w-0 flex-1">
-        <div class="flex items-center justify-between gap-2">
-          <p class="truncate text-sm font-medium text-ctp-text">
-            {{ fromDisplay }}
-            <span class="font-normal text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span>
-          </p>
-          <div class="flex shrink-0 items-center gap-1.5">
-            <span class="text-xs text-ctp-subtext0">{{ timestamp }}</span>
+        <button
+          type="button"
+          class="w-full min-w-0 text-left"
+          :aria-expanded="expanded"
+          @click="expanded = !expanded"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <p class="truncate text-sm font-medium text-ctp-text">
+              {{ fromDisplay }}
+              <span class="font-normal text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span>
+            </p>
+            <div class="flex shrink-0 items-center gap-1.5">
+              <span class="text-xs text-ctp-subtext0">{{ timestamp }}</span>
+            </div>
           </div>
-        </div>
 
-        <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ subject }}</p>
+          <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ subject }}</p>
+        </button>
 
         <!-- Matched rule IDs -->
         <div v-if="matchedRules.length" class="mt-1 flex flex-wrap gap-1">
@@ -84,6 +103,22 @@ const subject = computed(() => inboundData.value?.subject ?? '')
           >
             {{ rule.ruleId }}
           </span>
+        </div>
+
+        <!-- Email body preview -->
+        <div v-if="expanded" class="mt-2 overflow-hidden rounded-lg border border-ctp-surface1">
+          <div v-if="inboundData?.body" class="relative max-h-[60vh] min-h-[200px] overflow-y-auto bg-white">
+            <iframe
+              :srcdoc="inboundData.body"
+              sandbox="allow-popups allow-popups-to-escape-sandbox"
+              referrerpolicy="no-referrer"
+              class="w-full border-0"
+              style="min-height: 200px;"
+              title="Email content"
+              @load="fitHeight"
+            />
+          </div>
+          <p v-else class="px-4 py-3 text-sm text-ctp-subtext0">(No content)</p>
         </div>
 
         <!-- Actions -->
