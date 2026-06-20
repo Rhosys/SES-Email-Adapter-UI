@@ -30,8 +30,6 @@ const arcId = computed(() => route.params.id as string)
 
 const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalsStore.items)))
 
-const reversedSignals = computed(() => [...dedupedSignals.value].reverse())
-
 const availableUntil = computed(() => {
   const arc = signalsStore.arc
   if (!arc?.retentionDuration) return null
@@ -347,20 +345,9 @@ async function removeLabel(label: string) {
         <WorkflowPanel :signal="signalsStore.latestSignal" />
       </div>
 
-      <!-- Load more older signals -->
-      <div v-if="signalsStore.hasMore" class="mb-4">
-        <button
-          class="text-sm text-ctp-subtext0 hover:text-ctp-text"
-          :disabled="signalsStore.loadingMore"
-          @click="loadMore"
-        >
-          {{ signalsStore.loadingMore ? 'Loading…' : 'Load earlier messages' }}
-        </button>
-      </div>
-
-      <!-- Signal thread — received + draft signals -->
+      <!-- Signal thread — newest first, received + draft signals -->
       <div class="space-y-4">
-        <template v-for="group in reversedSignals" :key="group.signal.signalId">
+        <template v-for="group in dedupedSignals" :key="group.signal.signalId">
           <DraftSignalCard
             v-if="group.signal.status === 'draft'"
             :signal="group.signal"
@@ -369,6 +356,17 @@ async function removeLabel(label: string) {
           />
           <SignalRenderer v-else :signal="group.signal" :linked-signal="group.linkedSignal" @undo="onSignalUndo" @reply="startDraft" />
         </template>
+      </div>
+
+      <!-- Load earlier (older) signals — they sort to the bottom -->
+      <div v-if="signalsStore.hasMore" class="mt-4">
+        <button
+          class="text-sm text-ctp-subtext0 hover:text-ctp-text"
+          :disabled="signalsStore.loadingMore"
+          @click="loadMore"
+        >
+          {{ signalsStore.loadingMore ? 'Loading…' : 'Load earlier messages' }}
+        </button>
       </div>
     </template>
 

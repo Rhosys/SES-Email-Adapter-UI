@@ -62,8 +62,8 @@ export const useSignalsStore = defineStore('signals', () => {
     if (result.isErr()) {
       error.value = result.error.message
     } else {
-      // Prepend older signals (they come in chronological order, we show newest-first)
-      items.value = [...result.value.signals, ...items.value]
+      // Append older signals (API returns them chronologically; items are newest-first)
+      items.value = [...items.value, ...[...result.value.signals].reverse()]
       nextCursor.value = result.value.pagination.cursor ?? undefined
     }
 
