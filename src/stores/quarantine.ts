@@ -40,6 +40,20 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     before: '',
   })
 
+  // Sidebar notification badge — unfiltered count of items needing review.
+  // Deliberately excludes quarantine_hidden (silently held mail the user never sees).
+  const visibleCount = ref(0)
+  const visibleCountHasMore = ref(false)
+
+  async function fetchVisibleCount() {
+    const id = accountStore.accountId
+    if (!id) return
+    const result = await api.listQuarantinedSignals(id, 'quarantine_visible', { limit: 100 })
+    if (result.isErr()) return
+    visibleCount.value = result.value.signals.length
+    visibleCountHasMore.value = result.value.pagination.cursor != null
+  }
+
   function _state(id: string): QuarantinePageState {
     return _byAccount.value[id] ?? { visible: { items: [] }, hidden: { items: [] } }
   }
@@ -160,6 +174,7 @@ export const useQuarantineStore = defineStore('quarantine', () => {
 
   function _removeSignal(id: string, signalId: string) {
     const s = _state(id)
+    const wasVisible = s.visible.items.some((x) => x.signalId === signalId)
     _byAccount.value = {
       ..._byAccount.value,
       [id]: {
@@ -167,6 +182,7 @@ export const useQuarantineStore = defineStore('quarantine', () => {
         hidden: { ...s.hidden, items: s.hidden.items.filter((x) => x.signalId !== signalId) },
       },
     }
+    if (wasVisible) visibleCount.value = Math.max(0, visibleCount.value - 1)
   }
 
   async function allow(signalId: string) {
@@ -218,6 +234,8 @@ export const useQuarantineStore = defineStore('quarantine', () => {
   return {
     quarantineVisible,
     quarantineHidden,
+    visibleCount,
+    visibleCountHasMore,
     hasMore,
     loading,
     loadingMore,
@@ -226,6 +244,7 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     filters,
     fetchSignals,
     fetchMore,
+    fetchVisibleCount,
     allow,
     reject,
     rejectForAlias,

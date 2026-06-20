@@ -45,6 +45,8 @@ export function useRealtime() {
       case 'signal:created':
         // Update the thread in the inbox list
         void arcsStore.refreshArc(event.arcId)
+        // Sidebar badge — a new signal may have created or revived an active thread
+        void arcsStore.fetchActiveCount()
         // If the detail view for this thread is open, pull the updated thread + its signals
         if (signalsStore.arc?.arcId === event.arcId) {
           void signalsStore.fetchAll(event.arcId)

@@ -24,6 +24,11 @@ export const useArcsStore = defineStore('arcs', () => {
   const selectedIds = ref(new Set<string>())
   const bulkActionPending = ref(false)
 
+  // Sidebar notification badge — independent of the tab-scoped page list above
+  // so it stays accurate regardless of which tab/filters the inbox view is showing.
+  const activeCount = ref(0)
+  const activeCountHasMore = ref(false)
+
   const items = computed<Arc[]>(() =>
     accountStore.accountId ? (_byAccount.value[accountStore.accountId]?.items ?? []) : [],
   )
@@ -102,6 +107,15 @@ export const useArcsStore = defineStore('arcs', () => {
     }
   }
 
+  async function fetchActiveCount() {
+    const id = accountStore.accountId
+    if (!id) return
+    const result = await api.listArcs(id, { status: 'active', limit: 100 })
+    if (result.isErr()) return
+    activeCount.value = result.value.arcs.length
+    activeCountHasMore.value = result.value.pagination.cursor != null
+  }
+
   function setTab(tab: TabKey) {
     activeTab.value = tab
     void fetchArcs(true)
@@ -127,6 +141,9 @@ export const useArcsStore = defineStore('arcs', () => {
     const id = accountStore.accountId
     if (!id) return
     const ids = [...selectedIds.value]
+    const activeIdsCount = ids.filter(
+      (arcId) => items.value.find((a) => a.arcId === arcId)?.status === 'active',
+    ).length
     // Optimistic: remove from list immediately when on active tab
     if (activeTab.value === 'active') {
       _byAccount.value = {
@@ -148,6 +165,9 @@ export const useArcsStore = defineStore('arcs', () => {
       error.value = `Failed to archive ${failed.length} thread(s)`
       // Re-fetch to restore consistent state
       await fetchArcs(true)
+      void fetchActiveCount()
+    } else {
+      activeCount.value = Math.max(0, activeCount.value - activeIdsCount)
     }
   }
 
@@ -176,6 +196,9 @@ export const useArcsStore = defineStore('arcs', () => {
     const id = accountStore.accountId
     if (!id) return
     const ids = [...selectedIds.value]
+    const activeIdsCount = ids.filter(
+      (arcId) => items.value.find((a) => a.arcId === arcId)?.status === 'active',
+    ).length
     _byAccount.value = {
       ..._byAccount.value,
       [id]: {
@@ -193,6 +216,9 @@ export const useArcsStore = defineStore('arcs', () => {
     if (failed.length > 0) {
       error.value = `Failed to delete ${failed.length} thread(s)`
       await fetchArcs(true)
+      void fetchActiveCount()
+    } else {
+      activeCount.value = Math.max(0, activeCount.value - activeIdsCount)
     }
   }
 
@@ -243,6 +269,7 @@ export const useArcsStore = defineStore('arcs', () => {
         [id]: { ..._byAccount.value[id], items: existing.map((a) => (a.arcId === arcId ? result.value : a)) },
       }
     }
+    activeCount.value = Math.max(0, activeCount.value - 1)
     return ok(result.value)
   }
 
@@ -273,6 +300,7 @@ export const useArcsStore = defineStore('arcs', () => {
         [id]: { ..._byAccount.value[id], items: existing.filter((a) => a.arcId !== arcId) },
       }
     }
+    activeCount.value = Math.max(0, activeCount.value - 1)
     return ok(result.value)
   }
 
@@ -280,6 +308,8 @@ export const useArcsStore = defineStore('arcs', () => {
     items,
     sortedItems,
     nextCursor,
+    activeCount,
+    activeCountHasMore,
     loading,
     loadingMore,
     error,
@@ -290,6 +320,7 @@ export const useArcsStore = defineStore('arcs', () => {
     allSelected,
     fetchArcs,
     fetchMoreArcs,
+    fetchActiveCount,
     refreshArc,
     setTab,
     toggleSelect,

@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useLabelsStore } from '@/stores/labels'
 import { useViewsStore } from '@/stores/views'
 import { useAccountStore } from '@/stores/account'
+import { useArcsStore } from '@/stores/arcs'
+import { useQuarantineStore } from '@/stores/quarantine'
 import { loginClient } from '@/lib/auth'
 
 defineProps<{ open: boolean }>()
@@ -13,6 +15,25 @@ const router = useRouter()
 const labelsStore = useLabelsStore()
 const viewsStore = useViewsStore()
 const accountStore = useAccountStore()
+const arcsStore = useArcsStore()
+const quarantineStore = useQuarantineStore()
+
+// Notification badges — fetched independently of whichever view is mounted so they
+// stay correct even if the user never visits Inbox/Quarantine during this session.
+watch(
+  () => accountStore.accountId,
+  (id) => {
+    if (!id) return
+    void arcsStore.fetchActiveCount()
+    void quarantineStore.fetchVisibleCount()
+  },
+  { immediate: true },
+)
+
+function formatBadgeCount(count: number, hasMore: boolean) {
+  if (count > 99) return '99+'
+  return hasMore ? `${count}+` : `${count}`
+}
 
 // ── User identity for mobile profile row ──────────────────────────────────────
 interface Identity {
@@ -111,7 +132,13 @@ const accountSwitcherOpen = ref(false)
               d="M1 2.5A1.5 1.5 0 012.5 1h11A1.5 1.5 0 0115 2.5v11a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 13.5v-11zM2.5 2a.5.5 0 00-.5.5V9h2.5a.5.5 0 01.5.5 2.5 2.5 0 005 0 .5.5 0 01.5-.5H13V2.5a.5.5 0 00-.5-.5h-10z"
             />
           </svg>
-          Inbox
+          <span class="flex-1">Inbox</span>
+          <span
+            v-if="arcsStore.activeCount > 0"
+            class="shrink-0 rounded-full bg-ctp-mauve px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ctp-base"
+          >
+            {{ formatBadgeCount(arcsStore.activeCount, arcsStore.activeCountHasMore) }}
+          </span>
         </RouterLink>
 
         <RouterLink
@@ -130,7 +157,13 @@ const accountSwitcherOpen = ref(false)
               d="M8 1l6 2v4c0 3.5-2.5 6.3-6 7.5C2.5 13.3 0 10.5 0 7V3l8-2zm0 1.5L1.5 4.3V7c0 2.8 2 5.1 6.5 6.3C12.5 12.1 14.5 9.8 14.5 7V4.3L8 2.5z"
             />
           </svg>
-          Quarantine
+          <span class="flex-1">Quarantine</span>
+          <span
+            v-if="quarantineStore.visibleCount > 0"
+            class="shrink-0 rounded-full bg-ctp-peach px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ctp-base"
+          >
+            {{ formatBadgeCount(quarantineStore.visibleCount, quarantineStore.visibleCountHasMore) }}
+          </span>
         </RouterLink>
 
         <RouterLink

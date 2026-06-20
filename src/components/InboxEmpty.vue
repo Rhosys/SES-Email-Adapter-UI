@@ -1,11 +1,16 @@
 <script setup lang="ts">
+import { RouterLink } from 'vue-router'
+import { useQuarantineStore } from '@/stores/quarantine'
+
 defineProps<{ tab: 'active' | 'archived' | 'all' }>()
+
+const quarantineStore = useQuarantineStore()
 
 const messages = {
   active: {
     primary: 'Nothing here. Suspicious.',
     secondary:
-      'Either nobody loves you or your filters are doing an excellent job. New emails will appear here the moment they arrive.',
+      'Either the internet has dried up or your filters are doing an excellent job. New emails will appear here the moment they arrive.',
   },
   archived: {
     primary: 'Archive is empty',
@@ -24,5 +29,14 @@ const messages = {
   <div class="py-20 text-center">
     <p class="text-base font-medium text-ctp-text">{{ messages[tab].primary }}</p>
     <p class="mx-auto mt-2 max-w-sm text-sm text-ctp-subtext0">{{ messages[tab].secondary }}</p>
+
+    <RouterLink
+      v-if="tab === 'active' && quarantineStore.visibleCount > 0"
+      :to="{ name: 'quarantine' }"
+      class="mx-auto mt-4 inline-flex items-center gap-1.5 rounded-full border border-ctp-peach/40 bg-ctp-peach/10 px-3 py-1.5 text-sm text-ctp-peach transition-colors hover:bg-ctp-peach/20"
+    >
+      {{ quarantineStore.visibleCount }} email{{ quarantineStore.visibleCount === 1 ? '' : 's' }} waiting for your
+      review in quarantine →
+    </RouterLink>
   </div>
 </template>
