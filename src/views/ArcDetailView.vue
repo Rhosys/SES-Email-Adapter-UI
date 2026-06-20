@@ -236,11 +236,14 @@ async function removeLabel(label: string) {
           </button>
           <div
             v-if="overflowOpen"
+            role="menu"
             class="absolute right-0 top-full z-10 mt-1 w-44 rounded-lg border border-ctp-surface0 bg-ctp-base py-1 shadow-lg"
             @click="overflowOpen = false"
+            @keydown.escape="overflowOpen = false"
           >
             <button
               type="button"
+              role="menuitem"
               class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0"
               @click="deleteArc()"
             >
