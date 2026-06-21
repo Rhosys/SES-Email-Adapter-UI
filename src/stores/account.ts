@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { ok, err, type Result } from 'neverthrow'
 import { api, ApiError } from '@/lib/api'
+import { removeAllForAccount } from '@/plugins/persistent-store'
+import logger from '@/lib/logger'
 import type { Account } from '@/types/server'
 
 // Per-tab account (sessionStorage — isolated per tab, copied on Ctrl+click)
@@ -31,6 +33,29 @@ export const useAccountStore = defineStore('account', () => {
       return
     }
     accounts.value = result.value
+
+    // Clean up localStorage cache for accounts the user no longer has access to
+    try {
+      const validIds = new Set(result.value.map((a) => a.accountId))
+      const cachedAccountIds = new Set<string>()
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key?.startsWith('ses:v1:')) {
+          const parts = key.split(':')
+          if (parts.length >= 4) {
+            cachedAccountIds.add(parts[2])
+          }
+        }
+      }
+      for (const cachedId of cachedAccountIds) {
+        if (!validIds.has(cachedId)) {
+          removeAllForAccount(cachedId)
+          logger.info({ title: 'Removed cache for revoked account', accountId: cachedId })
+        }
+      }
+    } catch {
+      // localStorage may be unavailable — non-fatal
+    }
 
     const preferred =
       fromAccountId ?? sessionStorage.getItem(TAB_KEY) ?? localStorage.getItem(LAST_KEY) ?? null
