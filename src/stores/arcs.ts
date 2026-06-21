@@ -8,15 +8,11 @@ import type { Arc, ArcStatus } from '@/types/server'
 
 type TabKey = 'active' | 'archived' | 'all'
 
-interface ArcPageState {
-  items: Arc[]
-  nextCursor?: string
-}
-
 export const useArcsStore = defineStore('arcs', () => {
   const accountStore = useAccountStore()
 
-  const _byAccount = ref<Record<string, ArcPageState>>({})
+  const _byAccount = ref<Record<string, Arc[]>>({})
+  const _cursors = ref<Record<string, string | undefined>>({})
   const loading = ref(false)
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
@@ -30,12 +26,12 @@ export const useArcsStore = defineStore('arcs', () => {
   const activeCountHasMore = ref(false)
 
   const items = computed<Arc[]>(() =>
-    accountStore.accountId ? (_byAccount.value[accountStore.accountId]?.items ?? []) : [],
+    accountStore.accountId ? (_byAccount.value[accountStore.accountId] ?? []) : [],
   )
 
   const nextCursor = computed<string | undefined>(() =>
     accountStore.accountId
-      ? (_byAccount.value[accountStore.accountId]?.nextCursor ?? undefined)
+      ? _cursors.value[accountStore.accountId]
       : undefined,
   )
 
@@ -55,7 +51,8 @@ export const useArcsStore = defineStore('arcs', () => {
     const id = accountStore.accountId
     if (!id) return
     if (reset) {
-      _byAccount.value = { ..._byAccount.value, [id]: { items: [], nextCursor: undefined } }
+      _byAccount.value = { ..._byAccount.value, [id]: [] }
+      _cursors.value = { ..._cursors.value, [id]: undefined }
       selectedIds.value.clear()
     }
     loading.value = true
@@ -68,14 +65,12 @@ export const useArcsStore = defineStore('arcs', () => {
       return
     }
     const page = result.value
-    const existing = _byAccount.value[id]?.items ?? []
+    const existing = _byAccount.value[id] ?? []
     _byAccount.value = {
       ..._byAccount.value,
-      [id]: {
-        items: reset ? page.arcs : [...existing, ...page.arcs],
-        nextCursor: page.pagination.cursor ?? undefined,
-      },
+      [id]: reset ? page.arcs : [...existing, ...page.arcs],
     }
+    _cursors.value = { ..._cursors.value, [id]: page.pagination.cursor ?? undefined }
   }
 
   async function fetchMoreArcs() {
@@ -94,14 +89,12 @@ export const useArcsStore = defineStore('arcs', () => {
       return
     }
     const page = result.value
-    const existing = _byAccount.value[id]?.items ?? []
+    const existing = _byAccount.value[id] ?? []
     _byAccount.value = {
       ..._byAccount.value,
-      [id]: {
-        items: [...existing, ...page.arcs],
-        nextCursor: page.pagination.cursor ?? undefined,
-      },
+      [id]: [...existing, ...page.arcs],
     }
+    _cursors.value = { ..._cursors.value, [id]: page.pagination.cursor ?? undefined }
   }
 
   async function fetchActiveCount() {
@@ -145,10 +138,7 @@ export const useArcsStore = defineStore('arcs', () => {
     if (activeTab.value === 'active') {
       _byAccount.value = {
         ..._byAccount.value,
-        [id]: {
-          items: (_byAccount.value[id]?.items ?? []).filter((a) => !selectedIds.value.has(a.arcId)),
-          nextCursor: _byAccount.value[id]?.nextCursor,
-        },
+        [id]: (_byAccount.value[id] ?? []).filter((a) => !selectedIds.value.has(a.arcId)),
       }
     }
     clearSelection()
@@ -198,10 +188,7 @@ export const useArcsStore = defineStore('arcs', () => {
     ).length
     _byAccount.value = {
       ..._byAccount.value,
-      [id]: {
-        items: (_byAccount.value[id]?.items ?? []).filter((a) => !selectedIds.value.has(a.arcId)),
-        nextCursor: _byAccount.value[id]?.nextCursor,
-      },
+      [id]: (_byAccount.value[id] ?? []).filter((a) => !selectedIds.value.has(a.arcId)),
     }
     clearSelection()
     bulkActionPending.value = true
@@ -225,26 +212,22 @@ export const useArcsStore = defineStore('arcs', () => {
     const result = await api.getArc(id, arcId)
     if (result.isErr()) return
     const updated = result.value
-    const existing = _byAccount.value[id]?.items ?? []
+    const existing = _byAccount.value[id] ?? []
     const idx = existing.findIndex((a) => a.arcId === arcId)
     _byAccount.value = {
       ..._byAccount.value,
-      [id]: {
-        ..._byAccount.value[id],
-        items:
-          idx >= 0
-            ? existing.map((a) => (a.arcId === arcId ? updated : a))
-            : [updated, ...existing], // new thread — prepend
-      },
+      [id]: idx >= 0
+        ? existing.map((a) => (a.arcId === arcId ? updated : a))
+        : [updated, ...existing], // new thread — prepend
     }
   }
 
   function removeArc(id: string) {
     const accId = accountStore.accountId
     if (!accId || !_byAccount.value[accId]) return
-    _byAccount.value[accId] = {
-      ..._byAccount.value[accId],
-      items: _byAccount.value[accId].items.filter((a) => a.arcId !== id),
+    _byAccount.value = {
+      ..._byAccount.value,
+      [accId]: (_byAccount.value[accId] ?? []).filter((a) => a.arcId !== id),
     }
   }
 
@@ -254,16 +237,16 @@ export const useArcsStore = defineStore('arcs', () => {
     const result = await api.patchArc(id, arcId, { status: 'archived' })
     if (result.isErr()) return err(result.error)
     // Update in the list if present
-    const existing = _byAccount.value[id]?.items ?? []
+    const existing = _byAccount.value[id] ?? []
     if (activeTab.value === 'active') {
       _byAccount.value = {
         ..._byAccount.value,
-        [id]: { ..._byAccount.value[id], items: existing.filter((a) => a.arcId !== arcId) },
+        [id]: existing.filter((a) => a.arcId !== arcId),
       }
     } else {
       _byAccount.value = {
         ..._byAccount.value,
-        [id]: { ..._byAccount.value[id], items: existing.map((a) => (a.arcId === arcId ? result.value : a)) },
+        [id]: existing.map((a) => (a.arcId === arcId ? result.value : a)),
       }
     }
     activeCount.value = Math.max(0, activeCount.value - 1)
@@ -276,10 +259,10 @@ export const useArcsStore = defineStore('arcs', () => {
     const result = await api.patchArc(id, arcId, { labels })
     if (result.isErr()) return err(result.error)
     // Update in the list if present
-    const existing = _byAccount.value[id]?.items ?? []
+    const existing = _byAccount.value[id] ?? []
     _byAccount.value = {
       ..._byAccount.value,
-      [id]: { ..._byAccount.value[id], items: existing.map((a) => (a.arcId === arcId ? result.value : a)) },
+      [id]: existing.map((a) => (a.arcId === arcId ? result.value : a)),
     }
     return ok(result.value)
   }
@@ -291,10 +274,10 @@ export const useArcsStore = defineStore('arcs', () => {
     if (result.isErr()) return err(result.error)
     // Arc is now archived — remove from active list
     if (activeTab.value === 'active') {
-      const existing = _byAccount.value[id]?.items ?? []
+      const existing = _byAccount.value[id] ?? []
       _byAccount.value = {
         ..._byAccount.value,
-        [id]: { ..._byAccount.value[id], items: existing.filter((a) => a.arcId !== arcId) },
+        [id]: existing.filter((a) => a.arcId !== arcId),
       }
     }
     activeCount.value = Math.max(0, activeCount.value - 1)
@@ -331,4 +314,9 @@ export const useArcsStore = defineStore('arcs', () => {
     unsubscribeArc,
     removeArc,
   }
+}, {
+  persist: {
+    accountKeyedRef: '_byAccount',
+    filter: (items) => (items as Arc[]).filter((a) => a.status === 'active'),
+  },
 })

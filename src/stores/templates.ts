@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { ok, err, type Result } from 'neverthrow'
 import { api, ApiError } from '@/lib/api'
 import { useAccountStore } from '@/stores/account'
@@ -16,7 +16,8 @@ interface TemplateBody {
 export const useTemplatesStore = defineStore('templates', () => {
   const accountStore = useAccountStore()
 
-  const templates = ref<EmailTemplate[]>([])
+  const _byAccount = ref<Record<string, EmailTemplate[]>>({})
+  const templates = computed<EmailTemplate[]>(() => accountStore.accountId ? (_byAccount.value[accountStore.accountId] ?? []) : [])
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -28,7 +29,7 @@ export const useTemplatesStore = defineStore('templates', () => {
     const result = await api.listTemplates(id)
     loading.value = false
     if (result.isErr()) { error.value = result.error.message; return }
-    templates.value = result.value
+    _byAccount.value = { ..._byAccount.value, [id]: result.value }
   }
 
   async function createTemplate(body: TemplateBody): Promise<Result<EmailTemplate, ApiError | NoCurrentAccountError>> {
@@ -37,7 +38,7 @@ export const useTemplatesStore = defineStore('templates', () => {
     error.value = null
     const result = await api.createTemplate(id, body)
     if (result.isErr()) { error.value = result.error.message; return err(result.error) }
-    templates.value = [result.value, ...templates.value]
+    _byAccount.value = { ..._byAccount.value, [id]: [result.value, ...(_byAccount.value[id] ?? [])] }
     return ok(result.value)
   }
 
@@ -47,7 +48,7 @@ export const useTemplatesStore = defineStore('templates', () => {
     error.value = null
     const result = await api.updateTemplate(id, templateId, body)
     if (result.isErr()) { error.value = result.error.message; return err(result.error) }
-    templates.value = templates.value.map((t) => (t.templateId === templateId ? result.value : t))
+    _byAccount.value = { ..._byAccount.value, [id]: (_byAccount.value[id] ?? []).map((t) => (t.templateId === templateId ? result.value : t)) }
     return ok(result.value)
   }
 
@@ -57,7 +58,7 @@ export const useTemplatesStore = defineStore('templates', () => {
     error.value = null
     const result = await api.deleteTemplate(id, templateId)
     if (result.isErr()) { error.value = result.error.message; return err(result.error) }
-    templates.value = templates.value.filter((t) => t.templateId !== templateId)
+    _byAccount.value = { ..._byAccount.value, [id]: (_byAccount.value[id] ?? []).filter((t) => t.templateId !== templateId) }
     return ok(undefined)
   }
 
@@ -66,4 +67,8 @@ export const useTemplatesStore = defineStore('templates', () => {
   }
 
   return { templates, loading, error, fetchTemplates, createTemplate, updateTemplate, deleteTemplate, clearError }
+}, {
+  persist: {
+    accountKeyedRef: '_byAccount',
+  },
 })
