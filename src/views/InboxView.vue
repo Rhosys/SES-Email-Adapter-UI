@@ -6,7 +6,10 @@ import { useArcsStore } from '@/stores/arcs'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import StatusTabs from '@/components/StatusTabs.vue'
 import BulkActionBar from '@/components/BulkActionBar.vue'
-import ArcList from '@/components/ArcList.vue'
+import ArcListShell from '@/components/ArcListShell.vue'
+import ActiveArcRow from '@/components/ActiveArcRow.vue'
+import ArchivedArcRow from '@/components/ArchivedArcRow.vue'
+import AllArcRow from '@/components/AllArcRow.vue'
 import InboxError from '@/components/InboxError.vue'
 import InboxEmpty from '@/components/InboxEmpty.vue'
 import InboxZeroCelebration from '@/components/InboxZeroCelebration.vue'
@@ -166,16 +169,43 @@ watch(
         :tab="arcsStore.activeTab"
       />
 
-      <ArcList
+      <ArcListShell
         v-else
-        :arcs="arcsStore.sortedItems"
-        :selected-ids="arcsStore.selectedIds"
         :all-selected="arcsStore.allSelected"
-        :focused-arc-id="focusedArcId"
-        @toggle-select="arcsStore.toggleSelect"
         @select-all="arcsStore.selectAll()"
         @clear-selection="arcsStore.clearSelection()"
-      />
+      >
+        <template v-if="arcsStore.activeTab === 'active'">
+          <ActiveArcRow
+            v-for="arc in arcsStore.sortedItems"
+            :key="arc.arcId"
+            :arc="arc"
+            :selected="arcsStore.selectedIds.has(arc.arcId)"
+            :focused="arc.arcId === focusedArcId"
+            @toggle-select="arcsStore.toggleSelect"
+          />
+        </template>
+        <template v-else-if="arcsStore.activeTab === 'archived'">
+          <ArchivedArcRow
+            v-for="arc in arcsStore.sortedItems"
+            :key="arc.arcId"
+            :arc="arc"
+            :selected="arcsStore.selectedIds.has(arc.arcId)"
+            :focused="arc.arcId === focusedArcId"
+            @toggle-select="arcsStore.toggleSelect"
+          />
+        </template>
+        <template v-else>
+          <AllArcRow
+            v-for="arc in arcsStore.sortedItems"
+            :key="arc.arcId"
+            :arc="arc"
+            :selected="arcsStore.selectedIds.has(arc.arcId)"
+            :focused="arc.arcId === focusedArcId"
+            @toggle-select="arcsStore.toggleSelect"
+          />
+        </template>
+      </ArcListShell>
 
       <div v-if="arcsStore.hasMore" class="mt-4 flex justify-center">
         <button

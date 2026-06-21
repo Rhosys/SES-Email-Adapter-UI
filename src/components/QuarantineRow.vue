@@ -5,6 +5,7 @@ import type { Signal } from '@/types/server'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
+import StatusBadge from './StatusBadge.vue'
 
 const props = defineProps<{
   signal: Signal
@@ -38,18 +39,7 @@ const subject = computed(() => inboundData.value?.subject ?? '')
     <div class="flex items-start gap-3 px-4 py-3">
       <!-- Quarantine status badge -->
       <div class="mt-0.5 shrink-0">
-        <span
-          v-if="isHidden"
-          class="inline-block rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0"
-        >
-          Silently held
-        </span>
-        <span
-          v-else
-          class="inline-block rounded-full bg-ctp-mauve/15 px-2 py-0.5 text-xs font-medium text-ctp-mauve"
-        >
-          Quarantined
-        </span>
+        <StatusBadge :status="signal.status" />
       </div>
 
       <!-- Content -->

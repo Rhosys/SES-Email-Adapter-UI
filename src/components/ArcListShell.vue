@@ -1,16 +1,9 @@
 <script setup lang="ts">
-import type { Arc } from '@/types/server'
-import ArcRow from './ArcRow.vue'
-
 defineProps<{
-  arcs: Arc[]
-  selectedIds: Set<string>
   allSelected: boolean
-  focusedArcId?: string | null
 }>()
 
 const emit = defineEmits<{
-  (e: 'toggle-select', id: string): void
   (e: 'select-all'): void
   (e: 'clear-selection'): void
 }>()
@@ -40,16 +33,9 @@ function handleSelectAll(event: Event) {
       </div>
     </div>
 
-    <!-- Arc rows -->
+    <!-- Rows injected via slot -->
     <TransitionGroup name="list" tag="div" class="relative">
-      <ArcRow
-        v-for="arc in arcs"
-        :key="arc.arcId"
-        :arc="arc"
-        :selected="selectedIds.has(arc.arcId)"
-        :focused="arc.arcId === focusedArcId"
-        @toggle-select="emit('toggle-select', $event)"
-      />
+      <slot />
     </TransitionGroup>
   </div>
 </template>
