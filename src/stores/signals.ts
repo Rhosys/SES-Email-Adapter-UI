@@ -4,18 +4,18 @@ import { ok, err, type Result } from 'neverthrow'
 import { api, ApiError } from '@/lib/api'
 import { useAccountStore } from '@/stores/account'
 import { NoCurrentAccountError } from '@/stores/errors'
-import type { Signal, Arc } from '@/types/server'
+import type { Signal } from '@/types/server'
 
 export const useSignalsStore = defineStore('signals', () => {
   const accountStore = useAccountStore()
 
-  const items = ref<Signal[]>([])
-  const arc = ref<Arc | null>(null)
+  const _byAccount = ref<Record<string, Signal[]>>({})
   const nextCursor = ref<string | undefined>(undefined)
   const loading = ref(false)
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
 
+  const items = computed<Signal[]>(() => accountStore.accountId ? (_byAccount.value[accountStore.accountId] ?? []) : [])
   const hasMore = computed(() => !!nextCursor.value)
   const latestSignal = computed(() => items.value[0] ?? null)
 
@@ -25,16 +25,7 @@ export const useSignalsStore = defineStore('signals', () => {
     loading.value = true
     error.value = null
 
-    const [arcResult, signalsResult] = await Promise.all([
-      api.getArc(accountId, arcId),
-      api.listSignals(accountId, arcId, { limit: 50 }),
-    ])
-
-    if (arcResult.isErr()) {
-      error.value = arcResult.error.message
-      loading.value = false
-      return
-    }
+    const signalsResult = await api.listSignals(accountId, arcId, { limit: 50 })
 
     if (signalsResult.isErr()) {
       error.value = signalsResult.error.message
@@ -42,9 +33,7 @@ export const useSignalsStore = defineStore('signals', () => {
       return
     }
 
-    arc.value = arcResult.value
-    // Newest first
-    items.value = [...signalsResult.value.signals].reverse()
+    _byAccount.value = { ..._byAccount.value, [accountId]: [...signalsResult.value.signals].reverse() }
     nextCursor.value = signalsResult.value.pagination.cursor ?? undefined
     loading.value = false
   }
@@ -63,7 +52,7 @@ export const useSignalsStore = defineStore('signals', () => {
       error.value = result.error.message
     } else {
       // Append older signals (API returns them chronologically; items are newest-first)
-      items.value = [...items.value, ...[...result.value.signals].reverse()]
+      _byAccount.value = { ..._byAccount.value, [accountId]: [...(_byAccount.value[accountId] ?? []), ...[...result.value.signals].reverse()] }
       nextCursor.value = result.value.pagination.cursor ?? undefined
     }
 
@@ -116,17 +105,18 @@ export const useSignalsStore = defineStore('signals', () => {
       return err(result.error)
     }
     // Drafts appear at the bottom of the thread (below received signals)
-    items.value = [...items.value, result.value]
+    _byAccount.value = { ..._byAccount.value, [accountId]: [...(_byAccount.value[accountId] ?? []), result.value] }
     return ok(result.value)
   }
 
   function removeSignal(signalId: string) {
-    items.value = items.value.filter((s) => s.signalId !== signalId)
+    const accountId = accountStore.accountId
+    if (!accountId) return
+    _byAccount.value = { ..._byAccount.value, [accountId]: (_byAccount.value[accountId] ?? []).filter((s) => s.signalId !== signalId) }
   }
 
   function reset() {
-    items.value = []
-    arc.value = null
+    _byAccount.value = {}
     nextCursor.value = undefined
     loading.value = false
     loadingMore.value = false
@@ -134,8 +124,8 @@ export const useSignalsStore = defineStore('signals', () => {
   }
 
   return {
+    _byAccount,
     items,
-    arc,
     nextCursor,
     loading,
     loadingMore,
@@ -148,4 +138,8 @@ export const useSignalsStore = defineStore('signals', () => {
     removeSignal,
     reset,
   }
+}, {
+  persist: {
+    accountKeyedRef: '_byAccount',
+  },
 })

@@ -15,6 +15,7 @@ import SignalRenderer from '@/components/SignalRenderer.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import type { Arc } from '@/types/server'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,15 +26,21 @@ const { showUndo, deferAction } = useToast()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
 const overflowOpen = ref(false)
+const arcData = ref<Arc | null>(null)
 
 const arcId = computed(() => route.params.id as string)
 
 const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalsStore.items)))
 
+// Look up arc from arcsStore items first, fall back to locally fetched data
+const arc = computed(() => {
+  const fromStore = arcsStore.items.find((a) => a.arcId === arcId.value)
+  return fromStore ?? arcData.value
+})
+
 const availableUntil = computed(() => {
-  const arc = signalsStore.arc
-  if (!arc?.retentionDuration) return null
-  return retentionExpiresAt(arc.createdAt, arc.retentionDuration)
+  if (!arc.value?.retentionDuration) return null
+  return retentionExpiresAt(arc.value.createdAt, arc.value.retentionDuration)
 })
 
 const showRetentionWarning = computed(() => {
@@ -54,6 +61,14 @@ const retentionMessage = computed(() => {
 onMounted(async () => {
   signalsStore.reset()
   await accountStore.fetchAccount()
+  // Fetch arc metadata separately (signals store no longer holds arc)
+  const accountId = accountStore.accountId
+  if (accountId) {
+    const arcResult = await api.getArc(accountId, arcId.value)
+    if (arcResult.isOk()) {
+      arcData.value = arcResult.value
+    }
+  }
   await signalsStore.fetchAll(arcId.value)
 })
 
@@ -77,7 +92,7 @@ async function archive() {
   const result = await arcsStore.archiveArc(arcId.value)
   if (result.isErr()) return
   const id = arcId.value
-  const summary = signalsStore.arc?.summary
+  const summary = arc.value?.summary
   showUndo(
     'Thread archived',
     async () => {
@@ -130,12 +145,11 @@ async function loadMore() {
 }
 
 const primaryBadgeLabel = computed(() => {
-  const arc = signalsStore.arc
-  if (!arc) return ''
-  if (arc.status === 'deleted') return 'Deleted'
+  if (!arc.value) return ''
+  if (arc.value.status === 'deleted') return 'Deleted'
   const latestSignal = signalsStore.latestSignal
   if (latestSignal && isInboundEmailSignal(latestSignal) && latestSignal.data.workflowData?.workflow === 'conversation' && latestSignal.data.workflowData.requiresReply) return 'Reply Needed'
-  if (arc.status === 'archived') return 'Archived'
+  if (arc.value.status === 'archived') return 'Archived'
   return 'Active'
 })
 
@@ -152,6 +166,11 @@ async function moveToInbox() {
   const id = accountStore.accountId
   if (!id) return
   await api.patchArc(id, arcId.value, { status: 'active' })
+  // Refresh arc data
+  const arcResult = await api.getArc(id, arcId.value)
+  if (arcResult.isOk()) {
+    arcData.value = arcResult.value
+  }
   await signalsStore.fetchAll(arcId.value)
 }
 
@@ -168,10 +187,13 @@ async function removeLabel(label: string) {
   })
   if (!confirmed) return
   const id = accountStore.accountId
-  if (!id || !signalsStore.arc) return
-  const currentLabels = signalsStore.arc.labels.filter((l) => l !== label)
+  if (!id || !arc.value) return
+  const currentLabels = arc.value.labels.filter((l) => l !== label)
   const result = await api.patchArc(id, arcId.value, { labels: currentLabels })
-  if (result.isOk()) await signalsStore.fetchAll(arcId.value)
+  if (result.isOk()) {
+    arcData.value = result.value
+    await signalsStore.fetchAll(arcId.value)
+  }
 }
 </script>
 
@@ -186,9 +208,9 @@ async function removeLabel(label: string) {
         ← Back to inbox
       </RouterLink>
 
-      <div v-if="signalsStore.arc" class="flex items-center gap-2">
+      <div v-if="arc" class="flex items-center gap-2">
         <AsyncButton
-          v-if="hasUnsubscribe && signalsStore.arc.status === 'active'"
+          v-if="hasUnsubscribe && arc.status === 'active'"
           :action="unsubscribe"
           variant="outline"
           class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-peach hover:text-ctp-peach"
@@ -199,7 +221,7 @@ async function removeLabel(label: string) {
           Unsubscribe
         </AsyncButton>
         <AsyncButton
-          v-if="signalsStore.arc.status === 'active'"
+          v-if="arc.status === 'active'"
           :action="archive"
           variant="outline"
           class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-red hover:text-ctp-red"
@@ -210,7 +232,7 @@ async function removeLabel(label: string) {
           Archive
         </AsyncButton>
         <AsyncButton
-          v-if="signalsStore.arc.status === 'archived'"
+          v-if="arc.status === 'archived'"
           :action="moveToInbox"
           variant="outline"
           class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-green hover:text-ctp-green"
@@ -219,7 +241,7 @@ async function removeLabel(label: string) {
         </AsyncButton>
 
         <!-- Overflow menu -->
-        <div v-if="signalsStore.arc.status !== 'deleted'" class="relative">
+        <div v-if="arc.status !== 'deleted'" class="relative">
           <button
             type="button"
             class="flex h-8 w-8 items-center justify-center rounded border border-ctp-surface1 text-ctp-subtext1 hover:border-ctp-overlay0 hover:text-ctp-text"
@@ -288,28 +310,28 @@ async function removeLabel(label: string) {
       {{ signalsStore.error }}
     </div>
 
-    <template v-else-if="signalsStore.arc">
+    <template v-else-if="arc">
       <!-- Arc header -->
       <div class="mb-6">
         <!-- Line 1: Primary badge + Summary (multiline allowed) -->
         <div class="flex items-start gap-2">
           <span class="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" :class="primaryBadgeClass">{{ primaryBadgeLabel }}</span>
-          <h1 class="text-lg font-semibold text-ctp-text">{{ signalsStore.arc.summary }}</h1>
+          <h1 class="text-lg font-semibold text-ctp-text">{{ arc.summary }}</h1>
         </div>
         <!-- Line 2: Subject -->
-        <p v-if="signalsStore.arc.subject" class="mt-1 text-sm text-ctp-subtext1">{{ signalsStore.arc.subject }}</p>
+        <p v-if="arc.subject" class="mt-1 text-sm text-ctp-subtext1">{{ arc.subject }}</p>
         <!-- Line 3: From / Alias -->
         <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-ctp-subtext1">
-          <span v-if="signalsStore.arc.senderAddress"><span class="text-ctp-overlay1">From:</span> {{ signalsStore.arc.senderAddress }}</span>
+          <span v-if="arc.senderAddress"><span class="text-ctp-overlay1">From:</span> {{ arc.senderAddress }}</span>
         </div>
-        <div v-if="signalsStore.arc.recipientAddress" class="mt-1 text-sm text-ctp-subtext1">
-          <span class="text-ctp-overlay1">Alias:</span> <span class="text-ctp-sapphire">{{ signalsStore.arc.recipientAddress }}</span>
+        <div v-if="arc.recipientAddress" class="mt-1 text-sm text-ctp-subtext1">
+          <span class="text-ctp-overlay1">Alias:</span> <span class="text-ctp-sapphire">{{ arc.recipientAddress }}</span>
         </div>
         <!-- Line 4: Secondary badges (workflow, labels) -->
         <div class="mt-2 flex flex-wrap items-center gap-1.5">
-          <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ signalsStore.arc.workflow }}</span>
+          <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ arc.workflow }}</span>
           <button
-            v-for="label in signalsStore.arc.labels"
+            v-for="label in arc.labels"
             :key="label"
             class="cursor-pointer rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1 hover:opacity-70"
             @click="removeLabel(label)"
@@ -317,8 +339,8 @@ async function removeLabel(label: string) {
             {{ label }}
           </button>
         </div>
-        <div v-if="signalsStore.arc.status === 'deleted' && signalsStore.arc.deletedAt" class="mt-2 text-xs text-ctp-subtext0">
-          Deleted on {{ new Date(signalsStore.arc.deletedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
+        <div v-if="arc.status === 'deleted' && arc.deletedAt" class="mt-2 text-xs text-ctp-subtext0">
+          Deleted on {{ new Date(arc.deletedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
         </div>
       </div>
 
