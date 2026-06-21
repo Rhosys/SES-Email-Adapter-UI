@@ -11,14 +11,9 @@ export interface QuarantineFilters {
   before: string
 }
 
-interface BucketState {
-  items: Signal[]
-  cursor?: string
-}
-
-interface QuarantinePageState {
-  visible: BucketState
-  hidden: BucketState
+interface QuarantineData {
+  visible: Signal[]
+  hidden: Signal[]
 }
 
 function byReceivedDesc(a: Signal, b: Signal) {
@@ -28,7 +23,8 @@ function byReceivedDesc(a: Signal, b: Signal) {
 export const useQuarantineStore = defineStore('quarantine', () => {
   const accountStore = useAccountStore()
 
-  const _byAccount = ref<Record<string, QuarantinePageState>>({})
+  const _byAccount = ref<Record<string, QuarantineData>>({})
+  const _cursors = ref<Record<string, { visible?: string; hidden?: string }>>({})
   const loading = ref(false)
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
@@ -40,36 +36,35 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     before: '',
   })
 
-  // Sidebar notification badge — unfiltered count of items needing review.
-  // Deliberately excludes quarantine_hidden (silently held mail the user never sees).
-  const visibleCount = ref(0)
-  const visibleCountHasMore = ref(false)
-
-  async function fetchVisibleCount() {
+  // Sidebar notification badge — derived from persisted data (no separate fetch needed).
+  const visibleCount = computed(() => {
     const id = accountStore.accountId
-    if (!id) return
-    const result = await api.listQuarantinedSignals(id, 'quarantine_visible', { limit: 100 })
-    if (result.isErr()) return
-    visibleCount.value = result.value.signals.length
-    visibleCountHasMore.value = result.value.pagination.cursor != null
-  }
+    if (!id) return 0
+    return (_byAccount.value[id]?.visible ?? []).length
+  })
 
-  function _state(id: string): QuarantinePageState {
-    return _byAccount.value[id] ?? { visible: { items: [] }, hidden: { items: [] } }
+  const visibleCountHasMore = computed(() => {
+    const id = accountStore.accountId
+    if (!id) return false
+    return _cursors.value[id]?.visible !== undefined
+  })
+
+  function _data(id: string): QuarantineData {
+    return _byAccount.value[id] ?? { visible: [], hidden: [] }
   }
 
   const quarantineVisible = computed<Signal[]>(() =>
-    accountStore.accountId ? _state(accountStore.accountId).visible.items : [],
+    accountStore.accountId ? _data(accountStore.accountId).visible : [],
   )
 
   const quarantineHidden = computed<Signal[]>(() =>
-    accountStore.accountId ? _state(accountStore.accountId).hidden.items : [],
+    accountStore.accountId ? _data(accountStore.accountId).hidden : [],
   )
 
   const hasMore = computed(() => {
     if (!accountStore.accountId) return false
-    const s = _state(accountStore.accountId)
-    return !!(s.visible.cursor || s.hidden.cursor)
+    const c = _cursors.value[accountStore.accountId]
+    return !!(c?.visible || c?.hidden)
   })
 
   function buildParams(cursor?: string): QuarantineSignalListParams {
@@ -87,8 +82,10 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     if (reset) {
       _byAccount.value = {
         ..._byAccount.value,
-        [id]: { visible: { items: [] }, hidden: { items: [] } },
+        [id]: { visible: [], hidden: [] },
       }
+      const { [id]: _, ...rest } = _cursors.value
+      _cursors.value = rest
     }
     loading.value = true
     error.value = null
@@ -111,14 +108,15 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     _byAccount.value = {
       ..._byAccount.value,
       [id]: {
-        visible: {
-          items: [...visResult.value.signals].sort(byReceivedDesc),
-          cursor: visResult.value.pagination.cursor ?? undefined,
-        },
-        hidden: {
-          items: [...hidResult.value.signals].sort(byReceivedDesc),
-          cursor: hidResult.value.pagination.cursor ?? undefined,
-        },
+        visible: [...visResult.value.signals].sort(byReceivedDesc),
+        hidden: [...hidResult.value.signals].sort(byReceivedDesc),
+      },
+    }
+    _cursors.value = {
+      ..._cursors.value,
+      [id]: {
+        visible: visResult.value.pagination.cursor ?? undefined,
+        hidden: hidResult.value.pagination.cursor ?? undefined,
       },
     }
   }
@@ -129,42 +127,51 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     if (!id || !hasMore.value || loadingMore.value) return
     loadingMore.value = true
 
-    const s = _state(id)
+    const d = _data(id)
+    const c = _cursors.value[id]
 
-    if (s.visible.cursor) {
+    if (c?.visible) {
       const result = await api.listQuarantinedSignals(
         id,
         'quarantine_visible',
-        buildParams(s.visible.cursor),
+        buildParams(c.visible),
       )
       loadingMore.value = false
       if (result.isErr()) { error.value = result.error.message; return }
       _byAccount.value = {
         ..._byAccount.value,
         [id]: {
-          ...s,
-          visible: {
-            items: [...s.visible.items, ...result.value.signals].sort(byReceivedDesc),
-            cursor: result.value.pagination.cursor ?? undefined,
-          },
+          ...d,
+          visible: [...d.visible, ...result.value.signals].sort(byReceivedDesc),
         },
       }
-    } else if (s.hidden.cursor) {
+      _cursors.value = {
+        ..._cursors.value,
+        [id]: {
+          ...c,
+          visible: result.value.pagination.cursor ?? undefined,
+        },
+      }
+    } else if (c?.hidden) {
       const result = await api.listQuarantinedSignals(
         id,
         'quarantine_hidden',
-        buildParams(s.hidden.cursor),
+        buildParams(c.hidden),
       )
       loadingMore.value = false
       if (result.isErr()) { error.value = result.error.message; return }
       _byAccount.value = {
         ..._byAccount.value,
         [id]: {
-          ...s,
-          hidden: {
-            items: [...s.hidden.items, ...result.value.signals].sort(byReceivedDesc),
-            cursor: result.value.pagination.cursor ?? undefined,
-          },
+          ...d,
+          hidden: [...d.hidden, ...result.value.signals].sort(byReceivedDesc),
+        },
+      }
+      _cursors.value = {
+        ..._cursors.value,
+        [id]: {
+          ...c,
+          hidden: result.value.pagination.cursor ?? undefined,
         },
       }
     } else {
@@ -173,16 +180,14 @@ export const useQuarantineStore = defineStore('quarantine', () => {
   }
 
   function _removeSignal(id: string, signalId: string) {
-    const s = _state(id)
-    const wasVisible = s.visible.items.some((x) => x.signalId === signalId)
+    const d = _data(id)
     _byAccount.value = {
       ..._byAccount.value,
       [id]: {
-        visible: { ...s.visible, items: s.visible.items.filter((x) => x.signalId !== signalId) },
-        hidden: { ...s.hidden, items: s.hidden.items.filter((x) => x.signalId !== signalId) },
+        visible: d.visible.filter((x) => x.signalId !== signalId),
+        hidden: d.hidden.filter((x) => x.signalId !== signalId),
       },
     }
-    if (wasVisible) visibleCount.value = Math.max(0, visibleCount.value - 1)
   }
 
   async function allow(signalId: string) {
@@ -228,10 +233,13 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     filters,
     fetchSignals,
     fetchMore,
-    fetchVisibleCount,
     allow,
     reject,
     setFilters,
     clearError,
   }
+}, {
+  persist: {
+    accountKeyedRef: '_byAccount',
+  },
 })
