@@ -45,14 +45,11 @@ export const useArcsStore = defineStore('arcs', () => {
     () => items.value.length > 0 && items.value.every((a) => selectedIds.value.has(a.arcId)),
   )
 
-  // Auth+critical threads are pinned to the top — domain rule from WORKFLOW_UX_SPEC
-  const sortedItems = computed<Arc[]>(() => {
-    const authCritical = items.value.filter(
-      (a) => a.workflow === 'auth' && a.urgency === 'critical',
-    )
-    const rest = items.value.filter((a) => !(a.workflow === 'auth' && a.urgency === 'critical'))
-    return [...authCritical, ...rest]
-  })
+  function byLastSignalDesc(a: Arc, b: Arc) {
+    return new Date(b.lastSignalAt).getTime() - new Date(a.lastSignalAt).getTime()
+  }
+
+  const sortedItems = computed<Arc[]>(() => [...items.value].sort(byLastSignalDesc))
 
   async function fetchArcs(reset = false) {
     const id = accountStore.accountId
