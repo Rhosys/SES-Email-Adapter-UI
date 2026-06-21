@@ -7,6 +7,7 @@ import './lib/analytics'
 import logger from './lib/logger'
 import { loginClient } from './lib/auth'
 import { useAccountStore } from './stores/account'
+import { persistentStorePlugin } from '@/plugins/persistent-store'
 
 async function enableMocking() {
   // Mock mode now uses Vite server middleware — no browser-side setup needed.
@@ -15,6 +16,7 @@ async function enableMocking() {
 
 enableMocking().then(() => {
   const pinia = createPinia()
+  pinia.use(persistentStorePlugin)
   const app = createApp(App)
 
   app.config.errorHandler = (err, _instance, info) => {
