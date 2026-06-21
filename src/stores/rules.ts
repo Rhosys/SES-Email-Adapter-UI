@@ -164,4 +164,8 @@ export const useRulesStore = defineStore('rules', () => {
     reorderRule,
     clearError,
   }
+}, {
+  persist: {
+    accountKeyedRef: '_byAccount',
+  },
 })
