@@ -113,6 +113,11 @@ export const router = createRouter({
           name: 'stats',
           component: () => import('@/views/StatsView.vue'),
         },
+        {
+          path: 'support',
+          name: 'support',
+          component: () => import('@/views/SupportView.vue'),
+        },
       ],
     },
 
@@ -161,6 +166,7 @@ const ROUTE_TITLES: Record<string, string> = {
   billing: 'Billing',
   'audit-log': 'Audit log',
   changelog: 'Changelog',
+  support: 'Support',
   login: 'Sign in',
   onboarding: 'Setup',
   terms: 'Terms of service',

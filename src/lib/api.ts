@@ -611,4 +611,16 @@ export const api = {
   deleteTemplate(accountId: string, templateId: string): Promise<Result<void, ApiError>> {
     return request<void>(`/accounts/${accountId}/templates/${templateId}`, { method: 'DELETE' })
   },
+
+  // ─── Support tickets ────────────────────────────────────────────────────────
+
+  createSupportTicket(
+    accountId: string,
+    body: { category: string; subject: string; description: string; context: string },
+  ): Promise<Result<{ ticketId: string }, ApiError>> {
+    return request<{ ticketId: string }>(`/accounts/${accountId}/support-tickets`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  },
 }

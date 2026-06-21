@@ -8,12 +8,10 @@ import { api } from '@/lib/api'
 import type { Arc, Rule, Alias } from '@/types/server'
 import AppSidebar from '@/components/AppSidebar.vue'
 import AppNavbar from '@/components/AppNavbar.vue'
-import SupportPanel from '@/components/SupportPanel.vue'
 import ToastStack from '@/components/ToastStack.vue'
 import FeatureTour from '@/components/FeatureTour.vue'
 import OnboardingCoach from '@/components/OnboardingCoach.vue'
 import ShortcutHelpOverlay from '@/components/ShortcutHelpOverlay.vue'
-import { useSupportPanel } from '@/composables/useSupportPanel'
 import { useRealtime } from '@/composables/useRealtime'
 import { useFeatureTour } from '@/composables/useFeatureTour'
 import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
@@ -28,7 +26,6 @@ const viewsStore = useViewsStore()
 const router = useRouter()
 const route = useRoute()
 
-const { open: supportOpen } = useSupportPanel()
 const { startTour } = useFeatureTour()
 const { coachVisible } = useOnboardingCoach()
 const { init: initShortcuts, onAction, setBlocked } = useKeyboardShortcuts()
@@ -510,7 +507,6 @@ onMounted(async () => {
     </div>
   </div>
 
-  <SupportPanel :open="supportOpen" @close="supportOpen = false" />
   <ToastStack />
   <FeatureTour />
   <OnboardingCoach v-if="coachVisible" />

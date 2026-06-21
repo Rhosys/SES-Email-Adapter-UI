@@ -7,14 +7,11 @@ import logger from '@/lib/logger'
 import type { DnsRecord } from '@/types/server'
 import CopyInput from '@/components/CopyInput.vue'
 import AppNavbar from '@/components/AppNavbar.vue'
-import SupportPanel from '@/components/SupportPanel.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
-import { useSupportPanel } from '@/composables/useSupportPanel'
 import { useFeatureTour } from '@/composables/useFeatureTour'
 
 const router = useRouter()
 const accountStore = useAccountStore()
-const { open: supportOpen } = useSupportPanel()
 const { startTour } = useFeatureTour()
 
 // ── Deterministic test email username from domain hash ────────────────────────
@@ -743,8 +740,6 @@ onUnmounted(() => {
 
     </main>
   </div>
-
-  <SupportPanel :open="supportOpen" @close="supportOpen = false" />
 </template>
 
 <style scoped>

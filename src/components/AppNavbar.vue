@@ -2,7 +2,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
-import { useSupportPanel } from '@/composables/useSupportPanel'
 import { loginClient } from '@/lib/auth'
 
 const emit = defineEmits<{ toggleSidebar: [] }>()
@@ -11,7 +10,6 @@ defineProps<{ showHamburger?: boolean; hideSettings?: boolean }>()
 const router = useRouter()
 const route = useRoute()
 const accountStore = useAccountStore()
-const { open: supportOpen } = useSupportPanel()
 
 const ROUTE_TITLES: Record<string, string> = {
   inbox: 'Inbox',
@@ -125,7 +123,7 @@ function navigateToProfile() {
 
 function openHelp() {
   userMenuOpen.value = false
-  supportOpen.value = true
+  void router.push('/support')
 }
 
 async function signOut() {

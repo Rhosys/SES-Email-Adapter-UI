@@ -221,6 +221,10 @@ interface EmailTemplate {
 - `GET /accounts/:id/reminders` → `{ reminders: Reminder[] }`
 - `DELETE /accounts/:id/reminders/:reminderId` → 204
 
+### Support tickets (new — needed for /support page)
+
+- `POST /accounts/:id/support-tickets` — body `{ category: string, subject: string, description: string, context: string }` → `{ ticketId: string }` (201). Receives user-submitted support requests with auto-attached context (account ID, user ID, route, browser). Should store the ticket and notify the support team (email/Slack/etc.).
+
 ---
 
 ## Reference
