@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { ok, err, type Result } from 'neverthrow'
 import { api, ApiError } from '@/lib/api'
+import logger from '@/lib/logger'
 import { useAccountStore } from '@/stores/account'
 import { NoCurrentAccountError } from '@/stores/errors'
 import type { Arc, ArcStatus } from '@/types/server'
@@ -59,18 +60,23 @@ export const useArcsStore = defineStore('arcs', () => {
   async function fetchArcs(reset = false) {
     const id = accountStore.accountId
     if (!id) return
+    // Show loading only if no cached data exists (stale-while-revalidate)
+    const hasCachedData = (_byAccount.value[id] ?? []).length > 0
     if (reset) {
-      _byAccount.value = { ..._byAccount.value, [id]: [] }
       _cursors.value = { ..._cursors.value, [id]: undefined }
       selectedIds.value.clear()
     }
-    loading.value = true
+    loading.value = !hasCachedData
     error.value = null
     const statusParam = activeTab.value === 'all' ? undefined : activeTab.value
     const result = await api.listArcs(id, { status: statusParam, limit: 50 })
     loading.value = false
     if (result.isErr()) {
-      error.value = result.error.message
+      if ((_byAccount.value[id] ?? []).length > 0) {
+        logger.warn({ title: 'Arcs fetch failed with cache available', error: result.error.message })
+      } else {
+        error.value = result.error.message
+      }
       return
     }
     const page = result.value
