@@ -57,36 +57,20 @@ describe('arcsStore', () => {
     expect(store.error).toBe('Server error')
   })
 
-  it('pins auth+critical arcs first in sortedItems', async () => {
+  it('sortedItems orders arcs by lastSignalAt descending', async () => {
     vi.mocked(api.listArcs).mockResolvedValue(
       ok({
         arcs: [
-          mockArc({ arcId: 'arc_2', workflow: 'conversation', urgency: 'high' }),
-          mockArc({ arcId: 'arc_1', workflow: 'auth', urgency: 'critical' }),
+          mockArc({ arcId: 'arc_1', lastSignalAt: '2025-01-01T10:00:00Z' }),
+          mockArc({ arcId: 'arc_2', lastSignalAt: '2025-01-03T10:00:00Z' }),
+          mockArc({ arcId: 'arc_3', lastSignalAt: '2025-01-02T10:00:00Z' }),
         ],
         pagination: { cursor: null },
       }),
     )
     const store = useArcsStore()
     await store.fetchArcs(true)
-    expect(store.sortedItems[0].arcId).toBe('arc_1')
-    expect(store.sortedItems[1].arcId).toBe('arc_2')
-  })
-
-  it('does not pin auth arcs that are not critical', async () => {
-    vi.mocked(api.listArcs).mockResolvedValue(
-      ok({
-        arcs: [
-          mockArc({ arcId: 'arc_2', workflow: 'conversation', urgency: 'high' }),
-          mockArc({ arcId: 'arc_1', workflow: 'auth', urgency: 'normal' }),
-        ],
-        pagination: { cursor: null },
-      }),
-    )
-    const store = useArcsStore()
-    await store.fetchArcs(true)
-    // auth without critical urgency is not pinned — original order preserved
-    expect(store.sortedItems[0].arcId).toBe('arc_2')
+    expect(store.sortedItems.map((a) => a.arcId)).toEqual(['arc_2', 'arc_3', 'arc_1'])
   })
 
   it('toggleSelect adds and removes ids', () => {
