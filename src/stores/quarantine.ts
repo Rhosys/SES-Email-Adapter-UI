@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api } from '@/lib/api'
+import logger from '@/lib/logger'
 import { useAccountStore } from '@/stores/account'
 import type { QuarantineSignalListParams } from '@/lib/api'
 import type { Signal } from '@/types/server'
@@ -87,7 +88,8 @@ export const useQuarantineStore = defineStore('quarantine', () => {
       const { [id]: _, ...rest } = _cursors.value
       _cursors.value = rest
     }
-    loading.value = true
+    const cached = _byAccount.value[id]
+    loading.value = !cached || (cached.visible.length === 0 && cached.hidden.length === 0)
     error.value = null
     const start = Date.now()
 
@@ -102,8 +104,26 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     }
     loading.value = false
 
-    if (visResult.isErr()) { error.value = visResult.error.message; return }
-    if (hidResult.isErr()) { error.value = hidResult.error.message; return }
+    if (visResult.isErr()) {
+      const hasCached = (_byAccount.value[id]?.visible.length ?? 0) > 0 || (_byAccount.value[id]?.hidden.length ?? 0) > 0
+      if (hasCached) {
+        logger.warn({ title: 'Quarantine fetch failed with cache available', error: visResult.error.message })
+        loading.value = false
+        return
+      }
+      error.value = visResult.error.message
+      return
+    }
+    if (hidResult.isErr()) {
+      const hasCached = (_byAccount.value[id]?.visible.length ?? 0) > 0 || (_byAccount.value[id]?.hidden.length ?? 0) > 0
+      if (hasCached) {
+        logger.warn({ title: 'Quarantine fetch failed with cache available', error: hidResult.error.message })
+        loading.value = false
+        return
+      }
+      error.value = hidResult.error.message
+      return
+    }
 
     _byAccount.value = {
       ..._byAccount.value,
