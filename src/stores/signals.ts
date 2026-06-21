@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { ok, err, type Result } from 'neverthrow'
 import { api, ApiError } from '@/lib/api'
+import logger from '@/lib/logger'
 import { useAccountStore } from '@/stores/account'
 import { NoCurrentAccountError } from '@/stores/errors'
 import type { Signal } from '@/types/server'
@@ -22,18 +23,33 @@ export const useSignalsStore = defineStore('signals', () => {
   async function fetchAll(arcId: string) {
     const accountId = accountStore.accountId
     if (!accountId) return
-    loading.value = true
+    loading.value = (_byAccount.value[accountId] ?? []).length === 0
     error.value = null
 
     const signalsResult = await api.listSignals(accountId, arcId, { limit: 50 })
 
     if (signalsResult.isErr()) {
+      if ((_byAccount.value[accountId] ?? []).length > 0) {
+        logger.warn({ title: 'Signals fetch failed with cache available', error: signalsResult.error.message })
+        loading.value = false
+        return
+      }
       error.value = signalsResult.error.message
       loading.value = false
       return
     }
 
-    _byAccount.value = { ..._byAccount.value, [accountId]: [...signalsResult.value.signals].reverse() }
+    const fresh = [...signalsResult.value.signals].reverse()
+    const cached = _byAccount.value[accountId] ?? []
+
+    if (cached.length === 0) {
+      _byAccount.value = { ..._byAccount.value, [accountId]: fresh }
+    } else {
+      const freshIds = new Set(fresh.map(s => s.signalId))
+      const olderCached = cached.filter(s => !freshIds.has(s.signalId))
+      _byAccount.value = { ..._byAccount.value, [accountId]: [...fresh, ...olderCached] }
+    }
+
     nextCursor.value = signalsResult.value.pagination.cursor ?? undefined
     loading.value = false
   }

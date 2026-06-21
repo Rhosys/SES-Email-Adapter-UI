@@ -61,14 +61,8 @@ const retentionMessage = computed(() => {
 onMounted(async () => {
   signalsStore.reset()
   await accountStore.fetchAccount()
-  // Fetch arc metadata separately (signals store no longer holds arc)
-  const accountId = accountStore.accountId
-  if (accountId) {
-    const arcResult = await api.getArc(accountId, arcId.value)
-    if (arcResult.isOk()) {
-      arcData.value = arcResult.value
-    }
-  }
+  // Use arcs store for arc metadata — instant if cached, fetches if not
+  arcData.value = (await arcsStore.getArcAsync(arcId.value)) ?? null
   await signalsStore.fetchAll(arcId.value)
 })
 
