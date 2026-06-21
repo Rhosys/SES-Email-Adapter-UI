@@ -1,0 +1,58 @@
+<script setup lang="ts">
+import type { Arc } from '@/types/server'
+import { useAccountStore } from '@/stores/account'
+import { useArcsStore } from '@/stores/arcs'
+import { api } from '@/lib/api'
+import ArcRowContent from './ArcRowContent.vue'
+
+const props = defineProps<{ arc: Arc; selected: boolean; focused?: boolean }>()
+const emit = defineEmits<{ 'toggle-select': [id: string] }>()
+
+const accountStore = useAccountStore()
+const arcsStore = useArcsStore()
+
+async function archiveArc() {
+  const id = accountStore.accountId
+  if (!id) return
+  const result = await api.patchArc(id, props.arc.arcId, { status: 'archived' })
+  if (result.isOk()) {
+    arcsStore.removeArc(props.arc.arcId)
+  }
+}
+</script>
+
+<template>
+  <div class="arc-row" :data-arc-id="arc.arcId">
+    <div
+      class="group relative flex items-center gap-2 border-b border-ctp-surface0 px-3 py-2.5 transition-colors hover:bg-ctp-surface0"
+      :class="[focused && 'ring-1 ring-inset ring-ctp-mauve']"
+      role="row"
+    >
+      <!-- Checkbox -->
+      <div class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100" :class="{ 'opacity-100': selected }">
+        <input
+          type="checkbox"
+          :checked="selected"
+          class="h-4 w-4 rounded border-ctp-overlay0 bg-ctp-surface1 accent-ctp-blue"
+          :aria-label="`Select thread: ${arc.summary}`"
+          @change="emit('toggle-select', arc.arcId)"
+        />
+      </div>
+
+      <ArcRowContent :arc="arc" />
+
+      <!-- Archive action -->
+      <div class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <button
+          class="flex h-7 items-center gap-1 rounded border border-ctp-surface1 px-2 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
+          title="Archive"
+          @click.prevent="archiveArc"
+        >
+          <svg class="h-3 w-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M1.5 2h13l-1 2H2.5L1.5 2zm.5 3h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V5zm4 2v5h5V7H6z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</template>

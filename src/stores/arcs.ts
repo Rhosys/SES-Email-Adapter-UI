@@ -131,9 +131,6 @@ export const useArcsStore = defineStore('arcs', () => {
     const id = accountStore.accountId
     if (!id) return
     const ids = [...selectedIds.value]
-    const activeIdsCount = ids.filter(
-      (arcId) => items.value.find((a) => a.arcId === arcId)?.status === 'active',
-    ).length
     // Optimistic: remove from list immediately when on active tab
     if (activeTab.value === 'active') {
       _byAccount.value = {
@@ -180,9 +177,6 @@ export const useArcsStore = defineStore('arcs', () => {
     const id = accountStore.accountId
     if (!id) return
     const ids = [...selectedIds.value]
-    const activeIdsCount = ids.filter(
-      (arcId) => items.value.find((a) => a.arcId === arcId)?.status === 'active',
-    ).length
     _byAccount.value = {
       ..._byAccount.value,
       [id]: (_byAccount.value[id] ?? []).filter((a) => !selectedIds.value.has(a.arcId)),

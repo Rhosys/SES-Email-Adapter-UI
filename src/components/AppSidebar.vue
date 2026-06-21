@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, watch } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useLabelsStore } from '@/stores/labels'
 import { useViewsStore } from '@/stores/views'
@@ -18,17 +18,9 @@ const accountStore = useAccountStore()
 const arcsStore = useArcsStore()
 const quarantineStore = useQuarantineStore()
 
-// Notification badges — fetched independently of whichever view is mounted so they
-// stay correct even if the user never visits Inbox/Quarantine during this session.
-watch(
-  () => accountStore.accountId,
-  (id) => {
-    if (!id) return
-    void arcsStore.fetchActiveCount()
-    void quarantineStore.fetchVisibleCount()
-  },
-  { immediate: true },
-)
+// Notification badges — counts are now computed from persisted _byAccount data,
+// so no explicit fetch is needed. The quarantine store hydrates from localStorage
+// and the counts derive reactively.
 
 function formatBadgeCount(count: number, hasMore: boolean) {
   if (count > 99) return '99+'
