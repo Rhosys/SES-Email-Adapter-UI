@@ -87,4 +87,8 @@ export const useLabelsStore = defineStore('labels', () => {
   }
 
   return { items, loading, error, fetchLabels, createLabel, updateLabel, deleteLabel, clearError }
+}, {
+  persist: {
+    accountKeyedRef: '_byAccount',
+  },
 })

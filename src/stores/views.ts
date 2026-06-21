@@ -114,4 +114,8 @@ export const useViewsStore = defineStore('views', () => {
     reorder,
     clearError,
   }
+}, {
+  persist: {
+    accountKeyedRef: '_byAccount',
+  },
 })

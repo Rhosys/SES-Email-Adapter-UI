@@ -44,4 +44,8 @@ export const useStatsStore = defineStore('stats', () => {
   }
 
   return { stats, loaded, loading, error, fetchStats }
+}, {
+  persist: {
+    accountKeyedRef: '_byAccount',
+  },
 })
