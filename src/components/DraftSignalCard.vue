@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { marked } from 'marked'
 import { useAccountStore } from '@/stores/account'
+import { useSignalsStore } from '@/stores/signals'
 import { api } from '@/lib/api'
 import { useToast } from '@/composables/useToast'
 import type { Signal, Domain } from '@/types/server'
@@ -13,6 +14,7 @@ const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ discard: []; sent: [] }>()
 
 const accountStore = useAccountStore()
+const signalsStore = useSignalsStore()
 const router = useRouter()
 const { deferAction, undo: undoToast } = useToast()
 
@@ -86,7 +88,11 @@ async function persistDraft() {
     textBody: body.value,
   })
   saving.value = false
-  if (result.isErr()) error.value = result.error.message
+  if (result.isErr()) {
+    error.value = result.error.message
+    return
+  }
+  if (props.signal.arcId) signalsStore.updateSignal(props.signal.arcId, result.value)
 }
 
 async function sendAndArchive() {
@@ -107,6 +113,7 @@ async function sendAndArchive() {
     async () => {
       const result = await api.sendSignal(accountId, signalId)
       if (result.isOk()) {
+        signalsStore.updateSignal(sigArcId, result.value)
         await api.patchArc(accountId, sigArcId, { status: 'archived' })
       }
       sendState.value = 'idle'
@@ -141,6 +148,7 @@ async function sendAndWait() {
     async () => {
       const result = await api.sendSignal(accountId, signalId)
       if (result.isOk()) {
+        signalsStore.updateSignal(sigArcId, result.value)
         await api.patchArc(accountId, sigArcId, { followupAt })
       }
       sendState.value = 'idle'
@@ -163,6 +171,7 @@ function cancelSend() {
 async function discard() {
   if (!accountStore.accountId) return
   await api.deleteDraftSignal(accountStore.accountId, props.signal.signalId)
+  if (props.signal.arcId) signalsStore.removeSignal(props.signal.arcId, props.signal.signalId)
   emit('discard')
 }
 </script>

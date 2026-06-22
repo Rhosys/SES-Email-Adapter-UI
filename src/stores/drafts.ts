@@ -1,114 +1,69 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { api } from '@/lib/api'
-import logger from '@/lib/logger'
 import { useAccountStore } from '@/stores/account'
+import { useArcsStore } from '@/stores/arcs'
+import { useSignalsStore } from '@/stores/signals'
 import type { Signal } from '@/types/server'
+
+const TOP_ARC_LIMIT = 30
 
 function byCreatedDesc(a: Signal, b: Signal) {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 }
 
+// Drafts have no dedicated backend listing endpoint — instead this store
+// derives the drafts indicator/list by scanning the signals already cached
+// (by useSignalsStore) for every active arc. refreshTopArcs() pulls fresh
+// signals for the most recently active arcs so the Drafts page is current
+// when visited; everywhere else, the existing per-arc signal cache (kept up
+// to date by draft create/update/send/discard) is enough.
 export const useDraftsStore = defineStore('drafts', () => {
   const accountStore = useAccountStore()
+  const arcsStore = useArcsStore()
+  const signalsStore = useSignalsStore()
 
-  const _byAccount = ref<Record<string, Signal[]>>({})
-  const _cursors = ref<Record<string, string | undefined>>({})
   const loading = ref(false)
-  const loadingMore = ref(false)
-  const error = ref<string | null>(null)
 
-  // Sidebar notification badge — derived from persisted data (no separate fetch needed).
-  const draftCount = computed(() => {
-    const id = accountStore.accountId
-    if (!id) return 0
-    return (_byAccount.value[id] ?? []).length
+  const activeArcIds = computed(() => {
+    const ids = new Set<string>()
+    for (const arc of arcsStore.items) {
+      if (arc.status === 'active') ids.add(arc.arcId)
+    }
+    return ids
   })
 
-  const draftCountHasMore = computed(() => {
-    const id = accountStore.accountId
-    if (!id) return false
-    return _cursors.value[id] !== undefined
-  })
-
-  const drafts = computed<Signal[]>(() => {
-    const id = accountStore.accountId
-    if (!id) return []
-    return [...(_byAccount.value[id] ?? [])].sort(byCreatedDesc)
-  })
-
-  const nextCursor = computed<string | undefined>(() =>
-    accountStore.accountId ? _cursors.value[accountStore.accountId] : undefined,
+  const drafts = computed<Signal[]>(() =>
+    signalsStore.allSignals
+      .filter((s) => s.status === 'draft' && !!s.arcId && activeArcIds.value.has(s.arcId))
+      .sort(byCreatedDesc),
   )
 
-  const hasMore = computed(() => nextCursor.value !== undefined)
+  const draftCount = computed(() => drafts.value.length)
 
-  async function fetchDrafts(reset = false) {
+  async function refreshTopArcs() {
     const id = accountStore.accountId
     if (!id) return
-    const hasCachedData = (_byAccount.value[id] ?? []).length > 0
-    if (reset) {
-      _cursors.value = { ..._cursors.value, [id]: undefined }
+    loading.value = true
+    if (arcsStore.items.length === 0) {
+      await arcsStore.fetchArcs(true)
     }
-    loading.value = !hasCachedData
-    error.value = null
-    const result = await api.listDraftSignals(id, { limit: 50 })
+    const topArcIds = arcsStore.sortedItems
+      .filter((a) => a.status === 'active')
+      .slice(0, TOP_ARC_LIMIT)
+      .map((a) => a.arcId)
+    await signalsStore.fetchForArcs(topArcIds)
     loading.value = false
-    if (result.isErr()) {
-      if ((_byAccount.value[id] ?? []).length > 0) {
-        logger.warn({ title: 'Drafts fetch failed with cache available', error: result.error.message })
-      } else {
-        error.value = result.error.message
-      }
-      return
-    }
-    _byAccount.value = { ..._byAccount.value, [id]: result.value.signals }
-    _cursors.value = { ..._cursors.value, [id]: result.value.pagination.cursor ?? undefined }
   }
 
-  async function fetchMoreDrafts() {
-    const id = accountStore.accountId
-    if (!id || !hasMore.value || loadingMore.value) return
-    loadingMore.value = true
-    const result = await api.listDraftSignals(id, { cursor: nextCursor.value, limit: 50 })
-    loadingMore.value = false
-    if (result.isErr()) {
-      error.value = result.error.message
-      return
-    }
-    const existing = _byAccount.value[id] ?? []
-    _byAccount.value = { ..._byAccount.value, [id]: [...existing, ...result.value.signals] }
-    _cursors.value = { ..._cursors.value, [id]: result.value.pagination.cursor ?? undefined }
-  }
-
-  function removeDraft(signalId: string) {
-    const id = accountStore.accountId
-    if (!id) return
-    _byAccount.value = {
-      ..._byAccount.value,
-      [id]: (_byAccount.value[id] ?? []).filter((s) => s.signalId !== signalId),
-    }
-  }
-
-  function clearError() {
-    error.value = null
+  function removeDraft(arcId: string, signalId: string) {
+    signalsStore.removeSignal(arcId, signalId)
   }
 
   return {
     drafts,
     draftCount,
-    draftCountHasMore,
-    hasMore,
     loading,
-    loadingMore,
-    error,
-    fetchDrafts,
-    fetchMoreDrafts,
+    refreshTopArcs,
     removeDraft,
-    clearError,
   }
-}, {
-  persist: {
-    accountKeyedRef: '_byAccount',
-  },
 })

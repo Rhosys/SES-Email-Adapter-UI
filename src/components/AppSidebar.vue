@@ -179,7 +179,7 @@ const accountSwitcherOpen = ref(false)
             v-if="draftsStore.draftCount > 0"
             class="shrink-0 rounded-full bg-ctp-green px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ctp-base"
           >
-            {{ formatBadgeCount(draftsStore.draftCount, draftsStore.draftCountHasMore) }}
+            {{ formatBadgeCount(draftsStore.draftCount, false) }}
           </span>
         </RouterLink>
 

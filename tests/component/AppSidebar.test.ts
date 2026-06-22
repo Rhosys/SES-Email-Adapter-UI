@@ -6,24 +6,39 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import AppSidebar from '@/components/AppSidebar.vue'
 import { useAccountStore } from '@/stores/account'
 import { useDraftsStore } from '@/stores/drafts'
-import type { Signal, Account } from '@/types/server'
+import type { Signal, Arc, Account } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
   return {
     ...actual,
     api: {
-      listDraftSignals: vi.fn(),
+      listArcs: vi.fn(),
+      listSignals: vi.fn(),
     },
   }
 })
 
 import { api } from '@/lib/api'
 
-function mockDraft(signalId: string): Signal {
+function mockArc(overrides: Partial<Arc> = {}): Arc {
+  return {
+    arcId: 'arc_1',
+    workflow: 'conversation',
+    labels: [],
+    status: 'active',
+    summary: 'Test arc',
+    lastSignalAt: '2025-01-01T12:00:00Z',
+    createdAt: '2025-01-01T10:00:00Z',
+    updatedAt: '2025-01-01T12:00:00Z',
+    ...overrides,
+  }
+}
+
+function mockDraft(signalId: string, arcId = 'arc_1'): Signal {
   return {
     signalId,
-    arcId: 'arc_1',
+    arcId,
     type: 'email',
     source: 'user',
     status: 'draft',
@@ -77,8 +92,11 @@ describe('AppSidebar — draft count badge', () => {
   })
 
   it('hides the draft badge when there are no drafts', async () => {
-    vi.mocked(api.listDraftSignals).mockResolvedValue(ok({ signals: [], pagination: { cursor: null } }))
-    await useDraftsStore().fetchDrafts(true)
+    vi.mocked(api.listArcs).mockResolvedValue(
+      ok({ arcs: [mockArc()], pagination: { cursor: null } }),
+    )
+    vi.mocked(api.listSignals).mockResolvedValue(ok({ signals: [], pagination: { cursor: null } }))
+    await useDraftsStore().refreshTopArcs()
 
     const wrapper = await mountSidebar()
     const draftsLink = wrapper.get('a[href="/drafts"]')
@@ -87,10 +105,13 @@ describe('AppSidebar — draft count badge', () => {
   })
 
   it('shows the draft count badge when drafts are cached', async () => {
-    vi.mocked(api.listDraftSignals).mockResolvedValue(
+    vi.mocked(api.listArcs).mockResolvedValue(
+      ok({ arcs: [mockArc()], pagination: { cursor: null } }),
+    )
+    vi.mocked(api.listSignals).mockResolvedValue(
       ok({ signals: [mockDraft('d1'), mockDraft('d2')], pagination: { cursor: null } }),
     )
-    await useDraftsStore().fetchDrafts(true)
+    await useDraftsStore().refreshTopArcs()
 
     const wrapper = await mountSidebar()
     const draftsLink = wrapper.get('a[href="/drafts"]')

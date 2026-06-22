@@ -46,7 +46,7 @@ export function useRealtime() {
         // Update the thread in the inbox list
         void arcsStore.refreshArc(event.arcId)
         // If the detail view for this thread is open, pull the updated signals
-        if (signalsStore.items[0]?.arcId === event.arcId) {
+        if (signalsStore.currentArcId === event.arcId) {
           void signalsStore.fetchAll(event.arcId)
         }
         fireNotification(event)
@@ -55,7 +55,7 @@ export function useRealtime() {
         // Update just this thread in the inbox list
         void arcsStore.refreshArc(event.arcId)
         // If the detail view for this thread is open, refresh it too
-        if (signalsStore.items[0]?.arcId === event.arcId) {
+        if (signalsStore.currentArcId === event.arcId) {
           void signalsStore.fetchAll(event.arcId)
         }
         break

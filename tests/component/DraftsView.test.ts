@@ -5,14 +5,15 @@ import { ok } from 'neverthrow'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import DraftsView from '@/views/DraftsView.vue'
 import { useAccountStore } from '@/stores/account'
-import type { Signal, Account } from '@/types/server'
+import type { Signal, Arc, Account } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
   return {
     ...actual,
     api: {
-      listDraftSignals: vi.fn(),
+      listArcs: vi.fn(),
+      listSignals: vi.fn(),
       deleteDraftSignal: vi.fn(),
     },
   }
@@ -20,10 +21,24 @@ vi.mock('@/lib/api', async (importOriginal) => {
 
 import { api } from '@/lib/api'
 
-function mockDraft(signalId: string, subject: string): Signal {
+function mockArc(overrides: Partial<Arc> = {}): Arc {
+  return {
+    arcId: 'arc_1',
+    workflow: 'conversation',
+    labels: [],
+    status: 'active',
+    summary: 'Test arc',
+    lastSignalAt: '2025-01-01T12:00:00Z',
+    createdAt: '2025-01-01T10:00:00Z',
+    updatedAt: '2025-01-01T12:00:00Z',
+    ...overrides,
+  }
+}
+
+function mockDraft(signalId: string, subject: string, arcId = 'arc_1'): Signal {
   return {
     signalId,
-    arcId: `arc_${signalId}`,
+    arcId,
     type: 'email',
     source: 'user',
     status: 'draft',
@@ -71,16 +86,28 @@ describe('DraftsView', () => {
   })
 
   it('renders the empty state when there are no drafts', async () => {
-    vi.mocked(api.listDraftSignals).mockResolvedValue(ok({ signals: [], pagination: { cursor: null } }))
+    vi.mocked(api.listArcs).mockResolvedValue(
+      ok({ arcs: [mockArc()], pagination: { cursor: null } }),
+    )
+    vi.mocked(api.listSignals).mockResolvedValue(ok({ signals: [], pagination: { cursor: null } }))
     const wrapper = await mountView()
 
     expect(wrapper.text()).toContain('No drafts')
   })
 
   it('renders a row per draft signal', async () => {
-    vi.mocked(api.listDraftSignals).mockResolvedValue(
+    vi.mocked(api.listArcs).mockResolvedValue(
       ok({
-        signals: [mockDraft('d1', 'First draft'), mockDraft('d2', 'Second draft')],
+        arcs: [mockArc({ arcId: 'arc_d1' }), mockArc({ arcId: 'arc_d2' })],
+        pagination: { cursor: null },
+      }),
+    )
+    vi.mocked(api.listSignals).mockImplementation(async (_account, arcId) =>
+      ok({
+        signals:
+          arcId === 'arc_d1'
+            ? [mockDraft('d1', 'First draft', 'arc_d1')]
+            : [mockDraft('d2', 'Second draft', 'arc_d2')],
         pagination: { cursor: null },
       }),
     )
@@ -93,7 +120,10 @@ describe('DraftsView', () => {
   })
 
   it('removes a row from the list after discarding', async () => {
-    vi.mocked(api.listDraftSignals).mockResolvedValue(
+    vi.mocked(api.listArcs).mockResolvedValue(
+      ok({ arcs: [mockArc()], pagination: { cursor: null } }),
+    )
+    vi.mocked(api.listSignals).mockResolvedValue(
       ok({ signals: [mockDraft('d1', 'First draft')], pagination: { cursor: null } }),
     )
     vi.mocked(api.deleteDraftSignal).mockResolvedValue(ok(undefined))

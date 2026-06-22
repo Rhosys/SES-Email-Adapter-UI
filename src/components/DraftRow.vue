@@ -2,6 +2,7 @@
 import { computed, inject } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
+import { useDraftsStore } from '@/stores/drafts'
 import { api } from '@/lib/api'
 import type { Signal } from '@/types/server'
 import { isEmailSignal } from '@/lib/signal-guards'
@@ -17,6 +18,7 @@ const props = defineProps<{
 const emit = defineEmits<{ discard: [] }>()
 
 const accountStore = useAccountStore()
+const draftsStore = useDraftsStore()
 
 const now = inject(NOW_KEY)
 
@@ -34,6 +36,7 @@ const snippet = computed(() => emailData.value?.body?.replace(/<[^>]*>/g, ' ').r
 async function discard() {
   if (!accountStore.accountId) return
   await api.deleteDraftSignal(accountStore.accountId, props.signal.signalId)
+  if (props.signal.arcId) draftsStore.removeDraft(props.signal.arcId, props.signal.signalId)
   emit('discard')
 }
 </script>

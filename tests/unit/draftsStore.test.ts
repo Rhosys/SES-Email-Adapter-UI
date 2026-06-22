@@ -1,21 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { ok, err } from 'neverthrow'
+import { ok } from 'neverthrow'
 import { useDraftsStore } from '@/stores/drafts'
+import { useArcsStore } from '@/stores/arcs'
+import { useSignalsStore } from '@/stores/signals'
 import { useAccountStore } from '@/stores/account'
-import type { Signal, Account } from '@/types/server'
+import type { Signal, Arc, Account } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
   return {
     ...actual,
     api: {
-      listDraftSignals: vi.fn(),
+      listArcs: vi.fn(),
+      listSignals: vi.fn(),
     },
   }
 })
 
-import { api, ApiError } from '@/lib/api'
+import { api } from '@/lib/api'
+
+function mockArc(overrides: Partial<Arc> = {}): Arc {
+  return {
+    arcId: 'arc_1',
+    workflow: 'conversation',
+    labels: [],
+    status: 'active',
+    summary: 'Test arc',
+    lastSignalAt: '2025-01-01T12:00:00Z',
+    createdAt: '2025-01-01T10:00:00Z',
+    updatedAt: '2025-01-01T12:00:00Z',
+    ...overrides,
+  }
+}
 
 function mockDraft(overrides: Partial<Signal> & { signalId?: string } = {}): Signal {
   const { signalId = 'sig_draft_1', ...rest } = overrides
@@ -48,39 +65,6 @@ describe('draftsStore', () => {
     accountStore.account = { accountId: 'acc_1', name: 'Test' } as Account
   })
 
-  it('fetchDrafts populates drafts and count', async () => {
-    vi.mocked(api.listDraftSignals).mockResolvedValue(
-      ok({ signals: [mockDraft({ signalId: 'd1' }), mockDraft({ signalId: 'd2' })], pagination: { cursor: null } }),
-    )
-    const store = useDraftsStore()
-    await store.fetchDrafts(true)
-
-    expect(store.draftCount).toBe(2)
-    expect(store.drafts.map((s) => s.signalId)).toEqual(['d1', 'd2'])
-    expect(store.loading).toBe(false)
-    expect(store.error).toBeNull()
-  })
-
-  it('draftCountHasMore reflects pagination cursor', async () => {
-    vi.mocked(api.listDraftSignals).mockResolvedValue(
-      ok({ signals: [mockDraft()], pagination: { cursor: 'cur_1' } }),
-    )
-    const store = useDraftsStore()
-    await store.fetchDrafts(true)
-
-    expect(store.draftCountHasMore).toBe(true)
-    expect(store.hasMore).toBe(true)
-  })
-
-  it('fetchDrafts sets error on failure when no cache exists', async () => {
-    vi.mocked(api.listDraftSignals).mockResolvedValue(err(new ApiError(500, 'Server error')))
-    const store = useDraftsStore()
-    await store.fetchDrafts(true)
-
-    expect(store.error).toBe('Server error')
-    expect(store.draftCount).toBe(0)
-  })
-
   it('draftCount is 0 when no account is set', () => {
     const accountStore = useAccountStore()
     accountStore.account = null
@@ -88,39 +72,62 @@ describe('draftsStore', () => {
     expect(store.draftCount).toBe(0)
   })
 
-  it('removeDraft removes a draft from the cached list', async () => {
-    vi.mocked(api.listDraftSignals).mockResolvedValue(
-      ok({ signals: [mockDraft({ signalId: 'd1' }), mockDraft({ signalId: 'd2' })], pagination: { cursor: null } }),
+  it('refreshTopArcs fetches arcs and pulls signals for the top active arcs, deriving drafts', async () => {
+    vi.mocked(api.listArcs).mockResolvedValue(
+      ok({ arcs: [mockArc({ arcId: 'arc_1' })], pagination: { cursor: null } }),
+    )
+    vi.mocked(api.listSignals).mockResolvedValue(
+      ok({ signals: [mockDraft({ signalId: 'd1' })], pagination: { cursor: null } }),
+    )
+
+    const store = useDraftsStore()
+    await store.refreshTopArcs()
+
+    expect(api.listSignals).toHaveBeenCalledWith('acc_1', 'arc_1', { limit: 50 })
+    expect(store.draftCount).toBe(1)
+    expect(store.drafts.map((s) => s.signalId)).toEqual(['d1'])
+  })
+
+  it('excludes draft signals belonging to non-active arcs', async () => {
+    const arcsStore = useArcsStore()
+    const signalsStore = useSignalsStore()
+    vi.mocked(api.listArcs).mockResolvedValue(
+      ok({
+        arcs: [mockArc({ arcId: 'arc_active', status: 'active' }), mockArc({ arcId: 'arc_archived', status: 'archived' })],
+        pagination: { cursor: null },
+      }),
+    )
+    await arcsStore.fetchArcs(true)
+
+    vi.mocked(api.listSignals).mockImplementation(async (_account, arcId) =>
+      ok({
+        signals: [mockDraft({ signalId: `draft_${arcId}`, arcId })],
+        pagination: { cursor: null },
+      }),
+    )
+    await signalsStore.fetchForArcs(['arc_active', 'arc_archived'])
+
+    const store = useDraftsStore()
+    expect(store.drafts.map((s) => s.signalId)).toEqual(['draft_arc_active'])
+  })
+
+  it('removeDraft removes a draft from the derived list', async () => {
+    vi.mocked(api.listArcs).mockResolvedValue(
+      ok({ arcs: [mockArc({ arcId: 'arc_1' })], pagination: { cursor: null } }),
+    )
+    vi.mocked(api.listSignals).mockResolvedValue(
+      ok({
+        signals: [mockDraft({ signalId: 'd1' }), mockDraft({ signalId: 'd2' })],
+        pagination: { cursor: null },
+      }),
     )
     const store = useDraftsStore()
-    await store.fetchDrafts(true)
+    await store.refreshTopArcs()
+    expect(store.draftCount).toBe(2)
 
-    store.removeDraft('d1')
+    store.removeDraft('arc_1', 'd1')
+
     expect(store.drafts.map((s) => s.signalId)).toEqual(['d2'])
     expect(store.draftCount).toBe(1)
-  })
-
-  it('fetchMoreDrafts appends results and advances cursor', async () => {
-    vi.mocked(api.listDraftSignals).mockResolvedValueOnce(
-      ok({ signals: [mockDraft({ signalId: 'd1' })], pagination: { cursor: 'cur_1' } }),
-    )
-    const store = useDraftsStore()
-    await store.fetchDrafts(true)
-
-    vi.mocked(api.listDraftSignals).mockResolvedValueOnce(
-      ok({ signals: [mockDraft({ signalId: 'd2' })], pagination: { cursor: null } }),
-    )
-    await store.fetchMoreDrafts()
-
-    expect(vi.mocked(api.listDraftSignals)).toHaveBeenLastCalledWith('acc_1', { cursor: 'cur_1', limit: 50 })
-    expect(store.drafts.map((s) => s.signalId)).toEqual(['d1', 'd2'])
-    expect(store.hasMore).toBe(false)
-  })
-
-  it('clearError resets error', () => {
-    const store = useDraftsStore()
-    store.error = 'some error'
-    store.clearError()
-    expect(store.error).toBeNull()
   })
 })

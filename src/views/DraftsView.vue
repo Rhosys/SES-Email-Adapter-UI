@@ -13,12 +13,8 @@ const isEmpty = computed(() => !store.loading && store.drafts.length === 0)
 
 onMounted(async () => {
   if (!accountStore.accountId) await accountStore.fetchAccount()
-  await store.fetchDrafts(true)
+  await store.refreshTopArcs()
 })
-
-function onDiscard(signalId: string) {
-  store.removeDraft(signalId)
-}
 </script>
 
 <template>
@@ -27,15 +23,6 @@ function onDiscard(signalId: string) {
       <h1 class="text-lg font-semibold">Drafts</h1>
     </header>
     <main class="mx-auto max-w-3xl">
-      <!-- Error -->
-      <div
-        v-if="store.error"
-        class="mx-4 mt-4 rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
-      >
-        {{ store.error }}
-        <button class="ml-2 underline" @click="store.clearError()">Dismiss</button>
-      </div>
-
       <!-- Loading -->
       <div
         v-if="store.loading"
@@ -65,7 +52,6 @@ function onDiscard(signalId: string) {
           :key="signal.signalId"
           :signal="signal"
           :pending="false"
-          @discard="onDiscard(signal.signalId)"
         />
       </div>
     </main>
