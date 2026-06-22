@@ -127,7 +127,7 @@ export function persistentStorePlugin(context: PiniaPluginContext): void {
     }
   }
 
-  // Auto-persist on every mutation
+  // Auto-persist on every mutation (sync flush: write to localStorage immediately)
   store.$subscribe((_mutation, state) => {
     const id = accountStore.accountId
     if (!id) return
@@ -146,5 +146,5 @@ export function persistentStorePlugin(context: PiniaPluginContext): void {
     }
 
     writeToLocalStorage(id, store.$id, toWrite)
-  })
+  }, { flush: 'sync' })
 }
