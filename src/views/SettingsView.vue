@@ -1479,7 +1479,7 @@ function onTabPick(key: string) {
                   </svg>
                 </button>
                 <template v-if="domainMenuOpen === domain.domainId">
-                  <div class="fixed inset-0 z-40" @click="domainMenuOpen = null" />
+                  <div role="presentation" class="fixed inset-0 z-40" @click="domainMenuOpen = null" />
                   <div class="absolute right-0 top-full z-50 mt-1 w-36 rounded-lg border border-ctp-surface1 bg-ctp-mantle py-1 shadow-lg">
                     <button
                       type="button"
