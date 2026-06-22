@@ -122,7 +122,7 @@ async function openPortal() {
 <template>
   <div>
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
-      <h1 class="text-lg font-semibold">Billing</h1>
+      <h1 class="hidden text-lg font-semibold sm:block">Billing</h1>
       <p class="mt-0.5 text-xs text-ctp-subtext0">Manage your plan and payment details</p>
     </header>
 

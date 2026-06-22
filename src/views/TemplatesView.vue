@@ -335,7 +335,7 @@ onMounted(async () => {
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-lg font-semibold">Auto-Draft Email Templates</h1>
+          <h1 class="hidden text-lg font-semibold sm:block">Auto-Draft Email Templates</h1>
           <p class="mt-0.5 text-xs text-ctp-subtext0">
             Reusable email bodies for auto-reply and auto-draft rule actions
           </p>

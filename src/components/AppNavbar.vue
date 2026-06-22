@@ -163,7 +163,7 @@ function onUserMenuFocusout(e: FocusEvent) {
     </button>
 
     <!-- Page title (mobile only) -->
-    <span class="flex-1 truncate text-sm font-semibold text-ctp-text sm:hidden">{{ pageTitle }}</span>
+    <span class="flex-1 truncate text-lg font-semibold text-ctp-text sm:hidden">{{ pageTitle }}</span>
 
     <!-- Search (uses slot so AppLayout can inject the full search with lookahead — desktop only) -->
     <div class="hidden flex-1 sm:block">

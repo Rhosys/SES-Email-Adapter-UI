@@ -109,13 +109,13 @@ if (query.value) {
 
 <template>
   <div>
-    <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
+    <header class="hidden border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3 sm:block">
       <h1 class="text-lg font-semibold">Search</h1>
     </header>
 
     <main class="mx-auto max-w-3xl px-4 py-6">
       <!-- Search input (hidden when viewing drafts) -->
-      <form v-if="!route.query.status" class="mb-6 flex gap-2" @submit.prevent="doSearch">
+      <form v-if="!route.query.status" class="mb-6 flex flex-col gap-2 sm:flex-row" @submit.prevent="doSearch">
         <input
           v-model="query"
           type="search"

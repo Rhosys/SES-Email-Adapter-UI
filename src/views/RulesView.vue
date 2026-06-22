@@ -75,7 +75,7 @@ onMounted(async () => {
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-lg font-semibold">Rules</h1>
+          <h1 class="hidden text-lg font-semibold sm:block">Rules</h1>
           <p class="mt-0.5 text-xs text-ctp-subtext0">
             Automatically process incoming emails — run in priority order, top first
           </p>
