@@ -14,6 +14,8 @@ const props = withDefaults(
   {
     confirmLabel: 'Confirm',
     confirmVariant: 'danger',
+    requireInput: undefined,
+    requireInputLabel: undefined,
   },
 )
 
@@ -94,10 +96,11 @@ onBeforeUnmount(() => {
         <h2 id="confirm-title" class="text-base font-semibold text-ctp-text">{{ title }}</h2>
         <p class="mt-2 text-sm text-ctp-subtext0">{{ message }}</p>
         <div v-if="requireInput" class="mt-4">
-          <label class="block text-xs text-ctp-subtext0">
+          <label for="confirm-require-input" class="block text-xs text-ctp-subtext0">
             {{ requireInputLabel ?? `Type "${requireInput}" to confirm` }}
           </label>
           <input
+            id="confirm-require-input"
             v-model="inputValue"
             type="text"
             class="mt-1 w-full rounded-lg border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-surface2 focus:border-ctp-mauve focus:outline-none"
