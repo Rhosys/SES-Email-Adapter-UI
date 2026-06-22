@@ -13,6 +13,7 @@ import { mockDomains } from './data/domains'
 import { mockTemplates } from './data/templates'
 import { mockTeamMembers } from './data/team'
 import { mockQuarantinedSignalsVisible, mockQuarantinedSignalsHidden } from './data/quarantine'
+import { mockDraftSignals } from './data/drafts'
 import { mockViews } from './data/views'
 import { mockForwardingAddresses } from './data/forwarding'
 import { mockAuditEvents } from './data/audit'
@@ -98,6 +99,9 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
     const status = urlObj.searchParams.get('status')
     if (status === 'quarantine_hidden') {
       return { status: 200, body: { signals: mockQuarantinedSignalsHidden, pagination: { cursor: null } } }
+    }
+    if (status === 'draft') {
+      return { status: 200, body: { signals: mockDraftSignals, pagination: { cursor: null } } }
     }
     return { status: 200, body: { signals: mockQuarantinedSignalsVisible, pagination: { cursor: null } } }
   }

@@ -6,6 +6,7 @@ import { useViewsStore } from '@/stores/views'
 import { useAccountStore } from '@/stores/account'
 import { useArcsStore } from '@/stores/arcs'
 import { useQuarantineStore } from '@/stores/quarantine'
+import { useDraftsStore } from '@/stores/drafts'
 import { loginClient } from '@/lib/auth'
 
 defineProps<{ open: boolean }>()
@@ -17,6 +18,7 @@ const viewsStore = useViewsStore()
 const accountStore = useAccountStore()
 const arcsStore = useArcsStore()
 const quarantineStore = useQuarantineStore()
+const draftsStore = useDraftsStore()
 
 // Notification badges — counts are now computed from persisted _byAccount data,
 // so no explicit fetch is needed. The quarantine store hydrates from localStorage
@@ -172,7 +174,13 @@ const accountSwitcherOpen = ref(false)
           <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path d="M12.146.146a.5.5 0 01.708 0l3 3a.5.5 0 010 .708l-10 10a.5.5 0 01-.168.11l-5 2a.5.5 0 01-.65-.65l2-5a.5.5 0 01.11-.168l10-10zM11.207 2.5L13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 01.5.5v.5h.5a.5.5 0 01.5.5v.5h.293l6.5-6.5z"/>
           </svg>
-          Drafts
+          <span class="flex-1">Drafts</span>
+          <span
+            v-if="draftsStore.draftCount > 0"
+            class="shrink-0 rounded-full bg-ctp-green px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ctp-base"
+          >
+            {{ formatBadgeCount(draftsStore.draftCount, draftsStore.draftCountHasMore) }}
+          </span>
         </RouterLink>
 
         <!-- Views — always expanded -->

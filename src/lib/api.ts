@@ -189,6 +189,17 @@ export const api = {
     return request<SignalListWire>(`/accounts/${accountId}/signals?${qs.toString()}`)
   },
 
+  listDraftSignals(
+    accountId: string,
+    params: { cursor?: string; limit?: number } = {},
+  ): Promise<Result<SignalListWire, ApiError>> {
+    const qs = new URLSearchParams()
+    qs.set('status', 'draft')
+    if (params.cursor) qs.set('cursor', params.cursor)
+    if (params.limit) qs.set('limit', String(params.limit))
+    return request<SignalListWire>(`/accounts/${accountId}/signals?${qs.toString()}`)
+  },
+
   quarantineResponse(
     accountId: string,
     signalId: string,

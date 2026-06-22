@@ -9,6 +9,7 @@ import { mockDomains } from './data/domains'
 import { mockTemplates } from './data/templates'
 import { mockTeamMembers } from './data/team'
 import { mockQuarantinedSignalsVisible, mockQuarantinedSignalsHidden } from './data/quarantine'
+import { mockDraftSignals } from './data/drafts'
 import { mockViews } from './data/views'
 import { mockForwardingAddresses } from './data/forwarding'
 import { mockAuditEvents } from './data/audit'
@@ -83,6 +84,9 @@ export const handlers = [
     }
     if (status?.startsWith('quarantine')) {
       return HttpResponse.json({ signals: mockQuarantinedSignalsVisible, pagination: { cursor: null } })
+    }
+    if (status === 'draft') {
+      return HttpResponse.json({ signals: mockDraftSignals, pagination: { cursor: null } })
     }
     return HttpResponse.json({ signals: mockSystemSignals, pagination: { cursor: null } })
   }),
