@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch, ref, nextTick, onBeforeUnmount } from 'vue'
+import { watch, ref, computed, nextTick, onBeforeUnmount } from 'vue'
 
 const props = withDefaults(
   defineProps<{
@@ -8,6 +8,8 @@ const props = withDefaults(
     message: string
     confirmLabel?: string
     confirmVariant?: 'danger' | 'primary'
+    requireInput?: string
+    requireInputLabel?: string
   }>(),
   {
     confirmLabel: 'Confirm',
@@ -21,6 +23,12 @@ const emit = defineEmits<{
 }>()
 
 const dialogRef = ref<HTMLDivElement | null>(null)
+const inputValue = ref('')
+
+const confirmEnabled = computed(() => {
+  if (!props.requireInput) return true
+  return inputValue.value === props.requireInput
+})
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
@@ -48,8 +56,14 @@ watch(
   () => props.open,
   async (isOpen) => {
     if (isOpen) {
+      inputValue.value = ''
       await nextTick()
-      dialogRef.value?.querySelector<HTMLElement>('button')?.focus()
+      const input = dialogRef.value?.querySelector<HTMLElement>('input')
+      if (input) {
+        input.focus()
+      } else {
+        dialogRef.value?.querySelector<HTMLElement>('button')?.focus()
+      }
       document.addEventListener('keydown', onKeydown)
     } else {
       document.removeEventListener('keydown', onKeydown)
@@ -79,6 +93,19 @@ onBeforeUnmount(() => {
       >
         <h2 id="confirm-title" class="text-base font-semibold text-ctp-text">{{ title }}</h2>
         <p class="mt-2 text-sm text-ctp-subtext0">{{ message }}</p>
+        <div v-if="requireInput" class="mt-4">
+          <label class="block text-xs text-ctp-subtext0">
+            {{ requireInputLabel ?? `Type "${requireInput}" to confirm` }}
+          </label>
+          <input
+            v-model="inputValue"
+            type="text"
+            class="mt-1 w-full rounded-lg border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-surface2 focus:border-ctp-mauve focus:outline-none"
+            :placeholder="requireInput"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
         <div class="mt-5 flex justify-end gap-3">
           <button
             class="px-3 py-1.5 text-sm text-ctp-subtext1 hover:text-ctp-text"
@@ -87,8 +114,9 @@ onBeforeUnmount(() => {
             Cancel
           </button>
           <button
-            class="rounded-lg px-4 py-1.5 text-sm font-medium text-ctp-base hover:opacity-90"
+            class="rounded-lg px-4 py-1.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             :class="confirmVariant === 'danger' ? 'bg-ctp-red' : 'bg-ctp-mauve'"
+            :disabled="!confirmEnabled"
             @click="emit('confirm')"
           >
             {{ confirmLabel }}

@@ -5,6 +5,8 @@ interface ConfirmOptions {
   message: string
   confirmLabel?: string
   confirmVariant?: 'danger' | 'primary'
+  requireInput?: string
+  requireInputLabel?: string
 }
 
 const dialogOpen = ref(false)

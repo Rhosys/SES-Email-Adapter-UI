@@ -299,11 +299,11 @@ const expandedAlias = ref<string | null>(null)
 const aliasSenders = ref<Map<string, AliasSender[]>>(new Map())
 const aliasSendersLoading = ref<Set<string>>(new Set())
 
-const SENDER_POLICIES: { value: SenderPolicy; label: string }[] = [
-  { value: 'allow', label: 'Allow' },
-  { value: 'block_hidden', label: 'Block' },
-  { value: 'block_reject', label: 'Block & bounce' },
-  { value: 'report_violation', label: 'Report violation' },
+const SENDER_POLICIES: { value: SenderPolicy; label: string; description: string }[] = [
+  { value: 'allow', label: 'Allow', description: 'Emails from this sender are delivered normally' },
+  { value: 'block_hidden', label: 'Block', description: 'Emails are silently discarded' },
+  { value: 'block_reject', label: 'Block & bounce', description: 'Emails are rejected and sender receives a bounce' },
+  { value: 'report_violation', label: 'Report violation', description: 'Emails are rejected and reported as abuse' },
 ]
 
 async function loadSendersForAlias(address: string) {
@@ -394,28 +394,10 @@ async function updateAliasMode(address: string, unknownSenderPolicy: UnknownSend
   }
 }
 
-async function updateAliasThreshold(address: string, raw: string) {
-  if (!accountStore.accountId) return
-  const value = raw.trim() === '' ? undefined : Math.min(10, Math.max(0, Number(raw)))
-  const result = await api.updateAlias(accountStore.accountId, address, { spamScoreThreshold: value })
-  if (result.isOk()) {
-    aliases.value = aliases.value.map((a) => (a.address === address ? result.value : a))
-  }
-}
-
 async function updateDefaultPolicy(policy: UnknownSenderPolicy) {
   if (!accountStore.accountId) return
   const result = await api.updateAccount(accountStore.accountId, {
     filtering: { ...accountStore.account?.filtering, defaultUnknownSenderPolicy: policy },
-  })
-  if (result.isOk()) accountStore.account = result.value
-}
-
-async function updateAccountSpamThreshold(raw: string) {
-  if (!accountStore.accountId) return
-  const value = raw === '' ? undefined : Math.min(10, Math.max(1, Number(raw)))
-  const result = await api.updateAccount(accountStore.accountId, {
-    filtering: { ...accountStore.account?.filtering, spamScoreThreshold: value },
   })
   if (result.isOk()) accountStore.account = result.value
 }
@@ -441,6 +423,10 @@ const domainsLoading = ref(false)
 const newDomain = ref('')
 const addDomainPending = ref(false)
 const recheckPending = ref<Set<string>>(new Set())
+const domainMenuOpen = ref<string | null>(null)
+const senderPolicyModal = ref<{ open: boolean; aliasAddress: string; senderDomain: string; currentPolicy: SenderPolicy }>({
+  open: false, aliasAddress: '', senderDomain: '', currentPolicy: 'allow',
+})
 
 async function loadDomains() {
   if (!accountStore.accountId) return
@@ -473,21 +459,35 @@ async function recheckDomain(domainId: string) {
 
 async function deleteDomain(domainId: string) {
   if (!accountStore.accountId) return
-  const confirmed = await confirmAction({
-    title: 'Delete domain',
-    message: 'This will delete all aliases on this domain. You will no longer receive email for this domain. All DNS configuration will be removed.',
-    confirmLabel: 'Delete',
+  const domainObj = domains.value.find((d) => d.domainId === domainId)
+  if (!domainObj) return
+
+  // Step 1: Warning dialog
+  const warned = await confirmAction({
+    title: "You Don\u2019t Really Want to Delete This Domain",
+    message: 'Deleting domains will prevent you from receiving All Mail to this domain. Instead you almost certainly want to block mail for just one alias or even from just one sender.',
+    confirmLabel: 'Delete anyway',
     confirmVariant: 'danger',
   })
+  if (!warned) return
+
+  // Step 2: Type-to-confirm
+  const confirmed = await confirmAction({
+    title: `Confirm deletion of ${domainObj.domain}`,
+    message: 'This action is irreversible. All aliases on this domain will be deleted and DNS configuration removed.',
+    confirmLabel: 'Delete',
+    confirmVariant: 'danger',
+    requireInput: domainObj.domain,
+    requireInputLabel: `Type "${domainObj.domain}" to confirm deletion`,
+  })
   if (!confirmed) return
-  const removed = domains.value.find((d) => d.domainId === domainId)
-  if (!removed) return
+
   domains.value = domains.value.filter((d) => d.domainId !== domainId)
   const acctId = accountStore.accountId
   deferAction('Domain deleted', async () => {
     await api.deleteDomain(acctId, domainId)
   }, 8000, {
-    onUndo: () => { domains.value = [...domains.value, removed] },
+    onUndo: () => { domains.value = [...domains.value, domainObj] },
   })
 }
 
@@ -1264,42 +1264,6 @@ function onTabPick(key: string) {
               {{ FILTER_MODES.find((m) => m.value === (accountStore.account?.filtering?.defaultUnknownSenderPolicy ?? 'quarantine_visible'))?.label }}
             </button>
           </div>
-          <!-- Account-level spam threshold -->
-          <div class="p-4">
-            <p class="mb-0.5 text-sm font-medium text-ctp-text">Default spam threshold</p>
-            <p class="mb-3 text-xs text-ctp-subtext0">Used by aliases that haven't set their own threshold</p>
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-ctp-subtext0">1</span>
-              <input
-                type="range"
-                min="1"
-                max="10"
-                step="1"
-                :value="accountStore.account?.filtering?.spamScoreThreshold ?? 5"
-                aria-label="Account default spam threshold"
-                class="w-full accent-ctp-mauve"
-                @input="updateAccountSpamThreshold(($event.target as HTMLInputElement).value)"
-              />
-              <span class="text-xs text-ctp-subtext0">10</span>
-              <span class="ml-2 min-w-[1.5rem] text-center text-sm font-medium text-ctp-text">{{ accountStore.account?.filtering?.spamScoreThreshold ?? '–' }}</span>
-            </div>
-            <div class="mt-2 flex items-center justify-between">
-              <p class="text-xs text-ctp-subtext0">
-                <template v-if="accountStore.account?.filtering?.spamScoreThreshold == null">No account default — each alias decides independently</template>
-                <template v-else-if="accountStore.account.filtering.spamScoreThreshold <= 3">Very aggressive — most emails from unknown senders will be quarantined</template>
-                <template v-else-if="accountStore.account.filtering.spamScoreThreshold <= 6">Balanced — catches obvious spam while allowing most legitimate mail</template>
-                <template v-else-if="accountStore.account.filtering.spamScoreThreshold <= 9">Permissive — only flags the most obvious spam</template>
-                <template v-else>Disabled — no spam filtering</template>
-              </p>
-              <button
-                v-if="accountStore.account?.filtering?.spamScoreThreshold != null"
-                class="shrink-0 text-xs text-ctp-subtext0 hover:text-ctp-text"
-                @click="updateAccountSpamThreshold('')"
-              >
-                Use account default
-              </button>
-            </div>
-          </div>
         </div>
         <!-- Divider between account defaults and alias list -->
         <div class="my-6 border-t border-ctp-surface0" />
@@ -1374,40 +1338,6 @@ function onTabPick(key: string) {
             </div>
             <!-- Expandable details -->
             <div v-if="expandedAlias === alias.address" class="mt-2 space-y-3 border-t border-ctp-surface0 pt-3">
-              <div>
-                <span class="mb-1.5 block text-xs text-ctp-subtext0">Spam threshold</span>
-                <div class="flex items-center gap-2">
-                  <span class="text-xs text-ctp-subtext0">1</span>
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    step="1"
-                    :value="alias.spamScoreThreshold ?? 5"
-                    :aria-label="`Spam threshold for ${alias.address}`"
-                    class="w-full accent-ctp-mauve"
-                    @input="updateAliasThreshold(alias.address, ($event.target as HTMLInputElement).value)"
-                  />
-                  <span class="text-xs text-ctp-subtext0">10</span>
-                  <span class="ml-2 min-w-[1.5rem] text-center text-sm font-medium text-ctp-text">{{ alias.spamScoreThreshold ?? '–' }}</span>
-                </div>
-                <div class="mt-2 flex items-center justify-between">
-                  <p class="text-xs text-ctp-subtext0">
-                    <template v-if="alias.spamScoreThreshold == null">Using account default threshold</template>
-                    <template v-else-if="alias.spamScoreThreshold <= 3">Very aggressive — most emails from unknown senders will be quarantined</template>
-                    <template v-else-if="alias.spamScoreThreshold <= 6">Balanced — catches obvious spam while allowing most legitimate mail</template>
-                    <template v-else-if="alias.spamScoreThreshold <= 9">Permissive — only flags the most obvious spam</template>
-                    <template v-else>Disabled — no spam filtering</template>
-                  </p>
-                  <button
-                    v-if="alias.spamScoreThreshold != null"
-                    class="shrink-0 text-xs text-ctp-subtext0 hover:text-ctp-text"
-                    @click="updateAliasThreshold(alias.address, '')"
-                  >
-                    Use account default
-                  </button>
-                </div>
-              </div>
               <!-- Senders list -->
               <div>
                 <span class="mb-1.5 block text-xs text-ctp-subtext0">Known senders</span>
@@ -1427,14 +1357,14 @@ function onTabPick(key: string) {
                     class="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-ctp-surface0/50"
                   >
                     <span class="min-w-0 flex-1 truncate text-xs text-ctp-text">{{ sender.sender }}</span>
-                    <select
-                      :value="sender.policy"
+                    <button
+                      type="button"
+                      class="shrink-0 rounded-full border border-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
                       :aria-label="`Policy for ${sender.sender}`"
-                      class="rounded border border-ctp-surface1 bg-ctp-mantle px-1.5 py-0.5 text-xs text-ctp-text"
-                      @change="updateSenderPolicy(alias.address, sender.sender, ($event.target as HTMLSelectElement).value as SenderPolicy)"
+                      @click="senderPolicyModal = { open: true, aliasAddress: alias.address, senderDomain: sender.sender, currentPolicy: sender.policy }"
                     >
-                      <option v-for="opt in SENDER_POLICIES" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                    </select>
+                      {{ SENDER_POLICIES.find((p) => p.value === sender.policy)?.label ?? sender.policy }}
+                    </button>
                     <button
                       type="button"
                       class="text-ctp-subtext0 hover:text-ctp-red"
@@ -1537,13 +1467,30 @@ function onTabPick(key: string) {
               >
                 Re-check DNS
               </AsyncButton>
-              <button
-                type="button"
-                class="rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-red transition-colors hover:border-ctp-red/50 hover:bg-ctp-red/10"
-                @click="deleteDomain(domain.domainId)"
-              >
-                Delete
-              </button>
+              <div class="relative">
+                <button
+                  type="button"
+                  class="rounded-lg border border-ctp-surface1 px-2 py-1.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
+                  :aria-label="`Actions for ${domain.domain}`"
+                  @click="domainMenuOpen = domainMenuOpen === domain.domainId ? null : domain.domainId"
+                >
+                  <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+                    <circle cx="8" cy="3" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="8" cy="13" r="1.5" />
+                  </svg>
+                </button>
+                <template v-if="domainMenuOpen === domain.domainId">
+                  <div class="fixed inset-0 z-40" @click="domainMenuOpen = null" />
+                  <div class="absolute right-0 top-full z-50 mt-1 w-36 rounded-lg border border-ctp-surface1 bg-ctp-mantle py-1 shadow-lg">
+                    <button
+                      type="button"
+                      class="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-ctp-red hover:bg-ctp-red/10"
+                      @click="domainMenuOpen = null; deleteDomain(domain.domainId)"
+                    >
+                      Delete domain
+                    </button>
+                  </div>
+                </template>
+              </div>
             </div>
             <!-- DNS records — two-tier display -->
             <div v-if="domain.records?.length" class="border-t border-ctp-surface0">
@@ -1864,6 +1811,8 @@ function onTabPick(key: string) {
       :message="dialogOptions.message"
       :confirm-label="dialogOptions.confirmLabel"
       :confirm-variant="dialogOptions.confirmVariant"
+      :require-input="dialogOptions.requireInput"
+      :require-input-label="dialogOptions.requireInputLabel"
       @confirm="onConfirm"
       @cancel="onCancel"
     />
@@ -1885,6 +1834,16 @@ function onTabPick(key: string) {
       :modes="FILTER_MODES"
       @select="(mode) => updateDefaultPolicy(mode as UnknownSenderPolicy)"
       @close="defaultPolicyModalOpen = false"
+    />
+
+    <FilterModeModal
+      :open="senderPolicyModal.open"
+      :title="`Policy for ${senderPolicyModal.senderDomain}`"
+      subtitle="Choose how emails from this sender are handled."
+      :current-mode="senderPolicyModal.currentPolicy"
+      :modes="SENDER_POLICIES"
+      @select="(mode) => { updateSenderPolicy(senderPolicyModal.aliasAddress, senderPolicyModal.senderDomain, mode as SenderPolicy); senderPolicyModal = { ...senderPolicyModal, open: false } }"
+      @close="senderPolicyModal = { ...senderPolicyModal, open: false }"
     />
 
     <!-- Add alias modal -->

@@ -87,7 +87,6 @@ export interface NotificationSettings {
 
 export interface AccountFilteringConfig {
   defaultUnknownSenderPolicy?: UnknownSenderPolicy
-  spamScoreThreshold?: number
 }
 
 export interface AccountOnboarding {
@@ -655,7 +654,6 @@ export interface Alias {
   alias: string
   address: string
   unknownSenderPolicy: UnknownSenderPolicy
-  spamScoreThreshold?: number
   createdAt: string
   updatedAt: string
 }

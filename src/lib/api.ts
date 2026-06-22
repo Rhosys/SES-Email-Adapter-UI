@@ -406,7 +406,7 @@ export const api = {
   updateAlias(
     accountId: string,
     address: string,
-    body: { unknownSenderPolicy?: UnknownSenderPolicy; spamScoreThreshold?: number },
+    body: { unknownSenderPolicy?: UnknownSenderPolicy },
   ): Promise<Result<Alias, ApiError>> {
     return request<Alias>(`/accounts/${accountId}/aliases/${encodeURIComponent(address)}`, {
       method: 'PATCH',
