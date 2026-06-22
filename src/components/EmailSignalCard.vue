@@ -77,6 +77,9 @@ const showRawModal = ref(false)
 const showOriginalModal = ref(false)
 const rawCopied = ref(false)
 const originalCopied = ref(false)
+const originalEmailSource = ref('')
+const originalLoading = ref(false)
+const originalError = ref<string | null>(null)
 
 function viewRawSignal() {
   menuOpen.value = false
@@ -100,6 +103,20 @@ function viewRawSignal() {
 function viewOriginalEmail() {
   menuOpen.value = false
   showOriginalModal.value = true
+  originalError.value = null
+
+  if (originalEmailSource.value) return
+
+  if (!accountStore.accountId) return
+  originalLoading.value = true
+  void api.getRawEmail(accountStore.accountId, props.signal.signalId).then((result) => {
+    originalLoading.value = false
+    if (result.isOk()) {
+      originalEmailSource.value = result.value
+    } else {
+      originalError.value = result.error.message
+    }
+  })
 }
 
 function copyRawJson() {
@@ -110,8 +127,8 @@ function copyRawJson() {
 }
 
 function copyOriginalHtml() {
-  if (!isEmailSignal(props.signal) || !props.signal.data.body) return
-  void navigator.clipboard.writeText(props.signal.data.body).then(() => {
+  if (!originalEmailSource.value) return
+  void navigator.clipboard.writeText(originalEmailSource.value).then(() => {
     originalCopied.value = true
     setTimeout(() => { originalCopied.value = false }, 1500)
   })
@@ -300,7 +317,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
             Show headers
           </button>
           <button
-            v-if="isEmailSignal(signal) && signal.data.body"
+            v-if="isEmailSignal(signal)"
             class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
             role="menuitem"
             @click="viewOriginalEmail"
@@ -410,24 +427,30 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
             <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="showRawModal = false">Close</button>
           </div>
         </div>
-        <pre class="overflow-auto rounded-lg bg-ctp-base p-3 font-mono text-xs text-ctp-text">{{ rawSignalJson }}</pre>
+        <pre class="overflow-auto rounded-lg bg-ctp-base p-3 font-mono text-xs text-ctp-text break-all whitespace-pre-wrap">{{ rawSignalJson }}</pre>
       </div>
     </div>
   </Teleport>
 
-  <!-- Original email modal — raw source text -->
+  <!-- Original email modal — raw source from S3 -->
   <Teleport to="body">
     <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -->
-    <div v-if="showOriginalModal && isEmailSignal(signal) && signal.data.body" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80" @click.self="showOriginalModal = false">
+    <div v-if="showOriginalModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80" @click.self="showOriginalModal = false">
       <div class="relative max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-xl border border-ctp-surface1 bg-ctp-mantle shadow-2xl">
         <div class="flex items-center justify-between border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
           <h3 class="text-sm font-semibold text-ctp-text">Original email source</h3>
           <div class="flex items-center gap-3">
-            <button class="text-xs text-ctp-subtext0 hover:text-ctp-mauve" @click="copyOriginalHtml">{{ originalCopied ? '✓ Copied' : 'Copy source' }}</button>
+            <button v-if="originalEmailSource" class="text-xs text-ctp-subtext0 hover:text-ctp-mauve" @click="copyOriginalHtml">{{ originalCopied ? '✓ Copied' : 'Copy source' }}</button>
             <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="showOriginalModal = false">Close</button>
           </div>
         </div>
-        <pre class="max-h-[80vh] overflow-auto p-4 font-mono text-xs text-ctp-text">{{ signal.data.body }}</pre>
+        <div v-if="originalLoading" class="flex items-center justify-center p-8">
+          <span class="text-sm text-ctp-subtext0">Loading…</span>
+        </div>
+        <div v-else-if="originalError" class="p-4">
+          <span class="text-sm text-ctp-red">{{ originalError }}</span>
+        </div>
+        <pre v-else class="max-h-[80vh] overflow-auto p-4 font-mono text-xs text-ctp-text break-all whitespace-pre-wrap">{{ originalEmailSource }}</pre>
       </div>
     </div>
   </Teleport>

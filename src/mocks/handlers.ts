@@ -95,7 +95,7 @@ export const handlers = [
     return HttpResponse.json({ signalId: 'sig_quar_1', status: 'active' })
   }),
 
-  http.post('/accounts/:accountId/signals/:signalId/rsvp', () => {
+  http.post('/accounts/:accountId/arcs/:arcId/signals/:signalId/rsvp', () => {
     return HttpResponse.json({ signalId: 'sig_travel1_cal', status: 'active' })
   }),
 
@@ -112,12 +112,12 @@ export const handlers = [
     }, { status: 201 })
   }),
 
-  http.put('/accounts/:accountId/signals/:signalId', async ({ request }) => {
+  http.put('/accounts/:accountId/arcs/:arcId/signals/:signalId', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({ signalId: 'sig_draft_1', status: 'draft', ...body })
   }),
 
-  http.post('/accounts/:accountId/signals/:signalId/send', () => {
+  http.post('/accounts/:accountId/arcs/:arcId/signals/:signalId/send', () => {
     return HttpResponse.json({ signalId: 'sig_draft_1', status: 'sent' })
   }),
 

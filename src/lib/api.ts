@@ -215,10 +215,11 @@ export const api = {
 
   rsvpSignal(
     accountId: string,
+    arcId: string,
     signalId: string,
     response: 'accepted' | 'declined' | 'tentative',
   ): Promise<Result<Signal, ApiError>> {
-    return request<Signal>(`/accounts/${accountId}/signals/${signalId}/rsvp`, {
+    return request<Signal>(`/accounts/${accountId}/arcs/${arcId}/signals/${signalId}/rsvp`, {
       method: 'POST',
       body: JSON.stringify({ response }),
     })
@@ -239,17 +240,18 @@ export const api = {
 
   updateDraftSignal(
     accountId: string,
+    arcId: string,
     signalId: string,
     body: UpdateDraftSignalBody,
   ): Promise<Result<Signal, ApiError>> {
-    return request<Signal>(`/accounts/${accountId}/signals/${signalId}`, {
+    return request<Signal>(`/accounts/${accountId}/arcs/${arcId}/signals/${signalId}`, {
       method: 'PUT',
       body: JSON.stringify(body),
     })
   },
 
-  sendSignal(accountId: string, signalId: string): Promise<Result<Signal, ApiError>> {
-    return request<Signal>(`/accounts/${accountId}/signals/${signalId}/send`, { method: 'POST' })
+  sendSignal(accountId: string, arcId: string, signalId: string): Promise<Result<Signal, ApiError>> {
+    return request<Signal>(`/accounts/${accountId}/arcs/${arcId}/signals/${signalId}/send`, { method: 'POST' })
   },
 
   patchSignal(
@@ -641,5 +643,20 @@ export const api = {
     return request<Signal>(`/accounts/${accountId}/signals/${signalId}/reprocess`, {
       method: 'POST',
     })
+  },
+
+  async getRawEmail(accountId: string, signalId: string): Promise<Result<string, ApiError>> {
+    try {
+      const token = await loginClient.ensureToken()
+      const res = await fetch(`${BASE}/accounts/${accountId}/signals/${signalId}/raw`, {
+        headers: { Authorization: `Bearer ${token}` },
+        redirect: 'follow',
+      })
+      if (!res.ok) return err(new ApiError(res.status, `Failed to fetch raw email: ${res.status}`))
+      return ok(await res.text())
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Network error'
+      return err(new ApiError(0, message))
+    }
   },
 }

@@ -81,8 +81,10 @@ watch([localPart, selectedDomain, subject, body], () => {
 
 async function persistDraft() {
   if (!accountStore.accountId) return
+  const arcId = props.signal.arcId
+  if (!arcId) return
   saving.value = true
-  const result = await api.updateDraftSignal(accountStore.accountId, props.signal.signalId, {
+  const result = await api.updateDraftSignal(accountStore.accountId, arcId, props.signal.signalId, {
     from: fromAddress.value ? { address: fromAddress.value } : undefined,
     subject: subject.value,
     textBody: body.value,
@@ -111,7 +113,7 @@ async function sendAndArchive() {
   const id = deferAction(
     'Email sent + archived',
     async () => {
-      const result = await api.sendSignal(accountId, signalId)
+      const result = await api.sendSignal(accountId, sigArcId, signalId)
       if (result.isOk()) {
         signalsStore.updateSignal(sigArcId, result.value)
         await api.patchArc(accountId, sigArcId, { status: 'archived' })
@@ -146,7 +148,7 @@ async function sendAndWait() {
   const id = deferAction(
     'Email sent — follow up in 7 days',
     async () => {
-      const result = await api.sendSignal(accountId, signalId)
+      const result = await api.sendSignal(accountId, sigArcId, signalId)
       if (result.isOk()) {
         signalsStore.updateSignal(sigArcId, result.value)
         await api.patchArc(accountId, sigArcId, { followupAt })
