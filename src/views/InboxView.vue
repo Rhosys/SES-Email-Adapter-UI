@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAccountStore } from '@/stores/account'
 import { useArcsStore } from '@/stores/arcs'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import StatusTabs from '@/components/StatusTabs.vue'
@@ -17,7 +16,6 @@ import StatsWidget from '@/components/StatsWidget.vue'
 
 const route = useRoute()
 const router = useRouter()
-const accountStore = useAccountStore()
 const arcsStore = useArcsStore()
 const { onAction, offAction } = useKeyboardShortcuts()
 
@@ -68,7 +66,6 @@ function selectFocused() {
 onMounted(async () => {
   const tab = route.query.tab as TabKey | undefined
   if (tab && (VALID_TABS as readonly string[]).includes(tab)) arcsStore.setTab(tab)
-  await accountStore.fetchAccount()
   await arcsStore.fetchArcs(true)
 
   onAction('navigate_next', moveNext)

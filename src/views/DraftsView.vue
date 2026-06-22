@@ -1,18 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { useAccountStore } from '@/stores/account'
 import { useDraftsStore } from '@/stores/drafts'
 import { useRelativeTime } from '@/composables/useRelativeTime'
 import DraftRow from '@/components/DraftRow.vue'
 
-const accountStore = useAccountStore()
 const store = useDraftsStore()
 useRelativeTime()
 
 const isEmpty = computed(() => !store.loading && store.drafts.length === 0)
 
 onMounted(async () => {
-  if (!accountStore.accountId) await accountStore.fetchAccount()
   await store.refreshTopArcs()
 })
 </script>

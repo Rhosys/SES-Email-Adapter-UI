@@ -270,7 +270,6 @@ async function save() {
 // ─── Load ─────────────────────────────────────────────────────────────────────
 
 onMounted(async () => {
-  await accountStore.fetchAccount()
   await Promise.all([labelsStore.fetchLabels(), templatesStore.fetchTemplates()])
 
   if (isEditing.value) {

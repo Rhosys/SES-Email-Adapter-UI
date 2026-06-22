@@ -3,7 +3,6 @@ import { ref, computed, watch, onMounted } from 'vue'
 import Handlebars from 'handlebars'
 import { marked } from 'marked'
 import { useTemplatesStore } from '@/stores/templates'
-import { useAccountStore } from '@/stores/account'
 import { useHbsAutocomplete } from '@/composables/useHbsAutocomplete'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import type { EmailTemplate, TemplateFunction } from '@/types/server'
@@ -11,7 +10,6 @@ import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 
 const store = useTemplatesStore()
-const accountStore = useAccountStore()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
 // ─── Editor state ─────────────────────────────────────────────────────────────
@@ -328,7 +326,6 @@ function relTime(iso: string): string {
 }
 
 onMounted(async () => {
-  if (!accountStore.accountId) await accountStore.fetchAccount()
   await store.fetchTemplates()
 })
 </script>

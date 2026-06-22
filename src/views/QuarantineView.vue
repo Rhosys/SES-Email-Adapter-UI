@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAccountStore } from '@/stores/account'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useRelativeTime } from '@/composables/useRelativeTime'
 import QuarantineFilters from '@/components/QuarantineFilters.vue'
@@ -10,7 +9,6 @@ import type { QuarantineFilters as Filters } from '@/stores/quarantine'
 
 const route = useRoute()
 const router = useRouter()
-const accountStore = useAccountStore()
 const store = useQuarantineStore()
 useRelativeTime()
 
@@ -19,7 +17,6 @@ const isEmpty = computed(
 )
 
 onMounted(async () => {
-  await accountStore.fetchAccount()
   const { sender, after, before } = route.query
   store.setFilters({
     sender: String(sender || ''),

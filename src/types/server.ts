@@ -166,6 +166,7 @@ export interface MatchedRuleResult {
   actions: MatchedRuleAction[]
   labelsAdded: string[]
   statusChange?: string
+  text?: string
 }
 
 export type UnsubscribeMethod = 'server' | 'website' | 'mailto'

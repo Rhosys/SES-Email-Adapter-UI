@@ -101,7 +101,6 @@ async function load(cursor?: string) {
 }
 
 onMounted(async () => {
-  if (!accountStore.accountId) await accountStore.fetchAccount()
   const cursor = route.query.cursor as string | undefined
   await load(cursor)
 })

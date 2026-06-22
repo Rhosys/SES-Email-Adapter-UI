@@ -80,7 +80,6 @@ const PLANS: PlanDef[] = [
 const currentPlan = computed<BillingPlan>(() => billing.value?.plan ?? 'free')
 
 onMounted(async () => {
-  if (!accountStore.accountId) await accountStore.fetchAccount()
   loading.value = false
   if (!accountStore.accountId) return
 

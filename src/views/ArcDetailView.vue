@@ -3,7 +3,6 @@ import { onMounted, onUnmounted, computed, ref, nextTick } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useSignalsStore } from '@/stores/signals'
 import { useArcsStore } from '@/stores/arcs'
-import { useAccountStore } from '@/stores/account'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
@@ -20,7 +19,6 @@ const route = useRoute()
 const router = useRouter()
 const signalsStore = useSignalsStore()
 const arcsStore = useArcsStore()
-const accountStore = useAccountStore()
 const { showUndo, deferAction } = useToast()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
@@ -59,7 +57,6 @@ const retentionMessage = computed(() => {
 
 onMounted(async () => {
   signalsStore.reset()
-  await accountStore.fetchAccount()
   // Use arcs store for arc metadata — instant if cached, fetches if not
   arcData.value = (await arcsStore.getArcAsync(arcId.value)) ?? null
   await signalsStore.fetchAll(arcId.value)

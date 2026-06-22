@@ -251,17 +251,6 @@ function focusSearch() {
 }
 
 onMounted(async () => {
-  if (!accountStore.account) {
-    const fromUrl = route.query.accountId as string | undefined
-    await accountStore.fetchAccount(fromUrl)
-    if (fromUrl) {
-      void router.replace({
-        path: route.path,
-        query: Object.fromEntries(Object.entries(route.query).filter(([k]) => k !== 'accountId')),
-        hash: route.hash,
-      })
-    }
-  }
   await Promise.all([labelsStore.fetchLabels(), viewsStore.fetchViews()])
 
   // Auto-start the feature tour only after the notification coach has been shown

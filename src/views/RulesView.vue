@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
-import { useAccountStore } from '@/stores/account'
 import { useRulesStore } from '@/stores/rules'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { ACTION_LABELS, ACTION_COLORS, conditionSummary } from '@/lib/rule-display'
 import type { Rule } from '@/types/server'
 
-const accountStore = useAccountStore()
 const rulesStore = useRulesStore()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
@@ -68,7 +66,6 @@ function onDragEnd() {
 }
 
 onMounted(async () => {
-  await accountStore.fetchAccount()
   await rulesStore.fetchRules()
 })
 </script>

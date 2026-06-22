@@ -683,7 +683,6 @@ async function switchTab(tab: TabKey) {
 }
 
 onMounted(async () => {
-  if (!accountStore.accountId) await accountStore.fetchAccount()
   identity.value = loginClient.getUserIdentity() as Identity | null
   if (accountStore.account) {
     afterSendAction.value = accountStore.account.afterSendAction ?? 'keep_active'

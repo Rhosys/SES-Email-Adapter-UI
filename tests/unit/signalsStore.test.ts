@@ -142,7 +142,7 @@ describe('stale-while-revalidate', { timeout: 5000 }, () => {
 
   it('fetchAll with cached data does not show loading state', async () => {
     const store = useSignalsStore()
-    store.$patch({ _byAccount: { acc_1: [mockSignal()] } })
+    store.$patch({ _byAccount: { acc_1: { arc_1: [mockSignal()] } } })
 
     vi.mocked(api.listSignals).mockResolvedValue(ok(mockSignalList([mockSignal()])))
     await store.fetchAll('arc_1')
@@ -156,7 +156,7 @@ describe('stale-while-revalidate', { timeout: 5000 }, () => {
     const sigC = mockSignal({ signalId: 'sig_C', createdAt: '2025-01-01T12:00:00Z' })
 
     const store = useSignalsStore()
-    store.$patch({ _byAccount: { acc_1: [sigA, sigB] } })
+    store.$patch({ _byAccount: { acc_1: { arc_1: [sigA, sigB] } } })
 
     // API returns [sig_B, sig_C] (oldest first — store reverses to [sig_C, sig_B])
     vi.mocked(api.listSignals).mockResolvedValue(ok(mockSignalList([sigB, sigC])))
@@ -168,7 +168,7 @@ describe('stale-while-revalidate', { timeout: 5000 }, () => {
 
   it('fetchAll failure with cached data retains cache and logs warning', async () => {
     const store = useSignalsStore()
-    store.$patch({ _byAccount: { acc_1: [mockSignal({ signalId: 'sig_cached' })] } })
+    store.$patch({ _byAccount: { acc_1: { arc_1: [mockSignal({ signalId: 'sig_cached' })] } } })
 
     vi.mocked(api.listSignals).mockResolvedValue(err(new ApiError(500, 'Server error')))
     await store.fetchAll('arc_1')
