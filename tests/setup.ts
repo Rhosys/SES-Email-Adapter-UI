@@ -1,5 +1,12 @@
 import { vi } from 'vitest'
 
+vi.mock('@/lib/buildInfo', () => ({
+  default: {
+    version: { releaseDate: 'test', buildNumber: 'test', buildRef: 'test', buildCommit: 'test' },
+    deployment: { fdqn: 'localhost', logTarget: 'LOCAL' },
+  },
+}))
+
 vi.mock('@/lib/auth', () => ({
   loginClient: {
     userSessionExists: vi.fn().mockResolvedValue(true),
