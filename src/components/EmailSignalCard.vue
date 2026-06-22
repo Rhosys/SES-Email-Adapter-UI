@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import type { Signal } from '@/types/server'
 import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
 import { useAccountStore } from '@/stores/account'
+import { isAdminUser } from '@/stores/admin'
 import { api } from '@/lib/api'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 
 const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ undo: []; reply: [] }>()
 
+const router = useRouter()
+const route = useRoute()
 const accountStore = useAccountStore()
 const expanded = ref(true)
 const menuOpen = ref(false)
+const reprocessing = ref(false)
 const undoPending = ref(false)
 const undoError = ref<string | null>(null)
 const isUserSent = computed(() => props.signal.source === 'user')
@@ -131,6 +136,21 @@ async function undoSend() {
     emit('undo')
   } else {
     undoError.value = 'Email already delivered — cannot undo'
+  }
+}
+
+async function reprocessSignal() {
+  menuOpen.value = false
+  if (!accountStore.accountId || reprocessing.value) return
+  reprocessing.value = true
+  const result = await api.reprocessSignal(accountStore.accountId, props.signal.signalId)
+  reprocessing.value = false
+  if (result.isErr()) return
+
+  const newSignal = result.value
+  const currentArcId = route.params.id as string
+  if (newSignal.arcId && newSignal.arcId !== currentArcId) {
+    void router.replace(`/arcs/${newSignal.arcId}`)
   }
 }
 
@@ -295,6 +315,15 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
             @click="undoSend"
           >
             {{ undoPending ? 'Undoing…' : 'Undo send' }}
+          </button>
+          <button
+            v-if="isAdminUser()"
+            :disabled="reprocessing"
+            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text disabled:opacity-50"
+            role="menuitem"
+            @click="reprocessSignal"
+          >
+            {{ reprocessing ? 'Reprocessing…' : '[Admin] Reprocess' }}
           </button>
         </div>
 
