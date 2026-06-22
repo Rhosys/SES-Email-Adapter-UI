@@ -226,12 +226,15 @@ async function removeLabel(label: string) {
           Archive
         </AsyncButton>
         <AsyncButton
-          v-if="arc.status === 'archived'"
+          v-if="arc.status === 'archived' || arc.status === 'deleted'"
           :action="moveToInbox"
           variant="outline"
           class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-green hover:text-ctp-green"
         >
-          Move to Inbox
+          <svg class="h-3.5 w-3.5 rotate-180" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true">
+            <path d="M352 96l64 0c17.7 0 32 14.3 32 32l0 256c0 17.7-14.3 32-32 32l-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0c53 0 96-43 96-96l0-256c0-53-43-96-96-96l-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32zm-9.4 182.6c12.5-12.5 12.5-32.8 0-45.3l-128-128c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L242.7 224 32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l210.7 0-73.4 73.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l128-128z"/>
+          </svg>
+          Inbox
         </AsyncButton>
 
         <!-- Overflow menu -->
