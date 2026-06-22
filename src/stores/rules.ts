@@ -77,7 +77,7 @@ export const useRulesStore = defineStore('rules', () => {
     const id = accountStore.accountId
     if (!id) return err(new NoCurrentAccountError())
     const result = await api.deleteRule(id, ruleId)
-    if (result.isErr()) {
+    if (result.isErr() && result.error.status !== 404) {
       error.value = result.error.message
       return err(result.error)
     }

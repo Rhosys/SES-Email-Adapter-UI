@@ -57,7 +57,7 @@ export const useTemplatesStore = defineStore('templates', () => {
     if (!id) return err(new NoCurrentAccountError())
     error.value = null
     const result = await api.deleteTemplate(id, templateId)
-    if (result.isErr()) { error.value = result.error.message; return err(result.error) }
+    if (result.isErr() && result.error.status !== 404) { error.value = result.error.message; return err(result.error) }
     _byAccount.value = { ..._byAccount.value, [id]: (_byAccount.value[id] ?? []).filter((t) => t.templateId !== templateId) }
     return ok(undefined)
   }

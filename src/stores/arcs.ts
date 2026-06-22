@@ -230,7 +230,10 @@ export const useArcsStore = defineStore('arcs', () => {
     const id = accountStore.accountId
     if (!id) return
     const result = await api.getArc(id, arcId)
-    if (result.isErr()) return
+    if (result.isErr()) {
+      if (result.error.status === 404) removeArc(arcId)
+      return
+    }
     _upsertArc(result.value)
   }
 
@@ -250,7 +253,10 @@ export const useArcsStore = defineStore('arcs', () => {
     if (existing) return existing
     // Not cached — fetch and insert
     const result = await api.getArc(id, arcId)
-    if (result.isErr()) return undefined
+    if (result.isErr()) {
+      if (result.error.status === 404) removeArc(arcId)
+      return undefined
+    }
     _upsertArc(result.value)
     return result.value
   }

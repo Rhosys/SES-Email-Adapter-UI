@@ -71,7 +71,7 @@ export const useLabelsStore = defineStore('labels', () => {
     const id = accountStore.accountId
     if (!id) return false
     const result = await api.deleteLabel(id, labelKey)
-    if (result.isErr()) {
+    if (result.isErr() && result.error.status !== 404) {
       error.value = result.error.message
       return false
     }

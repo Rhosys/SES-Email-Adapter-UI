@@ -98,13 +98,24 @@ describe('labelsStore', () => {
 
   it('deleteLabel sets error and returns false on failure', async () => {
     vi.mocked(api.listLabels).mockResolvedValue(ok([mockLabel()]))
-    vi.mocked(api.deleteLabel).mockResolvedValue(err(new ApiError(404, 'Not found')))
+    vi.mocked(api.deleteLabel).mockResolvedValue(err(new ApiError(500, 'Server error')))
     const store = useLabelsStore()
     await store.fetchLabels()
     const result = await store.deleteLabel('lbl_1')
     expect(result).toBe(false)
-    expect(store.error).toBe('Not found')
+    expect(store.error).toBe('Server error')
     expect(store.items).toHaveLength(1)
+  })
+
+  it('deleteLabel on 404 removes item from cache', async () => {
+    vi.mocked(api.listLabels).mockResolvedValue(ok([mockLabel()]))
+    vi.mocked(api.deleteLabel).mockResolvedValue(err(new ApiError(404, 'Not found')))
+    const store = useLabelsStore()
+    await store.fetchLabels()
+    const result = await store.deleteLabel('lbl_1')
+    expect(result).toBe(true)
+    expect(store.error).toBeNull()
+    expect(store.items).toHaveLength(0)
   })
 
   it('clearError resets error', () => {

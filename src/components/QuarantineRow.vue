@@ -25,7 +25,6 @@ const timestamp = computed(() => {
 const matchedRules = computed(() => inboundData.value?.matchedRules ?? [])
 const reasonLabel = computed(() => {
   if (matchedRules.value.some((r) => r.ruleId === 'SR-00')) return 'Unknown sender'
-  if (matchedRules.value.some((r) => r.statusChange)) return 'Rule matched'
   return null
 })
 
@@ -49,8 +48,7 @@ const subject = computed(() => inboundData.value?.subject ?? '')
         <StatusBadge :status="signal.status" />
         <span
           v-if="reasonLabel"
-          class="ml-1 inline-block rounded-full px-2 py-0.5 text-xs"
-          :class="reasonLabel === 'Unknown sender' ? 'bg-ctp-peach/15 text-ctp-peach' : 'bg-ctp-mauve/15 text-ctp-mauve'"
+          class="ml-1 inline-block rounded-full bg-ctp-peach/15 px-2 py-0.5 text-xs text-ctp-peach"
         >
           {{ reasonLabel }}
         </span>

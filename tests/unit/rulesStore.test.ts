@@ -106,13 +106,24 @@ describe('rulesStore', () => {
 
   it('deleteRule sets error and returns err on failure', async () => {
     vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
-    vi.mocked(api.deleteRule).mockResolvedValue(err(new ApiError(404, 'Not found')))
+    vi.mocked(api.deleteRule).mockResolvedValue(err(new ApiError(500, 'Server error')))
     const store = useRulesStore()
     await store.fetchRules()
     const result = await store.deleteRule('rule_1')
     expect(result.isErr()).toBe(true)
-    expect(store.error).toBe('Not found')
+    expect(store.error).toBe('Server error')
     expect(store.items).toHaveLength(1)
+  })
+
+  it('deleteRule on 404 removes item from cache', async () => {
+    vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
+    vi.mocked(api.deleteRule).mockResolvedValue(err(new ApiError(404, 'Not found')))
+    const store = useRulesStore()
+    await store.fetchRules()
+    const result = await store.deleteRule('rule_1')
+    expect(result.isOk()).toBe(true)
+    expect(store.error).toBeNull()
+    expect(store.items).toHaveLength(0)
   })
 
   it('clearError resets error', () => {

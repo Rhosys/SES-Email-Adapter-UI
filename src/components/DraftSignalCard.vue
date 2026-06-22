@@ -172,8 +172,11 @@ function cancelSend() {
 
 async function discard() {
   if (!accountStore.accountId) return
-  await api.deleteDraftSignal(accountStore.accountId, props.signal.signalId)
-  if (props.signal.arcId) signalsStore.removeSignal(props.signal.arcId, props.signal.signalId)
+  const result = await api.deleteDraftSignal(accountStore.accountId, props.signal.signalId)
+  // Remove from local cache on success or 404 (already gone on server)
+  if (result.isOk() || result.error.status === 404) {
+    if (props.signal.arcId) signalsStore.removeSignal(props.signal.arcId, props.signal.signalId)
+  }
   emit('discard')
 }
 </script>
