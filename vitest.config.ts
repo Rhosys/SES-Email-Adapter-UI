@@ -4,6 +4,18 @@ import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   plugins: [vue()],
+  define: {
+    VERSION_INFO: JSON.stringify({
+      releaseDate: new Date().toISOString(),
+      buildNumber: 'test',
+      buildRef: 'test',
+      buildCommit: 'test',
+    }),
+    DEPLOYMENT_INFO: JSON.stringify({
+      FDQN: 'localhost',
+      LOG_TARGET: 'LOCAL',
+    }),
+  },
   test: {
     environment: 'jsdom',
     globals: true,
