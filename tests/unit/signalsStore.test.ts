@@ -12,6 +12,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
     api: {
       listSignals: vi.fn(),
       patchArc: vi.fn(),
+      createDraftSignal: vi.fn(),
     },
   }
 })
@@ -96,6 +97,22 @@ describe('signalsStore', () => {
     await store.fetchAll('arc_1')
 
     expect(store.hasMore).toBe(true)
+  })
+
+  it('createDraft prepends the new draft (newest first)', async () => {
+    const existing = mockSignal({ signalId: 'sig_1' })
+    vi.mocked(api.listSignals).mockResolvedValue(ok(mockSignalList([existing])))
+
+    const store = useSignalsStore()
+    await store.fetchAll('arc_1')
+
+    const draft = mockSignal({ signalId: 'sig_draft', status: 'draft' })
+    vi.mocked(api.createDraftSignal).mockResolvedValue(ok(draft))
+
+    await store.createDraft('arc_1')
+
+    expect(store.items.map((s) => s.signalId)).toEqual(['sig_draft', 'sig_1'])
+    expect(store.latestSignal?.signalId).toBe('sig_draft')
   })
 
   it('reset clears all state', async () => {

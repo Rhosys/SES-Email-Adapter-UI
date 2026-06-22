@@ -5,7 +5,9 @@ import { ok } from 'neverthrow'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import ArcDetailView from '@/views/ArcDetailView.vue'
 import { useAccountStore } from '@/stores/account'
-import type { Arc } from '@/types/server'
+import type { Arc, Signal } from '@/types/server'
+
+Element.prototype.scrollIntoView = vi.fn()
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
@@ -16,6 +18,8 @@ vi.mock('@/lib/api', async (importOriginal) => {
       listSignals: vi.fn(),
       patchArc: vi.fn(),
       listAccounts: vi.fn(),
+      createDraftSignal: vi.fn(),
+      listDomains: vi.fn(),
     },
   }
 })
@@ -48,9 +52,57 @@ function makeRouter() {
 
 let pinia: ReturnType<typeof createPinia>
 
-async function mountView(arc: Arc) {
+function mockEmailSignal(overrides: Partial<Signal> = {}): Signal {
+  return {
+    signalId: 'sig_1',
+    arcId: 'arc_1',
+    type: 'email',
+    source: 'system',
+    status: 'active',
+    createdAt: '2025-01-01T12:00:00Z',
+    data: {
+      receivedAt: '2025-01-01T12:00:00Z',
+      summary: 'Test',
+      from: { address: 'sender@example.com', name: 'Sender' },
+      to: [{ address: 'inbox@example.com' }],
+      cc: [],
+      subject: 'Test subject',
+      body: 'Hello',
+      attachments: [],
+      headers: {},
+      recipientAddress: 'inbox@example.com',
+      workflow: 'conversation',
+      spamScore: 0,
+    },
+    ...overrides,
+  } as Signal
+}
+
+function mockDraftSignal(overrides: Partial<Signal> = {}): Signal {
+  return {
+    signalId: 'sig_draft',
+    arcId: 'arc_1',
+    type: 'email',
+    source: 'user',
+    status: 'draft',
+    createdAt: '2025-01-01T12:05:00Z',
+    data: {
+      from: { address: 'me@example.com' },
+      to: [{ address: 'sender@example.com' }],
+      cc: [],
+      bcc: [],
+      subject: 'Re: Test subject',
+      body: '',
+      attachments: [],
+      sendInitiatedAt: '',
+    },
+    ...overrides,
+  } as Signal
+}
+
+async function mountView(arc: Arc, signals: Signal[] = []) {
   vi.mocked(api.getArc).mockResolvedValue(ok(arc))
-  vi.mocked(api.listSignals).mockResolvedValue(ok({ signals: [], pagination: { cursor: null } }))
+  vi.mocked(api.listSignals).mockResolvedValue(ok({ signals, pagination: { cursor: null } }))
 
   const router = makeRouter()
   await router.push(`/arcs/${arc.arcId}`)
@@ -58,6 +110,7 @@ async function mountView(arc: Arc) {
 
   const wrapper = mount(ArcDetailView, {
     global: { plugins: [pinia, router] },
+    attachTo: document.body,
   })
   await flushPromises()
   return wrapper
@@ -105,5 +158,53 @@ describe('ArcDetailView — deleted timestamp display', () => {
     const wrapper = await mountView(arc)
 
     expect(wrapper.text()).not.toContain('Deleted on')
+  })
+})
+
+describe('ArcDetailView — reply reuses existing draft', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    vi.clearAllMocks()
+
+    const accountStore = useAccountStore()
+    accountStore.account = {
+      accountId: 'acc_1',
+      name: 'Test',
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-01T00:00:00Z',
+    }
+    vi.mocked(api.listAccounts).mockResolvedValue(ok([accountStore.account]))
+    vi.mocked(api.listDomains).mockResolvedValue(ok([]))
+  })
+
+  it('creates a draft on first reply, then reuses it instead of creating a second one', async () => {
+    const arc = makeArc()
+    const wrapper = await mountView(arc, [mockEmailSignal()])
+    vi.mocked(api.createDraftSignal).mockResolvedValue(ok(mockDraftSignal()))
+
+    const replyButton = wrapper.findAll('button').find((b) => b.text().includes('Reply'))!
+    await replyButton.trigger('click')
+    await flushPromises()
+
+    expect(api.createDraftSignal).toHaveBeenCalledTimes(1)
+
+    await replyButton.trigger('click')
+    await flushPromises()
+
+    expect(api.createDraftSignal).toHaveBeenCalledTimes(1)
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
+  })
+
+  it('scrolls to an already-existing draft instead of creating a new one', async () => {
+    const arc = makeArc()
+    const wrapper = await mountView(arc, [mockEmailSignal(), mockDraftSignal()])
+
+    const replyButton = wrapper.findAll('button').find((b) => b.text().includes('Reply'))!
+    await replyButton.trigger('click')
+    await flushPromises()
+
+    expect(api.createDraftSignal).not.toHaveBeenCalled()
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
   })
 })

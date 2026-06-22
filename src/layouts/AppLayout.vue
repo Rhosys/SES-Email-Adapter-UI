@@ -287,7 +287,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex h-screen overflow-hidden bg-ctp-base text-ctp-text">
+  <div class="flex h-dvh overflow-hidden bg-ctp-base text-ctp-text">
     <!-- Skip to main content -->
     <a
       href="#main-content"

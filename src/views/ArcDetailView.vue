@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, computed, ref } from 'vue'
+import { onMounted, onUnmounted, computed, ref, nextTick } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useSignalsStore } from '@/stores/signals'
 import { useArcsStore } from '@/stores/arcs'
@@ -159,8 +159,21 @@ async function moveToInbox() {
   await signalsStore.fetchAll(arcId.value)
 }
 
+async function scrollToDraft(signalId: string) {
+  await nextTick()
+  document.getElementById(`draft-${signalId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
 async function startDraft() {
-  await signalsStore.createDraft(arcId.value)
+  const existingDraft = signalsStore.items.find((s) => s.status === 'draft')
+  if (existingDraft) {
+    await scrollToDraft(existingDraft.signalId)
+    return
+  }
+  const result = await signalsStore.createDraft(arcId.value)
+  if (result.isOk()) {
+    await scrollToDraft(result.value.signalId)
+  }
 }
 
 async function removeLabel(label: string) {
@@ -359,6 +372,7 @@ async function removeLabel(label: string) {
         <template v-for="group in dedupedSignals" :key="group.signal.signalId">
           <DraftSignalCard
             v-if="group.signal.status === 'draft'"
+            :id="`draft-${group.signal.signalId}`"
             :signal="group.signal"
             @discard="onDraftDiscard"
             @sent="onDraftSent"

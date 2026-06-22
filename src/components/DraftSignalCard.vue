@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { marked } from 'marked'
 import { useAccountStore } from '@/stores/account'
+import { useSignalsStore } from '@/stores/signals'
 import { api } from '@/lib/api'
 import { useToast } from '@/composables/useToast'
 import type { Signal, Domain } from '@/types/server'
@@ -13,6 +14,7 @@ const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ discard: []; sent: [] }>()
 
 const accountStore = useAccountStore()
+const signalsStore = useSignalsStore()
 const router = useRouter()
 const { deferAction, undo: undoToast } = useToast()
 
@@ -86,7 +88,11 @@ async function persistDraft() {
     textBody: body.value,
   })
   saving.value = false
-  if (result.isErr()) error.value = result.error.message
+  if (result.isErr()) {
+    error.value = result.error.message
+    return
+  }
+  if (props.signal.arcId) signalsStore.updateSignal(props.signal.arcId, result.value)
 }
 
 async function sendAndArchive() {
@@ -107,6 +113,7 @@ async function sendAndArchive() {
     async () => {
       const result = await api.sendSignal(accountId, signalId)
       if (result.isOk()) {
+        signalsStore.updateSignal(sigArcId, result.value)
         await api.patchArc(accountId, sigArcId, { status: 'archived' })
       }
       sendState.value = 'idle'
@@ -141,6 +148,7 @@ async function sendAndWait() {
     async () => {
       const result = await api.sendSignal(accountId, signalId)
       if (result.isOk()) {
+        signalsStore.updateSignal(sigArcId, result.value)
         await api.patchArc(accountId, sigArcId, { followupAt })
       }
       sendState.value = 'idle'
@@ -163,6 +171,7 @@ function cancelSend() {
 async function discard() {
   if (!accountStore.accountId) return
   await api.deleteDraftSignal(accountStore.accountId, props.signal.signalId)
+  if (props.signal.arcId) signalsStore.removeSignal(props.signal.arcId, props.signal.signalId)
   emit('discard')
 }
 </script>
@@ -319,20 +328,28 @@ async function discard() {
             :action="sendAndArchive"
             :disabled="!canSend"
             :variant="afterSendAction === 'archive' ? 'primary' : 'outline'"
+            class="flex items-center gap-1.5"
           >
+            <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M1.5 2h13l-1 2H2.5L1.5 2zm.5 3h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V5zm4 2v5h5V7H6z"/>
+            </svg>
             Send + Archive
           </AsyncButton>
           <AsyncButton
             :action="sendAndWait"
             :disabled="!canSend"
             :variant="afterSendAction !== 'archive' ? 'primary' : 'outline'"
+            class="flex items-center gap-1.5"
           >
+            <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm.5 3v4.2l3 1.8-.5.9-3.5-2.1V4h1z"/>
+            </svg>
             Send + Wait
           </AsyncButton>
           <AsyncButton
             :action="discard"
             variant="ghost"
-            class="text-sm text-ctp-subtext0 hover:text-ctp-red"
+            class="ml-auto text-sm text-ctp-subtext0 hover:text-ctp-red"
           >
             Discard draft
           </AsyncButton>
