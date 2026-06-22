@@ -3,8 +3,10 @@ import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import type { Signal } from '@/types/server'
 import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
+import { ACTION_LABELS, ACTION_COLORS } from '@/lib/rule-display'
 import { useAccountStore } from '@/stores/account'
 import { isAdminUser } from '@/stores/admin'
+import { useRulesStore } from '@/stores/rules'
 import { api } from '@/lib/api'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 
@@ -14,12 +16,27 @@ const emit = defineEmits<{ undo: []; reply: [] }>()
 const router = useRouter()
 const route = useRoute()
 const accountStore = useAccountStore()
+const rulesStore = useRulesStore()
 const expanded = ref(true)
 const menuOpen = ref(false)
 const reprocessing = ref(false)
 const undoPending = ref(false)
 const undoError = ref<string | null>(null)
 const isUserSent = computed(() => props.signal.source === 'user')
+
+const signalMatchedRules = computed(() => {
+  if (!isInboundEmailSignal(props.signal)) return []
+  return props.signal.data.matchedRules ?? []
+})
+
+function ruleFor(ruleId: string) {
+  return rulesStore.items.find((r) => r.ruleId === ruleId)
+}
+
+function showMatchedRules() {
+  menuOpen.value = false
+  showMatchedRulesModal.value = true
+}
 
 const fromName = computed(() => {
   if (!isEmailSignal(props.signal)) return ''
@@ -75,6 +92,7 @@ const attachmentCount = computed(() => {
 const rawSignalJson = ref('')
 const showRawModal = ref(false)
 const showOriginalModal = ref(false)
+const showMatchedRulesModal = ref(false)
 const rawCopied = ref(false)
 const originalCopied = ref(false)
 const originalEmailSource = ref('')
@@ -325,6 +343,14 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
             View original email
           </button>
           <button
+            v-if="signalMatchedRules.length"
+            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
+            role="menuitem"
+            @click="showMatchedRules"
+          >
+            Show matched rules
+          </button>
+          <button
             v-if="isUserSent"
             :disabled="undoPending"
             class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0 disabled:opacity-50"
@@ -451,6 +477,45 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
           <span class="text-sm text-ctp-red">{{ originalError }}</span>
         </div>
         <pre v-else class="max-h-[80vh] overflow-auto p-4 font-mono text-xs text-ctp-text break-all whitespace-pre-wrap">{{ originalEmailSource }}</pre>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Matched rules modal -->
+  <Teleport to="body">
+    <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -->
+    <div v-if="showMatchedRulesModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80" @click.self="showMatchedRulesModal = false">
+      <div class="relative max-h-[80vh] w-full max-w-lg overflow-auto rounded-xl border border-ctp-surface1 bg-ctp-mantle p-4 shadow-2xl">
+        <div class="mb-3 flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-ctp-text">Matched rules</h3>
+          <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="showMatchedRulesModal = false">Close</button>
+        </div>
+        <div class="divide-y divide-ctp-surface0">
+          <div v-for="matched in signalMatchedRules" :key="matched.ruleId" class="py-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-sm font-medium text-ctp-text">
+                {{ matched.text ?? ruleFor(matched.ruleId)?.name ?? matched.ruleId }}
+              </span>
+              <span
+                v-for="action in matched.actions"
+                :key="action.type"
+                class="rounded-full px-2 py-0.5 text-xs font-medium"
+                :class="ACTION_COLORS[action.type] ?? 'text-ctp-subtext0 bg-ctp-surface1'"
+              >
+                {{ ACTION_LABELS[action.type] ?? action.type }}
+              </span>
+            </div>
+            <div v-if="matched.labelsAdded.length" class="mt-1.5 flex flex-wrap gap-1">
+              <span
+                v-for="label in matched.labelsAdded"
+                :key="label"
+                class="rounded bg-ctp-surface1 px-1.5 py-0.5 text-xs text-ctp-subtext1"
+              >
+                {{ label }}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </Teleport>
