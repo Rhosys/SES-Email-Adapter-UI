@@ -1,23 +1,15 @@
 <script setup lang="ts">
 import type { Arc } from '@/types/server'
-import { useAccountStore } from '@/stores/account'
 import { useArcsStore } from '@/stores/arcs'
-import { api } from '@/lib/api'
 import ArcRowContent from './ArcRowContent.vue'
 
 const props = defineProps<{ arc: Arc; selected: boolean; focused?: boolean }>()
 const emit = defineEmits<{ 'toggle-select': [id: string] }>()
 
-const accountStore = useAccountStore()
 const arcsStore = useArcsStore()
 
 async function archiveArc() {
-  const id = accountStore.accountId
-  if (!id) return
-  const result = await api.patchArc(id, props.arc.arcId, { status: 'archived' })
-  if (result.isOk()) {
-    arcsStore.removeArc(props.arc.arcId)
-  }
+  await arcsStore.archiveArc(props.arc.arcId)
 }
 </script>
 

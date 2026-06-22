@@ -35,9 +35,19 @@ export const useArcsStore = defineStore('arcs', () => {
     return _cursors.value[id] !== undefined
   })
 
-  const items = computed<Arc[]>(() =>
-    accountStore.accountId ? (_byAccount.value[accountStore.accountId] ?? []) : [],
-  )
+  // The cached list holds whatever was last fetched/inserted for the account,
+  // which can contain arcs of mixed statuses (e.g. an archived arc opened from
+  // a detail link while the inbox shows the active tab). Filtering by the active
+  // tab here keeps list membership reactive to status changes: when a mutation
+  // flips an arc's status in the cache, it automatically enters/leaves the list
+  // shown for the current tab without any manual splicing.
+  const items = computed<Arc[]>(() => {
+    const id = accountStore.accountId
+    if (!id) return []
+    const all = _byAccount.value[id] ?? []
+    if (activeTab.value === 'all') return all
+    return all.filter((a) => a.status === activeTab.value)
+  })
 
   const nextCursor = computed<string | undefined>(() =>
     accountStore.accountId
@@ -56,6 +66,40 @@ export const useArcsStore = defineStore('arcs', () => {
   }
 
   const sortedItems = computed<Arc[]>(() => [...items.value].sort(byLastSignalDesc))
+
+  // ─── Cache mutation helpers ───────────────────────────────────────────────
+  // All writes funnel through these so the store stays the single source of
+  // truth and every reactive consumer (lists, counts, badges) updates together.
+
+  function _writeArcs(id: string, arcs: Arc[]) {
+    _byAccount.value = { ..._byAccount.value, [id]: arcs }
+  }
+
+  /**
+   * Merge a full arc object into the cache — used for responses that return the
+   * complete resource (GET/POST/PUT and PATCH responses that echo the arc).
+   * Replaces the existing entry or prepends a new one.
+   */
+  function _upsertArc(arc: Arc) {
+    const id = accountStore.accountId
+    if (!id) return
+    const existing = _byAccount.value[id] ?? []
+    const idx = existing.findIndex((a) => a.arcId === arc.arcId)
+    _writeArcs(id, idx >= 0 ? existing.map((a) => (a.arcId === arc.arcId ? arc : a)) : [arc, ...existing])
+  }
+
+  /**
+   * Merge partial fields into a cached arc — used for optimistic updates and for
+   * responses that don't carry a full arc object (e.g. the unsubscribe endpoint).
+   * No-op when the arc isn't cached.
+   */
+  function _patchArcLocal(arcId: string, partial: Partial<Arc>) {
+    const id = accountStore.accountId
+    if (!id) return
+    const existing = _byAccount.value[id] ?? []
+    if (!existing.some((a) => a.arcId === arcId)) return
+    _writeArcs(id, existing.map((a) => (a.arcId === arcId ? { ...a, ...partial } : a)))
+  }
 
   async function fetchArcs(reset = false) {
     const id = accountStore.accountId
@@ -133,29 +177,32 @@ export const useArcsStore = defineStore('arcs', () => {
     selectedIds.value.clear()
   }
 
-  async function bulkArchive() {
+  async function _bulkStatus(status: ArcStatus, verb: string) {
     const id = accountStore.accountId
     if (!id) return
     const ids = [...selectedIds.value]
-    // Optimistic: remove from list immediately when on active tab
-    if (activeTab.value === 'active') {
-      _byAccount.value = {
-        ..._byAccount.value,
-        [id]: (_byAccount.value[id] ?? []).filter((a) => !selectedIds.value.has(a.arcId)),
-      }
-    }
+    // Optimistic: flip status in the cache so the reactive tab filter drops them immediately.
+    ids.forEach((arcId) => _patchArcLocal(arcId, { status }))
     clearSelection()
     bulkActionPending.value = true
-    const results = await Promise.all(
-      ids.map((arcId) => api.patchArc(id, arcId, { status: 'archived' as ArcStatus })),
-    )
+    const results = await Promise.all(ids.map((arcId) => api.patchArc(id, arcId, { status })))
     bulkActionPending.value = false
+    // Reconcile with the full arc each response returns.
+    results.forEach((r) => r.map((arc) => _upsertArc(arc)))
     const failed = results.filter((r) => r.isErr())
     if (failed.length > 0) {
-      error.value = `Failed to archive ${failed.length} thread(s)`
+      error.value = `Failed to ${verb} ${failed.length} thread(s)`
       // Re-fetch to restore consistent state
       await fetchArcs(true)
     }
+  }
+
+  async function bulkArchive() {
+    await _bulkStatus('archived', 'archive')
+  }
+
+  async function bulkDelete() {
+    await _bulkStatus('deleted', 'delete')
   }
 
   async function bulkLabel(label: string) {
@@ -171,32 +218,11 @@ export const useArcsStore = defineStore('arcs', () => {
       }),
     )
     bulkActionPending.value = false
+    // Apply each response (carries server-normalized labels) back to the cache.
+    results.forEach((r) => r.map((arc) => _upsertArc(arc)))
     const failed = results.filter((r) => r.isErr())
     if (failed.length > 0) {
       error.value = `Failed to label ${failed.length} thread(s)`
-    }
-    // Re-fetch to pick up server-side label normalization
-    await fetchArcs(true)
-  }
-
-  async function bulkDelete() {
-    const id = accountStore.accountId
-    if (!id) return
-    const ids = [...selectedIds.value]
-    _byAccount.value = {
-      ..._byAccount.value,
-      [id]: (_byAccount.value[id] ?? []).filter((a) => !selectedIds.value.has(a.arcId)),
-    }
-    clearSelection()
-    bulkActionPending.value = true
-    const results = await Promise.all(
-      ids.map((arcId) => api.patchArc(id, arcId, { status: 'deleted' as ArcStatus })),
-    )
-    bulkActionPending.value = false
-    const failed = results.filter((r) => r.isErr())
-    if (failed.length > 0) {
-      error.value = `Failed to delete ${failed.length} thread(s)`
-      await fetchArcs(true)
     }
   }
 
@@ -205,15 +231,7 @@ export const useArcsStore = defineStore('arcs', () => {
     if (!id) return
     const result = await api.getArc(id, arcId)
     if (result.isErr()) return
-    const updated = result.value
-    const existing = _byAccount.value[id] ?? []
-    const idx = existing.findIndex((a) => a.arcId === arcId)
-    _byAccount.value = {
-      ..._byAccount.value,
-      [id]: idx >= 0
-        ? existing.map((a) => (a.arcId === arcId ? updated : a))
-        : [updated, ...existing], // new thread — prepend
-    }
+    _upsertArc(result.value)
   }
 
   function getArc(arcId: string): Arc | undefined {
@@ -233,10 +251,8 @@ export const useArcsStore = defineStore('arcs', () => {
     // Not cached — fetch and insert
     const result = await api.getArc(id, arcId)
     if (result.isErr()) return undefined
-    const arc = result.value
-    const list = _byAccount.value[id] ?? []
-    _byAccount.value = { ..._byAccount.value, [id]: [arc, ...list] }
-    return arc
+    _upsertArc(result.value)
+    return result.value
   }
 
   function removeArc(id: string) {
@@ -248,25 +264,33 @@ export const useArcsStore = defineStore('arcs', () => {
     }
   }
 
-  async function archiveArc(arcId: string): Promise<Result<Arc, ApiError | NoCurrentAccountError>> {
+  /**
+   * Change an arc's status. The PATCH response echoes the full arc, so the
+   * cache is updated from the response; the reactive tab filter then moves the
+   * arc between lists automatically.
+   */
+  async function setStatus(
+    arcId: string,
+    status: ArcStatus,
+  ): Promise<Result<Arc, ApiError | NoCurrentAccountError>> {
     const id = accountStore.accountId
     if (!id) return err(new NoCurrentAccountError())
-    const result = await api.patchArc(id, arcId, { status: 'archived' })
+    const result = await api.patchArc(id, arcId, { status })
     if (result.isErr()) return err(result.error)
-    // Update in the list if present
-    const existing = _byAccount.value[id] ?? []
-    if (activeTab.value === 'active') {
-      _byAccount.value = {
-        ..._byAccount.value,
-        [id]: existing.filter((a) => a.arcId !== arcId),
-      }
-    } else {
-      _byAccount.value = {
-        ..._byAccount.value,
-        [id]: existing.map((a) => (a.arcId === arcId ? result.value : a)),
-      }
-    }
+    _upsertArc(result.value)
     return ok(result.value)
+  }
+
+  function archiveArc(arcId: string) {
+    return setStatus(arcId, 'archived')
+  }
+
+  function moveToInbox(arcId: string) {
+    return setStatus(arcId, 'active')
+  }
+
+  function deleteArc(arcId: string) {
+    return setStatus(arcId, 'deleted')
   }
 
   async function labelArc(arcId: string, labels: string[]): Promise<Result<Arc, ApiError | NoCurrentAccountError>> {
@@ -274,12 +298,7 @@ export const useArcsStore = defineStore('arcs', () => {
     if (!id) return err(new NoCurrentAccountError())
     const result = await api.patchArc(id, arcId, { labels })
     if (result.isErr()) return err(result.error)
-    // Update in the list if present
-    const existing = _byAccount.value[id] ?? []
-    _byAccount.value = {
-      ..._byAccount.value,
-      [id]: existing.map((a) => (a.arcId === arcId ? result.value : a)),
-    }
+    _upsertArc(result.value)
     return ok(result.value)
   }
 
@@ -288,14 +307,9 @@ export const useArcsStore = defineStore('arcs', () => {
     if (!id) return err(new NoCurrentAccountError())
     const result = await api.unsubscribeArc(id, arcId)
     if (result.isErr()) return err(result.error)
-    // Arc is now archived — remove from active list
-    if (activeTab.value === 'active') {
-      const existing = _byAccount.value[id] ?? []
-      _byAccount.value = {
-        ..._byAccount.value,
-        [id]: existing.filter((a) => a.arcId !== arcId),
-      }
-    }
+    // The unsubscribe response carries no arc object; it archives the arc
+    // server-side, so patch the cached status directly on success.
+    _patchArcLocal(arcId, { status: 'archived' })
     return ok(result.value)
   }
 
@@ -323,7 +337,10 @@ export const useArcsStore = defineStore('arcs', () => {
     bulkArchive,
     bulkDelete,
     bulkLabel,
+    setStatus,
     archiveArc,
+    moveToInbox,
+    deleteArc,
     labelArc,
     unsubscribeArc,
     removeArc,

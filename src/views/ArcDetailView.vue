@@ -6,7 +6,6 @@ import { useArcsStore } from '@/stores/arcs'
 import { useAccountStore } from '@/stores/account'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
-import { api } from '@/lib/api'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { retentionExpiresAt } from '@/lib/retention'
 import { groupByBodyFingerprint, attachLinkedSignals } from '@/lib/dedup'
@@ -90,9 +89,7 @@ async function archive() {
   showUndo(
     'Thread archived',
     async () => {
-      const accountId = accountStore.accountId
-      if (!accountId) return
-      await api.patchArc(accountId, id, { status: 'active' })
+      await arcsStore.moveToInbox(id)
     },
     8_000,
     { submessage: summary ? summary.slice(0, 70) : undefined },
@@ -120,13 +117,11 @@ async function deleteArc() {
     confirmVariant: 'danger',
   })
   if (!confirmed) return
-  const accountId = accountStore.accountId
-  if (!accountId) return
   const id = arcId.value
   deferAction(
     'Thread deleted',
     async () => {
-      await api.patchArc(accountId, id, { status: 'deleted' })
+      await arcsStore.deleteArc(id)
     },
     8_000,
     { undoLabel: 'Undo' },
@@ -157,14 +152,10 @@ const primaryBadgeClass = computed(() => {
 })
 
 async function moveToInbox() {
-  const id = accountStore.accountId
-  if (!id) return
-  await api.patchArc(id, arcId.value, { status: 'active' })
-  // Refresh arc data
-  const arcResult = await api.getArc(id, arcId.value)
-  if (arcResult.isOk()) {
-    arcData.value = arcResult.value
-  }
+  const result = await arcsStore.moveToInbox(arcId.value)
+  if (result.isErr()) return
+  // Keep the local fallback in sync with the store's optimistic update.
+  arcData.value = result.value
   await signalsStore.fetchAll(arcId.value)
 }
 
@@ -180,10 +171,9 @@ async function removeLabel(label: string) {
     confirmVariant: 'danger',
   })
   if (!confirmed) return
-  const id = accountStore.accountId
-  if (!id || !arc.value) return
+  if (!arc.value) return
   const currentLabels = arc.value.labels.filter((l) => l !== label)
-  const result = await api.patchArc(id, arcId.value, { labels: currentLabels })
+  const result = await arcsStore.labelArc(arcId.value, currentLabels)
   if (result.isOk()) {
     arcData.value = result.value
     await signalsStore.fetchAll(arcId.value)

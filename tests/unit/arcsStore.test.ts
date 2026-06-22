@@ -12,6 +12,8 @@ vi.mock('@/lib/api', async (importOriginal) => {
     api: {
       listArcs: vi.fn(),
       patchArc: vi.fn(),
+      getArc: vi.fn(),
+      unsubscribeArc: vi.fn(),
     },
   }
 })
@@ -118,5 +120,51 @@ describe('arcsStore', () => {
     const store = useArcsStore()
     await store.fetchArcs(true)
     expect(store.hasMore).toBe(true)
+  })
+
+  it('archiveArc updates the cached arc status from the response', async () => {
+    vi.mocked(api.listArcs).mockResolvedValue(ok({ arcs: [mockArc()], pagination: { cursor: null } }))
+    vi.mocked(api.patchArc).mockResolvedValue(ok(mockArc({ status: 'archived' })))
+    const store = useArcsStore()
+    await store.fetchArcs(true)
+    store.setTab('all')
+    await store.fetchArcs(true)
+    await store.archiveArc('arc_1')
+    // On the 'all' tab the arc stays visible but its status badge is now reactive.
+    expect(store.items.find((a) => a.arcId === 'arc_1')?.status).toBe('archived')
+  })
+
+  it('archiveArc drops the arc from the active list reactively', async () => {
+    vi.mocked(api.listArcs).mockResolvedValue(ok({ arcs: [mockArc()], pagination: { cursor: null } }))
+    vi.mocked(api.patchArc).mockResolvedValue(ok(mockArc({ status: 'archived' })))
+    const store = useArcsStore()
+    await store.fetchArcs(true)
+    expect(store.activeCount).toBe(1)
+    await store.archiveArc('arc_1')
+    expect(store.items).toHaveLength(0)
+    expect(store.activeCount).toBe(0)
+  })
+
+  it('moveToInbox flips status back to active', async () => {
+    vi.mocked(api.listArcs).mockResolvedValue(ok({ arcs: [mockArc({ status: 'archived' })], pagination: { cursor: null } }))
+    vi.mocked(api.patchArc).mockResolvedValue(ok(mockArc({ status: 'active' })))
+    const store = useArcsStore()
+    store.setTab('archived')
+    await store.fetchArcs(true)
+    expect(store.items).toHaveLength(1)
+    await store.moveToInbox('arc_1')
+    // No longer matches the archived tab → reactively removed; now counts as active.
+    expect(store.items).toHaveLength(0)
+    expect(store.activeCount).toBe(1)
+  })
+
+  it('unsubscribeArc patches the cached status without a full arc in the response', async () => {
+    vi.mocked(api.listArcs).mockResolvedValue(ok({ arcs: [mockArc()], pagination: { cursor: null } }))
+    vi.mocked(api.unsubscribeArc).mockResolvedValue(ok({ status: 'archived', url: 'https://example.com' }))
+    const store = useArcsStore()
+    store.setTab('all')
+    await store.fetchArcs(true)
+    await store.unsubscribeArc('arc_1')
+    expect(store.items.find((a) => a.arcId === 'arc_1')?.status).toBe('archived')
   })
 })
