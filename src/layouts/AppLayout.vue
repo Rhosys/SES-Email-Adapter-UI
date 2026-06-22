@@ -276,7 +276,11 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex h-dvh overflow-hidden bg-ctp-base text-ctp-text">
+  <div
+    class="flex h-dvh overflow-hidden bg-ctp-base text-ctp-text"
+    @touchstart.passive="onMainTouchStart"
+    @touchend="onMainTouchEnd"
+  >
     <!-- Skip to main content -->
     <a
       href="#main-content"
@@ -293,11 +297,7 @@ onMounted(async () => {
 
     <AppSidebar :open="sidebarOpen" />
 
-    <div
-      class="flex min-w-0 flex-1 flex-col overflow-hidden"
-      @touchstart.passive="onMainTouchStart"
-      @touchend="onMainTouchEnd"
-    >
+    <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
       <AppNavbar show-hamburger @toggle-sidebar="sidebarOpen = !sidebarOpen">
         <template #search>
           <form class="flex w-full max-w-xl items-center gap-2" @submit.prevent="submitSearch">
