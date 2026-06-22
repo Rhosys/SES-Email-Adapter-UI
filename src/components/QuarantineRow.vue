@@ -22,6 +22,13 @@ const timestamp = computed(() => {
   return formatRelativeTime(receivedAt, now.value)
 })
 
+const matchedRules = computed(() => inboundData.value?.matchedRules ?? [])
+const reasonLabel = computed(() => {
+  if (matchedRules.value.some((r) => r.ruleId === 'SR-00')) return 'Unknown sender'
+  if (matchedRules.value.some((r) => r.statusChange)) return 'Rule matched'
+  return null
+})
+
 const isHidden = computed(() => props.signal.status === 'quarantine_hidden')
 const toAddress = computed(() => inboundData.value?.to[0]?.address ?? '')
 const fromAddress = computed(() => inboundData.value?.from.address ?? '')
@@ -40,6 +47,13 @@ const subject = computed(() => inboundData.value?.subject ?? '')
       <!-- Quarantine status badge -->
       <div class="mt-0.5 shrink-0">
         <StatusBadge :status="signal.status" />
+        <span
+          v-if="reasonLabel"
+          class="ml-1 inline-block rounded-full px-2 py-0.5 text-xs"
+          :class="reasonLabel === 'Unknown sender' ? 'bg-ctp-peach/15 text-ctp-peach' : 'bg-ctp-mauve/15 text-ctp-mauve'"
+        >
+          {{ reasonLabel }}
+        </span>
       </div>
 
       <!-- Content -->
