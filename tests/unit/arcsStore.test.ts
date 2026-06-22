@@ -18,7 +18,12 @@ vi.mock('@/lib/api', async (importOriginal) => {
   }
 })
 
+vi.mock('@/lib/logger', () => ({
+  default: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn(), log: vi.fn(), critical: vi.fn(), track: vi.fn() },
+}))
+
 import { api, ApiError } from '@/lib/api'
+import logger from '@/lib/logger'
 
 function mockArc(overrides: Partial<Arc> = {}): Arc {
   return {
@@ -166,5 +171,59 @@ describe('arcsStore', () => {
     await store.fetchArcs(true)
     await store.unsubscribeArc('arc_1')
     expect(store.items.find((a) => a.arcId === 'arc_1')?.status).toBe('archived')
+  })
+})
+
+describe('stale-while-revalidate', { timeout: 5000 }, () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    const accountStore = useAccountStore()
+    accountStore.account = { accountId: 'acc_1', name: 'Test' } as Account
+  })
+
+  it('fetchArcs with cached data does not show loading state', async () => {
+    const store = useArcsStore()
+    // Populate cache via a successful fetch first (_byAccount is private)
+    vi.mocked(api.listArcs).mockResolvedValueOnce(ok({ arcs: [mockArc()], pagination: { cursor: null } }))
+    await store.fetchArcs(true)
+
+    vi.mocked(api.listArcs).mockResolvedValueOnce(ok({ arcs: [mockArc()], pagination: { cursor: null } }))
+    await store.fetchArcs(true)
+
+    // loading should never have been true on second call — SWR skips loading when cache exists
+    expect(store.loading).toBe(false)
+  })
+
+  it('fetchArcs replaces cached data with fresh API response', async () => {
+    const store = useArcsStore()
+    // Populate cache via a successful fetch first
+    vi.mocked(api.listArcs).mockResolvedValueOnce(ok({ arcs: [mockArc({ arcId: 'arc_old' })], pagination: { cursor: null } }))
+    await store.fetchArcs(true)
+
+    const freshArc = mockArc({ arcId: 'arc_fresh', summary: 'Fresh from API' })
+    vi.mocked(api.listArcs).mockResolvedValueOnce(ok({ arcs: [freshArc], pagination: { cursor: null } }))
+    await store.fetchArcs(true)
+
+    expect(store.items).toHaveLength(1)
+    expect(store.items[0].arcId).toBe('arc_fresh')
+  })
+
+  it('fetchArcs failure with cached data retains cache and logs warning', async () => {
+    const store = useArcsStore()
+    // Populate cache via a successful fetch first (_byAccount is private)
+    vi.mocked(api.listArcs).mockResolvedValueOnce(ok({ arcs: [mockArc({ arcId: 'arc_cached' })], pagination: { cursor: null } }))
+    await store.fetchArcs(true)
+    expect(store.items).toHaveLength(1)
+
+    vi.mocked(api.listArcs).mockResolvedValueOnce(err(new ApiError(500, 'Network timeout')))
+    await store.fetchArcs(true)
+
+    expect(store.items).toHaveLength(1)
+    expect(store.items[0].arcId).toBe('arc_cached')
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Arcs fetch failed with cache available' }),
+    )
+    expect(store.error).toBeNull()
   })
 })

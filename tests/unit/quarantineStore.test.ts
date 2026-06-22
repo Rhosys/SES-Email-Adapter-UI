@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { ok, err, type Result } from 'neverthrow'
 import { useQuarantineStore } from '@/stores/quarantine'
@@ -17,7 +17,12 @@ vi.mock('@/lib/api', async (importOriginal) => {
   }
 })
 
+vi.mock('@/lib/logger', () => ({
+  default: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn(), log: vi.fn(), critical: vi.fn(), track: vi.fn() },
+}))
+
 import { api, ApiError } from '@/lib/api'
+import logger from '@/lib/logger'
 
 function mockSignal(overrides: Partial<Signal> & { signalId?: string; status?: string } = {}): Signal {
   const { signalId = 'sig_1', status = 'quarantine_visible', ...rest } = overrides
@@ -249,6 +254,63 @@ describe('quarantineStore', () => {
     const store = useQuarantineStore()
     store.error = 'some error'
     store.clearError()
+    expect(store.error).toBeNull()
+  })
+})
+
+describe('stale-while-revalidate', { timeout: 5000 }, () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    const accountStore = useAccountStore()
+    accountStore.account = { accountId: 'acc_1', name: 'Test' } as Account
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('fetchSignals with cached data does not show loading state', async () => {
+    const store = useQuarantineStore()
+    // Populate cache via a successful fetch first (_byAccount is private)
+    vi.mocked(api.listQuarantinedSignals)
+      .mockResolvedValueOnce(ok({ signals: [mockSignal({ signalId: 'v1' })], pagination: { cursor: null } }))
+      .mockResolvedValueOnce(ok({ signals: [mockSignal({ signalId: 'h1', status: 'quarantine_hidden' })], pagination: { cursor: null } }))
+    await store.fetchSignals(true)
+    expect(store.quarantineVisible).toHaveLength(1)
+
+    vi.mocked(api.listQuarantinedSignals)
+      .mockResolvedValueOnce(ok({ signals: [mockSignal({ signalId: 'v1' })], pagination: { cursor: null } }))
+      .mockResolvedValueOnce(ok({ signals: [mockSignal({ signalId: 'h1', status: 'quarantine_hidden' })], pagination: { cursor: null } }))
+
+    await store.fetchSignals()
+
+    expect(store.loading).toBe(false)
+  })
+
+  it('fetchSignals failure with cached data retains cache and logs warning', async () => {
+    const store = useQuarantineStore()
+    // Populate cache via a successful fetch first
+    vi.mocked(api.listQuarantinedSignals)
+      .mockResolvedValueOnce(ok({ signals: [mockSignal({ signalId: 'v_cached' })], pagination: { cursor: null } }))
+      .mockResolvedValueOnce(ok({ signals: [mockSignal({ signalId: 'h_cached', status: 'quarantine_hidden' })], pagination: { cursor: null } }))
+    await store.fetchSignals(true)
+    expect(store.quarantineVisible).toHaveLength(1)
+
+    vi.mocked(api.listQuarantinedSignals)
+      .mockResolvedValueOnce(err(new ApiError(500, 'Visible fetch failed')))
+      .mockResolvedValueOnce(err(new ApiError(500, 'Hidden fetch failed')))
+
+    await store.fetchSignals()
+
+    expect(store.quarantineVisible).toHaveLength(1)
+    expect(store.quarantineVisible[0].signalId).toBe('v_cached')
+    expect(store.quarantineHidden).toHaveLength(1)
+    expect(store.quarantineHidden[0].signalId).toBe('h_cached')
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Quarantine fetch failed with cache available' }),
+    )
     expect(store.error).toBeNull()
   })
 })
