@@ -120,8 +120,8 @@ export const useSignalsStore = defineStore('signals', () => {
       error.value = result.error.message
       return err(result.error)
     }
-    // Drafts appear at the bottom of the thread (below received signals)
-    _byAccount.value = { ..._byAccount.value, [accountId]: [...(_byAccount.value[accountId] ?? []), result.value] }
+    // items is newest-first; a new draft reply is the newest item
+    _byAccount.value = { ..._byAccount.value, [accountId]: [result.value, ...(_byAccount.value[accountId] ?? [])] }
     return ok(result.value)
   }
 
