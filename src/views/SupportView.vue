@@ -150,7 +150,7 @@ async function submitForm() {
 
   // Fallback: if 404 (endpoint not implemented yet), open mailto
   if (result.error.status === 404) {
-    logger.warn({ title: '[support] POST /support-tickets returned 404 — endpoint not implemented. Falling back to mailto.' })
+    logger.error({ title: '[support] POST /support-tickets returned 404 — endpoint not implemented. Falling back to mailto.' })
     const subject = `[${form.value.category}] ${form.value.subject.trim()}`
     const mailBody = `${form.value.description.trim()}\n\n---\n${context}`
     window.open(
