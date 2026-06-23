@@ -320,7 +320,10 @@ if (query.value) {
             <div
               v-if="!expandedSignals.has(signal.signalId)"
               class="cursor-pointer rounded-lg border border-ctp-surface0 px-4 py-3 transition-colors hover:bg-ctp-surface0/50"
+              role="button"
+              tabindex="0"
               @click="handleSignalClick(signal)"
+              @keydown.enter="handleSignalClick(signal)"
             >
               <div class="flex items-start justify-between gap-2">
                 <p class="min-w-0 flex-1 truncate text-sm font-medium text-ctp-text">{{ isEmailSignal(signal) ? signal.data.subject : signal.type }}</p>
