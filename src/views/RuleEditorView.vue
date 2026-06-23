@@ -325,7 +325,7 @@ watch(signalAction, (val) => {
             ← Back
           </button>
           <div>
-            <h1 class="text-lg font-semibold">{{ isEditing ? 'Edit rule' : 'New rule' }}</h1>
+            <h1 class="hidden text-lg font-semibold sm:block">{{ isEditing ? 'Edit rule' : 'New rule' }}</h1>
             <p v-if="signalId && !isEditing" class="mt-0.5 text-xs text-ctp-subtext0">
               Creating rule from quarantined signal — will be resolved after saving.
             </p>

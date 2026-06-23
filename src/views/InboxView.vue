@@ -124,7 +124,7 @@ watch(
 
 <template>
   <div class="inbox-view">
-    <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
+    <header class="hidden border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3 sm:block">
       <h1 class="text-lg font-semibold">Inbox</h1>
     </header>
 

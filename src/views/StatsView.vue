@@ -128,7 +128,7 @@ const hasMonthly = computed(() => statsStore.stats.monthly.length > 0)
 
 <template>
   <div class="stats-view mx-auto max-w-5xl px-4 py-6">
-    <h1 class="text-lg font-semibold text-ctp-text">Stats</h1>
+    <h1 class="hidden text-lg font-semibold text-ctp-text sm:block">Stats</h1>
 
     <!-- Loading skeleton -->
     <div v-if="statsStore.loading" class="mt-6 space-y-4">
