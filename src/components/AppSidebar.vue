@@ -8,6 +8,7 @@ import { useArcsStore } from '@/stores/arcs'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useDraftsStore } from '@/stores/drafts'
 import { loginClient } from '@/lib/auth'
+import { isAdminUser } from '@/stores/admin'
 
 defineProps<{ open: boolean }>()
 
@@ -19,6 +20,8 @@ const accountStore = useAccountStore()
 const arcsStore = useArcsStore()
 const quarantineStore = useQuarantineStore()
 const draftsStore = useDraftsStore()
+
+const isAdmin = computed(() => isAdminUser())
 
 // Notification badges — counts are now computed from persisted _byAccount data,
 // so no explicit fetch is needed. The quarantine store hydrates from localStorage
@@ -295,6 +298,23 @@ const accountSwitcherOpen = ref(false)
             />
           </svg>
           Settings
+        </RouterLink>
+
+        <RouterLink
+          v-if="isAdmin"
+          to="/admin"
+          class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
+          :class="
+            isActive('/admin')
+              ? 'bg-ctp-surface0 text-ctp-text font-medium'
+              : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
+          "
+        >
+          <!-- Terminal icon -->
+          <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M0 2a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H2a2 2 0 01-2-2V2zm1.5 0v12a.5.5 0 00.5.5h12a.5.5 0 00.5-.5V2a.5.5 0 00-.5-.5H2a.5.5 0 00-.5.5zM4 10l3-3-3-3 1-1 4 4-4 4-1-1zm4 2h4v1H8v-1z"/>
+          </svg>
+          Admin
         </RouterLink>
       </div>
 

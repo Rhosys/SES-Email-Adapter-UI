@@ -639,6 +639,10 @@ export const api = {
 
   // ─── Admin ──────────────────────────────────────────────────────────────────
 
+  getSignal(accountId: string, signalId: string): Promise<Result<Signal, ApiError>> {
+    return request<Signal>(`/accounts/${accountId}/signals/${signalId}`)
+  },
+
   reprocessSignal(accountId: string, signalId: string): Promise<Result<Signal, ApiError>> {
     return request<Signal>(`/accounts/${accountId}/signals/${signalId}/reprocess`, {
       method: 'POST',
