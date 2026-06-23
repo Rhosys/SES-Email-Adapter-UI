@@ -128,7 +128,8 @@ function openHelp() {
 
 async function signOut() {
   userMenuOpen.value = false
-  await loginClient.logout()
+  const basePath = import.meta.env.VITE_BASE_PATH ?? '/'
+  await loginClient.logout(`${window.location.origin}${basePath}`)
 }
 
 // Close user menu on outside click

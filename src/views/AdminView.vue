@@ -64,7 +64,9 @@ async function lookup() {
 
     <!-- Input -->
     <form class="flex gap-3" @submit.prevent="lookup">
+      <label for="signal-id-input" class="sr-only">Signal ID</label>
       <input
+        id="signal-id-input"
         v-model="signalIdInput"
         type="text"
         placeholder="Signal ID (e.g. sgn-abc123)"

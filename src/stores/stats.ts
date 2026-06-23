@@ -4,8 +4,10 @@ import { api } from '@/lib/api'
 import { useAccountStore } from '@/stores/account'
 import type { StatsResponse } from '@/types/server'
 
+const EMPTY_TOTALS: StatsResponse["totals"] = { allowed: 0, quarantined: 0, blocked: 0 }
+
 const EMPTY_STATS: StatsResponse = {
-  totals: { allowed: 0, quarantined: 0, blocked: 0 },
+  totals: EMPTY_TOTALS,
   daily: [],
   monthly: [],
 }
@@ -18,9 +20,16 @@ export const useStatsStore = defineStore('stats', () => {
   const error = ref<string | null>(null)
 
   // Always populated — EMPTY_STATS until the first fetch resolves, then the cached response.
+  // Guards against stale localStorage entries missing expected nested properties.
   const stats = computed<StatsResponse>(() => {
     const id = accountStore.accountId
-    return (id && _byAccount.value[id]) || EMPTY_STATS
+    const raw = id ? _byAccount.value[id] : undefined
+    if (!raw) return EMPTY_STATS
+    return {
+      totals: raw.totals ?? EMPTY_TOTALS,
+      daily: raw.daily ?? [],
+      monthly: raw.monthly ?? [],
+    }
   })
 
   const loaded = computed(() => {

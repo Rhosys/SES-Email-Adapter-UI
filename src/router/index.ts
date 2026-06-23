@@ -196,7 +196,8 @@ router.beforeEach(async (to) => {
 
   const authenticated = await loginClient.userSessionExists()
   if (!authenticated) {
-    const redirectUrl = `${window.location.origin}/login?redirect=${encodeURIComponent(to.fullPath)}`
+    const basePath = import.meta.env.VITE_BASE_PATH ?? '/'
+    const redirectUrl = `${window.location.origin}${basePath}login?redirect=${encodeURIComponent(to.fullPath)}`
     loginClient.authenticate({ redirectUrl })
     return new Promise<boolean>(() => {});
   }

@@ -560,8 +560,12 @@ function copyUserId() {
   })
 }
 
+const signingOut = ref(false)
+
 async function signOut() {
-  await loginClient.logout()
+  signingOut.value = true
+  const basePath = import.meta.env.VITE_BASE_PATH ?? '/'
+  await loginClient.logout(`${window.location.origin}${basePath}`)
 }
 
 // ─── DNS copy-to-clipboard ───────────────────────────────────────────────────
@@ -836,10 +840,15 @@ function onTabPick(key: string) {
           </div>
           <button
             type="button"
-            class="shrink-0 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-red hover:text-ctp-red"
+            :disabled="signingOut"
+            class="shrink-0 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-red hover:text-ctp-red disabled:opacity-50"
             @click="signOut"
           >
-            Sign out
+            <span v-if="signingOut" class="flex items-center gap-1.5">
+              <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Signing out…
+            </span>
+            <span v-else>Sign out</span>
           </button>
         </div>
 

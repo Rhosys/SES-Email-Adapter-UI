@@ -107,7 +107,13 @@ const accountSwitcherOpen = ref(false)
   >
     <!-- Brand -->
     <div class="flex h-11 items-center border-b border-ctp-surface0 px-4">
-      <span class="text-sm font-semibold text-ctp-text">Numaeel</span>
+      <a href="/?stay" class="flex items-center gap-2 text-sm font-semibold text-ctp-text no-underline hover:opacity-80">
+        <svg viewBox="0 0 32 32" fill="none" class="h-5 w-5" aria-hidden="true">
+          <path d="M6 10h20v12H6z" stroke="currentColor" stroke-width="2" class="text-ctp-mauve" />
+          <path d="M6 10l10 7 10-7" stroke="currentColor" stroke-width="2" stroke-linejoin="round" class="text-ctp-mauve" />
+        </svg>
+        <span>Numaeel</span>
+      </a>
     </div>
 
     <nav class="flex-1 overflow-y-auto py-8">

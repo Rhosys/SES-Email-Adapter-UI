@@ -8,6 +8,31 @@ import logger from './lib/logger'
 import { loginClient } from './lib/auth'
 import { useAccountStore } from './stores/account'
 import { persistentStorePlugin } from '@/plugins/persistent-store'
+import buildInfo from '@/lib/buildInfo'
+
+function printBanner() {
+  const title = "%cWelcome to Numaeel!"
+  const titleStyle = "color: #cba6f7; font-size: 1.5em; font-weight: bold; font-family: monospace;"
+
+  const body = [
+    "%cYou found us! Does this page need fixes or improvements? Open an issue or report it directly to our development team. Everyone can contribute!",
+    "",
+    "📧 Contact the development team: support@rhosys.ch",
+    "🐛 Create an issue: https://github.com/Rhosys/email-catcher/issues",
+    "🔒 Report a security concern: security@rhosys.ch",
+    "",
+    `Build: ${buildInfo.version.buildCommit} | #${buildInfo.version.buildNumber} | ref:${buildInfo.version.buildRef}`,
+    `Released: ${buildInfo.version.releaseDate}`,
+  ].join("\n")
+  const bodyStyle = "color: #a6adc8; font-size: 12px; font-family: monospace;"
+
+  // eslint-disable-next-line no-console
+  console.log(title, titleStyle)
+  // eslint-disable-next-line no-console
+  console.log(body, bodyStyle)
+}
+
+printBanner()
 
 async function enableMocking() {
   // Mock mode now uses Vite server middleware — no browser-side setup needed.

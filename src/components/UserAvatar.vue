@@ -70,7 +70,8 @@ function navigateToProfile() {
 
 async function signOut() {
   open.value = false
-  await loginClient.logout()
+  const basePath = import.meta.env.VITE_BASE_PATH ?? '/'
+  await loginClient.logout(`${window.location.origin}${basePath}`)
 }
 
 function copyEmail() {

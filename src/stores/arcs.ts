@@ -26,7 +26,9 @@ export const useArcsStore = defineStore('arcs', () => {
   const activeCount = computed(() => {
     const id = accountStore.accountId
     if (!id) return 0
-    return (_byAccount.value[id] ?? []).filter((a) => a.status === 'active').length
+    const cached = _byAccount.value[id]
+    if (!Array.isArray(cached)) return 0
+    return cached.filter((a) => a.status === 'active').length
   })
 
   const activeCountHasMore = computed(() => {
@@ -44,7 +46,8 @@ export const useArcsStore = defineStore('arcs', () => {
   const items = computed<Arc[]>(() => {
     const id = accountStore.accountId
     if (!id) return []
-    const all = _byAccount.value[id] ?? []
+    const all = _byAccount.value[id]
+    if (!Array.isArray(all)) return []
     if (activeTab.value === 'all') return all
     return all.filter((a) => a.status === activeTab.value)
   })

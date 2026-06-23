@@ -51,7 +51,12 @@ export const useQuarantineStore = defineStore('quarantine', () => {
   })
 
   function _data(id: string): QuarantineData {
-    return _byAccount.value[id] ?? { visible: [], hidden: [] }
+    const raw = _byAccount.value[id]
+    if (!raw) return { visible: [], hidden: [] }
+    return {
+      visible: Array.isArray(raw.visible) ? raw.visible : [],
+      hidden: Array.isArray(raw.hidden) ? raw.hidden : [],
+    }
   }
 
   const quarantineVisible = computed<Signal[]>(() =>
