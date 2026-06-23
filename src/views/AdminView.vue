@@ -15,11 +15,23 @@ const arc = ref<Arc | null>(null)
 const rawEmail = ref<string | null>(null)
 
 const reprocessing = ref(false)
+const hasReprocessed = ref(false)
+const showingVersion = ref<'after' | 'before'>('after')
+
+const previousSignal = ref<Signal | null>(null)
+const previousArc = ref<Arc | null>(null)
+
+const displayedSignal = computed(() =>
+  hasReprocessed.value && showingVersion.value === 'before' ? previousSignal.value : signal.value,
+)
+const displayedArc = computed(() =>
+  hasReprocessed.value && showingVersion.value === 'before' ? previousArc.value : arc.value,
+)
 
 const htmlBody = computed(() => {
-  if (!signal.value) return null
-  if (signal.value.type !== 'email') return null
-  return (signal.value.data as { body?: string }).body ?? null
+  if (!displayedSignal.value) return null
+  if (displayedSignal.value.type !== 'email') return null
+  return (displayedSignal.value.data as { body?: string }).body ?? null
 })
 
 async function reprocess() {
@@ -27,17 +39,22 @@ async function reprocess() {
   const accountId = accountStore.accountId
   if (!accountId) return
 
+  // Store previous versions
+  previousSignal.value = structuredClone(signal.value)
+  previousArc.value = arc.value ? structuredClone(arc.value) : null
+
   reprocessing.value = true
   const result = await api.reprocessSignal(accountId, signal.value.signalId)
   if (result.isOk()) {
     signal.value = result.value
-    // Refresh arc if signal has one
     if (result.value.arcId) {
       const arcResult = await api.getArc(accountId, result.value.arcId)
       if (arcResult.isOk()) {
         arc.value = arcResult.value
       }
     }
+    hasReprocessed.value = true
+    showingVersion.value = 'after'
   } else {
     errorMessage.value = result.error.message
   }
@@ -110,18 +127,37 @@ async function lookup() {
       {{ errorMessage }}
     </div>
 
+    <!-- Version switcher (shown after reprocess) -->
+    <div v-if="hasReprocessed" class="flex items-center justify-center gap-4 rounded-lg border border-ctp-mauve/30 bg-ctp-mauve/5 px-4 py-2">
+      <button
+        class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors"
+        :class="showingVersion === 'before' ? 'bg-ctp-surface2 text-ctp-text' : 'text-ctp-subtext0 hover:text-ctp-text'"
+        @click="showingVersion = 'before'"
+      >
+        ◀ Before
+      </button>
+      <span class="text-xs text-ctp-subtext0">|</span>
+      <button
+        class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors"
+        :class="showingVersion === 'after' ? 'bg-ctp-surface2 text-ctp-text' : 'text-ctp-subtext0 hover:text-ctp-text'"
+        @click="showingVersion = 'after'"
+      >
+        After ▶
+      </button>
+    </div>
+
     <!-- Arc JSON -->
-    <section v-if="arc">
+    <section v-if="displayedArc">
       <h3 class="mb-2 text-sm font-medium text-ctp-subtext1">Arc</h3>
-      <pre class="overflow-x-auto rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4 text-xs text-ctp-text">{{ JSON.stringify(arc, null, 2) }}</pre>
+      <pre class="overflow-x-auto rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4 text-xs text-ctp-text">{{ JSON.stringify(displayedArc, null, 2) }}</pre>
     </section>
-    <section v-else-if="signal && !signal.arcId">
+    <section v-else-if="displayedSignal && !displayedSignal.arcId">
       <h3 class="mb-2 text-sm font-medium text-ctp-subtext1">Arc</h3>
       <p class="text-sm text-ctp-subtext0">No arc — signal has no arcId.</p>
     </section>
 
     <!-- Signal JSON -->
-    <section v-if="signal">
+    <section v-if="displayedSignal">
       <div class="mb-2 flex items-center gap-2">
         <h3 class="text-sm font-medium text-ctp-subtext1">Signal</h3>
         <button
@@ -142,7 +178,7 @@ async function lookup() {
           Reprocess
         </button>
       </div>
-      <pre class="overflow-x-auto rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4 text-xs text-ctp-text">{{ JSON.stringify(signal, null, 2) }}</pre>
+      <pre class="overflow-x-auto rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4 text-xs text-ctp-text">{{ JSON.stringify(displayedSignal, null, 2) }}</pre>
     </section>
 
     <!-- Raw email -->

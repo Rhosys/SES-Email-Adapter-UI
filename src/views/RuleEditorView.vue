@@ -23,6 +23,7 @@ import {
   serializeCondition,
 } from '@/lib/ruleLogic'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
+import { useJsAutocomplete } from '@/composables/useJsAutocomplete'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,12 +33,16 @@ const labelsStore = useLabelsStore()
 const quarantineStore = useQuarantineStore()
 const templatesStore = useTemplatesStore()
 
+const jsAc = useJsAutocomplete()
+
 const signalId = computed(() => (route.query.signalId as string) ?? null)
 const signalAction = computed(
   () => (route.query.action as 'allow' | 'block_hidden' | 'block_reject') ?? null,
 )
 const ruleId = computed(() => (route.params.id as string) ?? null)
 const isEditing = computed(() => !!ruleId.value)
+
+const loaded = ref(false)
 
 // ─── Form state ───────────────────────────────────────────────────────────────
 
@@ -81,6 +86,46 @@ function updateCondition(gi: number, ci: number, patch: Partial<ConditionLeaf>) 
 function setGroupMode(gi: number, mode: 'and' | 'or') {
   groups.value = groups.value.map((grp, i) => (i === gi ? { ...grp, mode } : grp))
 }
+
+// ─── Visual → JS one-way conversion ──────────────────────────────────────────
+
+function leafToJs(leaf: ConditionLeaf): string {
+  const fieldPath = leaf.field
+  const val = leaf.field === 'signal.spamScore' ? leaf.value : `"${leaf.value}"`
+
+  switch (leaf.operator) {
+    case 'equals': return `${fieldPath} === ${val}`
+    case 'not_equals': return `${fieldPath} !== ${val}`
+    case 'contains': return `${fieldPath}.includes(${val})`
+    case 'not_contains': return `!${fieldPath}.includes(${val})`
+    case 'starts_with': return `${fieldPath}.startsWith(${val})`
+    case 'ends_with': return `${fieldPath}.endsWith(${val})`
+    case 'greater_than': return `${fieldPath} > ${leaf.value}`
+    case 'less_than': return `${fieldPath} < ${leaf.value}`
+  }
+}
+
+function groupToJs(group: ConditionGroup): string {
+  const parts = group.conditions.map(leafToJs)
+  if (parts.length === 1) return parts[0]
+  const joiner = group.mode === 'and' ? ' && ' : ' || '
+  return `(${parts.join(joiner)})`
+}
+
+function visualToJs(grps: ConditionGroup[]): string {
+  const parts = grps.map(groupToJs)
+  const expr = parts.length === 1 ? parts[0] : parts.join(' && ')
+  return `return ${expr};`
+}
+
+watch(conditionType, (newType, oldType) => {
+  if (newType === 'js' && oldType === 'json_logic') {
+    const hasContent = groups.value.some((g) => g.conditions.some((c) => c.value.trim()))
+    if (hasContent && !jsCondition.value.trim()) {
+      jsCondition.value = visualToJs(groups.value)
+    }
+  }
+})
 
 // ─── Rule tester ──────────────────────────────────────────────────────────────
 
@@ -307,6 +352,8 @@ onMounted(async () => {
       }
     }
   }
+
+  loaded.value = true
 })
 
 watch(signalAction, (val) => {
@@ -331,29 +378,29 @@ watch(signalAction, (val) => {
             </p>
           </div>
         </div>
-
-        <!-- Enabled/disabled toggle -->
-        <button
-          role="switch"
-          :aria-checked="status === 'enabled'"
-          class="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
-          :class="
-            status === 'enabled'
-              ? 'bg-ctp-green/15 text-ctp-green'
-              : 'bg-ctp-surface1 text-ctp-subtext0'
-          "
-          @click="status = status === 'enabled' ? 'disabled' : 'enabled'"
-        >
-          <span
-            class="inline-block h-1.5 w-1.5 rounded-full"
-            :class="status === 'enabled' ? 'bg-ctp-green' : 'bg-ctp-subtext0'"
-          />
-          {{ status === 'enabled' ? 'Enabled' : 'Disabled' }}
-        </button>
       </div>
     </header>
 
     <main class="mx-auto max-w-2xl px-4 py-6">
+      <!-- Loading skeleton -->
+      <div v-if="!loaded" role="status" aria-label="Loading rule…" class="animate-pulse space-y-6">
+        <div class="space-y-2">
+          <div class="h-3 w-20 rounded bg-ctp-surface1" />
+          <div class="h-9 w-full rounded-lg bg-ctp-surface1" />
+        </div>
+        <div class="h-16 w-full rounded-lg bg-ctp-surface1" />
+        <div class="space-y-2">
+          <div class="h-3 w-24 rounded bg-ctp-surface1" />
+          <div class="h-32 w-full rounded-lg bg-ctp-surface1" />
+        </div>
+        <div class="space-y-2">
+          <div class="h-3 w-16 rounded bg-ctp-surface1" />
+          <div class="h-12 w-full rounded-lg bg-ctp-surface1" />
+        </div>
+        <div class="h-9 w-32 rounded-lg bg-ctp-surface1" />
+      </div>
+
+      <template v-else>
       <!-- Error -->
       <div
         v-if="rulesStore.error"
@@ -374,6 +421,33 @@ watch(signalAction, (val) => {
           placeholder="e.g. Block marketing emails"
           class="w-full rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
         />
+      </section>
+
+      <!-- Status toggle -->
+      <section class="mb-6">
+        <div class="flex items-center justify-between rounded-lg border border-ctp-surface1 bg-ctp-mantle px-4 py-3">
+          <div>
+            <span class="text-sm font-medium text-ctp-text">Rule status</span>
+            <p class="text-xs text-ctp-subtext0">{{ status === 'enabled' ? 'This rule is actively processing emails' : 'This rule is paused and will not trigger' }}</p>
+          </div>
+          <button
+            role="switch"
+            :aria-checked="status === 'enabled'"
+            class="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
+            :class="
+              status === 'enabled'
+                ? 'bg-ctp-green/15 text-ctp-green'
+                : 'bg-ctp-surface1 text-ctp-subtext0'
+            "
+            @click="status = status === 'enabled' ? 'disabled' : 'enabled'"
+          >
+            <span
+              class="inline-block h-1.5 w-1.5 rounded-full"
+              :class="status === 'enabled' ? 'bg-ctp-green' : 'bg-ctp-subtext0'"
+            />
+            {{ status === 'enabled' ? 'Enabled' : 'Disabled' }}
+          </button>
+        </div>
       </section>
 
       <!-- Conditions -->
@@ -408,9 +482,6 @@ watch(signalAction, (val) => {
                 JavaScript
               </button>
             </div>
-            <button v-if="conditionType === 'json_logic'" class="text-xs text-ctp-mauve hover:underline" @click="addGroup">
-              + Add group
-            </button>
           </div>
         </div>
 
@@ -525,10 +596,20 @@ watch(signalAction, (val) => {
               + Add condition
             </button>
           </div>
+
+          <!-- Add group button (below all condition groups) -->
+          <div class="flex justify-center pt-1">
+            <button
+              class="rounded-lg border border-dashed border-ctp-surface2 px-6 py-2.5 text-sm font-medium text-ctp-mauve transition-colors hover:border-ctp-mauve hover:bg-ctp-mauve/5"
+              @click="addGroup"
+            >
+              + Add condition group
+            </button>
+          </div>
         </div>
 
         <!-- JavaScript editor (js) -->
-        <div v-else class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-3">
+        <div v-else class="relative rounded-lg border border-ctp-surface1 bg-ctp-mantle p-3">
           <label for="js-condition" class="mb-1 block text-xs text-ctp-subtext0">
             JavaScript condition function body — receives <code class="text-ctp-mauve">signal</code> and <code class="text-ctp-mauve">arc</code>, return <code class="text-ctp-mauve">true</code> to match.
           </label>
@@ -539,7 +620,46 @@ watch(signalAction, (val) => {
             spellcheck="false"
             placeholder="// Example: return signal.from.address.endsWith('@example.com');"
             class="w-full resize-y rounded border border-ctp-surface1 bg-ctp-base px-3 py-2 font-mono text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+            @input="jsAc.onInput"
+            @keydown="jsAc.onKeydown"
+            @blur="jsAc.close"
           />
+
+          <!-- Autocomplete popup -->
+          <div
+            v-if="jsAc.showPopup.value"
+            class="fixed z-50 min-w-[240px] overflow-hidden rounded-lg border border-ctp-surface1 bg-ctp-mantle shadow-lg"
+            :style="{ left: jsAc.popupLeft.value + 'px', top: jsAc.popupTop.value + 'px' }"
+          >
+            <button
+              v-for="(item, idx) in jsAc.filtered.value"
+              :key="item.path"
+              type="button"
+              class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors"
+              :class="idx === jsAc.selectedIdx.value ? 'bg-ctp-surface1 text-ctp-text' : 'text-ctp-subtext1 hover:bg-ctp-surface0'"
+              @mousedown.prevent="jsAc.accept(item)"
+            >
+              <span class="shrink-0 rounded bg-ctp-surface0 px-1.5 py-0.5 font-mono text-ctp-mauve">{{ item.type }}</span>
+              <span class="flex-1 font-mono">{{ item.label }}</span>
+              <span v-if="item.example" class="shrink-0 text-ctp-subtext0">{{ item.example }}</span>
+            </button>
+          </div>
+
+          <!-- Property reference hint -->
+          <details class="mt-2">
+            <summary class="cursor-pointer text-xs text-ctp-subtext0 hover:text-ctp-text">Available properties (type <code class="text-ctp-mauve">signal.</code> or <code class="text-ctp-mauve">arc.</code> for autocomplete)</summary>
+            <div class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+              <div class="font-mono text-ctp-mauve">signal.from.address</div><div class="text-ctp-subtext0">Sender email</div>
+              <div class="font-mono text-ctp-mauve">signal.from.domain</div><div class="text-ctp-subtext0">Sender domain</div>
+              <div class="font-mono text-ctp-mauve">signal.subject</div><div class="text-ctp-subtext0">Email subject</div>
+              <div class="font-mono text-ctp-mauve">signal.workflow</div><div class="text-ctp-subtext0">Detected workflow</div>
+              <div class="font-mono text-ctp-mauve">signal.spamScore</div><div class="text-ctp-subtext0">0–10 spam score</div>
+              <div class="font-mono text-ctp-mauve">arc.workflow</div><div class="text-ctp-subtext0">Arc workflow</div>
+              <div class="font-mono text-ctp-mauve">arc.urgency</div><div class="text-ctp-subtext0">critical/high/normal/low/silent</div>
+              <div class="font-mono text-ctp-mauve">arc.labels</div><div class="text-ctp-subtext0">Applied label IDs (array)</div>
+              <div class="font-mono text-ctp-mauve">arc.status</div><div class="text-ctp-subtext0">active/archived/deleted</div>
+            </div>
+          </details>
         </div>
       </section>
 
@@ -697,7 +817,7 @@ watch(signalAction, (val) => {
         </div>
         <button
           v-else
-          class="mt-2 text-xs text-ctp-mauve hover:underline"
+          class="mt-4 flex w-full justify-center rounded-lg border border-dashed border-ctp-surface2 px-6 py-2.5 text-sm font-medium text-ctp-mauve transition-colors hover:border-ctp-mauve hover:bg-ctp-mauve/5"
           @click="addingAction = true"
         >
           + Add action
@@ -787,6 +907,7 @@ watch(signalAction, (val) => {
           Cancel
         </button>
       </div>
+      </template>
     </main>
   </div>
 </template>

@@ -130,7 +130,7 @@ describe('RuleEditorView — new rule', () => {
       '.rounded-lg.border.border-ctp-surface1.bg-ctp-mantle.p-3',
     )
     const initialCount = initialGroups.length
-    const addGroupBtn = wrapper.findAll('button').find((b) => b.text() === '+ Add group')
+    const addGroupBtn = wrapper.findAll('button').find((b) => b.text() === '+ Add condition group')
     await addGroupBtn!.trigger('click')
     await wrapper.vm.$nextTick()
     const newGroups = wrapper.findAll('.rounded-lg.border.border-ctp-surface1.bg-ctp-mantle.p-3')

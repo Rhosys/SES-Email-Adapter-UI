@@ -243,6 +243,14 @@ function submitSearch() {
   void router.push({ path: '/search', query: { q } })
 }
 
+function onNavbarPaste(e: ClipboardEvent) {
+  const text = e.clipboardData?.getData('text/plain')?.trim()
+  if (!text) return
+  e.preventDefault()
+  inputFocused.value = false
+  void router.push({ path: '/search', query: { q: text } })
+}
+
 watch(shortcutHelpOpen, (open) => setBlocked(open))
 
 function focusSearch() {
@@ -300,7 +308,7 @@ onMounted(async () => {
     <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
       <AppNavbar show-hamburger @toggle-sidebar="sidebarOpen = !sidebarOpen">
         <template #search>
-          <form class="flex w-full max-w-xl items-center gap-2" @submit.prevent="submitSearch">
+          <form v-if="route.path !== '/search'" class="flex w-full max-w-xl items-center gap-2" @submit.prevent="submitSearch">
           <div class="relative flex-1">
             <svg
               class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ctp-subtext0"
@@ -323,6 +331,7 @@ onMounted(async () => {
               @focus="onInputFocus"
               @blur="onInputBlur"
               @keydown="onKeyDown"
+              @paste="onNavbarPaste"
             />
 
             <!-- Lookahead dropdown -->
