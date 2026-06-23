@@ -14,11 +14,35 @@ const signal = ref<Signal | null>(null)
 const arc = ref<Arc | null>(null)
 const rawEmail = ref<string | null>(null)
 
+const reprocessing = ref(false)
+
 const htmlBody = computed(() => {
   if (!signal.value) return null
   if (signal.value.type !== 'email') return null
   return (signal.value.data as { body?: string }).body ?? null
 })
+
+async function reprocess() {
+  if (!signal.value) return
+  const accountId = accountStore.accountId
+  if (!accountId) return
+
+  reprocessing.value = true
+  const result = await api.reprocessSignal(accountId, signal.value.signalId)
+  if (result.isOk()) {
+    signal.value = result.value
+    // Refresh arc if signal has one
+    if (result.value.arcId) {
+      const arcResult = await api.getArc(accountId, result.value.arcId)
+      if (arcResult.isOk()) {
+        arc.value = arcResult.value
+      }
+    }
+  } else {
+    errorMessage.value = result.error.message
+  }
+  reprocessing.value = false
+}
 
 async function lookup() {
   const id = signalIdInput.value.trim()
@@ -88,29 +112,48 @@ async function lookup() {
 
     <!-- Arc JSON -->
     <section v-if="arc">
-      <h2 class="mb-2 text-sm font-medium text-ctp-subtext1">Arc</h2>
+      <h3 class="mb-2 text-sm font-medium text-ctp-subtext1">Arc</h3>
       <pre class="overflow-x-auto rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4 text-xs text-ctp-text">{{ JSON.stringify(arc, null, 2) }}</pre>
     </section>
     <section v-else-if="signal && !signal.arcId">
-      <h2 class="mb-2 text-sm font-medium text-ctp-subtext1">Arc</h2>
+      <h3 class="mb-2 text-sm font-medium text-ctp-subtext1">Arc</h3>
       <p class="text-sm text-ctp-subtext0">No arc — signal has no arcId.</p>
     </section>
 
     <!-- Signal JSON -->
     <section v-if="signal">
-      <h2 class="mb-2 text-sm font-medium text-ctp-subtext1">Signal</h2>
+      <div class="mb-2 flex items-center gap-2">
+        <h3 class="text-sm font-medium text-ctp-subtext1">Signal</h3>
+        <button
+          :disabled="reprocessing"
+          class="inline-flex items-center gap-1 rounded bg-ctp-surface1 px-2 py-0.5 text-xs font-medium text-ctp-text transition-colors hover:bg-ctp-surface2 disabled:opacity-50"
+          @click="reprocess"
+        >
+          <svg
+            :class="{ 'animate-spin': reprocessing }"
+            class="h-3 w-3"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" stroke-linecap="round" />
+          </svg>
+          Reprocess
+        </button>
+      </div>
       <pre class="overflow-x-auto rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4 text-xs text-ctp-text">{{ JSON.stringify(signal, null, 2) }}</pre>
     </section>
 
     <!-- Raw email -->
     <section v-if="rawEmail">
-      <h2 class="mb-2 text-sm font-medium text-ctp-subtext1">Raw Email</h2>
+      <h3 class="mb-2 text-sm font-medium text-ctp-subtext1">Raw Email</h3>
       <pre class="overflow-x-auto rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4 text-xs text-ctp-text whitespace-pre-wrap break-all">{{ rawEmail }}</pre>
     </section>
 
     <!-- HTML body rendered -->
     <section v-if="htmlBody">
-      <h2 class="mb-2 text-sm font-medium text-ctp-subtext1">Rendered HTML</h2>
+      <h3 class="mb-2 text-sm font-medium text-ctp-subtext1">Rendered HTML</h3>
       <iframe
         :srcdoc="htmlBody"
         sandbox="allow-popups allow-popups-to-escape-sandbox"

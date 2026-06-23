@@ -3,10 +3,11 @@ import { ref, computed, inject } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
-import type { Arc, Rule, Signal, Alias } from '@/types/server'
+import type { Arc, Rule, Signal, Alias, EmailTemplate } from '@/types/server'
 import { isEmailSignal } from '@/lib/signal-guards'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
 import { NOW_KEY } from '@/composables/useRelativeTime'
+import SignalRenderer from '@/components/SignalRenderer.vue'
 
 const now = inject(NOW_KEY)
 
@@ -17,27 +18,102 @@ const accountStore = useAccountStore()
 const query = ref((route.query.q as string) ?? '')
 const searching = ref(false)
 
-type SectionKey = 'arcs' | 'signals' | 'aliases' | 'rules'
+type SectionKey = 'arcs' | 'signals' | 'aliases' | 'rules' | 'templates'
 
-const visibleSections = ref<Set<SectionKey>>(new Set(['arcs', 'signals', 'aliases', 'rules']))
+const visibleSections = ref<Set<SectionKey>>(new Set(['arcs', 'signals', 'aliases', 'rules', 'templates']))
 
 const results = ref<{
   arcs: Arc[]
   signals: Signal[]
   aliases: Alias[]
   rules: Rule[]
+  templates: EmailTemplate[]
   error: string | null
-}>({ arcs: [], signals: [], aliases: [], rules: [], error: null })
+}>({ arcs: [], signals: [], aliases: [], rules: [], templates: [], error: null })
 
 const hasResults = computed(
   () =>
     results.value.arcs.length > 0 ||
     results.value.signals.length > 0 ||
     results.value.aliases.length > 0 ||
-    results.value.rules.length > 0,
+    results.value.rules.length > 0 ||
+    results.value.templates.length > 0,
 )
 
 const searched = ref(false)
+const expandedSignals = ref<Set<string>>(new Set())
+
+function isBlockedSignal(s: Signal): boolean {
+  return s.status === 'block_hidden' || s.status === 'block_reject' || s.status === 'report_violation'
+}
+
+function handleSignalClick(s: Signal) {
+  if (isBlockedSignal(s)) {
+    if (expandedSignals.value.has(s.signalId)) {
+      expandedSignals.value.delete(s.signalId)
+    } else {
+      expandedSignals.value.add(s.signalId)
+    }
+    return
+  }
+  if (s.arcId) {
+    void router.push(`/arcs/${s.arcId}`)
+  } else {
+    void router.push(`/quarantine/${s.signalId}`)
+  }
+}
+
+async function directLookup(id: string): Promise<boolean> {
+  const accountId = accountStore.accountId
+  if (!accountId) return false
+
+  searching.value = true
+  searched.value = false
+  results.value = { arcs: [], signals: [], aliases: [], rules: [], templates: [], error: null }
+
+  const [signalRes, arcRes, aliasesRes, rulesRes, templatesRes] = await Promise.all([
+    api.getSignal(accountId, id),
+    api.getArc(accountId, id),
+    api.listAliases(accountId),
+    api.listRules(accountId),
+    api.listTemplates(accountId),
+  ])
+
+  if (signalRes.isOk()) results.value.signals.push(signalRes.value)
+  if (arcRes.isOk()) results.value.arcs.push(arcRes.value)
+  if (aliasesRes.isOk()) {
+    const match = aliasesRes.value.find((a) => a.alias === id || a.address === id)
+    if (match) results.value.aliases.push(match)
+  }
+  if (rulesRes.isOk()) {
+    const match = rulesRes.value.find((r) => r.ruleId === id)
+    if (match) results.value.rules.push(match)
+  }
+  if (templatesRes.isOk()) {
+    const match = templatesRes.value.find((t) => t.templateId === id)
+    if (match) results.value.templates.push(match)
+  }
+
+  searching.value = false
+  searched.value = true
+
+  return hasResults.value
+}
+
+async function onPaste(event: ClipboardEvent) {
+  const pasted = event.clipboardData?.getData('text/plain')?.trim()
+  if (!pasted) return
+
+  // Wait for v-model to update
+  await new Promise((r) => setTimeout(r, 0))
+  query.value = pasted
+  void router.replace({ path: '/search', query: { q: pasted } })
+
+  const found = await directLookup(pasted)
+  if (!found) {
+    await doSearch()
+  }
+}
 
 async function doSearch() {
   const q = query.value.trim()
@@ -46,14 +122,15 @@ async function doSearch() {
 
   searching.value = true
   searched.value = false
-  results.value = { arcs: [], signals: [], aliases: [], rules: [], error: null }
+  results.value = { arcs: [], signals: [], aliases: [], rules: [], templates: [], error: null }
 
   const id = accountStore.accountId
 
-  const [arcsRes, aliasesRes, rulesRes] = await Promise.all([
+  const [arcsRes, aliasesRes, rulesRes, templatesRes] = await Promise.all([
     api.listArcs(id, { sender: q, limit: 20 }),
     api.listAliases(id),
     api.listRules(id),
+    api.listTemplates(id),
   ])
 
   searching.value = false
@@ -80,11 +157,19 @@ async function doSearch() {
     )
   }
 
-  if (arcsRes.isErr() || aliasesRes.isErr() || rulesRes.isErr()) {
+  if (templatesRes.isOk()) {
+    const ql = q.toLowerCase()
+    results.value.templates = templatesRes.value.filter(
+      (t) => t.name.toLowerCase().includes(ql) || t.subject.toLowerCase().includes(ql),
+    )
+  }
+
+  if (arcsRes.isErr() || aliasesRes.isErr() || rulesRes.isErr() || templatesRes.isErr()) {
     results.value.error =
       (arcsRes.isErr() && arcsRes.error.message) ||
       (aliasesRes.isErr() && aliasesRes.error.message) ||
       (rulesRes.isErr() && rulesRes.error.message) ||
+      (templatesRes.isErr() && templatesRes.error.message) ||
       'Search failed'
   }
 }
@@ -123,6 +208,7 @@ if (query.value) {
           placeholder="Search arcs, signals, aliases, rules…"
           class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-4 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           autofocus
+          @paste="onPaste"
         />
         <button
           type="submit"
@@ -150,6 +236,7 @@ if (query.value) {
             { key: 'signals' as SectionKey, label: 'Signals', count: results.signals.length },
             { key: 'aliases' as SectionKey, label: 'Addresses', count: results.aliases.length },
             { key: 'rules' as SectionKey, label: 'Rules', count: results.rules.length },
+            { key: 'templates' as SectionKey, label: 'Templates', count: results.templates.length },
           ]"
           :key="key"
           class="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors"
@@ -201,12 +288,23 @@ if (query.value) {
             class="block px-4 py-3 transition-colors hover:bg-ctp-surface0/50"
           >
             <div class="flex items-start justify-between gap-2">
-              <p class="text-sm font-medium text-ctp-text">{{ arc.summary }}</p>
+              <p class="min-w-0 flex-1 truncate text-sm font-medium text-ctp-text">{{ arc.subject || arc.summary }}</p>
               <span class="shrink-0 text-xs text-ctp-subtext0">
                 {{ relTime(arc.lastSignalAt) }}
               </span>
             </div>
-            <p class="mt-0.5 text-xs text-ctp-subtext0">{{ arc.workflow }}</p>
+            <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-ctp-subtext0">
+              <span v-if="arc.senderAddress">From: {{ arc.senderAddress }}</span>
+              <span v-if="arc.recipientAddress">To: {{ arc.recipientAddress }}</span>
+              <span>{{ arc.workflow }}</span>
+            </div>
+            <div v-if="arc.labels.length" class="mt-1 flex flex-wrap gap-1">
+              <span
+                v-for="label in arc.labels"
+                :key="label"
+                class="rounded bg-ctp-surface1 px-1.5 py-0.5 text-xs text-ctp-subtext0"
+              >{{ label }}</span>
+            </div>
           </RouterLink>
         </div>
       </section>
@@ -216,17 +314,43 @@ if (query.value) {
         <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-ctp-subtext0">
           Signals ({{ results.signals.length }})
         </h2>
-        <div class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
-          <div v-for="signal in results.signals" :key="signal.signalId" class="px-4 py-3">
-            <div class="flex items-start justify-between gap-2">
-              <p class="text-sm font-medium text-ctp-text">{{ isEmailSignal(signal) ? signal.data.subject : signal.type }}</p>
-              <span class="shrink-0 text-xs text-ctp-subtext0">
-                {{ relTime(signal.createdAt) }}
-              </span>
+        <div class="space-y-2">
+          <div v-for="signal in results.signals" :key="signal.signalId">
+            <!-- Collapsed card (clickable) -->
+            <div
+              v-if="!expandedSignals.has(signal.signalId)"
+              class="cursor-pointer rounded-lg border border-ctp-surface0 px-4 py-3 transition-colors hover:bg-ctp-surface0/50"
+              @click="handleSignalClick(signal)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <p class="min-w-0 flex-1 truncate text-sm font-medium text-ctp-text">{{ isEmailSignal(signal) ? signal.data.subject : signal.type }}</p>
+                <span class="shrink-0 text-xs text-ctp-subtext0">
+                  {{ relTime(signal.createdAt) }}
+                </span>
+              </div>
+              <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-ctp-subtext0">
+                <span v-if="isEmailSignal(signal)">From: {{ signal.data.from.name || signal.data.from.address }}</span>
+                <span v-if="isEmailSignal(signal) && 'recipientAddress' in signal.data">To: {{ signal.data.recipientAddress }}</span>
+              </div>
+              <div class="mt-1 flex items-center gap-2">
+                <span
+                  v-if="isBlockedSignal(signal)"
+                  class="rounded bg-ctp-red/10 px-1.5 py-0.5 text-xs text-ctp-red"
+                >{{ signal.status }}</span>
+                <span
+                  v-else-if="signal.status.startsWith('quarantine')"
+                  class="rounded bg-ctp-yellow/10 px-1.5 py-0.5 text-xs text-ctp-yellow"
+                >quarantine</span>
+              </div>
             </div>
-            <p v-if="isEmailSignal(signal)" class="mt-0.5 text-xs text-ctp-subtext0">
-              From: {{ signal.data.from.name || signal.data.from.address }}
-            </p>
+            <!-- Expanded card (blocked signals only) -->
+            <div v-else class="rounded-lg border border-ctp-surface0 p-2">
+              <button
+                class="mb-2 text-xs text-ctp-subtext0 hover:text-ctp-text"
+                @click="expandedSignals.delete(signal.signalId)"
+              >← Collapse</button>
+              <SignalRenderer :signal="signal" />
+            </div>
           </div>
         </div>
       </section>
@@ -270,6 +394,29 @@ if (query.value) {
             <p class="mt-0.5 font-mono text-xs text-ctp-subtext0">
               {{ rule.condition }}
             </p>
+          </RouterLink>
+        </div>
+      </section>
+
+      <!-- Templates section -->
+      <section v-if="visibleSections.has('templates') && results.templates.length > 0" class="mb-6">
+        <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-ctp-subtext0">
+          Templates ({{ results.templates.length }})
+        </h2>
+        <div class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
+          <RouterLink
+            v-for="tpl in results.templates"
+            :key="tpl.templateId"
+            to="/templates"
+            class="block px-4 py-3 transition-colors hover:bg-ctp-surface0/50"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm font-medium text-ctp-text">{{ tpl.name }}</p>
+              <span class="shrink-0 text-xs text-ctp-subtext0">
+                {{ relTime(tpl.updatedAt) }}
+              </span>
+            </div>
+            <p class="mt-0.5 text-xs text-ctp-subtext0">{{ tpl.subject }}</p>
           </RouterLink>
         </div>
       </section>
