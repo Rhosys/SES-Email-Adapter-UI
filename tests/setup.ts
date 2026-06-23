@@ -1,5 +1,11 @@
 import { vi } from 'vitest'
 
+// ECharts' CanvasRenderer fires async paint cycles via zrender that call clearRect on a canvas
+// context jsdom doesn't provide. Stubbing VChart avoids uncaught exceptions from the render loop.
+vi.mock('vue-echarts', () => ({
+  default: { template: '<div class="vchart-stub" />' },
+}))
+
 vi.mock('@/lib/buildInfo', () => ({
   default: {
     version: { releaseDate: 'test', buildNumber: 'test', buildRef: 'test', buildCommit: 'test' },
