@@ -138,7 +138,7 @@ const accountSwitcherOpen = ref(false)
           <span class="flex-1">Inbox</span>
           <span
             v-if="arcsStore.activeCount > 0"
-            class="shrink-0 rounded-full bg-ctp-mauve px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ctp-base"
+            class="shrink-0 rounded-full bg-ctp-green px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ctp-base"
           >
             {{ formatBadgeCount(arcsStore.activeCount, arcsStore.activeCountHasMore) }}
           </span>
@@ -186,7 +186,7 @@ const accountSwitcherOpen = ref(false)
           <span class="flex-1">Drafts</span>
           <span
             v-if="draftsStore.draftCount > 0"
-            class="shrink-0 rounded-full bg-ctp-green px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ctp-base"
+            class="shrink-0 rounded-full bg-ctp-mauve px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ctp-base"
           >
             {{ formatBadgeCount(draftsStore.draftCount, false) }}
           </span>

@@ -101,7 +101,7 @@ describe('AppSidebar — draft count badge', () => {
     const wrapper = await mountSidebar()
     const draftsLink = wrapper.get('a[href="/drafts"]')
     expect(draftsLink.text()).toContain('Drafts')
-    expect(draftsLink.find('span.bg-ctp-green').exists()).toBe(false)
+    expect(draftsLink.find('span.bg-ctp-mauve').exists()).toBe(false)
   })
 
   it('shows the draft count badge when drafts are cached', async () => {
@@ -115,7 +115,7 @@ describe('AppSidebar — draft count badge', () => {
 
     const wrapper = await mountSidebar()
     const draftsLink = wrapper.get('a[href="/drafts"]')
-    const badge = draftsLink.find('span.bg-ctp-green')
+    const badge = draftsLink.find('span.bg-ctp-mauve')
     expect(badge.exists()).toBe(true)
     expect(badge.text()).toBe('2')
   })

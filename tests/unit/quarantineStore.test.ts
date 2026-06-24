@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { ok, err, type Result } from 'neverthrow'
+import { ok, err } from 'neverthrow'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useAccountStore } from '@/stores/account'
 import type { Signal, Account } from '@/types/server'
@@ -181,9 +181,9 @@ describe('quarantineStore', () => {
     const store = useQuarantineStore()
     await store.fetchSignals(true)
 
-    vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockSignal({ status: 'active' })))
+    vi.mocked(api.quarantineResponse).mockResolvedValue(ok({ arc: { arcId: 'arc-123' }, signal: mockSignal({ status: 'active' }) }))
     const result = await store.allow('sig_1')
-    expect(result).toBe(true)
+    expect(result).toBe('arc-123')
     expect(store.quarantineVisible.map((s) => s.signalId)).toEqual(['sig_2'])
     expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'active')
   })
@@ -205,7 +205,7 @@ describe('quarantineStore', () => {
     const store = useQuarantineStore()
     await store.fetchSignals(true)
 
-    vi.mocked(api.quarantineResponse).mockResolvedValue(ok(mockSignal({ status: 'block_hidden' })))
+    vi.mocked(api.quarantineResponse).mockResolvedValue(ok({ signal: mockSignal({ status: 'block_hidden' }) }))
     const result = await store.reject('sig_1')
     expect(result).toBe(true)
     expect(store.quarantineVisible).toHaveLength(0)
@@ -231,8 +231,8 @@ describe('quarantineStore', () => {
 
     let resolve!: () => void
     vi.mocked(api.quarantineResponse).mockReturnValue(
-      new Promise<Result<Signal, ApiError>>((res) => {
-        resolve = () => res(ok(mockSignal({ status: 'active' })))
+      new Promise((res) => {
+        resolve = () => res(ok({ arc: { arcId: 'arc-x' }, signal: mockSignal({ status: 'active' }) }))
       }),
     )
     const p = store.allow('sig_1')

@@ -302,7 +302,11 @@ async function save() {
 
   if (signalId.value && signalAction.value) {
     if (signalAction.value === 'allow') {
-      await quarantineStore.allow(signalId.value)
+      const arcId = await quarantineStore.allow(signalId.value)
+      if (arcId) {
+        void router.push({ name: 'arc-detail', params: { id: arcId } })
+        return
+      }
     } else {
       await quarantineStore.reject(signalId.value)
     }

@@ -53,7 +53,7 @@ describe('ActiveArcRow', () => {
 
   it('shows label dots for each label', () => {
     const wrapper = mountActive(baseArc)
-    const dots = wrapper.findAll('.rounded-full.bg-ctp-mauve')
+    const dots = wrapper.findAll('.h-2.w-2.rounded-full')
     expect(dots.length).toBe(1)
   })
 
@@ -77,7 +77,7 @@ describe('ActiveArcRow', () => {
   it('renders multiple label dots', () => {
     const arc = { ...baseArc, labels: ['label-a', 'label-b'] }
     const wrapper = mountActive(arc)
-    const dots = wrapper.findAll('.rounded-full.bg-ctp-mauve')
+    const dots = wrapper.findAll('.h-2.w-2.rounded-full')
     expect(dots.length).toBe(2)
   })
 })

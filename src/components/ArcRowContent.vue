@@ -4,14 +4,20 @@ import { RouterLink } from 'vue-router'
 import type { Arc } from '@/types/server'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
+import { useLabelsStore } from '@/stores/labels'
 
 const props = defineProps<{ arc: Arc }>()
 
 const now = inject(NOW_KEY)
+const labelsStore = useLabelsStore()
 
 const timestamp = computed(() =>
   now ? formatRelativeTime(props.arc.lastSignalAt, now.value) : '',
 )
+
+function labelColor(name: string): string {
+  return labelsStore.items.find(l => l.name === name)?.color ?? '#cba6f7'
+}
 </script>
 
 <template>
@@ -25,7 +31,8 @@ const timestamp = computed(() =>
       <span
         v-for="label in arc.labels"
         :key="label"
-        class="h-2 w-2 shrink-0 rounded-full bg-ctp-mauve"
+        class="h-2 w-2 shrink-0 rounded-full"
+        :style="{ backgroundColor: labelColor(label) }"
       />
       <span v-if="arc.summary && arc.subject" class="truncate text-xs text-ctp-subtext0">{{ arc.summary }}</span>
     </div>

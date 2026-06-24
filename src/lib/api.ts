@@ -204,8 +204,8 @@ export const api = {
     accountId: string,
     signalId: string,
     status: 'active' | 'block_hidden' | 'block_reject',
-  ): Promise<Result<Signal, ApiError>> {
-    return request<Signal>(`/accounts/${accountId}/signals/${signalId}/quarantineResponse`, {
+  ): Promise<Result<{ arc?: { arcId: string }; signal?: Signal } & Record<string, unknown>, ApiError>> {
+    return request<{ arc?: { arcId: string }; signal?: Signal } & Record<string, unknown>>(`/accounts/${accountId}/signals/${signalId}/quarantineResponse`, {
       method: 'POST',
       body: JSON.stringify({ status }),
     })

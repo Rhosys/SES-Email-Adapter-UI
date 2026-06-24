@@ -5,7 +5,7 @@ const styles: Record<string, string> = {
   active: 'bg-ctp-green/15 text-ctp-green',
   archived: 'bg-ctp-surface1 text-ctp-subtext0',
   deleted: 'bg-ctp-red/15 text-ctp-red',
-  quarantine_visible: 'bg-ctp-mauve/15 text-ctp-mauve',
+  quarantine_visible: 'bg-ctp-peach/15 text-ctp-peach',
   quarantine_hidden: 'bg-ctp-surface1 text-ctp-subtext0',
 }
 
