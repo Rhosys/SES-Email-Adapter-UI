@@ -145,6 +145,11 @@ function toggleExpanded(e: Event) {
             <span class="text-ctp-subtext1">{{ totals.blocked }}</span>
             <span class="text-ctp-subtext0">blocked</span>
           </div>
+          <div class="flex items-center gap-1.5">
+            <span class="inline-block h-2 w-2 rounded-full bg-ctp-mauve" />
+            <span class="text-ctp-subtext1">{{ totals.aliases }}</span>
+            <span class="text-ctp-subtext0">aliases</span>
+          </div>
         </div>
 
         <!-- Stacked area chart -->

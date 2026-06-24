@@ -204,6 +204,10 @@ export const useArcsStore = defineStore('arcs', () => {
     await _bulkStatus('archived', 'archive')
   }
 
+  async function bulkMoveToInbox() {
+    await _bulkStatus('active', 'move to inbox')
+  }
+
   async function bulkDelete() {
     await _bulkStatus('deleted', 'delete')
   }
@@ -344,6 +348,7 @@ export const useArcsStore = defineStore('arcs', () => {
     selectAll,
     clearSelection,
     bulkArchive,
+    bulkMoveToInbox,
     bulkDelete,
     bulkLabel,
     setStatus,

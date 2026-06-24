@@ -96,8 +96,8 @@ async function handleBulkArchive() {
   await arcsStore.bulkArchive()
 }
 
-async function handleBulkDelete() {
-  await arcsStore.bulkDelete()
+async function handleBulkMoveToInbox() {
+  await arcsStore.bulkMoveToInbox()
 }
 
 async function handleBulkLabel(label: string) {
@@ -138,9 +138,13 @@ watch(
       <BulkActionBar
         :count="arcsStore.selectedIds.size"
         :pending="arcsStore.bulkActionPending"
+        :all-selected="arcsStore.allSelected"
+        :tab="arcsStore.activeTab"
         :archive-action="handleBulkArchive"
-        :delete-action="handleBulkDelete"
+        :move-to-inbox-action="handleBulkMoveToInbox"
         :label-action="handleBulkLabel"
+        @select-all="arcsStore.selectAll()"
+        @clear-selection="arcsStore.clearSelection()"
         @clear="arcsStore.clearSelection()"
       />
 
@@ -168,9 +172,6 @@ watch(
 
       <ArcListShell
         v-else
-        :all-selected="arcsStore.allSelected"
-        @select-all="arcsStore.selectAll()"
-        @clear-selection="arcsStore.clearSelection()"
       >
         <template v-if="arcsStore.activeTab === 'active'">
           <ActiveArcRow

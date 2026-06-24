@@ -169,6 +169,11 @@ const hasMonthly = computed(() => statsStore.stats.monthly.length > 0)
           <span class="text-2xl font-semibold text-ctp-text">{{ totals.blocked.toLocaleString() }}</span>
           <span class="text-sm text-ctp-subtext0">blocked</span>
         </div>
+        <div class="flex items-center gap-2 rounded-lg border border-ctp-surface0 bg-ctp-mantle px-4 py-3">
+          <span class="inline-block h-3 w-3 rounded-full bg-ctp-mauve" />
+          <span class="text-2xl font-semibold text-ctp-text">{{ totals.aliases.toLocaleString() }}</span>
+          <span class="text-sm text-ctp-subtext0">aliases</span>
+        </div>
       </div>
 
       <!-- Daily stacked area chart -->
