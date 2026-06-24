@@ -179,14 +179,14 @@ const hasMonthly = computed(() => domReady.value && statsStore.stats.monthly.len
       <!-- Daily stacked area chart -->
       <div class="rounded-lg border border-ctp-surface0 bg-ctp-mantle p-4">
         <h2 class="mb-3 text-sm font-medium text-ctp-subtext0">Daily (last 365 days)</h2>
-        <VChart v-if="hasDaily" :option="dailyAreaOption" :autoresize="true" class="h-80 w-full" />
+        <VChart v-if="hasDaily" :option="dailyAreaOption" :autoresize="true" style="height: 320px; width: 100%" />
         <p v-else class="py-12 text-center text-sm text-ctp-subtext0">No daily data available</p>
       </div>
 
       <!-- Monthly bars chart -->
       <div v-if="hasMonthly" class="rounded-lg border border-ctp-surface0 bg-ctp-mantle p-4">
         <h2 class="mb-3 text-sm font-medium text-ctp-subtext0">Monthly</h2>
-        <VChart :option="monthlyBarOption" :autoresize="true" class="h-48 w-full" />
+        <VChart :option="monthlyBarOption" :autoresize="true" style="height: 192px; width: 100%" />
       </div>
     </div>
   </div>

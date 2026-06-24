@@ -109,7 +109,7 @@ function toggleExpanded(e: Event) {
       <div v-else class="flex items-center gap-4">
         <!-- Donut chart -->
         <div class="flex shrink-0 flex-col items-center">
-          <VChart :option="donutOption" :autoresize="true" class="h-20 w-20" />
+          <VChart :option="donutOption" :autoresize="true" style="height: 80px; width: 80px" />
           <span class="mt-1 text-[10px] text-ctp-blue hover:underline">View full stats →</span>
         </div>
 
@@ -139,7 +139,7 @@ function toggleExpanded(e: Event) {
 
         <!-- Stacked area chart -->
         <div class="min-w-0 flex-1">
-          <VChart :option="areaOption" :autoresize="true" class="h-16 w-full" />
+          <VChart :option="areaOption" :autoresize="true" style="height: 64px; width: 100%" />
         </div>
       </div>
     </RouterLink>

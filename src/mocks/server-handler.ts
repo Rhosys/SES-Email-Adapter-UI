@@ -174,6 +174,23 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
     return { status: 200, body: mockBilling }
   }
 
+  // GET /accounts/:accountId/stats
+  if (method === 'GET' && match('/accounts/:accountId/stats', url)) {
+    return { status: 200, body: {
+      totals: { allowed: 142, quarantined: 18, blocked: 37, aliases: 5 },
+      daily: [
+        { date: '2026-06-22', allowed: 8, quarantined: 1, blocked: 2 },
+        { date: '2026-06-23', allowed: 12, quarantined: 3, blocked: 4 },
+        { date: '2026-06-24', allowed: 6, quarantined: 0, blocked: 1 },
+      ],
+      monthly: [
+        { date: '2026-04', allowed: 38, quarantined: 5, blocked: 10 },
+        { date: '2026-05', allowed: 52, quarantined: 7, blocked: 14 },
+        { date: '2026-06', allowed: 52, quarantined: 6, blocked: 13 },
+      ],
+    }}
+  }
+
   // POST /accounts/:accountId/signals/:signalId/quarantineResponse
   if (method === 'POST' && url.includes('/quarantineResponse')) {
     const allSignals = Object.values(mockSignals).flat()
