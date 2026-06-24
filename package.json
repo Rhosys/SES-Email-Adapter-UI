@@ -18,8 +18,8 @@
     "lint": "eslint . --ext .ts,.vue --max-warnings 0",
     "lint:ci": "eslint . --ext .ts,.vue",
     "format:check": "prettier --check .",
-    "check": "vue-tsc --noEmit && eslint . --ext .ts,.vue --max-warnings 0 && vitest run",
-    "check:ci": "vue-tsc --noEmit && eslint . --ext .ts,.vue && vitest run",
+    "check": "vue-tsc --noEmit && npm run lint && vitest run",
+    "check:ci": "vue-tsc --noEmit && npm run lint:ci && vitest run",
     "deploy:website": "tsx scripts/deploy-website.ts",
     "deploy:landing": "tsx scripts/deploy-landing.ts"
   },
