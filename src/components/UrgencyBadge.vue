@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import type { ArcUrgency } from '@/types/server'
+/**
+ * UrgencyBadge — renders a colored "!" pill for critical/high urgency.
+ * Only renders for urgencies that have a visual indicator. Normal/low/silent show nothing.
+ *
+ * ENUM PROP RULE: Every value of ArcUrgency must be listed here.
+ * To add a new urgency level, add it to the type AND decide whether it renders.
+ */
+
+type ArcUrgency = 'critical' | 'high' | 'normal' | 'low' | 'silent'
 
 defineProps<{ urgency?: ArcUrgency }>()
 </script>
@@ -17,4 +25,5 @@ defineProps<{ urgency?: ArcUrgency }>()
     aria-label="High urgency"
     >!</span
   >
+  <!-- normal, low, silent: intentionally no visual indicator -->
 </template>
