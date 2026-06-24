@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
 import { RouterLink } from 'vue-router'
-import type { Signal } from '@/types/server'
+import type { QuarantinedSignal } from '@/types/server'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
 import StatusBadge from './StatusBadge.vue'
 
 const props = defineProps<{
-  signal: Signal
+  signal: QuarantinedSignal
   pending: boolean
 }>()
 

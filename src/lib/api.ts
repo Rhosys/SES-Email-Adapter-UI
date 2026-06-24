@@ -23,6 +23,7 @@ import type {
   RetentionDuration,
   Rule,
   Signal,
+  QuarantinedSignal,
   SignalStatus,
   StatsResponse,
   TeamMember,
@@ -73,6 +74,11 @@ interface ArcListWire {
 
 interface SignalListWire {
   signals: Signal[]
+  pagination: Pagination
+}
+
+interface QuarantineSignalListWire {
+  signals: QuarantinedSignal[]
   pagination: Pagination
 }
 
@@ -178,7 +184,7 @@ export const api = {
     accountId: string,
     status: 'quarantine_visible' | 'quarantine_hidden',
     params: QuarantineSignalListParams = {},
-  ): Promise<Result<SignalListWire, ApiError>> {
+  ): Promise<Result<QuarantineSignalListWire, ApiError>> {
     const qs = new URLSearchParams()
     qs.set('status', status)
     if (params.sender) qs.set('sender', params.sender)
@@ -186,7 +192,7 @@ export const api = {
     if (params.before) qs.set('before', params.before)
     if (params.cursor) qs.set('cursor', params.cursor)
     if (params.limit) qs.set('limit', String(params.limit))
-    return request<SignalListWire>(`/accounts/${accountId}/signals?${qs.toString()}`)
+    return request<QuarantineSignalListWire>(`/accounts/${accountId}/signals?${qs.toString()}`)
   },
 
   listDraftSignals(

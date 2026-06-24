@@ -35,6 +35,8 @@ export type SignalStatus =
   | 'pending_send'
   | 'sent'
 
+export type QuarantineStatus = 'quarantine_visible' | 'quarantine_hidden'
+
 export type SignalSource = 'system' | 'user'
 
 export type RetentionDuration = 'P1M' | 'P2M' | 'P3M' | 'P5M' | 'P6M' | 'P1Y' | 'P2Y' | 'P5Y' | 'P10Y' | 'P100Y' | 'Infinity'
@@ -354,6 +356,8 @@ export type Signal =
   | DomainMisconfigurationSignal
 
 export type SignalType = Signal['type']
+
+export type QuarantinedSignal = Signal & { status: QuarantineStatus }
 
 // ─── WorkflowData union ───────────────────────────────────────────────────────
 

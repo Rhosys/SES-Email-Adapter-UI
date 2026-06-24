@@ -3,7 +3,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { ok, err } from 'neverthrow'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useAccountStore } from '@/stores/account'
-import type { Signal, Account } from '@/types/server'
+import type { Signal, QuarantinedSignal, Account } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
@@ -24,7 +24,7 @@ vi.mock('@/lib/logger', () => ({
 import { api, ApiError } from '@/lib/api'
 import logger from '@/lib/logger'
 
-function mockSignal(overrides: Partial<Signal> & { signalId?: string; status?: string } = {}): Signal {
+function mockSignal(overrides: Partial<Signal> & { signalId?: string; status?: string } = {}): QuarantinedSignal {
   const { signalId = 'sig_1', status = 'quarantine_visible', ...rest } = overrides
   return {
     signalId,
@@ -48,12 +48,12 @@ function mockSignal(overrides: Partial<Signal> & { signalId?: string; status?: s
       matchedRules: [{ ruleId: 'rule_1', actions: [], labelsAdded: ['system:sender:untrusted'] }],
     },
     ...rest,
-  } as Signal
+  } as QuarantinedSignal
 }
 
 function mockBothCalls(
-  visItems: Signal[],
-  hidItems: Signal[],
+  visItems: QuarantinedSignal[],
+  hidItems: QuarantinedSignal[],
   visCursor?: string,
   hidCursor?: string,
 ) {

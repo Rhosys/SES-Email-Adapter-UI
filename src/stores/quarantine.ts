@@ -4,7 +4,7 @@ import { api } from '@/lib/api'
 import logger from '@/lib/logger'
 import { useAccountStore } from '@/stores/account'
 import type { QuarantineSignalListParams } from '@/lib/api'
-import type { Signal } from '@/types/server'
+import type { QuarantinedSignal } from '@/types/server'
 
 export interface QuarantineFilters {
   sender: string
@@ -13,11 +13,11 @@ export interface QuarantineFilters {
 }
 
 interface QuarantineData {
-  visible: Signal[]
-  hidden: Signal[]
+  visible: QuarantinedSignal[]
+  hidden: QuarantinedSignal[]
 }
 
-function byReceivedDesc(a: Signal, b: Signal) {
+function byReceivedDesc(a: QuarantinedSignal, b: QuarantinedSignal) {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 }
 
@@ -59,11 +59,11 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     }
   }
 
-  const quarantineVisible = computed<Signal[]>(() =>
+  const quarantineVisible = computed<QuarantinedSignal[]>(() =>
     accountStore.accountId ? _data(accountStore.accountId).visible : [],
   )
 
-  const quarantineHidden = computed<Signal[]>(() =>
+  const quarantineHidden = computed<QuarantinedSignal[]>(() =>
     accountStore.accountId ? _data(accountStore.accountId).hidden : [],
   )
 
