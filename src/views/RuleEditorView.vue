@@ -324,6 +324,10 @@ onMounted(async () => {
   if (isEditing.value) {
     if (rulesStore.items.length === 0) await rulesStore.fetchRules()
     const existing = rulesStore.items.find((r) => r.ruleId === ruleId.value)
+    if (existing?.system) {
+      void router.replace('/rules')
+      return
+    }
     if (existing) {
       name.value = existing.name
       status.value = existing.status

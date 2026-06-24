@@ -114,7 +114,7 @@ function parseGroup(node: unknown, fallback: 'and' | 'or'): ConditionGroup {
 function isLeafLike(node: unknown): boolean {
   if (typeof node !== 'object' || !node) return false
   return Object.keys(node as object).some((k) =>
-    ['==', '!=', 'in', '!', 'startsWith', 'endsWith', '>', '<'].includes(k),
+    ['==', '!=', 'in', '!', '!!', 'startsWith', 'endsWith', '>', '<'].includes(k),
   )
 }
 
@@ -165,6 +165,11 @@ export function parseLeaf(node: unknown): ConditionLeaf | null {
     const field = extractVar(a)
     if (field) return { field, operator: 'less_than', value: String(b ?? '') }
   }
+  if ('!!' in obj) {
+    const inner = Array.isArray(obj['!!']) ? obj['!!'][0] : obj['!!']
+    const field = extractVar(inner)
+    if (field) return { field, operator: 'not_equals', value: '' }
+  }
   return null
 }
 
@@ -185,6 +190,14 @@ export function evalLogic(logic: unknown, data: Record<string, unknown>): boolea
   if ('and' in obj) return (obj.and as unknown[]).every((c) => evalLogic(c, data))
   if ('or' in obj) return (obj.or as unknown[]).some((c) => evalLogic(c, data))
   if ('!' in obj) return !evalLogic(obj['!'], data)
+  if ('!!' in obj) {
+    const inner = Array.isArray(obj['!!']) ? obj['!!'][0] : obj['!!']
+    const rv2 = (v: unknown): unknown => {
+      if (typeof v === 'object' && v && 'var' in v) return getPath(data, (v as { var: string }).var)
+      return v
+    }
+    return !!rv2(inner)
+  }
 
   const rv = (v: unknown): unknown => {
     if (typeof v === 'object' && v && 'var' in v) return getPath(data, (v as { var: string }).var)

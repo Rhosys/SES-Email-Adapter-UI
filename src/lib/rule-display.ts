@@ -82,6 +82,10 @@ export function summarizeLogic(node: unknown, depth = 0): string {
     const [n, h] = obj['in'] as unknown[]
     return `${varOf(h)} contains "${n}"`
   }
+  if ('!!' in obj) {
+    const inner = Array.isArray(obj['!!']) ? obj['!!'][0] : obj['!!']
+    return `${varOf(inner)} exists`
+  }
   if ('!' in obj) return `NOT (${summarizeLogic(obj['!'], depth + 1)})`
   if ('startsWith' in obj) {
     const [s, p] = obj['startsWith'] as unknown[]
