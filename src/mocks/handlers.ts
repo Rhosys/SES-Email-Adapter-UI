@@ -341,6 +341,23 @@ export const handlers = [
     return HttpResponse.json({ url: 'https://billing.stripe.com/mock-portal' })
   }),
 
+  // ─── Stats ──────────────────────────────────────────────────────────────
+  http.get('/accounts/:accountId/stats', () => {
+    return HttpResponse.json({
+      totals: { allowed: 142, quarantined: 18, blocked: 37, aliases: 5 },
+      daily: [
+        { date: '2026-06-22', allowed: 8, quarantined: 1, blocked: 2 },
+        { date: '2026-06-23', allowed: 12, quarantined: 3, blocked: 4 },
+        { date: '2026-06-24', allowed: 6, quarantined: 0, blocked: 1 },
+      ],
+      monthly: [
+        { date: '2026-04', allowed: 38, quarantined: 5, blocked: 10 },
+        { date: '2026-05', allowed: 52, quarantined: 7, blocked: 14 },
+        { date: '2026-06', allowed: 52, quarantined: 6, blocked: 13 },
+      ],
+    })
+  }),
+
   // ─── Templates ─────────────────────────────────────────────────────────
   http.get('/accounts/:accountId/templates', () => {
     return HttpResponse.json({ templates: mockTemplates, pagination: { cursor: null } })

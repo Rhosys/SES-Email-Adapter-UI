@@ -53,7 +53,6 @@ export const useStatsStore = defineStore('stats', () => {
   const accountStore = useAccountStore()
 
   const _byAccount = ref<Record<string, StatsResponse>>({})
-  const loading = ref(false)
   const error = ref<string | null>(null)
 
   // Always populated — EMPTY_STATS until the first fetch resolves, then the cached response.
@@ -74,19 +73,11 @@ export const useStatsStore = defineStore('stats', () => {
     }
   })
 
-  const loaded = computed(() => {
-    const id = accountStore.accountId
-    return id !== null && id in _byAccount.value
-  })
-
-  // Skips the loading spinner on refetch — the cached value stays visible while it updates.
   async function fetchStats() {
     const id = accountStore.accountId
     if (!id) return
-    loading.value = !(id in _byAccount.value)
     error.value = null
     const result = await api.getStats(id)
-    loading.value = false
     if (result.isErr()) {
       error.value = result.error.message
       return
@@ -94,7 +85,7 @@ export const useStatsStore = defineStore('stats', () => {
     _byAccount.value = { ..._byAccount.value, [id]: result.value }
   }
 
-  return { stats, loaded, loading, error, fetchStats }
+  return { stats, error, fetchStats }
 }, {
   persist: {
     accountKeyedRef: '_byAccount',

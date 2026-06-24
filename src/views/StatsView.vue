@@ -2,12 +2,12 @@
 import { computed, onMounted } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
-import { LineChart, BarChart } from 'echarts/charts'
+import { BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useStatsStore } from '@/stores/stats'
 
-use([LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
+use([BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
 const statsStore = useStatsStore()
 
@@ -36,37 +36,30 @@ const dailyAreaOption = computed(() => {
     },
     yAxis: {
       type: 'value' as const,
+      min: 0,
+      minInterval: 1,
       axisLabel: { color: '#a6adc8', fontSize: 10 },
       splitLine: { lineStyle: { color: '#313244' } },
     },
     series: [
       {
         name: 'Allowed',
-        type: 'line' as const,
+        type: 'bar' as const,
         stack: 'total',
-        areaStyle: { opacity: 0.4 },
-        smooth: true,
-        symbol: 'none',
         data: daily.map((d) => d.allowed),
         itemStyle: { color: '#a6e3a1' },
       },
       {
         name: 'Quarantined',
-        type: 'line' as const,
+        type: 'bar' as const,
         stack: 'total',
-        areaStyle: { opacity: 0.4 },
-        smooth: true,
-        symbol: 'none',
         data: daily.map((d) => d.quarantined),
         itemStyle: { color: '#f9e2af' },
       },
       {
         name: 'Blocked',
-        type: 'line' as const,
+        type: 'bar' as const,
         stack: 'total',
-        areaStyle: { opacity: 0.4 },
-        smooth: true,
-        symbol: 'none',
         data: daily.map((d) => d.blocked),
         itemStyle: { color: '#f38ba8' },
       },
@@ -93,6 +86,8 @@ const monthlyBarOption = computed(() => {
     },
     yAxis: {
       type: 'value' as const,
+      min: 0,
+      minInterval: 1,
       axisLabel: { color: '#a6adc8', fontSize: 10 },
       splitLine: { lineStyle: { color: '#313244' } },
     },
@@ -131,7 +126,7 @@ const hasMonthly = computed(() => statsStore.stats.monthly.length > 0)
     <h1 class="hidden text-lg font-semibold text-ctp-text sm:block">Stats</h1>
 
     <!-- Loading skeleton -->
-    <div v-if="statsStore.loading" class="mt-6 space-y-4">
+    <div v-if="!hasDaily && !statsStore.error" class="mt-6 space-y-4">
       <div class="flex gap-6">
         <div v-for="i in 3" :key="i" class="h-16 w-32 animate-pulse rounded-lg bg-ctp-surface0" />
       </div>

@@ -3,13 +3,13 @@ import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
-import { PieChart, LineChart } from 'echarts/charts'
+import { PieChart, BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useUiStore } from '@/stores/ui'
 import { useStatsStore } from '@/stores/stats'
 
-use([PieChart, LineChart, GridComponent, TooltipComponent, CanvasRenderer])
+use([PieChart, BarChart, GridComponent, TooltipComponent, CanvasRenderer])
 
 const uiStore = useUiStore()
 const statsStore = useStatsStore()
@@ -41,44 +41,25 @@ const donutOption = computed(() => {
 const areaOption = computed(() => {
   const daily = statsStore.stats.daily
   const dates = daily.map((d) => d.date)
+  const total = daily.map((d) => d.allowed + d.quarantined + d.blocked)
   return {
     grid: { top: 4, right: 4, bottom: 4, left: 4 },
     xAxis: { type: 'category' as const, show: false, data: dates },
-    yAxis: { type: 'value' as const, show: false },
+    yAxis: { type: 'value' as const, show: false, min: 0, minInterval: 1 },
     tooltip: { trigger: 'axis' as const, confine: true },
     series: [
       {
-        type: 'line' as const,
-        stack: 'total',
-        areaStyle: { opacity: 0.4 },
-        smooth: true,
-        symbol: 'none',
-        data: daily.map((d) => d.allowed),
-        itemStyle: { color: '#a6e3a1' },
-      },
-      {
-        type: 'line' as const,
-        stack: 'total',
-        areaStyle: { opacity: 0.4 },
-        smooth: true,
-        symbol: 'none',
-        data: daily.map((d) => d.quarantined),
-        itemStyle: { color: '#f9e2af' },
-      },
-      {
-        type: 'line' as const,
-        stack: 'total',
-        areaStyle: { opacity: 0.4 },
-        smooth: true,
-        symbol: 'none',
-        data: daily.map((d) => d.blocked),
-        itemStyle: { color: '#f38ba8' },
+        type: 'bar' as const,
+        data: total,
+        itemStyle: { color: '#cba6f7' },
+        barMaxWidth: 6,
       },
     ],
   }
 })
 
 const totals = computed(() => statsStore.stats.totals)
+const stats = computed(() => statsStore.stats)
 
 function toggleExpanded(e: Event) {
   e.preventDefault()
@@ -117,7 +98,7 @@ function toggleExpanded(e: Event) {
       :to="{ name: 'stats' }"
       class="block cursor-pointer px-3 pb-3 no-underline hover:bg-ctp-surface0/30"
     >
-      <div v-if="statsStore.loading" class="flex h-20 items-center justify-center">
+      <div v-if="stats.daily.length === 0" class="flex h-20 items-center justify-center">
         <div class="h-5 w-5 animate-spin rounded-full border-2 border-ctp-surface1 border-t-ctp-mauve" />
       </div>
 
