@@ -3,14 +3,14 @@
  * StatusBadge — renders a colored pill for a known status value.
  *
  * ENUM PROP RULE: Every supported status must have an entry in BOTH `styles` and `labels`.
- * To add a new status, add it to the `Status` type AND both maps below.
- * Passing an unsupported value will trigger a console error.
+ * To add a new status, add it to the `Status` type AND both maps below. The `Status` type
+ * is the union of valid values, so the compiler rejects any unsupported value at the call site.
  */
 import type { ArcStatus, QuarantineStatus } from '@/types/server'
 
 type Status = ArcStatus | QuarantineStatus
 
-const props = defineProps<{ status: Status }>()
+defineProps<{ status: Status }>()
 
 const styles: Record<Status, string> = {
   active: 'bg-ctp-green/15 text-ctp-green',
@@ -28,10 +28,6 @@ const labels: Record<Status, string> = {
   report_violation: 'Reported',
   quarantine_visible: 'Quarantined',
   quarantine_hidden: 'Silently held',
-}
-
-if (!(props.status in styles)) {
-  console.error(`[StatusBadge] Unsupported status "${props.status}". Add it to the Status type and both maps.`)
 }
 </script>
 
