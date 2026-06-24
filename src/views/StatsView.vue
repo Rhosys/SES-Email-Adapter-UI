@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref, nextTick } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { BarChart } from 'echarts/charts'
@@ -11,7 +11,12 @@ use([BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer]
 
 const statsStore = useStatsStore()
 
-onMounted(() => {
+// Defer chart rendering until after DOM layout is complete
+const domReady = ref(false)
+
+onMounted(async () => {
+  await nextTick()
+  domReady.value = true
   void statsStore.fetchStats()
 })
 
@@ -117,8 +122,8 @@ const monthlyBarOption = computed(() => {
   }
 })
 
-const hasDaily = computed(() => statsStore.stats.daily.length > 0)
-const hasMonthly = computed(() => statsStore.stats.monthly.length > 0)
+const hasDaily = computed(() => domReady.value && statsStore.stats.daily.length > 0)
+const hasMonthly = computed(() => domReady.value && statsStore.stats.monthly.length > 0)
 </script>
 
 <template>
@@ -135,7 +140,7 @@ const hasMonthly = computed(() => statsStore.stats.monthly.length > 0)
     </div>
 
     <!-- Error state -->
-    <div v-else-if="statsStore.error" class="mt-6 flex flex-col items-center gap-4 rounded-lg border border-ctp-surface0 bg-ctp-mantle p-8">
+    <div v-if="statsStore.error" class="mt-6 flex flex-col items-center gap-4 rounded-lg border border-ctp-surface0 bg-ctp-mantle p-8">
       <p class="text-sm text-ctp-red">{{ statsStore.error }}</p>
       <button
         class="rounded-md bg-ctp-blue px-4 py-2 text-sm font-medium text-ctp-base transition-colors hover:bg-ctp-sapphire"
@@ -146,7 +151,7 @@ const hasMonthly = computed(() => statsStore.stats.monthly.length > 0)
     </div>
 
     <!-- Stats content -->
-    <div v-else class="mt-6 space-y-6">
+    <div v-if="hasDaily" class="mt-6 space-y-6">
       <!-- Totals summary -->
       <div class="flex flex-wrap gap-6">
         <div class="flex items-center gap-2 rounded-lg border border-ctp-surface0 bg-ctp-mantle px-4 py-3">

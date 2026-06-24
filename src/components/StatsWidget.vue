@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref, nextTick } from 'vue'
 import { RouterLink } from 'vue-router'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -14,7 +14,11 @@ use([PieChart, BarChart, GridComponent, TooltipComponent, CanvasRenderer])
 const uiStore = useUiStore()
 const statsStore = useStatsStore()
 
-onMounted(() => {
+const domReady = ref(false)
+
+onMounted(async () => {
+  await nextTick()
+  domReady.value = true
   void statsStore.fetchStats()
 })
 
@@ -98,7 +102,7 @@ function toggleExpanded(e: Event) {
       :to="{ name: 'stats' }"
       class="block cursor-pointer px-3 pb-3 no-underline hover:bg-ctp-surface0/30"
     >
-      <div v-if="stats.daily.length === 0" class="flex h-20 items-center justify-center">
+      <div v-if="!domReady || stats.daily.length === 0" class="flex h-20 items-center justify-center">
         <div class="h-5 w-5 animate-spin rounded-full border-2 border-ctp-surface1 border-t-ctp-mauve" />
       </div>
 
