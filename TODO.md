@@ -45,6 +45,37 @@ Backend fields that exist on the frontend type but aren't yet surfaced in any UI
 
 ---
 
+## Critical — Remove loading flags from all stores
+
+Every store except `stats.ts` exposes a `loading` ref that fundamentally breaks the reactive model. The store should always return its cached data — the consumer decides if it needs fresher data and calls the fetch action. There is zero reason for a `loading` boolean to exist. It forces every consumer into a three-state (`null | loading | data`) branch that wouldn't exist if the store just returned an empty default until data arrives.
+
+**The rule:** Stores return data. Always. If the cache is empty, they return the empty-shape default. Consumers call `fetchX()` when they mount or detect staleness. The fetch updates the reactive cache; the computed re-evaluates; the UI updates. No flags, no guards, no "is it ready yet" ceremony.
+
+**Stores to fix (remove `loading` ref, adopt stats-store pattern):**
+
+- [ ] `labels.ts` — unconditional `loading = true` on every fetch + artificial 1s delay. Always shows spinner even when cache exists.
+- [ ] `rules.ts` — unconditional `loading = true` on every fetch + artificial 1s delay. Same problem.
+- [ ] `views.ts` — unconditional `loading = true` on every fetch. Flashes loading state on every navigation to a page that uses views.
+- [ ] `templates.ts` — unconditional `loading = true` on every fetch. Same as views.
+- [ ] `arcs.ts` — partially fixed (only loads when cache is empty), but still exposes `loading` and `loadingMore` flags that consumers branch on.
+- [ ] `quarantine.ts` — partially fixed (stale-while-revalidate), but still exposes `loading` and `loadingMore`.
+- [ ] `signals.ts` — partially fixed (only loads when arc cache is empty), but still exposes `loading` and `loadingMore`.
+- [ ] `drafts.ts` — derived store that still tracks its own `loading` ref for no reason.
+
+**Pattern to follow (`stats.ts`):**
+```typescript
+const _byAccount = ref<Record<string, T>>({})
+const items = computed<T>(() => {
+  const id = accountStore.accountId
+  return id ? (_byAccount.value[id] ?? EMPTY_DEFAULT) : EMPTY_DEFAULT
+})
+async function fetchItems() { /* updates _byAccount, no loading flag */ }
+```
+
+**Also remove:** the artificial `setTimeout` delays in `labels.ts` and `rules.ts`. These exist to "ensure the skeleton shows long enough" — which is a display-layer concern that doesn't belong in the store. If a skeleton must show for 1s, the *component* can hold a local timer. The store has no business throttling its own responsiveness.
+
+---
+
 ## Open tasks
 
 ### Adopt cached per-account store pattern everywhere
