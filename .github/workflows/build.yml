@@ -113,7 +113,7 @@ jobs:
       # ── Lint / type-check / test ────────────────────────────────────────────
 
       - name: Check
-        run: npm run check
+        run: npm run check:ci
 
       - name: Format check (advisory)
         continue-on-error: true

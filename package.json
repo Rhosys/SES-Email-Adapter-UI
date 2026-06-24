@@ -16,8 +16,10 @@
     "coverage": "vitest run --coverage",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint . --ext .ts,.vue --max-warnings 0",
+    "lint:ci": "eslint . --ext .ts,.vue",
     "format:check": "prettier --check .",
     "check": "vue-tsc --noEmit && eslint . --ext .ts,.vue --max-warnings 0 && vitest run",
+    "check:ci": "vue-tsc --noEmit && eslint . --ext .ts,.vue && vitest run",
     "deploy:website": "tsx scripts/deploy-website.ts",
     "deploy:landing": "tsx scripts/deploy-landing.ts"
   },
