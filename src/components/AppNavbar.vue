@@ -163,28 +163,37 @@ function onUserMenuFocusout(e: FocusEvent) {
       </svg>
     </button>
 
-    <!-- Page title (mobile only) -->
-    <span class="flex-1 truncate text-lg font-semibold text-ctp-text sm:hidden">{{ pageTitle }}</span>
+    <!-- Page title (mobile only, on the search screen itself) -->
+    <span v-if="route.path === '/search'" class="flex-1 truncate text-lg font-semibold text-ctp-text sm:hidden">{{ pageTitle }}</span>
+
+    <!-- Search input (mobile only) — a real input that jumps to /search on tap/focus -->
+    <div v-else class="relative flex-1 sm:hidden">
+      <svg
+        class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ctp-subtext0"
+        viewBox="0 0 16 16"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <path d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 001.415-1.414l-3.85-3.85a1.007 1.007 0 00-.115-.099zm-5.242 1.156a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"/>
+      </svg>
+      <input
+        type="search"
+        readonly
+        aria-label="Search"
+        placeholder="Search…"
+        class="h-9 w-full rounded-lg border border-ctp-surface1 bg-ctp-base pl-8 pr-3 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+        @focus="void router.push('/search')"
+        @click="void router.push('/search')"
+      />
+    </div>
 
     <!-- Search (uses slot so AppLayout can inject the full search with lookahead — desktop only) -->
     <div class="hidden flex-1 sm:block">
       <slot name="search" />
     </div>
 
-    <!-- Right section: search icon (mobile) + user avatar (desktop only) -->
+    <!-- Right section: account switcher (onboarding) + user avatar (desktop only) -->
     <div class="flex items-center gap-2">
-      <!-- Search icon (mobile only) — navigates to /search -->
-      <button
-        type="button"
-        class="flex h-8 w-8 items-center justify-center rounded text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text sm:hidden"
-        aria-label="Search"
-        @click="void router.push('/search')"
-      >
-        <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-          <path d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 001.415-1.414l-3.85-3.85a1.007 1.007 0 00-.115-.099zm-5.242 1.156a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"/>
-        </svg>
-      </button>
-
       <!-- Account switcher (onboarding only) -->
       <div v-if="showAccountSwitcher" class="relative">
         <button
