@@ -161,6 +161,28 @@
   --color-ctp-rosewater: var(--color-rosewater);
 }
 
+/*
+ * Mobile scale-up — below the `sm` breakpoint, bump Tailwind's font-size
+ * scale up one step and grow the spacing scale slightly, so text and
+ * touch targets (buttons, paddings, icons) read bigger on phones. Tailwind's
+ * `--text-*--line-height` vars are unitless multipliers of font-size, so they
+ * keep working unchanged at the new sizes. `sm:` utilities (desktop) are
+ * unaffected since they only apply at >= 640px, outside this query.
+ */
+@media (max-width: 639.98px) {
+  :root {
+    --spacing: 0.275rem;
+
+    --text-xs: 0.875rem;
+    --text-sm: 1rem;
+    --text-base: 1.125rem;
+    --text-lg: 1.25rem;
+    --text-xl: 1.5rem;
+    --text-2xl: 1.875rem;
+    --text-3xl: 2.25rem;
+  }
+}
+
 @supports (-moz-appearance: none) {
   html {
     scrollbar-width: auto;

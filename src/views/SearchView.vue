@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, inject } from 'vue'
+import { ref, computed, inject, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
@@ -173,6 +173,15 @@ async function doSearch() {
       'Search failed'
   }
 }
+
+// Auto-search once at least 3 characters are entered (mirrors the navbar lookahead on desktop)
+let autoSearchTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(query, (q) => {
+  if (autoSearchTimer) clearTimeout(autoSearchTimer)
+  if (q.trim().length < 3) return
+  autoSearchTimer = setTimeout(() => void doSearch(), 300)
+})
 
 function toggleSection(key: SectionKey) {
   if (visibleSections.value.has(key)) {
