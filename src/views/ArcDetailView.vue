@@ -315,9 +315,7 @@ async function removeLabel(label: string) {
           <span class="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" :class="primaryBadgeClass">{{ primaryBadgeLabel }}</span>
           <h1 class="text-lg font-semibold text-ctp-text">{{ arc.summary }}</h1>
         </div>
-        <!-- Line 2: Subject -->
-        <p v-if="arc.subject" class="mt-1 text-sm text-ctp-subtext1">{{ arc.subject }}</p>
-        <!-- Line 3: From / Alias -->
+        <!-- Line 2: From / Alias -->
         <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-ctp-subtext1">
           <span v-if="arc.senderAddress"><span class="text-ctp-overlay1">From:</span> {{ arc.senderAddress }}</span>
         </div>

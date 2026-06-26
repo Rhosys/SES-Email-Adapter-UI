@@ -3,13 +3,13 @@ import { computed, onMounted, ref, nextTick } from 'vue'
 import { RouterLink } from 'vue-router'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
-import { PieChart, BarChart } from 'echarts/charts'
+import { PieChart, LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useUiStore } from '@/stores/ui'
 import { useStatsStore } from '@/stores/stats'
 
-use([PieChart, BarChart, GridComponent, TooltipComponent, CanvasRenderer])
+use([PieChart, LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
 const uiStore = useUiStore()
 const statsStore = useStatsStore()
@@ -45,18 +45,44 @@ const donutOption = computed(() => {
 const areaOption = computed(() => {
   const daily = statsStore.stats.daily
   const dates = daily.map((d) => d.date)
-  const total = daily.map((d) => d.allowed + d.quarantined + d.blocked)
   return {
     grid: { top: 4, right: 4, bottom: 4, left: 4 },
-    xAxis: { type: 'category' as const, show: false, data: dates },
+    xAxis: { type: 'category' as const, show: false, data: dates, boundaryGap: false },
     yAxis: { type: 'value' as const, show: false, min: 0, minInterval: 1 },
     tooltip: { trigger: 'axis' as const, confine: true },
     series: [
       {
-        type: 'bar' as const,
-        data: total,
-        itemStyle: { color: '#cba6f7' },
-        barMaxWidth: 6,
+        name: 'Allowed',
+        type: 'line' as const,
+        stack: 'total',
+        showSymbol: false,
+        smooth: true,
+        lineStyle: { width: 1 },
+        areaStyle: { color: '#a6e3a1', opacity: 0.7 },
+        itemStyle: { color: '#a6e3a1' },
+        data: daily.map((d) => d.allowed),
+      },
+      {
+        name: 'Quarantined',
+        type: 'line' as const,
+        stack: 'total',
+        showSymbol: false,
+        smooth: true,
+        lineStyle: { width: 1 },
+        areaStyle: { color: '#f9e2af', opacity: 0.7 },
+        itemStyle: { color: '#f9e2af' },
+        data: daily.map((d) => d.quarantined),
+      },
+      {
+        name: 'Blocked',
+        type: 'line' as const,
+        stack: 'total',
+        showSymbol: false,
+        smooth: true,
+        lineStyle: { width: 1 },
+        areaStyle: { color: '#f38ba8', opacity: 0.7 },
+        itemStyle: { color: '#f38ba8' },
+        data: daily.map((d) => d.blocked),
       },
     ],
   }
