@@ -2,12 +2,12 @@
 import { computed, onMounted, ref, nextTick } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
-import { BarChart } from 'echarts/charts'
+import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useStatsStore } from '@/stores/stats'
 
-use([BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
+use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
 const statsStore = useStatsStore()
 
@@ -36,6 +36,7 @@ const dailyAreaOption = computed(() => {
     xAxis: {
       type: 'category' as const,
       data: dates,
+      boundaryGap: false,
       axisLabel: { color: '#a6adc8', fontSize: 10 },
       axisLine: { lineStyle: { color: '#45475a' } },
     },
@@ -49,22 +50,34 @@ const dailyAreaOption = computed(() => {
     series: [
       {
         name: 'Allowed',
-        type: 'bar' as const,
+        type: 'line' as const,
         stack: 'total',
+        showSymbol: false,
+        smooth: true,
+        lineStyle: { width: 1 },
+        areaStyle: { color: '#a6e3a1', opacity: 0.7 },
         data: daily.map((d) => d.allowed),
         itemStyle: { color: '#a6e3a1' },
       },
       {
         name: 'Quarantined',
-        type: 'bar' as const,
+        type: 'line' as const,
         stack: 'total',
+        showSymbol: false,
+        smooth: true,
+        lineStyle: { width: 1 },
+        areaStyle: { color: '#f9e2af', opacity: 0.7 },
         data: daily.map((d) => d.quarantined),
         itemStyle: { color: '#f9e2af' },
       },
       {
         name: 'Blocked',
-        type: 'bar' as const,
+        type: 'line' as const,
         stack: 'total',
+        showSymbol: false,
+        smooth: true,
+        lineStyle: { width: 1 },
+        areaStyle: { color: '#f38ba8', opacity: 0.7 },
         data: daily.map((d) => d.blocked),
         itemStyle: { color: '#f38ba8' },
       },
@@ -86,6 +99,7 @@ const monthlyBarOption = computed(() => {
     xAxis: {
       type: 'category' as const,
       data: dates,
+      boundaryGap: false,
       axisLabel: { color: '#a6adc8', fontSize: 10 },
       axisLine: { lineStyle: { color: '#45475a' } },
     },
@@ -99,22 +113,34 @@ const monthlyBarOption = computed(() => {
     series: [
       {
         name: 'Allowed',
-        type: 'bar' as const,
+        type: 'line' as const,
         stack: 'total',
+        showSymbol: false,
+        smooth: true,
+        lineStyle: { width: 1 },
+        areaStyle: { color: '#a6e3a1', opacity: 0.7 },
         data: monthly.map((d) => d.allowed),
         itemStyle: { color: '#a6e3a1' },
       },
       {
         name: 'Quarantined',
-        type: 'bar' as const,
+        type: 'line' as const,
         stack: 'total',
+        showSymbol: false,
+        smooth: true,
+        lineStyle: { width: 1 },
+        areaStyle: { color: '#f9e2af', opacity: 0.7 },
         data: monthly.map((d) => d.quarantined),
         itemStyle: { color: '#f9e2af' },
       },
       {
         name: 'Blocked',
-        type: 'bar' as const,
+        type: 'line' as const,
         stack: 'total',
+        showSymbol: false,
+        smooth: true,
+        lineStyle: { width: 1 },
+        areaStyle: { color: '#f38ba8', opacity: 0.7 },
         data: monthly.map((d) => d.blocked),
         itemStyle: { color: '#f38ba8' },
       },

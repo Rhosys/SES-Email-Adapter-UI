@@ -89,6 +89,11 @@ const attachmentCount = computed(() => {
   return props.signal.data.attachments.length
 })
 
+const subjectLine = computed(() => {
+  if (!isEmailSignal(props.signal)) return ''
+  return props.signal.data.subject
+})
+
 const rawSignalJson = ref('')
 const showRawModal = ref(false)
 const showOriginalModal = ref(false)
@@ -281,6 +286,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
         :aria-expanded="expanded"
         @click="expanded = !expanded"
       >
+        <div v-if="subjectLine" class="mb-0.5 truncate text-sm font-semibold text-ctp-text">{{ subjectLine }}</div>
         <div class="flex items-center gap-2">
           <span class="text-sm"><span class="text-ctp-subtext0">From:</span> <span class="text-ctp-text font-medium">{{ fromName }}</span><span v-if="fromAddress" class="ml-1 text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span></span>
           <span
@@ -425,8 +431,8 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
       </div>
     </template>
 
-    <!-- Signal footer — reply action -->
-    <div v-if="expanded && signal.type === 'email'" class="flex justify-end border-t border-ctp-surface0 px-4 py-2">
+    <!-- Signal footer — reply action (always visible, even when collapsed) -->
+    <div v-if="signal.type === 'email'" class="flex justify-end border-t border-ctp-surface0 px-4 py-2">
       <button
         class="flex items-center gap-1.5 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
         @click="$emit('reply')"
