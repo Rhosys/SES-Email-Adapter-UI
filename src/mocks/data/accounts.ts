@@ -10,7 +10,7 @@ export const mockAccounts: Account[] = [
     onboarding: { completed: true, completedAt: '2026-01-15T10:00:00Z', testEmailReceived: true },
     billingPlan: 'pro',
     afterSendAction: 'archive',
-    defaultCalendarInviteForwardingAddress: 'calendar@gmail.com',
+    defaultCalendarInviteForwardingTargetId: 'warren.personal@gmail.com',
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-06-10T08:30:00Z',
   },

@@ -20,7 +20,7 @@ import type {
   Alias,
   AliasSender,
   SenderPolicy,
-  ForwardingAddress,
+  ForwardingTarget,
   UnknownSenderPolicy,
   TeamMember,
   UserRole,
@@ -197,7 +197,7 @@ async function registerPasskey() {
 // ─── Account profile tab ─────────────────────────────────────────────────────
 const afterSendAction = ref<'archive' | 'keep_active'>('keep_active')
 const afterSendPending = ref(false)
-const calendarForwardingAddress = ref('')
+const calendarForwardingTargetId = ref('')
 const calendarForwardingPending = ref(false)
 const calendarForwardingSaved = ref(false)
 
@@ -217,7 +217,7 @@ async function saveCalendarForwarding() {
   calendarForwardingPending.value = true
   calendarForwardingSaved.value = false
   const result = await api.updateAccount(accountStore.accountId, {
-    defaultCalendarInviteForwardingAddress: calendarForwardingAddress.value.trim() || undefined,
+    defaultCalendarInviteForwardingTargetId: calendarForwardingTargetId.value.trim() || undefined,
   })
   calendarForwardingPending.value = false
   if (result.isOk()) {
@@ -498,12 +498,14 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 // ─── Forwarding addresses tab ─────────────────────────────────────────────────
-const forwarding = ref<ForwardingAddress[]>([])
+const forwarding = ref<ForwardingTarget[]>([])
 const forwardingLoading = ref(false)
-const newForwardAddress = ref('')
 const addForwardPending = ref(false)
 const verifySuccess = ref('')
 const verifyError = ref('')
+const addTargetDialogOpen = ref(false)
+const addTargetType = ref<'email' | 'webhook' | null>(null)
+const newForwardTarget = ref('')
 
 async function loadForwarding() {
   if (!accountStore.accountId) return
@@ -513,24 +515,29 @@ async function loadForwarding() {
   if (result.isOk()) forwarding.value = result.value
 }
 
-async function addForwardingAddress() {
-  if (!accountStore.accountId || !newForwardAddress.value.trim()) return
+async function addForwardingTarget() {
+  if (!accountStore.accountId || !newForwardTarget.value.trim() || !addTargetType.value) return
   addForwardPending.value = true
   const result = await api.createForwardingAddress(accountStore.accountId, {
-    address: newForwardAddress.value.trim(),
+    target: newForwardTarget.value.trim(),
+    type: addTargetType.value,
   })
   addForwardPending.value = false
   if (result.isOk()) {
     forwarding.value = [...forwarding.value, result.value]
-    newForwardAddress.value = ''
+    newForwardTarget.value = ''
+    addTargetType.value = null
+    addTargetDialogOpen.value = false
   }
 }
 
-async function removeForwarding(address: string) {
+async function removeForwarding(target: string) {
   if (!accountStore.accountId) return
-  const result = await api.deleteForwardingAddress(accountStore.accountId, address)
-  if (result.isOk()) forwarding.value = forwarding.value.filter((f) => f.address !== address)
+  const result = await api.deleteForwardingAddress(accountStore.accountId, target)
+  if (result.isOk()) forwarding.value = forwarding.value.filter((f) => f.target !== target)
 }
+
+const verifiedForwardingTargets = computed(() => forwarding.value.filter((f) => f.status === 'verified'))
 
 // ─── Team tab ─────────────────────────────────────────────────────────────────
 const team = ref<TeamMember[]>([])
@@ -626,32 +633,25 @@ async function removeMember(userId: string, displayName: string) {
   if (result.isOk()) team.value = team.value.filter((m) => m.userId !== userId)
 }
 
-// ─── Notifications tab ────────────────────────────────────────────────────────
-const emailNotifEnabled = ref(false)
-const emailNotifAddress = ref('')
-const emailNotifFrequency = ref<'instant' | 'hourly' | 'daily'>('daily')
-const notifPending = ref(false)
-const notifSaved = ref(false)
+// ─── Digest (Email tab) ───────────────────────────────────────────────────────
+const digestFrequency = ref<'daily' | 'weekly' | 'monthly' | null>(null)
+const digestForwardingTargetId = ref('')
+const digestPending = ref(false)
+const digestSaved = ref(false)
 
-async function saveNotifications() {
+async function saveDigest() {
   if (!accountStore.accountId) return
-  notifPending.value = true
-  notifSaved.value = false
-  const result = await api.updateAccount(accountStore.accountId, {
-    notifications: {
-      email: {
-        enabled: emailNotifEnabled.value,
-        address: emailNotifAddress.value.trim(),
-        frequency: emailNotifFrequency.value,
-      },
-    },
-  })
-  notifPending.value = false
+  digestPending.value = true
+  digestSaved.value = false
+  const digest = digestFrequency.value
+    ? { frequency: digestFrequency.value, forwardingTargetId: digestForwardingTargetId.value }
+    : null
+  const result = await api.updateAccount(accountStore.accountId, { digest })
+  digestPending.value = false
   if (result.isOk()) {
-    notifSaved.value = true
-    setTimeout(() => {
-      notifSaved.value = false
-    }, 2000)
+    accountStore.account = result.value
+    digestSaved.value = true
+    setTimeout(() => { digestSaved.value = false }, 2000)
   }
 }
 
@@ -683,6 +683,7 @@ async function switchTab(tab: TabKey) {
   if (tab === 'emails' && aliases.value.length === 0) await loadAliases()
   if (tab === 'domains' && domains.value.length === 0) await loadDomains()
   if (tab === 'forwarding' && forwarding.value.length === 0) await loadForwarding()
+  if (tab === 'profile' && forwarding.value.length === 0) await loadForwarding()
   if (tab === 'team' && team.value.length === 0) await loadTeam()
 }
 
@@ -690,14 +691,15 @@ onMounted(async () => {
   identity.value = loginClient.getUserIdentity() as Identity | null
   if (accountStore.account) {
     afterSendAction.value = accountStore.account.afterSendAction ?? 'keep_active'
-    calendarForwardingAddress.value = accountStore.account.defaultCalendarInviteForwardingAddress ?? ''
+    calendarForwardingTargetId.value = accountStore.account.defaultCalendarInviteForwardingTargetId ?? ''
     selectedRetention.value = accountStore.account.retentionDuration
-    emailNotifAddress.value = accountStore.account.notifications?.email?.address ?? ''
-    emailNotifEnabled.value = accountStore.account.notifications?.email?.enabled ?? false
-    emailNotifFrequency.value = accountStore.account.notifications?.email?.frequency ?? 'daily'
+    digestFrequency.value = accountStore.account.digest?.frequency ?? null
+    digestForwardingTargetId.value = accountStore.account.digest?.forwardingTargetId ?? ''
   }
   // Load security profile data eagerly (for Profile tab)
   void loadSecurityProfile()
+  // Load forwarding targets eagerly (needed for digest dropdown on Profile tab)
+  void loadForwarding()
   // Handle forwarding address verification from email link
   const verifyAddress = route.query.verifyAddress as string | undefined
   const token = route.query.token as string | undefined
@@ -921,75 +923,68 @@ function onTabPick(key: string) {
             <ShortcutHelpOverlay v-model:open="shortcutHelpOpen" />
           </section>
 
-          <!-- Email notifications -->
+          <!-- Email digest -->
           <section class="rounded-lg border border-ctp-surface1 p-4">
             <div class="flex items-center justify-between">
               <div>
-                <h2 class="text-sm font-medium text-ctp-text">Email notifications</h2>
+                <h2 class="text-sm font-medium text-ctp-text">Email digest</h2>
                 <p class="mt-0.5 text-xs text-ctp-subtext0">
-                  Receive digest emails about quarantine and alerts
+                  Receive periodic digest emails about quarantine and alerts
                 </p>
               </div>
               <button
                 role="switch"
-                :aria-checked="emailNotifEnabled"
-                :aria-label="emailNotifEnabled ? 'Disable email notifications' : 'Enable email notifications'"
+                :aria-checked="digestFrequency !== null"
+                :aria-label="digestFrequency ? 'Disable digest' : 'Enable digest'"
                 class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
-                :class="emailNotifEnabled ? 'bg-ctp-mauve' : 'bg-ctp-surface1'"
-                @click="emailNotifEnabled = !emailNotifEnabled; saveNotifications()"
+                :class="digestFrequency !== null ? 'bg-ctp-mauve' : 'bg-ctp-surface1'"
+                @click="digestFrequency = digestFrequency ? null : 'daily'; saveDigest()"
               >
                 <span
                   class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                  :class="emailNotifEnabled ? 'translate-x-4' : 'translate-x-0.5'"
+                  :class="digestFrequency !== null ? 'translate-x-4' : 'translate-x-0.5'"
                 />
               </button>
             </div>
 
-            <div v-if="emailNotifEnabled" class="mt-4 space-y-3">
-              <div>
-                <label for="notif-address" class="mb-1 block text-xs text-ctp-subtext0">Notification address</label>
-                <input
-                  id="notif-address"
-                  v-model="emailNotifAddress"
-                  type="email"
-                  placeholder="you@example.com"
-                  class="w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
-                  @change="saveNotifications()"
-                />
-              </div>
+            <div v-if="digestFrequency !== null" class="mt-4 space-y-3">
               <div>
                 <span class="mb-1 block text-xs text-ctp-subtext0">Frequency</span>
                 <div class="flex gap-2">
                   <button
-                    v-for="freq in ['instant', 'hourly', 'daily'] as const"
+                    v-for="freq in ['daily', 'weekly', 'monthly'] as const"
                     :key="freq"
-                    :aria-pressed="emailNotifFrequency === freq"
+                    :aria-pressed="digestFrequency === freq"
                     class="rounded-full border px-3 py-1 text-xs transition-colors"
                     :class="
-                      emailNotifFrequency === freq
+                      digestFrequency === freq
                         ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
                         : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2'
                     "
-                    @click="emailNotifFrequency = freq; saveNotifications()"
+                    @click="digestFrequency = freq; saveDigest()"
                   >
                     {{ freq.charAt(0).toUpperCase() + freq.slice(1) }}
                   </button>
                 </div>
-                <p class="mt-1 text-xs text-ctp-subtext0">
-                  <template v-if="emailNotifFrequency === 'instant'">Sent as each event arrives</template>
-                  <template v-else-if="emailNotifFrequency === 'hourly'">One digest per hour if anything new</template>
-                  <template v-else>One daily summary at 8 AM UTC</template>
-                </p>
               </div>
-            </div>
-
-            <div class="mt-3">
-              <button
-                class="rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
-                @click="sendTestNotification"
-              >
-                Send test notification
-              </button>
+              <div>
+                <label for="digest-target" class="mb-1 block text-xs text-ctp-subtext0">Send to</label>
+                <select
+                  id="digest-target"
+                  v-model="digestForwardingTargetId"
+                  class="w-full appearance-none rounded-lg border border-ctp-surface1 bg-ctp-base px-3 py-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                  @change="saveDigest()"
+                >
+                  <option value="">Select target…</option>
+                  <option
+                    v-for="t in verifiedForwardingTargets"
+                    :key="t.target"
+                    :value="t.target"
+                  >
+                    {{ t.target }}
+                  </option>
+                </select>
+              </div>
             </div>
           </section>
         </template>
@@ -1555,52 +1550,106 @@ function onTabPick(key: string) {
         <div v-if="verifyError" class="mb-4 rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red">
           {{ verifyError }}
         </div>
-        <!-- Calendar forwarding address -->
+
+        <!-- Calendar forwarding target -->
         <div class="mb-6 rounded-lg border border-ctp-surface1 p-4">
           <label for="calendar-forwarding" class="mb-1 block text-xs font-medium text-ctp-subtext0">Calendar invite forwarding</label>
-          <p class="mb-2 text-xs text-ctp-subtext0">Calendar invites will be automatically forwarded to this address</p>
+          <p class="mb-2 text-xs text-ctp-subtext0">Calendar invites will be automatically forwarded to this target</p>
           <div class="flex gap-2">
-            <input
+            <select
               id="calendar-forwarding"
-              v-model="calendarForwardingAddress"
-              type="email"
-              placeholder="calendar@example.com"
-              class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
-            />
-            <AsyncButton
-              :action="saveCalendarForwarding"
-              class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
+              v-model="calendarForwardingTargetId"
+              class="flex-1 appearance-none rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
+              @change="saveCalendarForwarding()"
             >
-              Save
-            </AsyncButton>
+              <option value="">None</option>
+              <option
+                v-for="t in verifiedForwardingTargets"
+                :key="t.target"
+                :value="t.target"
+              >
+                {{ t.target }}
+              </option>
+            </select>
           </div>
         </div>
 
-        <form
-          class="mb-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
-          @submit.prevent="addForwardingAddress"
-        >
-          <input
-            v-model="newForwardAddress"
-            type="email"
-            aria-label="Forwarding address"
-            placeholder="forward@example.com"
-            class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
-          />
-          <AsyncButton
-            type="submit"
-            :action="addForwardingAddress"
-            :disabled="!newForwardAddress.trim()"
+        <!-- Add forwarding target button -->
+        <div class="mb-4">
+          <button
+            type="button"
             class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
+            @click="addTargetDialogOpen = true"
           >
-            Add
-          </AsyncButton>
-        </form>
+            Add Forwarding Target
+          </button>
+        </div>
+
+        <!-- Add target inline dialog -->
+        <div v-if="addTargetDialogOpen" class="mb-4 rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
+          <div class="mb-3 flex items-center justify-between">
+            <span class="text-sm font-medium text-ctp-text">New forwarding target</span>
+            <button
+              type="button"
+              class="text-xs text-ctp-subtext0 hover:text-ctp-text"
+              @click="addTargetDialogOpen = false; addTargetType = null; newForwardTarget = ''"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <!-- Type selection -->
+          <div v-if="!addTargetType" class="flex gap-2">
+            <button
+              type="button"
+              class="flex-1 rounded-lg border border-ctp-surface1 px-4 py-3 text-sm text-ctp-text transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
+              @click="addTargetType = 'email'"
+            >
+              <svg class="mx-auto mb-1 h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
+              Email
+            </button>
+            <button
+              type="button"
+              class="flex-1 rounded-lg border border-ctp-surface1 px-4 py-3 text-sm text-ctp-text transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
+              @click="addTargetType = 'webhook'"
+            >
+              <svg class="mx-auto mb-1 h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd"/></svg>
+              Webhook
+            </button>
+          </div>
+
+          <!-- Input form -->
+          <form v-else class="flex gap-2" @submit.prevent="addForwardingTarget">
+            <input
+              v-model="newForwardTarget"
+              :type="addTargetType === 'email' ? 'email' : 'url'"
+              :aria-label="addTargetType === 'email' ? 'Email address' : 'Webhook URL'"
+              :placeholder="addTargetType === 'email' ? 'forward@example.com' : 'https://hooks.example.com/...'"
+              class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-base px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
+              autofocus
+            />
+            <AsyncButton
+              type="submit"
+              :action="addForwardingTarget"
+              :disabled="!newForwardTarget.trim()"
+              class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
+            >
+              Add
+            </AsyncButton>
+            <button
+              type="button"
+              class="rounded-lg border border-ctp-surface1 px-3 py-2 text-xs text-ctp-subtext0 hover:text-ctp-text"
+              @click="addTargetType = null; newForwardTarget = ''"
+            >
+              Back
+            </button>
+          </form>
+        </div>
 
         <div
           v-if="forwardingLoading"
           role="status"
-          aria-label="Loading forwarding addresses…"
+          aria-label="Loading forwarding targets…"
           class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
         >
           <div v-for="i in 2" :key="i" class="flex items-center gap-3 px-4 py-3">
@@ -1612,30 +1661,41 @@ function onTabPick(key: string) {
           v-else-if="forwarding.length === 0"
           class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
         >
-          <p class="font-medium text-ctp-text">No forwarding addresses yet</p>
+          <p class="font-medium text-ctp-text">No forwarding targets yet</p>
           <p class="mx-auto mt-1 max-w-sm">
-            Forwarding lets you send matched emails to another inbox automatically. Add a
-            destination here, then wire it up in a rule — useful for team handoffs or archiving to
-            a shared mailbox.
+            Forwarding lets you send matched emails to another inbox or webhook automatically. Add a
+            target here, then wire it up in a rule — useful for team handoffs, archiving, or
+            integrations.
           </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div
             v-for="fwd in forwarding"
-            :key="fwd.address"
+            :key="fwd.target"
             class="flex items-center justify-between px-4 py-3"
           >
-            <div>
-              <p class="text-sm text-ctp-text">{{ fwd.address }}</p>
-              <p v-if="fwd.verifiedAt" class="text-xs text-ctp-green">
-                Verified on {{ new Date(fwd.verifiedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
-              </p>
-              <p v-else class="text-xs text-ctp-yellow">Pending verification</p>
+            <div class="flex items-center gap-2.5">
+              <!-- Type icon -->
+              <svg v-if="fwd.type === 'email'" class="h-4 w-4 shrink-0 text-ctp-subtext0" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+              </svg>
+              <svg v-else class="h-4 w-4 shrink-0 text-ctp-subtext0" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd"/>
+              </svg>
+              <div>
+                <p class="text-sm text-ctp-text">{{ fwd.target }}</p>
+                <p v-if="fwd.verifiedAt" class="text-xs text-ctp-green">
+                  Verified on {{ new Date(fwd.verifiedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
+                </p>
+                <p v-else-if="fwd.status === 'disabled'" class="text-xs text-ctp-subtext0">Disabled</p>
+                <p v-else class="text-xs text-ctp-yellow">Pending verification</p>
+              </div>
             </div>
             <button
               class="text-ctp-subtext0 hover:text-ctp-red"
               title="Remove"
-              @click="removeForwarding(fwd.address)"
+              @click="removeForwarding(fwd.target)"
             >
               <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
             </button>

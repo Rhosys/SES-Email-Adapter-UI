@@ -5,7 +5,7 @@ import { ok } from 'neverthrow'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import SettingsView from '@/views/SettingsView.vue'
 import { useAccountStore } from '@/stores/account'
-import type { Account, ForwardingAddress } from '@/types/server'
+import type { Account, ForwardingTarget } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
@@ -49,7 +49,7 @@ function makeRouter() {
 
 let pinia: ReturnType<typeof createPinia>
 
-async function mountForwardingTab(forwarding: ForwardingAddress[]) {
+async function mountForwardingTab(forwarding: ForwardingTarget[]) {
   vi.mocked(api.listForwardingAddresses).mockResolvedValue(ok(forwarding))
 
   const router = makeRouter()
@@ -73,8 +73,9 @@ describe('SettingsView — forwarding verification date', () => {
   })
 
   it('shows "Verified on <date>" when verifiedAt is set', async () => {
-    const fwd: ForwardingAddress = {
-      address: 'forward@example.com',
+    const fwd: ForwardingTarget = {
+      target: 'forward@example.com',
+      type: 'email',
       status: 'verified',
       createdAt: '2025-01-01T00:00:00Z',
       verifiedAt: '2025-06-15T10:30:00Z',
@@ -89,8 +90,9 @@ describe('SettingsView — forwarding verification date', () => {
   })
 
   it('shows "Pending verification" when verifiedAt is absent', async () => {
-    const fwd: ForwardingAddress = {
-      address: 'pending@example.com',
+    const fwd: ForwardingTarget = {
+      target: 'pending@example.com',
+      type: 'email',
       status: 'pending',
       createdAt: '2025-01-01T00:00:00Z',
     }

@@ -107,7 +107,8 @@ export interface Account {
   onboarding?: AccountOnboarding
   billingPlan?: string
   afterSendAction?: 'archive' | 'keep_active'
-  defaultCalendarInviteForwardingAddress?: string
+  defaultCalendarInviteForwardingTargetId?: string
+  digest?: { frequency: 'daily' | 'weekly' | 'monthly'; forwardingTargetId: string } | null
   createdAt: string
   updatedAt: string
 }
@@ -632,11 +633,12 @@ export interface Label {
   createdAt: string
 }
 
-// ─── ForwardingAddress ────────────────────────────────────────────────────────
+// ─── ForwardingTarget ─────────────────────────────────────────────────────────
 
-export interface ForwardingAddress {
-  address: string
-  status: 'pending' | 'verified'
+export interface ForwardingTarget {
+  target: string
+  type: 'email' | 'webhook'
+  status: 'pending' | 'verified' | 'disabled'
   createdAt: string
   verifiedAt?: string
 }

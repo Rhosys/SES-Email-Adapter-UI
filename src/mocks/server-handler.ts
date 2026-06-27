@@ -15,7 +15,7 @@ import { mockTeamMembers } from './data/team'
 import { mockQuarantinedSignalsVisible, mockQuarantinedSignalsHidden } from './data/quarantine'
 import { mockDraftSignals } from './data/drafts'
 import { mockViews } from './data/views'
-import { mockForwardingAddresses } from './data/forwarding'
+import { mockForwardingTargets } from './data/forwarding'
 import { mockAuditEvents } from './data/audit'
 import { mockBilling } from './data/billing'
 
@@ -161,7 +161,7 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
 
   // GET /accounts/:accountId/forwarding-addresses
   if (method === 'GET' && match('/accounts/:accountId/forwarding-addresses', url)) {
-    return { status: 200, body: { forwardingAddresses: mockForwardingAddresses, pagination: { cursor: null } } }
+    return { status: 200, body: { forwardingTargets: mockForwardingTargets, pagination: { cursor: null } } }
   }
 
   // GET /accounts/:accountId/audit
@@ -219,7 +219,7 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
     if (url.includes('/domains')) return { status: 201, body: mockDomains[0] }
     if (url.includes('/templates')) return { status: 201, body: mockTemplates[0] }
     if (url.includes('/users')) return { status: 201, body: mockTeamMembers[0] }
-    if (url.includes('/forwarding-addresses')) return { status: 201, body: mockForwardingAddresses[0] }
+    if (url.includes('/forwarding-addresses')) return { status: 201, body: mockForwardingTargets[0] }
     if (url.includes('/signals')) return { status: 200, body: Object.values(mockSignals).flat()[0] }
     if (url.includes('/billing')) return { status: 200, body: { url: 'https://example.com' } }
   }

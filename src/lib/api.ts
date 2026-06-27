@@ -16,7 +16,7 @@ import type {
   CreateViewBody,
   Domain,
   EmailTemplate,
-  ForwardingAddress,
+  ForwardingTarget,
   Label,
   NotificationSettings,
   Pagination,
@@ -379,7 +379,8 @@ export const api = {
       filtering?: AccountFilteringConfig
       onboarding?: Partial<AccountOnboarding>
       afterSendAction?: 'archive' | 'keep_active'
-      defaultCalendarInviteForwardingAddress?: string
+      defaultCalendarInviteForwardingTargetId?: string
+      digest?: { frequency: 'daily' | 'weekly' | 'monthly'; forwardingTargetId: string } | null
     },
   ): Promise<Result<Account, ApiError>> {
     return request<Account>(`/accounts/${accountId}`, {
@@ -489,17 +490,17 @@ export const api = {
 
   // ─── Forwarding addresses ─────────────────────────────────────────────────
 
-  async listForwardingAddresses(accountId: string): Promise<Result<ForwardingAddress[], ApiError>> {
-    interface FwdListWire { forwardingAddresses: ForwardingAddress[]; pagination: Pagination }
+  async listForwardingAddresses(accountId: string): Promise<Result<ForwardingTarget[], ApiError>> {
+    interface FwdListWire { forwardingTargets: ForwardingTarget[]; pagination: Pagination }
     const result = await request<FwdListWire>(`/accounts/${accountId}/forwarding-addresses`)
-    return result.map((w) => w.forwardingAddresses)
+    return result.map((w) => w.forwardingTargets)
   },
 
   createForwardingAddress(
     accountId: string,
-    body: { address: string },
-  ): Promise<Result<ForwardingAddress, ApiError>> {
-    return request<ForwardingAddress>(`/accounts/${accountId}/forwarding-addresses`, {
+    body: { target: string; type: 'email' | 'webhook' },
+  ): Promise<Result<ForwardingTarget, ApiError>> {
+    return request<ForwardingTarget>(`/accounts/${accountId}/forwarding-addresses`, {
       method: 'POST',
       body: JSON.stringify(body),
     })
