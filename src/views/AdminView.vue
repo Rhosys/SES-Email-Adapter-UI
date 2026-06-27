@@ -2,6 +2,8 @@
 import { ref, computed } from 'vue'
 import { api } from '@/lib/api'
 import { useAccountStore } from '@/stores/account'
+import { getUndoExpiresAt } from '@/composables/usePendingSend'
+import AsyncButton from '@/components/ui/AsyncButton.vue'
 import type { Arc, Signal } from '@/types/server'
 
 const accountStore = useAccountStore()
@@ -33,6 +35,17 @@ const htmlBody = computed(() => {
   if (displayedSignal.value.type !== 'email') return null
   return (displayedSignal.value.data as { body?: string }).body ?? null
 })
+
+const isPendingSend = computed(() => displayedSignal.value?.status === 'pending_send')
+const undoExpiresAt = computed(() => displayedSignal.value ? getUndoExpiresAt(displayedSignal.value) : null)
+const undoExpired = computed(() => undoExpiresAt.value ? new Date(undoExpiresAt.value).getTime() <= Date.now() : true)
+
+async function cancelPendingSend() {
+  const accountId = accountStore.accountId
+  if (!accountId || !signal.value) return
+  const result = await api.patchSignal(accountId, signal.value.signalId, { status: 'draft' })
+  if (result.isOk()) signal.value = result.value
+}
 
 async function reprocess() {
   if (!signal.value) return
@@ -160,6 +173,7 @@ async function lookup() {
     <section v-if="displayedSignal">
       <div class="mb-2 flex items-center gap-2">
         <h3 class="text-sm font-medium text-ctp-subtext1">Signal</h3>
+        <span v-if="isPendingSend" class="rounded-full bg-ctp-peach/15 px-2 py-0.5 text-xs font-medium text-ctp-peach">pending_send</span>
         <button
           :disabled="reprocessing"
           class="inline-flex items-center gap-1 rounded bg-ctp-surface1 px-2 py-0.5 text-xs font-medium text-ctp-text transition-colors hover:bg-ctp-surface2 disabled:opacity-50"
@@ -178,6 +192,22 @@ async function lookup() {
           Reprocess
         </button>
       </div>
+
+      <!-- Pending send alert with cancel action -->
+      <div v-if="isPendingSend" class="mb-3 flex items-center justify-between rounded-lg border border-ctp-peach/40 bg-ctp-peach/10 px-4 py-2">
+        <span class="text-sm text-ctp-peach">
+          {{ undoExpired ? 'Undo window expired — email has been sent' : `Undo available until ${undoExpiresAt}` }}
+        </span>
+        <AsyncButton
+          v-if="!undoExpired"
+          :action="cancelPendingSend"
+          variant="outline"
+          class="text-xs text-ctp-peach hover:opacity-80"
+        >
+          Cancel send
+        </AsyncButton>
+      </div>
+
       <pre class="overflow-x-auto rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4 text-xs text-ctp-text">{{ JSON.stringify(displayedSignal, null, 2) }}</pre>
     </section>
 
