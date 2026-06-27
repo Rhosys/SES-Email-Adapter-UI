@@ -261,13 +261,6 @@ function focusSearch() {
 onMounted(async () => {
   await Promise.all([labelsStore.fetchLabels(), viewsStore.fetchViews()])
 
-  // Auto-start the feature tour only after the notification coach has been shown
-  // (the coach itself starts the tour as its final step for fresh users)
-  const ob = accountStore.account?.onboarding
-  if (ob?.completed) {
-    startTour()
-  }
-
   // Initialize global keyboard shortcut listener
   initShortcuts()
   onAction('shortcut_help', () => {
