@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
+import { useUserConfigStore } from '@/stores/userConfig'
 import { api } from '@/lib/api'
 import { notify } from '@/lib/notifications'
 import { loginClient } from '@/lib/auth'
@@ -30,6 +31,7 @@ import type {
 const route = useRoute()
 const router = useRouter()
 const accountStore = useAccountStore()
+const userConfigStore = useUserConfigStore()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 const { deferAction } = useToast()
 
@@ -195,22 +197,9 @@ async function registerPasskey() {
 }
 
 // ─── Account profile tab ─────────────────────────────────────────────────────
-const afterSendAction = ref<'archive' | 'keep_active'>('keep_active')
-const afterSendPending = ref(false)
 const calendarForwardingTargetId = ref('')
 const calendarForwardingPending = ref(false)
 const calendarForwardingSaved = ref(false)
-
-async function updateAfterSendAction(value: 'archive' | 'keep_active') {
-  if (!accountStore.accountId) return
-  afterSendAction.value = value
-  afterSendPending.value = true
-  const result = await api.updateAccount(accountStore.accountId, { afterSendAction: value })
-  afterSendPending.value = false
-  if (result.isOk()) {
-    accountStore.account = result.value
-  }
-}
 
 async function saveCalendarForwarding() {
   if (!accountStore.accountId) return
@@ -690,7 +679,6 @@ async function switchTab(tab: TabKey) {
 onMounted(async () => {
   identity.value = loginClient.getUserIdentity() as Identity | null
   if (accountStore.account) {
-    afterSendAction.value = accountStore.account.afterSendAction ?? 'keep_active'
     calendarForwardingTargetId.value = accountStore.account.defaultCalendarInviteForwardingTargetId ?? ''
     selectedRetention.value = accountStore.account.retentionDuration
     digestFrequency.value = accountStore.account.digest?.frequency ?? null
@@ -1705,27 +1693,24 @@ function onTabPick(key: string) {
 
       <!-- ── Email tab ──────────────────────────────────────────────── -->
       <section v-else-if="activeTab === 'email'" class="space-y-6">
-        <!-- After send -->
+        <!-- After send navigation -->
         <div>
           <span class="mb-1 block text-xs font-medium text-ctp-subtext0">After send</span>
-          <p class="mb-2 text-xs text-ctp-subtext0">What happens to the conversation after you send a reply</p>
+          <p class="mb-2 text-xs text-ctp-subtext0">Where to navigate after sending a reply</p>
           <div class="flex gap-2">
             <AsyncButton
-              v-for="option in [{ value: 'archive' as const, label: 'Archive' }, { value: 'keep_active' as const, label: 'Keep active' }]"
+              v-for="option in [{ value: 'return_to_inbox' as const, label: 'Return to inbox' }, { value: 'stay_on_thread' as const, label: 'Stay on thread' }]"
               :key="option.value"
-              :action="() => updateAfterSendAction(option.value)"
+              :action="() => userConfigStore.update({ postSendView: option.value })"
               variant="ghost"
-              :aria-pressed="afterSendAction === option.value"
+              :aria-pressed="userConfigStore.postSendView === option.value"
               class="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs"
               :class="
-                afterSendAction === option.value
+                userConfigStore.postSendView === option.value
                   ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
                   : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
               "
             >
-              <svg v-if="option.value === 'archive'" class="h-3 w-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                <path d="M1.5 2h13l-1 2H2.5L1.5 2zm.5 3h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V5zm4 2v5h5V7H6z"/>
-              </svg>
               {{ option.label }}
             </AsyncButton>
           </div>

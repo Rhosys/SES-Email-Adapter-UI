@@ -106,11 +106,20 @@ export interface Account {
   filtering?: AccountFilteringConfig
   onboarding?: AccountOnboarding
   billingPlan?: string
-  afterSendAction?: 'archive' | 'keep_active'
   defaultCalendarInviteForwardingTargetId?: string
   digest?: { frequency: 'daily' | 'weekly' | 'monthly'; forwardingTargetId: string } | null
   createdAt: string
   updatedAt: string
+}
+
+// ---------------------------------------------------------------------------
+// User Configuration (per-user, global — not account-scoped)
+// ---------------------------------------------------------------------------
+
+export type PostSendView = 'return_to_inbox' | 'stay_on_thread'
+
+export interface UserConfiguration {
+  postSendView: PostSendView
 }
 
 // ─── Arc ──────────────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { marked } from 'marked'
 import { useAccountStore } from '@/stores/account'
 import { useSignalsStore } from '@/stores/signals'
+import { useUserConfigStore } from '@/stores/userConfig'
 import { api } from '@/lib/api'
 import { useToast } from '@/composables/useToast'
 import type { Signal, Domain } from '@/types/server'
@@ -15,10 +16,11 @@ const emit = defineEmits<{ discard: []; sent: [] }>()
 
 const accountStore = useAccountStore()
 const signalsStore = useSignalsStore()
+const userConfigStore = useUserConfigStore()
 const router = useRouter()
 const { deferAction, undo: undoToast } = useToast()
 
-const afterSendAction = computed(() => accountStore.account?.afterSendAction ?? 'keep_active')
+const shouldReturnToInbox = computed(() => userConfigStore.postSendView === 'return_to_inbox')
 
 // Parse existing from address (empty for brand-new drafts)
 function splitAddress(address: string): [string, string] {
@@ -108,7 +110,7 @@ async function sendAndArchive() {
   if (!sigArcId) return
 
   sendState.value = 'cancellable'
-  void router.push('/')
+  if (shouldReturnToInbox.value) void router.push('/')
 
   const id = deferAction(
     'Email sent + archived',
@@ -142,7 +144,7 @@ async function sendAndWait() {
   if (!sigArcId) return
 
   sendState.value = 'cancellable'
-  void router.push('/')
+  if (shouldReturnToInbox.value) void router.push('/')
 
   const followupAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
   const id = deferAction(
@@ -332,7 +334,7 @@ async function discard() {
           <AsyncButton
             :action="sendAndArchive"
             :disabled="!canSend"
-            :variant="afterSendAction === 'archive' ? 'primary' : 'outline'"
+            variant="outline"
             class="flex items-center gap-1.5"
           >
             <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -343,7 +345,7 @@ async function discard() {
           <AsyncButton
             :action="sendAndWait"
             :disabled="!canSend"
-            :variant="afterSendAction !== 'archive' ? 'primary' : 'outline'"
+            variant="primary"
             class="flex items-center gap-1.5"
           >
             <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">

@@ -7,6 +7,7 @@ import './lib/analytics'
 import logger from './lib/logger'
 import { loginClient } from './lib/auth'
 import { useAccountStore } from './stores/account'
+import { useUserConfigStore } from './stores/userConfig'
 import { persistentStorePlugin } from '@/plugins/persistent-store'
 import buildInfo from '@/lib/buildInfo'
 
@@ -66,6 +67,12 @@ enableMocking().then(() => {
   loginClient.waitForUserSession().then(() => {
     const accountStore = useAccountStore()
     accountStore.startFetch()
+
+    const identity = loginClient.getUserIdentity() as { userId?: string } | null
+    if (identity?.userId) {
+      const userConfigStore = useUserConfigStore()
+      userConfigStore.fetch(identity.userId)
+    }
   })
 
   // Wire logger context after stores are available

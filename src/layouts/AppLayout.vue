@@ -13,7 +13,6 @@ import FeatureTour from '@/components/FeatureTour.vue'
 import OnboardingCoach from '@/components/OnboardingCoach.vue'
 import ShortcutHelpOverlay from '@/components/ShortcutHelpOverlay.vue'
 import { useRealtime } from '@/composables/useRealtime'
-import { useFeatureTour } from '@/composables/useFeatureTour'
 import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useRelativeTime } from '@/composables/useRelativeTime'
@@ -26,7 +25,6 @@ const viewsStore = useViewsStore()
 const router = useRouter()
 const route = useRoute()
 
-const { startTour } = useFeatureTour()
 const { coachVisible } = useOnboardingCoach()
 const { init: initShortcuts, onAction, setBlocked } = useKeyboardShortcuts()
 useRealtime()

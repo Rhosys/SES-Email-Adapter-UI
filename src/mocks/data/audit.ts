@@ -20,8 +20,8 @@ export const mockAuditEvents: AuditEvent[] = [
     action: 'updated',
     resourceType: 'account',
     resourceId: 'acc_demo_1',
-    before: { afterSendAction: 'keep_active' },
-    after: { afterSendAction: 'archive' },
+    before: { postSendView: 'return_to_inbox' },
+    after: { postSendView: 'stay_on_thread' },
     timestamp: '2026-06-09T15:30:00Z',
   },
   {

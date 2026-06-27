@@ -31,6 +31,7 @@ import type {
   UnknownSenderPolicy,
   UpdateDraftSignalBody,
   UpdateRuleBody,
+  UserConfiguration,
   UserRole,
   View,
 } from '@/types/server'
@@ -378,7 +379,6 @@ export const api = {
       notifications?: NotificationSettings
       filtering?: AccountFilteringConfig
       onboarding?: Partial<AccountOnboarding>
-      afterSendAction?: 'archive' | 'keep_active'
       defaultCalendarInviteForwardingTargetId?: string
       digest?: { frequency: 'daily' | 'weekly' | 'monthly'; forwardingTargetId: string } | null
     },
@@ -669,5 +669,18 @@ export const api = {
       const message = e instanceof Error ? e.message : 'Network error'
       return err(new ApiError(0, message))
     }
+  },
+
+  // ─── User Configuration (global, not account-scoped) ─────────────────────
+
+  getUserConfiguration(userId: string): Promise<Result<UserConfiguration, ApiError>> {
+    return request<UserConfiguration>(`/user/${userId}/configuration`)
+  },
+
+  updateUserConfiguration(userId: string, body: Partial<UserConfiguration>): Promise<Result<UserConfiguration, ApiError>> {
+    return request<UserConfiguration>(`/user/${userId}/configuration`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
   },
 }
