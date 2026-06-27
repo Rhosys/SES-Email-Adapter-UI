@@ -313,6 +313,14 @@ interface EmailTemplate {
 
 - [ ] **Rules tab text contrast** — the empty state description text is small and dim. Review font sizes and contrast against the Templates empty state (which looks correct) and match styling.
 
+### Pending-send state visibility
+
+- [ ] **Badge on arc row** — when an arc has a signal in `pending_send` status, show a "Sending…" badge on the arc row in the inbox list.
+- [ ] **Alert on arc detail** — when viewing an arc that has a `pending_send` signal, show an inline alert banner at the top: "Email sending — cancel available until {undoExpiresAt countdown}".
+- [ ] **Cancel send button on signal card** — for `pending_send` signals in the signal list, show a "Cancel send" button in the signal card footer (next to the reply button). Clicking it PATCHes the signal back to `draft` status.
+- [ ] **Admin view signal status** — surface `pending_send` status distinctly in the admin signal list with a cancel action.
+- [ ] **Persist undoExpiresAt** — the send response returns `undoExpiresAt`. Store this in the signals store so the countdown survives page reloads. After expiry, hide the cancel button (the SQS message has fired and the email is sent or will be shortly).
+
 
 ## Merge "New address handling" into "Default filter mode"
 
