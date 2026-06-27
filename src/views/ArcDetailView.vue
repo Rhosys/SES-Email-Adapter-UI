@@ -11,6 +11,7 @@ import { groupByBodyFingerprint, attachLinkedSignals } from '@/lib/dedup'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
 import SignalRenderer from '@/components/SignalRenderer.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
+import PendingSendCard from '@/components/PendingSendCard.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import type { Arc } from '@/types/server'
@@ -371,6 +372,11 @@ async function removeLabel(label: string) {
             :signal="group.signal"
             @discard="onDraftDiscard"
             @sent="onDraftSent"
+          />
+          <PendingSendCard
+            v-else-if="group.signal.status === 'pending_send'"
+            :signal="group.signal"
+            @cancelled="onDraftDiscard"
           />
           <SignalRenderer v-else :signal="group.signal" :linked-signal="group.linkedSignal" @undo="onSignalUndo" @reply="startDraft" />
         </template>
