@@ -762,6 +762,7 @@ export interface StatsDailyBucket {
   allowed: number
   quarantined: number
   blocked: number
+  aliases: number
 }
 
 export interface StatsResponse {

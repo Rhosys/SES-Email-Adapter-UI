@@ -24,7 +24,7 @@ function padDaily(buckets: StatsDailyBucket[], createdAt: string): StatsDailyBuc
   const cursor = new Date(startDate)
   while (cursor <= today) {
     const key = cursor.toISOString().slice(0, 10)
-    padded.push(existing.get(key) ?? { date: key, allowed: 0, quarantined: 0, blocked: 0 })
+    padded.push(existing.get(key) ?? { date: key, allowed: 0, quarantined: 0, blocked: 0, aliases: 0 })
     cursor.setUTCDate(cursor.getUTCDate() + 1)
   }
   return padded
@@ -44,7 +44,7 @@ function padMonthly(buckets: StatsDailyBucket[], createdAt: string): StatsDailyB
     const year = Math.floor(m / 12)
     const month = m % 12
     const key = `${year}-${(month + 1).toString().padStart(2, '0')}`
-    padded.push(existing.get(key) ?? { date: key, allowed: 0, quarantined: 0, blocked: 0 })
+    padded.push(existing.get(key) ?? { date: key, allowed: 0, quarantined: 0, blocked: 0, aliases: 0 })
   }
   return padded
 }
