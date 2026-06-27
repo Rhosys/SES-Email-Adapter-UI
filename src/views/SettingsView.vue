@@ -1656,13 +1656,16 @@ function onTabPick(key: string) {
               :action="() => updateAfterSendAction(option.value)"
               variant="ghost"
               :aria-pressed="afterSendAction === option.value"
-              class="rounded-full border px-3 py-1 text-xs"
+              class="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs"
               :class="
                 afterSendAction === option.value
                   ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
                   : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
               "
             >
+              <svg v-if="option.value === 'archive'" class="h-3 w-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M1.5 2h13l-1 2H2.5L1.5 2zm.5 3h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V5zm4 2v5h5V7H6z"/>
+              </svg>
               {{ option.label }}
             </AsyncButton>
           </div>
