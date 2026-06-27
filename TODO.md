@@ -318,7 +318,7 @@ interface EmailTemplate {
 - [x] **Badge on arc row** — when an arc has a signal in `pending_send` status, show a "Sending…" badge on the arc row in the inbox list.
 - [x] **Alert on arc detail** — when viewing an arc that has a `pending_send` signal, show an inline alert banner at the top: "Email sending — cancel available until {undoExpiresAt countdown}".
 - [x] **Cancel send button on signal card** — for `pending_send` signals in the signal list, show a "Cancel send" button in the signal card footer (next to the reply button). Clicking it PATCHes the signal back to `draft` status.
-- [ ] **Admin view signal status** — surface `pending_send` status distinctly in the admin signal list with a cancel action.
+- [x] **Admin view signal status** — surface `pending_send` status distinctly in the admin signal list with a cancel action.
 - [x] **Persist undoExpiresAt** — computed client-side from sendInitiatedAt + body length (matches backend undo-window.ts). No server-side persistence needed — countdown survives page reloads via signal data already on the signal.
 
 
