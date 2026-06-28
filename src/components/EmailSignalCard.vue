@@ -3,12 +3,12 @@ import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import type { Signal } from '@/types/server'
 import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
-import { ACTION_LABELS, ACTION_COLORS } from '@/lib/rule-display'
 import { useAccountStore } from '@/stores/account'
 import { isAdminUser } from '@/stores/admin'
 import { useRulesStore } from '@/stores/rules'
 import { api } from '@/lib/api'
 import { useGestureHandler } from '@/composables/useGestureHandler'
+import ActionBadge from '@/components/ActionBadge.vue'
 
 const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ undo: []; reply: [] }>()
@@ -502,14 +502,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
               <span class="text-sm font-medium text-ctp-text">
                 {{ matched.text ?? ruleFor(matched.ruleId)?.name ?? matched.ruleId }}
               </span>
-              <span
-                v-for="action in matched.actions"
-                :key="action.type"
-                class="rounded-full px-2 py-0.5 text-xs font-medium"
-                :class="ACTION_COLORS[action.type] ?? 'text-ctp-subtext0 bg-ctp-surface1'"
-              >
-                {{ ACTION_LABELS[action.type] ?? action.type }}
-              </span>
+              <ActionBadge v-for="action in matched.actions" :key="action.type" :type="action.type" />
             </div>
             <div v-if="matched.labelsAdded.length" class="mt-1.5 flex flex-wrap gap-1">
               <span

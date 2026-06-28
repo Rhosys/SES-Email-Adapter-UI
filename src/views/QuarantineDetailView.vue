@@ -4,9 +4,10 @@ import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useRulesStore } from '@/stores/rules'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
-import { ACTION_LABELS, ACTION_COLORS, conditionSummary } from '@/lib/rule-display'
+import { conditionSummary } from '@/lib/rule-display'
 import SignalRenderer from '@/components/SignalRenderer.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
+import ActionBadge from '@/components/ActionBadge.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -155,14 +156,7 @@ function onReplyAttempt() {
                 </svg>
                 {{ matched.text ?? ruleFor(matched.ruleId)?.name ?? matched.ruleId }}
               </button>
-              <span
-                v-for="action in matched.actions"
-                :key="action.type"
-                class="rounded-full px-2 py-0.5 text-xs font-medium"
-                :class="ACTION_COLORS[action.type] ?? 'text-ctp-subtext0 bg-ctp-surface1'"
-              >
-                {{ ACTION_LABELS[action.type] ?? action.type }}
-              </span>
+              <ActionBadge v-for="action in matched.actions" :key="action.type" :type="action.type" />
               <RouterLink
                 v-if="ruleFor(matched.ruleId)"
                 :to="`/rules/${matched.ruleId}`"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, inject, watch } from 'vue'
+import { ref, computed, inject, watch, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
@@ -10,6 +10,7 @@ import { formatRelativeTime } from '@/composables/useFormattedTime'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { useLabelsStore } from '@/stores/labels'
 import SignalRenderer from '@/components/SignalRenderer.vue'
+import ActionBadge from '@/components/ActionBadge.vue'
 
 const now = inject(NOW_KEY)
 
@@ -206,6 +207,12 @@ function relTime(iso: string): string {
 if (query.value) {
   void doSearch()
 }
+
+const queryInput = ref<HTMLInputElement | null>(null)
+
+onMounted(() => {
+  queryInput.value?.focus()
+})
 </script>
 
 <template>
@@ -218,12 +225,12 @@ if (query.value) {
       <!-- Search input (hidden when viewing drafts) -->
       <form v-if="!route.query.status" class="mb-6 flex flex-col gap-2 sm:flex-row" @submit.prevent="doSearch">
         <input
+          ref="queryInput"
           v-model="query"
           type="search"
           aria-label="Search arcs, signals, aliases, rules"
           placeholder="Search arcs, signals, aliases, rules…"
           class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-4 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-          autofocus
           @paste="onPaste"
         />
         <button
@@ -411,15 +418,10 @@ if (query.value) {
             :to="`/rules/${rule.ruleId}`"
             class="block px-4 py-3 transition-colors hover:bg-ctp-surface0/50"
           >
-            <div class="flex items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-1.5">
               <p class="text-sm font-medium text-ctp-text">{{ rule.name }}</p>
-              <span class="rounded bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0">
-                {{ rule.actions[0]?.type ?? '—' }}
-              </span>
+              <ActionBadge v-for="act in rule.actions" :key="act.type" :type="act.type" />
             </div>
-            <p class="mt-0.5 font-mono text-xs text-ctp-subtext0">
-              {{ rule.condition }}
-            </p>
           </RouterLink>
         </div>
       </section>
