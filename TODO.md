@@ -299,8 +299,6 @@ interface EmailTemplate {
 
 ### Navigation & Layout
 
-- [ ] **Tour button in navbar** — small icon button (compass or `?`) next to user avatar that triggers the guided tour on demand. Always visible, no conditional logic.
-- [ ] **Tour button in changelog popout** — "Take the tour" link/button in the ChangelogView so users can discover it naturally.
 - [ ] **Tab switching causes full page reload** — `accountStore.switchAccount()` uses `window.location.assign('/')` which hard-reloads the page. Investigate whether any Settings tab-switch path inadvertently triggers this. The account switcher is now in the sidebar — confirm it doesn't fire on non-switcher interactions.
 - [x] **Delete ProfileView.vue** — the `/profile` route now redirects to `/settings?tab=profile`. The old `ProfileView.vue` file is dead code and should be removed.
 
