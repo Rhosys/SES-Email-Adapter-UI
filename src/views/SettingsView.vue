@@ -1757,6 +1757,20 @@ function onTabPick(key: string) {
             Applies to all conversations that receive new messages. Existing inactive threads keep their current retention.
           </p>
         </div>
+
+        <!-- Browser notifications test -->
+        <div class="border-t border-ctp-surface0 pt-5">
+          <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Browser notifications</span>
+          <p class="mb-2 text-xs text-ctp-subtext0">Test that OS notifications are working</p>
+          <div class="mt-3">
+            <button
+              class="rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
+              @click="sendTestNotification"
+            >
+              Send test notification
+            </button>
+          </div>
+        </div>
       </section>
 
       <!-- ── Team tab ───────────────────────────────────────────────────── -->

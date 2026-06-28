@@ -29,8 +29,8 @@ const REAL_ACCOUNT: Account = {
 
 const REAL_STATS_RESPONSE = {
   totals: { allowed: 0, quarantined: 1, blocked: 0, aliases: 0 },
-  daily: [{ date: '2026-06-24', allowed: 0, quarantined: 1, blocked: 0 }],
-  monthly: [{ date: '2026-06', allowed: 0, quarantined: 1, blocked: 0 }],
+  daily: [{ date: '2026-06-24', allowed: 0, quarantined: 1, blocked: 0, aliases: 0 }],
+  monthly: [{ date: '2026-06', allowed: 0, quarantined: 1, blocked: 0, aliases: 0 }],
 }
 
 describe('statsStore', () => {
@@ -71,13 +71,13 @@ describe('statsStore', () => {
       expect(store.stats.daily).toHaveLength(15)
 
       // First entry is the account creation date with zeros
-      expect(store.stats.daily[0]).toEqual({ date: '2026-06-10', allowed: 0, quarantined: 0, blocked: 0 })
+      expect(store.stats.daily[0]).toEqual({ date: '2026-06-10', allowed: 0, quarantined: 0, blocked: 0, aliases: 0 })
 
       // Last entry is today with real data
-      expect(store.stats.daily[14]).toEqual({ date: '2026-06-24', allowed: 0, quarantined: 1, blocked: 0 })
+      expect(store.stats.daily[14]).toEqual({ date: '2026-06-24', allowed: 0, quarantined: 1, blocked: 0, aliases: 0 })
 
       // Intermediate days are zeros
-      expect(store.stats.daily[5]).toEqual({ date: '2026-06-15', allowed: 0, quarantined: 0, blocked: 0 })
+      expect(store.stats.daily[5]).toEqual({ date: '2026-06-15', allowed: 0, quarantined: 0, blocked: 0, aliases: 0 })
 
       vi.useRealTimers()
     })
@@ -89,8 +89,8 @@ describe('statsStore', () => {
       const multiDayResponse = {
         ...REAL_STATS_RESPONSE,
         daily: [
-          { date: '2026-06-20', allowed: 3, quarantined: 0, blocked: 1 },
-          { date: '2026-06-24', allowed: 0, quarantined: 1, blocked: 0 },
+          { date: '2026-06-20', allowed: 3, quarantined: 0, blocked: 1, aliases: 0 },
+          { date: '2026-06-24', allowed: 0, quarantined: 1, blocked: 0, aliases: 0 },
         ],
       }
       vi.mocked(api.getStats).mockResolvedValue(ok(multiDayResponse))
@@ -98,10 +98,10 @@ describe('statsStore', () => {
       await store.fetchStats()
 
       const june20 = store.stats.daily.find((d) => d.date === '2026-06-20')
-      expect(june20).toEqual({ date: '2026-06-20', allowed: 3, quarantined: 0, blocked: 1 })
+      expect(june20).toEqual({ date: '2026-06-20', allowed: 3, quarantined: 0, blocked: 1, aliases: 0 })
 
       const june21 = store.stats.daily.find((d) => d.date === '2026-06-21')
-      expect(june21).toEqual({ date: '2026-06-21', allowed: 0, quarantined: 0, blocked: 0 })
+      expect(june21).toEqual({ date: '2026-06-21', allowed: 0, quarantined: 0, blocked: 0, aliases: 0 })
 
       vi.useRealTimers()
     })
@@ -140,7 +140,7 @@ describe('statsStore', () => {
 
       // Account created 2026-06, current month is 2026-06 → 1 month
       expect(store.stats.monthly).toHaveLength(1)
-      expect(store.stats.monthly[0]).toEqual({ date: '2026-06', allowed: 0, quarantined: 1, blocked: 0 })
+      expect(store.stats.monthly[0]).toEqual({ date: '2026-06', allowed: 0, quarantined: 1, blocked: 0, aliases: 0 })
 
       vi.useRealTimers()
     })
@@ -162,10 +162,10 @@ describe('statsStore', () => {
       expect(store.stats.monthly[3]!.date).toBe('2026-06')
 
       // June has real data
-      expect(store.stats.monthly[3]).toEqual({ date: '2026-06', allowed: 0, quarantined: 1, blocked: 0 })
+      expect(store.stats.monthly[3]).toEqual({ date: '2026-06', allowed: 0, quarantined: 1, blocked: 0, aliases: 0 })
 
       // Other months are zeros
-      expect(store.stats.monthly[0]).toEqual({ date: '2026-03', allowed: 0, quarantined: 0, blocked: 0 })
+      expect(store.stats.monthly[0]).toEqual({ date: '2026-03', allowed: 0, quarantined: 0, blocked: 0, aliases: 0 })
 
       vi.useRealTimers()
     })
