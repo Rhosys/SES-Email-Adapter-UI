@@ -34,8 +34,11 @@ function padMonthly(buckets: StatsDailyBucket[], createdAt: string): StatsDailyB
   const startDate = new Date(createdAt)
   const today = new Date()
 
-  const startMonth = startDate.getUTCFullYear() * 12 + startDate.getUTCMonth()
+  let startMonth = startDate.getUTCFullYear() * 12 + startDate.getUTCMonth()
   const endMonth = today.getUTCFullYear() * 12 + today.getUTCMonth()
+
+  // Ensure at least 2 months so the chart renders a line, not just a dot
+  if (endMonth - startMonth < 1) startMonth = endMonth - 1
 
   const existing = new Map(buckets.map((b) => [b.date, b]))
   const padded: StatsDailyBucket[] = []

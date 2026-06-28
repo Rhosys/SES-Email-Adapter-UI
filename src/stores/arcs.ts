@@ -14,7 +14,6 @@ export const useArcsStore = defineStore('arcs', () => {
 
   const _byAccount = ref<Record<string, Arc[]>>({})
   const _cursors = ref<Record<string, string | undefined>>({})
-  const _hasFetched = ref<Record<string, boolean>>({})
   const loading = ref(false)
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
@@ -108,18 +107,15 @@ export const useArcsStore = defineStore('arcs', () => {
   async function fetchArcs(reset = false) {
     const id = accountStore.accountId
     if (!id) return
-    // Show loading only on the very first fetch — subsequent tab switches show stale data while refreshing
-    const hasFetchedBefore = _hasFetched.value[id] ?? false
     if (reset) {
       _cursors.value = { ..._cursors.value, [id]: undefined }
       selectedIds.value.clear()
     }
-    loading.value = !hasFetchedBefore
+    loading.value = true
     error.value = null
     const statusParam = activeTab.value === 'all' ? undefined : activeTab.value
     const result = await api.listArcs(id, { status: statusParam, limit: 50 })
     loading.value = false
-    _hasFetched.value = { ..._hasFetched.value, [id]: true }
     if (result.isErr()) {
       if ((_byAccount.value[id] ?? []).length > 0) {
         logger.warn({ title: 'Arcs fetch failed with cache available', error: result.error.message })
