@@ -100,7 +100,7 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 - [ ] **Retention badge on ArcRow** — `ArcDetailView` already shows "Available until…" inline in the header metadata, but `ArcRow` (the inbox list) shows nothing. Add a small expiry badge (e.g. "expires in 3d") to the row when `arc.retentionDuration` is set and the deadline is within 7 days.
 - [ ] **Composite signal cards** — `attachLinkedSignals()` wires linked signals to their parent but the cards don't visually merge. Pairs that should render as a single unified card: `domain_misconfiguration` + source email, `calendar_event` + invite email, `calendar_response` + original event, `deliverability` + bounced outbound email. Currently each signal renders as a separate card with a `LinkedSignalSummary` link row; they should collapse into one card showing the primary data with the linked context inline.
 - [ ] **Retry Send action on failed signals** — `SystemAlertCard` renders `domain_misconfiguration` and `send_failed` alerts but has no action button. Add a "Retry Send" button that calls the retry endpoint, and surface a warning banner on the Domains settings tab when any domain has an incomplete setup.
-- [ ] **Remove SchedulingPanel dead stub** — `src/components/panels/SchedulingPanel.vue` is dead code (comment: "backend has no 'scheduling' workflow"). Remove the file and the `v-else-if` branch in `WorkflowPanel.vue`.
+- [x] **Remove SchedulingPanel dead stub** — `src/components/panels/SchedulingPanel.vue` is dead code (comment: "backend has no 'scheduling' workflow"). Remove the file and the `v-else-if` branch in `WorkflowPanel.vue`.
 
 ### Billing screen
 
@@ -302,7 +302,7 @@ interface EmailTemplate {
 - [ ] **Tour button in navbar** — small icon button (compass or `?`) next to user avatar that triggers the guided tour on demand. Always visible, no conditional logic.
 - [ ] **Tour button in changelog popout** — "Take the tour" link/button in the ChangelogView so users can discover it naturally.
 - [ ] **Tab switching causes full page reload** — `accountStore.switchAccount()` uses `window.location.assign('/')` which hard-reloads the page. Investigate whether any Settings tab-switch path inadvertently triggers this. The account switcher is now in the sidebar — confirm it doesn't fire on non-switcher interactions.
-- [ ] **Delete ProfileView.vue** — the `/profile` route now redirects to `/settings?tab=profile`. The old `ProfileView.vue` file is dead code and should be removed.
+- [x] **Delete ProfileView.vue** — the `/profile` route now redirects to `/settings?tab=profile`. The old `ProfileView.vue` file is dead code and should be removed.
 
 ### Settings & Configuration
 
