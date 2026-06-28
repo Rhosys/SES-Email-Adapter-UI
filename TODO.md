@@ -300,6 +300,7 @@ interface EmailTemplate {
 ### Refactor
 
 - [ ] **Rename Arc → Thread across entire site** — switch all API calls to `/threads/` endpoints, rename `Arc` type to `Thread`, `arcId` to `threadId`, `arcsStore` to `threadsStore`, all component names (`ActiveArcRow` → `ActiveThreadRow`, `ArcDetailView` → `ThreadDetailView`, etc.), route paths (`/arcs/:id` → `/threads/:id`), and file names. Use compiler-driven approach: rename the type first, let `vue-tsc --noEmit` enumerate every broken site, fix all. ~40 files affected.
+- [ ] **Apply data-first display pattern to all views** — every component that renders async data must follow: `if (data) → content; else if (loading) → skeleton; else → empty state`. No skeleton when data is already cached. Applies to: list views (inbox, quarantine, drafts, rules, templates, labels, audit, search), detail views (arc/thread detail, quarantine detail), single-resource views (billing, stats), and settings sub-tabs. This eliminates skeleton flashes on navigation, tab switches, and page revisits.
 - [ ] **Add retention badge to thread rows** — show "expires in Xd" badge on inbox rows when a thread's retention deadline is within 7 days.
 
 ### Bugs
