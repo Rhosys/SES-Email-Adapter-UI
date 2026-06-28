@@ -8,6 +8,8 @@ import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { retentionExpiresAt } from '@/lib/retention'
 import { groupByBodyFingerprint, attachLinkedSignals } from '@/lib/dedup'
+import { visibleLabels, findLabelMeta } from '@/lib/labels'
+import { useLabelsStore } from '@/stores/labels'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
 import SignalRenderer from '@/components/SignalRenderer.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
@@ -20,6 +22,7 @@ const route = useRoute()
 const router = useRouter()
 const signalsStore = useSignalsStore()
 const arcsStore = useArcsStore()
+const labelsStore = useLabelsStore()
 const { showUndo, deferAction } = useToast()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
@@ -172,6 +175,10 @@ async function startDraft() {
   if (result.isOk()) {
     await scrollToDraft(result.value.signalId)
   }
+}
+
+function labelMeta(label: string) {
+  return findLabelMeta(labelsStore.items, label)
 }
 
 async function removeLabel(label: string) {
@@ -327,12 +334,17 @@ async function removeLabel(label: string) {
         <div class="mt-2 flex flex-wrap items-center gap-1.5">
           <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ arc.workflow }}</span>
           <button
-            v-for="label in arc.labels"
+            v-for="label in visibleLabels(arc.labels)"
             :key="label"
-            class="cursor-pointer rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1 hover:opacity-70"
+            class="flex items-center gap-1 cursor-pointer rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1 hover:opacity-70"
             @click="removeLabel(label)"
           >
-            {{ label }}
+            <span
+              v-if="labelMeta(label)"
+              class="h-2 w-2 shrink-0 rounded-full"
+              :style="{ backgroundColor: labelMeta(label)!.color }"
+            />
+            {{ labelMeta(label)?.name ?? label }}
           </button>
         </div>
         <div v-if="arc.status === 'deleted' && arc.deletedAt" class="mt-2 text-xs text-ctp-subtext0">

@@ -5,8 +5,10 @@ import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import type { Arc, Rule, Signal, Alias, EmailTemplate } from '@/types/server'
 import { isEmailSignal } from '@/lib/signal-guards'
+import { visibleLabels, findLabelMeta } from '@/lib/labels'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
 import { NOW_KEY } from '@/composables/useRelativeTime'
+import { useLabelsStore } from '@/stores/labels'
 import SignalRenderer from '@/components/SignalRenderer.vue'
 
 const now = inject(NOW_KEY)
@@ -14,6 +16,11 @@ const now = inject(NOW_KEY)
 const route = useRoute()
 const router = useRouter()
 const accountStore = useAccountStore()
+const labelsStore = useLabelsStore()
+
+function labelMeta(label: string) {
+  return findLabelMeta(labelsStore.items, label)
+}
 
 const query = ref((route.query.q as string) ?? '')
 const searching = ref(false)
@@ -307,12 +314,19 @@ if (query.value) {
               <span v-if="arc.recipientAddress">To: {{ arc.recipientAddress }}</span>
               <span>{{ arc.workflow }}</span>
             </div>
-            <div v-if="arc.labels.length" class="mt-1 flex flex-wrap gap-1">
+            <div v-if="visibleLabels(arc.labels).length" class="mt-1 flex flex-wrap gap-1">
               <span
-                v-for="label in arc.labels"
+                v-for="label in visibleLabels(arc.labels)"
                 :key="label"
-                class="rounded bg-ctp-surface1 px-1.5 py-0.5 text-xs text-ctp-subtext0"
-              >{{ label }}</span>
+                class="flex items-center gap-1 rounded bg-ctp-surface1 px-1.5 py-0.5 text-xs text-ctp-subtext0"
+              >
+                <span
+                  v-if="labelMeta(label)"
+                  class="h-2 w-2 shrink-0 rounded-full"
+                  :style="{ backgroundColor: labelMeta(label)!.color }"
+                />
+                {{ labelMeta(label)?.name ?? label }}
+              </span>
             </div>
           </RouterLink>
         </div>
