@@ -185,10 +185,14 @@ onMounted(async () => {
 
         <!-- User rules empty -->
         <div v-if="userRules.length === 0 && systemRules.length > 0" class="py-12 text-center">
-          <p class="text-sm text-ctp-subtext0">No custom rules yet — system rules are handling the basics.</p>
+          <p class="text-base font-medium text-ctp-text">No custom rules yet</p>
+          <p class="mx-auto mt-2 max-w-sm text-sm text-ctp-subtext0">
+            System rules are handling the basics. Create a custom rule to automate filtering,
+            labelling, or forwarding based on your own conditions.
+          </p>
           <RouterLink
             to="/rules/new"
-            class="mt-3 inline-block rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
+            class="mt-4 inline-block rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
           >
             Create a rule
           </RouterLink>
