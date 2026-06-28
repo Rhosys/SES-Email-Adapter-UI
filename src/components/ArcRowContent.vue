@@ -6,6 +6,7 @@ import { NOW_KEY } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
 import { useLabelsStore } from '@/stores/labels'
 import { useSignalsStore } from '@/stores/signals'
+import { visibleLabels, findLabelMeta } from '@/lib/labels'
 
 const props = defineProps<{ arc: Arc }>()
 
@@ -21,8 +22,8 @@ const hasPendingSend = computed(() =>
   signalsStore.allSignals.some(s => s.status === 'pending_send' && s.arcId === props.arc.arcId)
 )
 
-function labelColor(name: string): string {
-  return labelsStore.items.find(l => l.name === name)?.color ?? '#cba6f7'
+function labelColor(key: string): string {
+  return findLabelMeta(labelsStore.items, key)?.color ?? '#cba6f7'
 }
 </script>
 
@@ -36,7 +37,7 @@ function labelColor(name: string): string {
     </div>
     <div class="mt-0.5 flex items-center gap-1.5">
       <span
-        v-for="label in arc.labels"
+        v-for="label in visibleLabels(arc.labels)"
         :key="label"
         class="h-2 w-2 shrink-0 rounded-full"
         :style="{ backgroundColor: labelColor(label) }"
