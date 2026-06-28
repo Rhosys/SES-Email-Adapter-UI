@@ -88,6 +88,7 @@ const dailyAreaOption = computed(() => {
 const monthlyBarOption = computed(() => {
   const monthly = statsStore.stats.monthly
   const dates = monthly.map((d) => d.date)
+  const showSymbol = monthly.length <= 3
   return {
     tooltip: { trigger: 'axis' as const, confine: true },
     legend: {
@@ -115,7 +116,7 @@ const monthlyBarOption = computed(() => {
         name: 'Allowed',
         type: 'line' as const,
         stack: 'total',
-        showSymbol: false,
+        showSymbol,
         smooth: true,
         lineStyle: { width: 1 },
         areaStyle: { color: '#a6e3a1', opacity: 0.7 },
@@ -126,7 +127,7 @@ const monthlyBarOption = computed(() => {
         name: 'Quarantined',
         type: 'line' as const,
         stack: 'total',
-        showSymbol: false,
+        showSymbol,
         smooth: true,
         lineStyle: { width: 1 },
         areaStyle: { color: '#f9e2af', opacity: 0.7 },
@@ -137,7 +138,7 @@ const monthlyBarOption = computed(() => {
         name: 'Blocked',
         type: 'line' as const,
         stack: 'total',
-        showSymbol: false,
+        showSymbol,
         smooth: true,
         lineStyle: { width: 1 },
         areaStyle: { color: '#f38ba8', opacity: 0.7 },
