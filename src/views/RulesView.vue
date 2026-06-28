@@ -4,7 +4,8 @@ import { RouterLink } from 'vue-router'
 import { useRulesStore } from '@/stores/rules'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
-import { ACTION_LABELS, ACTION_COLORS, conditionSummary } from '@/lib/rule-display'
+import ActionBadge from '@/components/ActionBadge.vue'
+import { conditionSummary } from '@/lib/rule-display'
 import type { Rule } from '@/types/server'
 
 const rulesStore = useRulesStore()
@@ -164,14 +165,7 @@ onMounted(async () => {
               <div class="min-w-0 flex-1">
                 <p class="text-sm text-ctp-text" :class="{ 'opacity-50': rule.status === 'disabled' }">{{ rule.name }}</p>
                 <div class="mt-0.5 flex flex-wrap gap-1">
-                  <span
-                    v-for="action in rule.actions"
-                    :key="action.type"
-                    class="rounded-full px-2 py-0.5 text-xs"
-                    :class="ACTION_COLORS[action.type] ?? 'text-ctp-subtext0 bg-ctp-surface1'"
-                  >
-                    {{ ACTION_LABELS[action.type] ?? action.type }}
-                  </span>
+                  <ActionBadge v-for="action in rule.actions" :key="action.type" :type="action.type" />
                 </div>
               </div>
             </div>
@@ -257,14 +251,7 @@ onMounted(async () => {
               </span>
 
               <!-- Action badges -->
-              <span
-                v-for="act in rule.actions"
-                :key="act.type"
-                class="rounded-full px-2 py-0.5 text-xs font-medium"
-                :class="ACTION_COLORS[act.type] ?? 'text-ctp-subtext0 bg-ctp-surface1'"
-              >
-                {{ ACTION_LABELS[act.type] ?? act.type }}
-              </span>
+              <ActionBadge v-for="act in rule.actions" :key="act.type" :type="act.type" />
             </div>
 
             <p class="mt-1 font-mono text-xs text-ctp-subtext0">

@@ -23,6 +23,7 @@ import {
   serializeCondition,
 } from '@/lib/ruleLogic'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
+import ActionBadge from '@/components/ActionBadge.vue'
 import { useJsAutocomplete } from '@/composables/useJsAutocomplete'
 
 const route = useRoute()
@@ -173,24 +174,6 @@ watchEffect(() => {
 
 // ─── Actions editor ───────────────────────────────────────────────────────────
 
-const ACTION_COLORS: Partial<Record<RuleActionType, string>> = {
-  block_hidden: 'text-ctp-red bg-ctp-red/10',
-  block_reject: 'text-ctp-red bg-ctp-red/10',
-  quarantine: 'text-ctp-peach bg-ctp-peach/10',
-  quarantine_hidden: 'text-ctp-peach bg-ctp-peach/10',
-  archive: 'text-ctp-subtext0 bg-ctp-surface1',
-  assign_label: 'text-ctp-blue bg-ctp-blue/10',
-  approve_sender: 'text-ctp-green bg-ctp-green/10',
-  forward: 'text-ctp-sapphire bg-ctp-sapphire/10',
-  auto_draft: 'text-ctp-mauve bg-ctp-mauve/10',
-  webhook: 'text-ctp-mauve bg-ctp-mauve/10',
-  assign_workflow: 'text-ctp-teal bg-ctp-teal/10',
-  set_urgency: 'text-ctp-yellow bg-ctp-yellow/10',
-  suppress_notification: 'text-ctp-lavender bg-ctp-lavender/10',
-  pong: 'text-ctp-green bg-ctp-green/10',
-  forwardCalendarInvite: 'text-ctp-sapphire bg-ctp-sapphire/10',
-}
-
 interface ActionMeta {
   type: RuleActionType
   label: string
@@ -269,10 +252,6 @@ function removeAction(idx: number) {
 
 function updateAction(idx: number, patch: Partial<RuleAction>) {
   actions.value = actions.value.map((a, i) => (i === idx ? { ...a, ...patch } : a))
-}
-
-function actionLabel(type: RuleActionType): string {
-  return ACTION_META.find((m) => m.type === type)?.label ?? type
 }
 
 // ─── Save ─────────────────────────────────────────────────────────────────────
@@ -681,12 +660,7 @@ watch(signalAction, (val) => {
             :key="idx"
             class="flex flex-wrap items-center gap-3 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2"
           >
-            <span
-              class="rounded-full px-2.5 py-0.5 text-xs font-medium"
-              :class="ACTION_COLORS[act.type] ?? 'text-ctp-subtext0 bg-ctp-surface1'"
-            >
-              {{ actionLabel(act.type) }}
-            </span>
+            <ActionBadge :type="act.type" />
 
             <template v-if="act.type === 'assign_label'">
               <select

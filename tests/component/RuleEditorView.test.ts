@@ -290,7 +290,7 @@ describe('RuleEditorView — assign_label action', () => {
     await useLabelsStore().fetchLabels()
     const wrapper = await mountEditor('/rules/rule_1')
 
-    expect(wrapper.text()).toContain('Assign label')
+    expect(wrapper.text()).toContain('Label')
     expect(wrapper.text()).toContain('VIP')
   })
 })

@@ -8,6 +8,7 @@ import { api } from '@/lib/api'
 import type { Arc, Rule, Alias } from '@/types/server'
 import AppSidebar from '@/components/AppSidebar.vue'
 import AppNavbar from '@/components/AppNavbar.vue'
+import ActionBadge from '@/components/ActionBadge.vue'
 import ToastStack from '@/components/ToastStack.vue'
 import FeatureTour from '@/components/FeatureTour.vue'
 import OnboardingCoach from '@/components/OnboardingCoach.vue'
@@ -95,15 +96,6 @@ const suggestions = ref<{
   rules: Rule[]
   loading: boolean
 }>({ arcs: [], senders: [], aliases: [], rules: [], loading: false })
-
-const ACTION_COLORS: Record<string, string> = {
-  block: 'text-ctp-red bg-ctp-red/10',
-  delete: 'text-ctp-red bg-ctp-red/10',
-  quarantine: 'text-ctp-peach bg-ctp-peach/10',
-  quarantine_hidden: 'text-ctp-peach bg-ctp-peach/10',
-  assign_label: 'text-ctp-blue bg-ctp-blue/10',
-  approve_sender: 'text-ctp-green bg-ctp-green/10',
-}
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let activeQuery = ''
@@ -459,15 +451,8 @@ onMounted(async () => {
                       @mousedown.prevent="selectRule(rule)"
                     >
                       <span class="flex-1 truncate text-sm text-ctp-text">{{ rule.name }}</span>
-                      <span
-                        class="shrink-0 rounded px-1.5 py-0.5 text-xs"
-                        :class="
-                          ACTION_COLORS[rule.actions[0]?.type] ??
-                          'bg-ctp-surface1 text-ctp-subtext0'
-                        "
-                      >
-                        {{ rule.actions[0]?.type ?? '—' }}
-                      </span>
+                      <ActionBadge v-if="rule.actions[0]" class="shrink-0" :type="rule.actions[0].type" />
+                      <span v-else class="shrink-0 rounded px-1.5 py-0.5 text-xs bg-ctp-surface1 text-ctp-subtext0">—</span>
                     </button>
                   </template>
                 </template>
