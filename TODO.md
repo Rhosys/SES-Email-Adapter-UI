@@ -299,8 +299,11 @@ interface EmailTemplate {
 
 ### Navigation & Layout
 
-- [ ] **Tab switching causes full page reload** — `accountStore.switchAccount()` uses `window.location.assign('/')` which hard-reloads the page. Investigate whether any Settings tab-switch path inadvertently triggers this. The account switcher is now in the sidebar — confirm it doesn't fire on non-switcher interactions.
 - [x] **Delete ProfileView.vue** — the `/profile` route now redirects to `/settings?tab=profile`. The old `ProfileView.vue` file is dead code and should be removed.
+
+### UI Consistency
+
+- [ ] **Audit and unify UI patterns across all views** — Investigate inconsistencies in empty states, section headers, spacing, button variants, text hierarchy (title/description/help-text), and interactive element styling across all screens. Define a shared pattern for: empty states (title + description + CTA), settings sections (label + help text + control), list rows (structure, hover states, action positioning), confirmation flows, and loading skeletons. Document the canonical pattern per element type so new screens match automatically. The Rules empty state inconsistency (fixed separately) is an example of the problem — there are likely more.
 
 ### Settings & Configuration
 
@@ -309,7 +312,7 @@ interface EmailTemplate {
 
 ### Rules
 
-- [ ] **Rules tab text contrast** — the empty state description text is small and dim. Review font sizes and contrast against the Templates empty state (which looks correct) and match styling.
+- [x] **Rules tab text contrast** — the empty state description text is small and dim. Review font sizes and contrast against the Templates empty state (which looks correct) and match styling.
 
 ### Pending-send state visibility
 
