@@ -138,9 +138,10 @@ describe('statsStore', () => {
       const store = useStatsStore()
       await store.fetchStats()
 
-      // Account created 2026-06, current month is 2026-06 → 1 month
-      expect(store.stats.monthly).toHaveLength(1)
-      expect(store.stats.monthly[0]).toEqual({ date: '2026-06', allowed: 0, quarantined: 1, blocked: 0, aliases: 0 })
+      // Account created 2026-06, current month is 2026-06 → padded to 2 months minimum for chart rendering
+      expect(store.stats.monthly).toHaveLength(2)
+      expect(store.stats.monthly[0]).toEqual({ date: '2026-05', allowed: 0, quarantined: 0, blocked: 0, aliases: 0 })
+      expect(store.stats.monthly[1]).toEqual({ date: '2026-06', allowed: 0, quarantined: 1, blocked: 0, aliases: 0 })
 
       vi.useRealTimers()
     })
