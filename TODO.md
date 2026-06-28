@@ -97,7 +97,7 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 - [x] **Archive button** — implemented in `ArcDetailView` (with undo toast) and `ArcRow`.
 - [ ] **Attachments display** — render attachment icons and filenames on signal cards. Each attachment should be a clickable link that triggers a download (via presigned S3 URL from `GET /accounts/:accountId/signals/:id/attachments/:key`). Show file type icon, filename, and size. Handle missing/expired presigned URLs gracefully (show "unavailable" state, not a broken link).
 - [x] **Delete button** — implemented in ArcDetailView overflow menu with two-step ConfirmDialog.
-- [ ] **Retention badge on ArcRow** — `ArcDetailView` already shows "Available until…" inline in the header metadata, but `ArcRow` (the inbox list) shows nothing. Add a small expiry badge (e.g. "expires in 3d") to the row when `arc.retentionDuration` is set and the deadline is within 7 days.
+- [ ] **Retention badge on ArcRow** — `ArcDetailView` already shows "Available until…" inline in the header metadata, but `ArcRow` (the inbox list) shows nothing. Add a small expiry badge (e.g. "deletes in 3d") to the row when `arc.retentionDuration` is set and the deadline is within 7 days.
 - [ ] **Composite signal cards** — `attachLinkedSignals()` wires linked signals to their parent but the cards don't visually merge. Pairs that should render as a single unified card: `domain_misconfiguration` + source email, `calendar_event` + invite email, `calendar_response` + original event, `deliverability` + bounced outbound email. Currently each signal renders as a separate card with a `LinkedSignalSummary` link row; they should collapse into one card showing the primary data with the linked context inline.
 - [ ] **Retry Send action on failed signals** — `SystemAlertCard` renders `domain_misconfiguration` and `send_failed` alerts but has no action button. Add a "Retry Send" button that calls the retry endpoint, and surface a warning banner on the Domains settings tab when any domain has an incomplete setup.
 - [x] **Remove SchedulingPanel dead stub** — `src/components/panels/SchedulingPanel.vue` is dead code (comment: "backend has no 'scheduling' workflow"). Remove the file and the `v-else-if` branch in `WorkflowPanel.vue`.
@@ -307,7 +307,6 @@ interface EmailTemplate {
 
 ### Settings & Configuration
 
-- [ ] **Compose tab: surface inbox behavior settings** — the Compose tab only has "After Send". Consider adding `retentionDuration` (how long arcs are kept before deletion), `filtering.newAddressHandling` (what happens when mail hits a never-seen-before alias), and account-level `filtering.spamScoreThreshold` (default for all aliases). These may warrant a separate "Inbox Behavior" sub-section within Compose or a dedicated tab.
 - [ ] **Developer section in Settings** — Webhooks and API Keys will need their own tabs. To avoid tab sprawl, consider grouping them under a "Developer" tab with sub-sections, or a collapsible advanced section.
 
 ### Rules
