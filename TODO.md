@@ -297,9 +297,14 @@ interface EmailTemplate {
 
 ## Session 2026-06-14 — Remaining items
 
+### Refactor
+
+- [ ] **Rename Arc → Thread across entire site** — switch all API calls to `/threads/` endpoints, rename `Arc` type to `Thread`, `arcId` to `threadId`, `arcsStore` to `threadsStore`, all component names (`ActiveArcRow` → `ActiveThreadRow`, `ArcDetailView` → `ThreadDetailView`, etc.), route paths (`/arcs/:id` → `/threads/:id`), and file names. Use compiler-driven approach: rename the type first, let `vue-tsc --noEmit` enumerate every broken site, fix all. ~40 files affected.
+- [ ] **Add retention badge to thread rows** — show "expires in Xd" badge on inbox rows when a thread's retention deadline is within 7 days.
+
 ### Bugs
 
-- [x] **Skeleton flash when switching from Inbox to All tab** — fixed: track fetch-completion flag per account instead of relying on array length.
+- [x] **Skeleton flash when switching from Inbox to All tab** — fixed: reordered template to show arcs first, skeleton only when no data and loading.
 - [x] **Stats not counting "allowed" for test workflow emails** — fixed in backend: buildDiffUpdateParams was writing to wrong DynamoDB path.
 - [x] **Monthly stats chart not rendering correctly** — fixed: show symbols when ≤3 data points so single-month data is visible.
 
