@@ -299,9 +299,9 @@ interface EmailTemplate {
 
 ### Bugs
 
-- [ ] **Skeleton flash when switching from Inbox to All tab** — the arcs are already in the store (same data, different filter), but switching tabs causes the skeleton to briefly show. The store should serve the cached data instantly for a tab that filters the same underlying collection.
-- [ ] **Stats not counting "allowed" for test workflow emails** — a test email processed today doesn't appear in stats totals. Either the incrementStatMetric call is being deduplicated (idempotency key collision from reprocessing), or the signal was processed before the daily diff stats were deployed. Needs investigation with live DynamoDB data.
-- [ ] **Monthly stats chart not rendering correctly** — backend returns valid data (`{"date":"2026-06","allowed":0,"quarantined":1,"blocked":0,"aliases":1}`) but the chart doesn't show it properly. The data flow (store → padMonthly → chart) looks correct in code — likely a chart rendering issue with a single data point or a `domReady` timing problem.
+- [x] **Skeleton flash when switching from Inbox to All tab** — fixed: track fetch-completion flag per account instead of relying on array length.
+- [x] **Stats not counting "allowed" for test workflow emails** — fixed in backend: buildDiffUpdateParams was writing to wrong DynamoDB path.
+- [x] **Monthly stats chart not rendering correctly** — fixed: show symbols when ≤3 data points so single-month data is visible.
 
 ### Navigation & Layout
 
