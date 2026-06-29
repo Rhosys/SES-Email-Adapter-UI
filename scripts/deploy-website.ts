@@ -62,8 +62,9 @@ const options: WebsiteDeploymentOptions = {
       explicit: 'registerSW.js',
       value: isMain ? 'public, max-age=0, must-revalidate' : 'no-store',
     },
-    // Web app manifest — same cadence as HTML.
-    { explicit: 'manifest.json', value: isMain ? swrPolicy : 'no-store' },
+    // Web app manifest — same cadence as HTML. vite-plugin-pwa emits it as
+    // `manifest.webmanifest`, which is the dist-relative path matched here.
+    { explicit: 'manifest.webmanifest', value: isMain ? swrPolicy : 'no-store' },
     // Favicon has no content hash — cache for 1 day on main, bust on next deploy.
     { explicit: 'favicon.svg', value: isMain ? 'public, max-age=86400' : 'no-store' },
     // Catch-all (robots.txt, etc.)
