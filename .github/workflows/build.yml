@@ -13,6 +13,38 @@ permissions:
   pull-requests: write
 
 jobs:
+  # ── PWA installability validation ──────────────────────────────────────────
+  # Headlessly verifies the app is installable as a PWA (manifest, icons,
+  # service worker, offline app shell) so regressions are caught without a
+  # device. Standalone and AWS-free — it builds at the default base path '/'
+  # and never touches deploy credentials.
+  pwa-e2e:
+    if: >
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (base path '/')
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Validate PWA
+        run: npm run test:pwa
+
   # ── Build, check, and deploy ───────────────────────────────────────────────
   build:
     if: >
