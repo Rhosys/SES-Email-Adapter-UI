@@ -13,6 +13,7 @@
     "test:unit:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:pwa": "playwright test --project=pwa",
     "coverage": "vitest run --coverage",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint . --ext .ts,.vue --max-warnings 0",
@@ -47,6 +48,7 @@
     "@types/textarea-caret": "^3.0.4",
     "@typescript-eslint/eslint-plugin": "^8.59.2",
     "@typescript-eslint/parser": "^8.59.2",
+    "@vite-pwa/assets-generator": "^1.0.2",
     "@vitejs/plugin-vue": "^5.1.4",
     "@vitest/coverage-v8": "^2.1.4",
     "@vue/test-utils": "^2.4.6",
@@ -66,6 +68,7 @@
     "tsx": "^4.21.0",
     "typescript": "^5.6.3",
     "vite": "^6.0.0",
+    "vite-plugin-pwa": "^1.3.0",
     "vitest": "^2.1.4",
     "vitest-axe": "^0.1.0",
     "vue-tsc": "^2.1.10"

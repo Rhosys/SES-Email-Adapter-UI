@@ -55,8 +55,16 @@ const options: WebsiteDeploymentOptions = {
     },
     // HTML entry point — short SWR so updates reach users within 5 min.
     { explicit: 'index.html', value: isMain ? swrPolicy : 'no-store' },
-    // Web app manifest — same cadence as HTML.
-    { explicit: 'manifest.json', value: isMain ? swrPolicy : 'no-store' },
+    // PWA service worker + its registration shim — never cache so a new SW is
+    // discovered on the very next visit and updates activate promptly.
+    { explicit: 'sw.js', value: isMain ? 'public, max-age=0, must-revalidate' : 'no-store' },
+    {
+      explicit: 'registerSW.js',
+      value: isMain ? 'public, max-age=0, must-revalidate' : 'no-store',
+    },
+    // Web app manifest — same cadence as HTML. vite-plugin-pwa emits it as
+    // `manifest.webmanifest`, which is the dist-relative path matched here.
+    { explicit: 'manifest.webmanifest', value: isMain ? swrPolicy : 'no-store' },
     // Favicon has no content hash — cache for 1 day on main, bust on next deploy.
     { explicit: 'favicon.svg', value: isMain ? 'public, max-age=86400' : 'no-store' },
     // Catch-all (robots.txt, etc.)

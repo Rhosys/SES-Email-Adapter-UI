@@ -18,6 +18,13 @@ export default defineConfig({
     { name: 'narrow', use: { viewport: VIEWPORTS.narrow } },
     { name: 'pixel', use: { ...devices['Pixel 7'], viewport: VIEWPORTS.pixel } },
     { name: 'mobile', use: { ...devices['iPhone 14'], viewport: VIEWPORTS.mobile } },
+    // PWA installability checks run once on Chromium against their own test
+    // folder, so they don't fan out across the viewport projects above.
+    {
+      name: 'pwa',
+      testDir: 'tests/pwa-e2e',
+      use: { ...devices['Desktop Chrome'], viewport: VIEWPORTS.laptop },
+    },
   ],
   webServer: {
     command: 'npm run preview',
