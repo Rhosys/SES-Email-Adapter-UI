@@ -31,31 +31,6 @@ async function injectAuth(page: Page) {
   )
 }
 
-/**
- * Wait until an activated service worker controls the page and return its
- * scriptURL. Polls `getRegistration()` rather than awaiting
- * `serviceWorker.ready` inside a single long-lived evaluate, so it can't be torn
- * down by an SPA navigation mid-await (the call site should already have settled
- * the page via `waitForLoadState('networkidle')`).
- */
-async function waitForActiveServiceWorker(page: Page): Promise<string> {
-  await expect
-    .poll(
-      () =>
-        page.evaluate(async () => {
-          const reg = await navigator.serviceWorker.getRegistration()
-          return reg?.active?.state ?? null
-        }),
-      { timeout: 15_000, message: 'service worker should reach the activated state' },
-    )
-    .toBe('activated')
-
-  return page.evaluate(async () => {
-    const reg = await navigator.serviceWorker.getRegistration()
-    return reg?.active?.scriptURL ?? ''
-  })
-}
-
 test.describe('PWA installability', () => {
   test.beforeEach(async ({ page }) => {
     await injectAuth(page)
@@ -97,13 +72,14 @@ test.describe('PWA installability', () => {
     }
   })
 
-  test('service worker registers and activates', async ({ page }) => {
+  test('service worker registers and activates', async ({ page, context }) => {
+    // Detect the SW at the BrowserContext level — immune to the SPA's
+    // client-side redirects, which otherwise race in-page `page.evaluate` calls.
+    // Arm the wait before navigating so we can't miss the registration event.
+    const swPromise = context.waitForEvent('serviceworker', { timeout: 20_000 })
     await page.goto('/')
-    // Let the SPA finish any client-side redirect so page.evaluate doesn't race
-    // a navigation that destroys the execution context.
-    await page.waitForLoadState('networkidle')
-    const scriptURL = await waitForActiveServiceWorker(page)
-    expect(scriptURL, 'an active service worker must control the page').toMatch(/\/sw\.js$/)
+    const sw = await swPromise
+    expect(sw.url(), 'a service worker must be registered for the app').toMatch(/\/sw\.js$/)
   })
 
   test('manifest has no critical errors (Chrome installability check)', async ({ page }) => {
@@ -116,11 +92,27 @@ test.describe('PWA installability', () => {
   })
 
   test('app shell loads offline from the service worker precache', async ({ page, context }) => {
+    const swPromise = context.waitForEvent('serviceworker', { timeout: 20_000 })
     await page.goto('/')
-    // Let the SPA settle, then wait for the SW to activate and precache the shell.
-    await page.waitForLoadState('networkidle')
-    await waitForActiveServiceWorker(page)
-    await page.waitForTimeout(500)
+    const sw = await swPromise
+
+    // Wait for the SW to finish installing (precache populated) and activate.
+    // Polled in the SW's own context, so it's unaffected by SPA navigations.
+    await expect
+      .poll(
+        () =>
+          sw.evaluate(() => {
+            const reg = (self as unknown as { registration?: { active?: { state?: string } } })
+              .registration
+            return reg?.active?.state ?? null
+          }),
+        { timeout: 20_000, message: 'service worker should reach the activated state' },
+      )
+      .toBe('activated')
+
+    // Reload once while online so this client is controlled by the active SW
+    // before we cut the network.
+    await page.reload()
 
     await context.setOffline(true)
     try {
