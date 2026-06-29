@@ -24,6 +24,13 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Run inside the official Playwright image so the browsers + OS deps are
+    # already present — no 170 MB browser download per run. The tag MUST match
+    # the Playwright version in package-lock.json (currently 1.59.1); bump it
+    # when Playwright is upgraded, or the test will fail to find the browser.
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
     steps:
       - uses: actions/checkout@v5
 
@@ -38,9 +45,6 @@ jobs:
 
       - name: Build (base path '/')
         run: npm run build
-
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
 
       - name: Validate PWA
         run: npm run test:pwa
