@@ -1,8 +1,14 @@
 import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
 import { execSync } from 'node:child_process'
+
+// Deploys live under a base path: '/a/' for main, '/pr/<slug>/' for previews,
+// '/' locally. The service worker scope and navigation fallback are derived from
+// this, so the PWA is correctly isolated per deployment.
+const basePath = process.env.VITE_BASE_PATH ?? '/'
 
 /** Dev-only mock API middleware — serves mock data for /accounts/* routes when in mock mode. */
 function mockApiPlugin(): Plugin {
@@ -79,8 +85,47 @@ function envHtmlPlugin(): Plugin {
 }
 
 export default defineConfig({
-  base: process.env.VITE_BASE_PATH ?? '/',
-  plugins: [mockApiPlugin(), vue(), tailwindcss(), envHtmlPlugin()],
+  base: basePath,
+  plugins: [
+    mockApiPlugin(),
+    vue(),
+    tailwindcss(),
+    envHtmlPlugin(),
+    VitePWA({
+      // New deploys activate and are picked up on the next load — matches the
+      // existing stale-while-revalidate "quietly refresh in the background" policy.
+      registerType: 'autoUpdate',
+      // Emit a same-origin registerSW.js instead of an inline script, so the
+      // strict CSP (script-src 'self' 'unsafe-inline') is satisfied cleanly.
+      injectRegister: 'script',
+      // Generate PNG / maskable / apple-touch icons at build time from the source
+      // SVG (see pwa-assets.config.ts). Nothing rasterized is committed to git;
+      // the icons and their manifest/HTML links are produced during `vite build`.
+      pwaAssets: {
+        config: true,
+        image: 'public/favicon.svg',
+      },
+      manifest: {
+        name: 'SES Email Adapter',
+        short_name: 'SES Adapter',
+        description: 'Intelligent email routing and filtering powered by AI',
+        display: 'standalone',
+        background_color: '#1e1e2e',
+        theme_color: '#1e1e2e',
+      },
+      workbox: {
+        // Precache the built app shell so the installed app loads instantly and
+        // is installable. API/auth still require connectivity (the SW scope is the
+        // deploy base path, so it never intercepts the /api origin routes).
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
+        navigateFallback: `${basePath}index.html`,
+        cleanupOutdatedCaches: true,
+      },
+      // Keep the PWA service worker disabled in dev so it never conflicts with the
+      // MSW mock worker used by `dev:mock`.
+      devOptions: { enabled: false },
+    }),
+  ],
   define: {
     VERSION_INFO: JSON.stringify({
       releaseDate: new Date().toISOString(),
