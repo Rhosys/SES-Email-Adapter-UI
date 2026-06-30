@@ -38,6 +38,7 @@ describe('CalendarEventCard — external link', () => {
     useAccountStore().account = {
       accountId: 'acc_1',
       name: 'Test',
+      filtering: { defaultUnknownSenderPolicy: 'quarantine_visible' },
       createdAt: '2025-01-01T00:00:00Z',
       updatedAt: '2025-01-01T00:00:00Z',
     }

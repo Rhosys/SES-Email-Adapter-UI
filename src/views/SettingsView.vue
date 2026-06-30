@@ -393,7 +393,7 @@ async function updateDefaultPolicy(policy: UnknownSenderPolicy) {
 
 async function deleteAddress(address: string) {
   if (!accountStore.accountId) return
-  const accountDefaultPolicy = accountStore.account?.filtering?.defaultUnknownSenderPolicy ?? 'quarantine_visible'
+  const accountDefaultPolicy = accountStore.account?.filtering.defaultUnknownSenderPolicy ?? 'quarantine_visible'
   const accountDefaultPolicyLabel = FILTER_MODES.find((m) => m.value === accountDefaultPolicy)?.label ?? accountDefaultPolicy
   const confirmed = await confirmAction({
     title: `Delete ${address}`,
@@ -1253,7 +1253,7 @@ function onTabPick(key: string) {
               class="rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-xs text-ctp-text transition-colors hover:border-ctp-mauve"
               @click="defaultPolicyModalOpen = true"
             >
-              {{ FILTER_MODES.find((m) => m.value === (accountStore.account?.filtering?.defaultUnknownSenderPolicy ?? 'quarantine_visible'))?.label }}
+              {{ FILTER_MODES.find((m) => m.value === (accountStore.account?.filtering.defaultUnknownSenderPolicy ?? 'quarantine_visible'))?.label }}
             </button>
           </div>
         </div>
@@ -1901,7 +1901,7 @@ function onTabPick(key: string) {
       :open="defaultPolicyModalOpen"
       title="New address handling"
       subtitle="What happens when an email arrives for an address not yet in your alias list."
-      :current-mode="accountStore.account?.filtering?.defaultUnknownSenderPolicy ?? 'quarantine_visible'"
+      :current-mode="accountStore.account?.filtering.defaultUnknownSenderPolicy ?? 'quarantine_visible'"
       :modes="FILTER_MODES"
       @select="(mode) => updateDefaultPolicy(mode as UnknownSenderPolicy)"
       @close="defaultPolicyModalOpen = false"

@@ -21,6 +21,7 @@ import { api, ApiError } from '@/lib/api'
 const REAL_ACCOUNT: Account = {
   accountId: 'acc-t8cmlkkck3vtm',
   name: '',
+  filtering: { defaultUnknownSenderPolicy: 'quarantine_visible' },
   onboarding: { completed: true, testEmailReceivedAt: '2026-06-17T17:09:21.917Z' },
   billingPlan: 'Trial',
   createdAt: '2026-06-10T17:09:21.298Z',
