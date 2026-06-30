@@ -16,6 +16,7 @@ export const mockAccounts: Account[] = [
   {
     accountId: 'acc_demo_2',
     name: 'Side Project',
+    filtering: { defaultUnknownSenderPolicy: 'quarantine_visible' },
     createdAt: '2026-03-01T00:00:00Z',
     updatedAt: '2026-06-01T00:00:00Z',
   },

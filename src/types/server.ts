@@ -88,7 +88,7 @@ export interface NotificationSettings {
 }
 
 export interface AccountFilteringConfig {
-  defaultUnknownSenderPolicy?: UnknownSenderPolicy
+  defaultUnknownSenderPolicy: UnknownSenderPolicy
 }
 
 export interface AccountOnboarding {
@@ -103,7 +103,7 @@ export interface Account {
   name: string
   retentionDuration?: RetentionDuration
   notifications?: NotificationSettings
-  filtering?: AccountFilteringConfig
+  filtering: AccountFilteringConfig
   onboarding?: AccountOnboarding
   billingPlan?: string
   defaultCalendarInviteForwardingTargetId?: string
