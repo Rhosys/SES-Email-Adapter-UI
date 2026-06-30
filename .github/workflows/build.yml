@@ -211,6 +211,7 @@ jobs:
           LANDING_BUCKET_NAME: ${{ env.LANDING_BUCKET_NAME }}
 
       - name: Invalidate CloudFront
+        continue-on-error: true
         run: |
           aws cloudfront create-invalidation \
             --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \

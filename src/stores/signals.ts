@@ -30,8 +30,12 @@ export const useSignalsStore = defineStore('signals', () => {
   function setArcSignals(arcId: string, signals: Signal[]) {
     const accountId = accountStore.accountId
     if (!accountId) return
+    // Always enforce newest-first by createdAt — fetchAll's merge of fresh +
+    // cached pages assumes that invariant, but locally-created signals
+    // (drafts) or out-of-window pagination can otherwise land out of order.
+    const sorted = [...signals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     const forAccount = _byAccount.value[accountId] ?? {}
-    _byAccount.value = { ..._byAccount.value, [accountId]: { ...forAccount, [arcId]: signals } }
+    _byAccount.value = { ..._byAccount.value, [accountId]: { ...forAccount, [arcId]: sorted } }
   }
 
   const items = computed<Signal[]>(() => (currentArcId.value ? arcSignals(currentArcId.value) : []))

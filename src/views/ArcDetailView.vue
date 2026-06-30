@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, computed, ref, nextTick } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useSignalsStore } from '@/stores/signals'
 import { useArcsStore } from '@/stores/arcs'
+import { useAccountStore } from '@/stores/account'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
@@ -10,6 +11,7 @@ import { retentionExpiresAt } from '@/lib/retention'
 import { groupByBodyFingerprint, attachLinkedSignals } from '@/lib/dedup'
 import { visibleLabels, findLabelMeta } from '@/lib/labels'
 import { useLabelsStore } from '@/stores/labels'
+import { api } from '@/lib/api'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
 import SignalRenderer from '@/components/SignalRenderer.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
@@ -22,6 +24,7 @@ const route = useRoute()
 const router = useRouter()
 const signalsStore = useSignalsStore()
 const arcsStore = useArcsStore()
+const accountStore = useAccountStore()
 const labelsStore = useLabelsStore()
 const { showUndo, deferAction } = useToast()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
@@ -32,6 +35,13 @@ const arcData = ref<Arc | null>(null)
 const arcId = computed(() => route.params.id as string)
 
 const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalsStore.items)))
+
+// Sender domain to block, derived from the arc's denormalised sender address
+const senderDomain = computed(() => {
+  const sender = arc.value?.senderAddress
+  const at = sender?.lastIndexOf('@') ?? -1
+  return at >= 0 ? sender!.slice(at + 1) : null
+})
 
 // Look up arc from arcsStore items first, fall back to locally fetched data
 const arc = computed(() => {
@@ -121,6 +131,34 @@ async function deleteArc() {
   const id = arcId.value
   deferAction(
     'Thread deleted',
+    async () => {
+      await arcsStore.deleteArc(id)
+    },
+    8_000,
+    { undoLabel: 'Undo' },
+  )
+  void router.push('/')
+}
+
+async function blockSender() {
+  const domain = senderDomain.value
+  const alias = arc.value?.recipientAddress
+  if (!domain || !alias) return
+  const confirmed = await confirmAction({
+    title: 'Block sender',
+    message: `Block all future emails from @${domain} to ${alias} and delete this thread? This cannot be undone.`,
+    confirmLabel: 'Block & delete',
+    confirmVariant: 'danger',
+  })
+  if (!confirmed) return
+  const accountId = accountStore.accountId
+  if (accountId) {
+    const result = await api.updateAliasSender(accountId, alias, domain, { policy: 'block_reject' })
+    if (result.isErr()) return
+  }
+  const id = arcId.value
+  deferAction(
+    'Sender blocked, thread deleted',
     async () => {
       await arcsStore.deleteArc(id)
     },
@@ -268,6 +306,16 @@ async function removeLabel(label: string) {
             @keydown.escape="overflowOpen = false"
           >
             <button
+              v-if="senderDomain && arc.recipientAddress"
+              type="button"
+              role="menuitem"
+              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0"
+              @click="blockSender()"
+            >
+              <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M4.5 4.5l7 7"/></svg>
+              Block sender
+            </button>
+            <button
               type="button"
               role="menuitem"
               class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0"
@@ -361,6 +409,10 @@ async function removeLabel(label: string) {
         Available until {{ availableUntil }}
       </RouterLink>
 
+      <div v-if="signalsStore.items.length > 0" class="mb-2 text-xs text-ctp-subtext0">
+        {{ signalsStore.items.length }}{{ signalsStore.hasMore ? '+' : '' }} signal{{ signalsStore.items.length === 1 && !signalsStore.hasMore ? '' : 's' }}
+      </div>
+
       <!-- Retention warning (≤30 days) -->
       <RouterLink
         v-if="showRetentionWarning"
@@ -377,7 +429,7 @@ async function removeLabel(label: string) {
 
       <!-- Signal thread — newest first, received + draft signals -->
       <div class="space-y-4">
-        <template v-for="group in dedupedSignals" :key="group.signal.signalId">
+        <template v-for="(group, index) in dedupedSignals" :key="group.signal.signalId">
           <DraftSignalCard
             v-if="group.signal.status === 'draft'"
             :id="`draft-${group.signal.signalId}`"
@@ -390,7 +442,14 @@ async function removeLabel(label: string) {
             :signal="group.signal"
             @cancelled="onDraftDiscard"
           />
-          <SignalRenderer v-else :signal="group.signal" :linked-signal="group.linkedSignal" @undo="onSignalUndo" @reply="startDraft" />
+          <SignalRenderer
+            v-else
+            :signal="group.signal"
+            :linked-signal="group.linkedSignal"
+            :default-expanded="index === 0"
+            @undo="onSignalUndo"
+            @reply="startDraft"
+          />
         </template>
       </div>
 
