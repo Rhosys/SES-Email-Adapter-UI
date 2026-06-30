@@ -10,14 +10,14 @@ import { api } from '@/lib/api'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 import ActionBadge from '@/components/ActionBadge.vue'
 
-const props = defineProps<{ signal: Signal }>()
+const props = withDefaults(defineProps<{ signal: Signal; defaultExpanded?: boolean }>(), { defaultExpanded: true })
 const emit = defineEmits<{ undo: []; reply: [] }>()
 
 const router = useRouter()
 const route = useRoute()
 const accountStore = useAccountStore()
 const rulesStore = useRulesStore()
-const expanded = ref(true)
+const expanded = ref(props.defaultExpanded)
 const menuOpen = ref(false)
 const reprocessing = ref(false)
 const undoPending = ref(false)
@@ -259,8 +259,11 @@ const {
 watch(expanded, (v) => { if (!v) resetEmailZoom() })
 
 const iframeStyle = computed(() => ({
-  minHeight: '650px',
-  maxHeight: 'calc(100vh - 160px)',
+  // Scales with viewport height (capped at 650px) instead of a fixed floor,
+  // so the card doesn't dwarf small mobile viewports; dvh accounts for
+  // mobile browser chrome that 100vh ignores.
+  minHeight: 'min(650px, 60dvh)',
+  maxHeight: 'calc(100dvh - 160px)',
   border: 'none',
   display: 'block',
   transformOrigin: '0 0',
@@ -385,7 +388,7 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
     <!-- Email body -->
     <template v-if="expanded && signal.type === 'email'">
       <div class="signal-card__body border-t border-ctp-surface1">
-        <div v-if="signal.data.body" class="relative overflow-y-auto bg-white min-h-[650px] max-h-[calc(100vh-160px)]" data-testid="email-body-container">
+        <div v-if="signal.data.body" class="relative overflow-y-auto bg-white min-h-[min(650px,60dvh)] max-h-[calc(100dvh-160px)]" data-testid="email-body-container">
           <iframe
             :srcdoc="signal.data.body"
             sandbox="allow-popups allow-popups-to-escape-sandbox"

@@ -361,6 +361,10 @@ async function removeLabel(label: string) {
         Available until {{ availableUntil }}
       </RouterLink>
 
+      <div v-if="signalsStore.items.length > 0" class="mb-2 text-xs text-ctp-subtext0">
+        {{ signalsStore.items.length }}{{ signalsStore.hasMore ? '+' : '' }} signal{{ signalsStore.items.length === 1 && !signalsStore.hasMore ? '' : 's' }}
+      </div>
+
       <!-- Retention warning (≤30 days) -->
       <RouterLink
         v-if="showRetentionWarning"
@@ -377,7 +381,7 @@ async function removeLabel(label: string) {
 
       <!-- Signal thread — newest first, received + draft signals -->
       <div class="space-y-4">
-        <template v-for="group in dedupedSignals" :key="group.signal.signalId">
+        <template v-for="(group, index) in dedupedSignals" :key="group.signal.signalId">
           <DraftSignalCard
             v-if="group.signal.status === 'draft'"
             :id="`draft-${group.signal.signalId}`"
@@ -390,7 +394,14 @@ async function removeLabel(label: string) {
             :signal="group.signal"
             @cancelled="onDraftDiscard"
           />
-          <SignalRenderer v-else :signal="group.signal" :linked-signal="group.linkedSignal" @undo="onSignalUndo" @reply="startDraft" />
+          <SignalRenderer
+            v-else
+            :signal="group.signal"
+            :linked-signal="group.linkedSignal"
+            :default-expanded="index === 0"
+            @undo="onSignalUndo"
+            @reply="startDraft"
+          />
         </template>
       </div>
 
