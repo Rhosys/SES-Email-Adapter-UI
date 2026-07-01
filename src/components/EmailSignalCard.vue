@@ -9,6 +9,7 @@ import { useRulesStore } from '@/stores/rules'
 import { api } from '@/lib/api'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 import ActionBadge from '@/components/ActionBadge.vue'
+import CopyMenuItem from '@/components/CopyMenuItem.vue'
 
 const props = withDefaults(defineProps<{ signal: Signal; defaultExpanded?: boolean }>(), { defaultExpanded: true })
 const emit = defineEmits<{ undo: []; reply: []; reprocessed: [] }>()
@@ -24,6 +25,7 @@ const reprocessError = ref<string | null>(null)
 const undoPending = ref(false)
 const undoError = ref<string | null>(null)
 const isUserSent = computed(() => props.signal.source === 'user')
+const threadId = computed(() => props.signal.arcId)
 
 const signalMatchedRules = computed(() => {
   if (!isInboundEmailSignal(props.signal)) return []
@@ -384,6 +386,19 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
           >
             Show matched rules
           </button>
+          <CopyMenuItem
+            class="px-4"
+            :value="signal.signalId"
+            label="Signal ID"
+            @click="menuOpen = false"
+          />
+          <CopyMenuItem
+            v-if="threadId"
+            class="px-4"
+            :value="threadId"
+            label="Thread ID"
+            @click="menuOpen = false"
+          />
           <button
             v-if="isUserSent"
             :disabled="undoPending"

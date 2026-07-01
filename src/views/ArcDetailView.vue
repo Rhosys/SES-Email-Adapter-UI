@@ -18,6 +18,7 @@ import DraftSignalCard from '@/components/DraftSignalCard.vue'
 import PendingSendCard from '@/components/PendingSendCard.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import CopyMenuItem from '@/components/CopyMenuItem.vue'
 import type { Arc } from '@/types/server'
 
 const route = useRoute()
@@ -33,6 +34,7 @@ const overflowOpen = ref(false)
 const arcData = ref<Arc | null>(null)
 
 const arcId = computed(() => route.params.id as string)
+const threadId = computed(() => arcId.value)
 
 const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalsStore.items)))
 
@@ -309,6 +311,7 @@ async function removeLabel(label: string) {
             @click="overflowOpen = false"
             @keydown.escape="overflowOpen = false"
           >
+            <CopyMenuItem class="px-3" :value="threadId" label="Thread ID" />
             <button
               v-if="senderDomain && arc.recipientAddress"
               type="button"

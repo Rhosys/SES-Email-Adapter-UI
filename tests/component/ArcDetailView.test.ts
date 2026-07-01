@@ -5,6 +5,7 @@ import { ok } from 'neverthrow'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import ArcDetailView from '@/views/ArcDetailView.vue'
 import { useAccountStore } from '@/stores/account'
+import { useToast } from '@/composables/useToast'
 import type { Arc, Signal } from '@/types/server'
 
 Element.prototype.scrollIntoView = vi.fn()
@@ -280,5 +281,45 @@ describe('ArcDetailView — signal count badge', () => {
     expect(badge!.text().trim()).toBe('2 Signals')
     expect(badge!.classes()).toContain('bg-ctp-surface1')
     expect(badge!.classes()).toContain('text-ctp-subtext0')
+  })
+})
+
+describe('ArcDetailView — copy thread ID (mobile menu)', () => {
+  const writeText = vi.fn().mockResolvedValue(undefined)
+
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    vi.clearAllMocks()
+
+    const accountStore = useAccountStore()
+    accountStore.account = {
+      accountId: 'acc_1',
+      name: 'Test',
+      filtering: { defaultUnknownSenderPolicy: 'quarantine_visible' },
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-01T00:00:00Z',
+    }
+    vi.mocked(api.listAccounts).mockResolvedValue(ok([accountStore.account]))
+
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    })
+
+    useToast().toasts.value = []
+  })
+
+  it('copies the thread ID and shows a confirmation toast', async () => {
+    const thread = makeArc()
+    const wrapper = await mountView(thread, [mockEmailSignal()])
+
+    await wrapper.find('[aria-label="More actions"]').trigger('click')
+    const copyButton = wrapper.findAll('button').find((b) => b.text() === 'Copy Thread ID')!
+    await copyButton.trigger('click')
+    await flushPromises()
+
+    expect(writeText).toHaveBeenCalledWith('arc_1')
+    expect(useToast().toasts.value.some((t) => t.message === 'Thread ID copied')).toBe(true)
   })
 })
