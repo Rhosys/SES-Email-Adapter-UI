@@ -36,7 +36,7 @@ const snippet = computed(() => emailData.value?.body?.replace(/<[^>]*>/g, ' ').r
 async function discard() {
   if (!accountStore.accountId) return
   await api.deleteDraftSignal(accountStore.accountId, props.signal.signalId)
-  if (props.signal.arcId) draftsStore.removeDraft(props.signal.arcId, props.signal.signalId)
+  if (props.signal.threadId) draftsStore.removeDraft(props.signal.threadId, props.signal.signalId)
   emit('discard')
 }
 </script>
@@ -48,7 +48,7 @@ async function discard() {
     role="listitem"
   >
     <RouterLink
-      :to="{ name: 'arc-detail', params: { id: signal.arcId } }"
+      :to="{ name: 'thread-detail', params: { id: signal.threadId } }"
       class="min-w-0 flex-1"
     >
       <div class="flex items-center justify-between gap-2">

@@ -1,6 +1,6 @@
-import type { ArcUrgency } from '@/types/server'
+import type { ThreadUrgency } from '@/types/server'
 
-export function urgencyStripeColor(urgency: ArcUrgency | undefined): string {
+export function urgencyStripeColor(urgency: ThreadUrgency | undefined): string {
   switch (urgency) {
     case 'critical':
       return 'var(--color-red)'

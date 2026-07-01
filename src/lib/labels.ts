@@ -1,6 +1,6 @@
 import type { Label } from '@/types/server'
 
-// system:workflow:* labels duplicate the workflow badge shown alongside an arc — hide them from label chips.
+// system:workflow:* labels duplicate the workflow badge shown alongside a thread — hide them from label chips.
 export function visibleLabels(labels: string[]): string[] {
   return labels.filter((l) => !l.startsWith('system:workflow:'))
 }

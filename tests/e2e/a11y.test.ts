@@ -42,7 +42,7 @@ async function stubApi(page: Page) {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        arcs: [], signals: [], rules: [], labels: [], views: [],
+        threads: [], signals: [], rules: [], labels: [], views: [],
         templates: [], domains: [], aliases: [], users: [],
         events: [], pagination: { cursor: null },
       }),
@@ -53,7 +53,7 @@ async function stubApi(page: Page) {
 // Routes to audit — one per distinct view.
 // TODO: extend to the full route list once all views are stable:
 //   /onboarding, /invite, /billing, /profile, /rules/new, /rules/:id,
-//   /arcs/:id, /templates, /audit-log, /terms, /privacy
+//   /threads/:id, /templates, /audit-log, /terms, /privacy
 const ROUTES = [
   '/',
   '/search',

@@ -2,17 +2,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { ok } from 'neverthrow'
 import { useDraftsStore } from '@/stores/drafts'
-import { useArcsStore } from '@/stores/arcs'
+import { useThreadsStore } from '@/stores/threads'
 import { useSignalsStore } from '@/stores/signals'
 import { useAccountStore } from '@/stores/account'
-import type { Signal, Arc, Account } from '@/types/server'
+import type { Signal, Thread, Account } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
   return {
     ...actual,
     api: {
-      listArcs: vi.fn(),
+      listThreads: vi.fn(),
       listSignals: vi.fn(),
     },
   }
@@ -20,13 +20,13 @@ vi.mock('@/lib/api', async (importOriginal) => {
 
 import { api } from '@/lib/api'
 
-function mockArc(overrides: Partial<Arc> = {}): Arc {
+function mockThread(overrides: Partial<Thread> = {}): Thread {
   return {
-    arcId: 'arc_1',
+    threadId: 'thread_1',
     workflow: 'conversation',
     labels: [],
     status: 'active',
-    summary: 'Test arc',
+    summary: 'Test thread',
     lastSignalAt: '2025-01-01T12:00:00Z',
     createdAt: '2025-01-01T10:00:00Z',
     updatedAt: '2025-01-01T12:00:00Z',
@@ -38,7 +38,7 @@ function mockDraft(overrides: Partial<Signal> & { signalId?: string } = {}): Sig
   const { signalId = 'sig_draft_1', ...rest } = overrides
   return {
     signalId,
-    arcId: 'arc_1',
+    threadId: 'thread_1',
     type: 'email',
     source: 'user',
     status: 'draft',
@@ -72,48 +72,48 @@ describe('draftsStore', () => {
     expect(store.draftCount).toBe(0)
   })
 
-  it('refreshTopArcs fetches arcs and pulls signals for the top active arcs, deriving drafts', async () => {
-    vi.mocked(api.listArcs).mockResolvedValue(
-      ok({ arcs: [mockArc({ arcId: 'arc_1' })], pagination: { cursor: null } }),
+  it('refreshTopThreads fetches threads and pulls signals for the top active threads, deriving drafts', async () => {
+    vi.mocked(api.listThreads).mockResolvedValue(
+      ok({ threads: [mockThread({ threadId: 'thread_1' })], pagination: { cursor: null } }),
     )
     vi.mocked(api.listSignals).mockResolvedValue(
       ok({ signals: [mockDraft({ signalId: 'd1' })], pagination: { cursor: null } }),
     )
 
     const store = useDraftsStore()
-    await store.refreshTopArcs()
+    await store.refreshTopThreads()
 
-    expect(api.listSignals).toHaveBeenCalledWith('acc_1', 'arc_1', { limit: 50 })
+    expect(api.listSignals).toHaveBeenCalledWith('acc_1', 'thread_1', { limit: 50 })
     expect(store.draftCount).toBe(1)
     expect(store.drafts.map((s) => s.signalId)).toEqual(['d1'])
   })
 
-  it('excludes draft signals belonging to non-active arcs', async () => {
-    const arcsStore = useArcsStore()
+  it('excludes draft signals belonging to non-active threads', async () => {
+    const threadsStore = useThreadsStore()
     const signalsStore = useSignalsStore()
-    vi.mocked(api.listArcs).mockResolvedValue(
+    vi.mocked(api.listThreads).mockResolvedValue(
       ok({
-        arcs: [mockArc({ arcId: 'arc_active', status: 'active' }), mockArc({ arcId: 'arc_archived', status: 'archived' })],
+        threads: [mockThread({ threadId: 'thread_active', status: 'active' }), mockThread({ threadId: 'thread_archived', status: 'archived' })],
         pagination: { cursor: null },
       }),
     )
-    await arcsStore.fetchArcs(true)
+    await threadsStore.fetchThreads(true)
 
-    vi.mocked(api.listSignals).mockImplementation(async (_account, arcId) =>
+    vi.mocked(api.listSignals).mockImplementation(async (_account, threadId) =>
       ok({
-        signals: [mockDraft({ signalId: `draft_${arcId}`, arcId })],
+        signals: [mockDraft({ signalId: `draft_${threadId}`, threadId })],
         pagination: { cursor: null },
       }),
     )
-    await signalsStore.fetchForArcs(['arc_active', 'arc_archived'])
+    await signalsStore.fetchForThreads(['thread_active', 'thread_archived'])
 
     const store = useDraftsStore()
-    expect(store.drafts.map((s) => s.signalId)).toEqual(['draft_arc_active'])
+    expect(store.drafts.map((s) => s.signalId)).toEqual(['draft_thread_active'])
   })
 
   it('removeDraft removes a draft from the derived list', async () => {
-    vi.mocked(api.listArcs).mockResolvedValue(
-      ok({ arcs: [mockArc({ arcId: 'arc_1' })], pagination: { cursor: null } }),
+    vi.mocked(api.listThreads).mockResolvedValue(
+      ok({ threads: [mockThread({ threadId: 'thread_1' })], pagination: { cursor: null } }),
     )
     vi.mocked(api.listSignals).mockResolvedValue(
       ok({
@@ -122,10 +122,10 @@ describe('draftsStore', () => {
       }),
     )
     const store = useDraftsStore()
-    await store.refreshTopArcs()
+    await store.refreshTopThreads()
     expect(store.draftCount).toBe(2)
 
-    store.removeDraft('arc_1', 'd1')
+    store.removeDraft('thread_1', 'd1')
 
     expect(store.drafts.map((s) => s.signalId)).toEqual(['d2'])
     expect(store.draftCount).toBe(1)

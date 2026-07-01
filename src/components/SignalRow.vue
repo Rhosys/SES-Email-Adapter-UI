@@ -47,7 +47,7 @@ const sentAt = computed(() => {
 
 function viewOriginal() {
   menuOpen.value = false
-  void router.push({ name: 'arc-detail', params: { id: props.signal.arcId } })
+  void router.push({ name: 'thread-detail', params: { id: props.signal.threadId } })
 }
 
 async function undoSend() {

@@ -351,7 +351,7 @@ describe('evalLogic', () => {
       workflow: 'content',
       spamScore: 8,
     },
-    arc: { labels: ['promo'], urgency: 'low', status: 'active' },
+    thread: { labels: ['promo'], urgency: 'low', status: 'active' },
   } as Record<string, unknown>
 
   it('== match', () => {

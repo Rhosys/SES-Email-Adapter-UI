@@ -3,10 +3,10 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { ok } from 'neverthrow'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import ArcDetailView from '@/views/ArcDetailView.vue'
+import ThreadDetailView from '@/views/ThreadDetailView.vue'
 import { useAccountStore } from '@/stores/account'
 import { useToast } from '@/composables/useToast'
-import type { Arc, Signal } from '@/types/server'
+import type { Thread, Signal } from '@/types/server'
 
 Element.prototype.scrollIntoView = vi.fn()
 
@@ -15,9 +15,9 @@ vi.mock('@/lib/api', async (importOriginal) => {
   return {
     ...actual,
     api: {
-      getArc: vi.fn(),
+      getThread: vi.fn(),
       listSignals: vi.fn(),
-      patchArc: vi.fn(),
+      patchThread: vi.fn(),
       listAccounts: vi.fn(),
       createDraftSignal: vi.fn(),
       listDomains: vi.fn(),
@@ -27,9 +27,9 @@ vi.mock('@/lib/api', async (importOriginal) => {
 
 import { api } from '@/lib/api'
 
-function makeArc(overrides: Partial<Arc> = {}): Arc {
+function makeThread(overrides: Partial<Thread> = {}): Thread {
   return {
-    arcId: 'arc_1',
+    threadId: 'thread_1',
     workflow: 'conversation',
     labels: [],
     status: 'active',
@@ -45,7 +45,7 @@ function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/arcs/:id', component: ArcDetailView },
+      { path: '/threads/:id', component: ThreadDetailView },
       { path: '/', component: { template: '<div />' } },
     ],
   })
@@ -56,7 +56,7 @@ let pinia: ReturnType<typeof createPinia>
 function mockEmailSignal(overrides: Partial<Signal> = {}): Signal {
   return {
     signalId: 'sig_1',
-    arcId: 'arc_1',
+    threadId: 'thread_1',
     type: 'email',
     source: 'system',
     status: 'active',
@@ -82,7 +82,7 @@ function mockEmailSignal(overrides: Partial<Signal> = {}): Signal {
 function mockDraftSignal(overrides: Partial<Signal> = {}): Signal {
   return {
     signalId: 'sig_draft',
-    arcId: 'arc_1',
+    threadId: 'thread_1',
     type: 'email',
     source: 'user',
     status: 'draft',
@@ -101,15 +101,15 @@ function mockDraftSignal(overrides: Partial<Signal> = {}): Signal {
   } as Signal
 }
 
-async function mountView(arc: Arc, signals: Signal[] = []) {
-  vi.mocked(api.getArc).mockResolvedValue(ok(arc))
+async function mountView(thread: Thread, signals: Signal[] = []) {
+  vi.mocked(api.getThread).mockResolvedValue(ok(thread))
   vi.mocked(api.listSignals).mockResolvedValue(ok({ signals, pagination: { cursor: null } }))
 
   const router = makeRouter()
-  await router.push(`/arcs/${arc.arcId}`)
+  await router.push(`/threads/${thread.threadId}`)
   await router.isReady()
 
-  const wrapper = mount(ArcDetailView, {
+  const wrapper = mount(ThreadDetailView, {
     global: { plugins: [pinia, router] },
     attachTo: document.body,
   })
@@ -117,7 +117,7 @@ async function mountView(arc: Arc, signals: Signal[] = []) {
   return wrapper
 }
 
-describe('ArcDetailView — deleted timestamp display', () => {
+describe('ThreadDetailView — deleted timestamp display', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
@@ -135,35 +135,35 @@ describe('ArcDetailView — deleted timestamp display', () => {
   })
 
   it('shows "Deleted on" date when status is deleted and deletedAt is set', async () => {
-    const arc = makeArc({
+    const thread = makeThread({
       status: 'deleted',
       deletedAt: '2025-06-15T10:30:00Z',
     })
-    const wrapper = await mountView(arc)
+    const wrapper = await mountView(thread)
 
     const formatted = new Date('2025-06-15T10:30:00Z').toLocaleDateString(undefined, { dateStyle: 'medium' })
     expect(wrapper.text()).toContain(`Deleted on ${formatted}`)
   })
 
   it('does not show deletion date when status is deleted but deletedAt is absent', async () => {
-    const arc = makeArc({ status: 'deleted' })
-    const wrapper = await mountView(arc)
+    const thread = makeThread({ status: 'deleted' })
+    const wrapper = await mountView(thread)
 
     expect(wrapper.text()).not.toContain('Deleted on')
   })
 
   it('does not show deletion date when status is active even if deletedAt is set', async () => {
-    const arc = makeArc({
+    const thread = makeThread({
       status: 'active',
       deletedAt: '2025-06-15T10:30:00Z',
     })
-    const wrapper = await mountView(arc)
+    const wrapper = await mountView(thread)
 
     expect(wrapper.text()).not.toContain('Deleted on')
   })
 })
 
-describe('ArcDetailView — reply reuses existing draft', () => {
+describe('ThreadDetailView — reply reuses existing draft', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
@@ -182,8 +182,8 @@ describe('ArcDetailView — reply reuses existing draft', () => {
   })
 
   it('creates a draft on first reply, then reuses it instead of creating a second one', async () => {
-    const arc = makeArc()
-    const wrapper = await mountView(arc, [mockEmailSignal()])
+    const thread = makeThread()
+    const wrapper = await mountView(thread, [mockEmailSignal()])
     vi.mocked(api.createDraftSignal).mockResolvedValue(ok(mockDraftSignal()))
 
     const replyButton = wrapper.findAll('button').find((b) => b.text().includes('Reply'))!
@@ -200,8 +200,8 @@ describe('ArcDetailView — reply reuses existing draft', () => {
   })
 
   it('scrolls to an already-existing draft instead of creating a new one', async () => {
-    const arc = makeArc()
-    const wrapper = await mountView(arc, [mockEmailSignal(), mockDraftSignal()])
+    const thread = makeThread()
+    const wrapper = await mountView(thread, [mockEmailSignal(), mockDraftSignal()])
 
     const replyButton = wrapper.findAll('button').find((b) => b.text().includes('Reply'))!
     await replyButton.trigger('click')
@@ -212,7 +212,7 @@ describe('ArcDetailView — reply reuses existing draft', () => {
   })
 })
 
-describe('ArcDetailView — no signals', () => {
+describe('ThreadDetailView — no signals', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
@@ -230,21 +230,21 @@ describe('ArcDetailView — no signals', () => {
   })
 
   it('shows an empty-state message instead of a blank thread body', async () => {
-    const arc = makeArc()
-    const wrapper = await mountView(arc, [])
+    const thread = makeThread()
+    const wrapper = await mountView(thread, [])
 
     expect(wrapper.text()).toContain('No signals yet')
   })
 
   it('does not render the signal-count line when there are no signals', async () => {
-    const arc = makeArc()
-    const wrapper = await mountView(arc, [])
+    const thread = makeThread()
+    const wrapper = await mountView(thread, [])
 
     expect(wrapper.text()).not.toMatch(/\d+\+? Signals?/)
   })
 })
 
-describe('ArcDetailView — signal count badge', () => {
+describe('ThreadDetailView — signal count badge', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
@@ -262,8 +262,8 @@ describe('ArcDetailView — signal count badge', () => {
   })
 
   it('shows a capitalized "Signal" count and colors it like the primary status badge', async () => {
-    const arc = makeArc({ status: 'active' })
-    const wrapper = await mountView(arc, [mockEmailSignal()])
+    const thread = makeThread({ status: 'active' })
+    const wrapper = await mountView(thread, [mockEmailSignal()])
 
     const badge = wrapper.findAll('span').find((s) => /^\d+\+? Signals?$/.test(s.text().trim()))
     expect(badge).toBeTruthy()
@@ -273,8 +273,8 @@ describe('ArcDetailView — signal count badge', () => {
   })
 
   it('pluralizes and colors the badge as archived when the thread is archived', async () => {
-    const arc = makeArc({ status: 'archived' })
-    const wrapper = await mountView(arc, [mockEmailSignal(), mockEmailSignal({ signalId: 'sig_2' })])
+    const thread = makeThread({ status: 'archived' })
+    const wrapper = await mountView(thread, [mockEmailSignal(), mockEmailSignal({ signalId: 'sig_2' })])
 
     const badge = wrapper.findAll('span').find((s) => /^\d+\+? Signals?$/.test(s.text().trim()))
     expect(badge).toBeTruthy()
@@ -284,7 +284,7 @@ describe('ArcDetailView — signal count badge', () => {
   })
 })
 
-describe('ArcDetailView — copy thread ID (mobile menu)', () => {
+describe('ThreadDetailView — copy thread ID (mobile menu)', () => {
   const writeText = vi.fn().mockResolvedValue(undefined)
 
   beforeEach(() => {
@@ -311,7 +311,7 @@ describe('ArcDetailView — copy thread ID (mobile menu)', () => {
   })
 
   it('copies the thread ID and shows a confirmation toast', async () => {
-    const thread = makeArc()
+    const thread = makeThread()
     const wrapper = await mountView(thread, [mockEmailSignal()])
 
     await wrapper.find('[aria-label="More actions"]').trigger('click')
@@ -319,7 +319,7 @@ describe('ArcDetailView — copy thread ID (mobile menu)', () => {
     await copyButton.trigger('click')
     await flushPromises()
 
-    expect(writeText).toHaveBeenCalledWith('arc_1')
+    expect(writeText).toHaveBeenCalledWith('thread_1')
     expect(useToast().toasts.value.some((t) => t.message === 'Thread ID copied')).toBe(true)
   })
 })

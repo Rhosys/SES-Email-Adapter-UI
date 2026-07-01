@@ -13,7 +13,7 @@ const accountStore = useAccountStore()
 
 const ROUTE_TITLES: Record<string, string> = {
   inbox: 'Inbox',
-  'arc-detail': 'Conversation',
+  'thread-detail': 'Conversation',
   quarantine: 'Quarantine',
   drafts: 'Drafts',
   search: 'Search',

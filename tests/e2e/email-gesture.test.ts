@@ -5,7 +5,7 @@ import { test, expect, type Page, type CDPSession } from '@playwright/test'
 // ---------------------------------------------------------------------------
 
 const ACCOUNT_ID = 'test-account-id'
-const ARC_ID = 'test-arc-id'
+const THREAD_ID = 'test-thread-id'
 
 const STUB_ACCOUNT = {
   accountId: ACCOUNT_ID,
@@ -14,8 +14,8 @@ const STUB_ACCOUNT = {
   updatedAt: '2024-01-01T00:00:00Z',
 }
 
-const STUB_ARC = {
-  arcId: ARC_ID,
+const STUB_THREAD = {
+  threadId: THREAD_ID,
   workflow: 'conversation',
   labels: [],
   status: 'active',
@@ -39,7 +39,7 @@ const EMAIL_BODY_WITH_IMAGE = [
 
 const STUB_SIGNAL = {
   signalId: 'test-signal-id',
-  arcId: ARC_ID,
+  threadId: THREAD_ID,
   type: 'email',
   source: 'external',
   status: 'received',
@@ -73,7 +73,7 @@ async function injectAuth(page: Page) {
   )
 }
 
-async function stubEmailArc(page: Page) {
+async function stubEmailThread(page: Page) {
   await page.route('**/accounts', (route) =>
     route.fulfill({
       status: 200,
@@ -88,19 +88,19 @@ async function stubEmailArc(page: Page) {
       body: JSON.stringify(STUB_ACCOUNT),
     }),
   )
-  await page.route(`**/accounts/${ACCOUNT_ID}/arcs/${ARC_ID}`, (route) =>
+  await page.route(`**/accounts/${ACCOUNT_ID}/threads/${THREAD_ID}`, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(STUB_ARC),
+      body: JSON.stringify(STUB_THREAD),
     }),
   )
-  await page.route(`**/accounts/${ACCOUNT_ID}/arcs/${ARC_ID}/signals**`, (route) =>
+  await page.route(`**/accounts/${ACCOUNT_ID}/threads/${THREAD_ID}/signals**`, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        arc: STUB_ARC,
+        thread: STUB_THREAD,
         signals: [STUB_SIGNAL],
         pagination: { cursor: null },
       }),
@@ -233,8 +233,8 @@ test.describe('email card — touch gestures', () => {
 
   test.beforeEach(async ({ page }) => {
     await injectAuth(page)
-    await stubEmailArc(page)
-    await page.goto(`/arcs/${ARC_ID}`)
+    await stubEmailThread(page)
+    await page.goto(`/threads/${THREAD_ID}`)
     await expect(page.locator('[data-testid="email-body-container"]')).toBeVisible()
   })
 

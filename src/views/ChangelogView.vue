@@ -5,7 +5,7 @@ const ENTRIES = [
     date: '2025-05-15',
     changes: [
       'Inbox with status tabs (active / archived / all), bulk select, bulk archive and label',
-      'Arc detail with threaded signal list, workflow panels, and reply composer',
+      'Thread detail with threaded signal list, workflow panels, and reply composer',
       'Quarantine — review held signals, allow or reject, create rules from held signals',
       'Rules engine — visual condition builder with AND/OR groups, 14 action types',
       'Labels and custom sidebar views with drag-to-reorder',

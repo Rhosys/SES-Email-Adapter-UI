@@ -33,7 +33,7 @@ function rsvpAction(response: RsvpResponse) {
   return async () => {
     if (!accountStore.accountId) return
     error.value = null
-    const result = await api.rsvpSignal(accountStore.accountId, props.signal.arcId!, props.signal.signalId, response)
+    const result = await api.rsvpSignal(accountStore.accountId, props.signal.threadId!, props.signal.signalId, response)
     if (result.isOk()) {
       rsvpStatus.value = response
     } else {

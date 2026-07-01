@@ -69,7 +69,7 @@ test.describe('CSP — no violations', () => {
     // Stub all API calls so no real network requests are made (avoids false
     // positive violations from the backend being unreachable in CI).
     await page.route('**/accounts/**', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: '{"arcs":[],"pagination":{"cursor":null}}' }),
+      route.fulfill({ status: 200, contentType: 'application/json', body: '{"threads":[],"pagination":{"cursor":null}}' }),
     )
     await page.route('**/session/**', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),

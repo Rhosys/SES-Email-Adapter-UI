@@ -28,7 +28,7 @@ const ADMIN_ACCOUNT_ID = 'acc-t8cmlkkck3vtm'
 function mockEmailSignal(overrides: Partial<Signal> = {}): Signal {
   return {
     signalId: 'sig_1',
-    arcId: 'arc_1',
+    threadId: 'thread_1',
     type: 'email',
     source: 'system',
     status: 'active',
@@ -56,7 +56,7 @@ function makeRouter() {
     history: createMemoryHistory(),
     routes: [
       { path: '/', name: 'inbox', component: { template: '<div />' } },
-      { path: '/arcs/:id', name: 'arc-detail', component: { template: '<div />' } },
+      { path: '/threads/:id', name: 'thread-detail', component: { template: '<div />' } },
       { path: '/quarantine/:id', name: 'quarantine-detail', component: { template: '<div />' } },
     ],
   })
@@ -64,7 +64,7 @@ function makeRouter() {
 
 let pinia: ReturnType<typeof createPinia>
 
-async function mountCard(signal: Signal, startPath = '/arcs/arc_1') {
+async function mountCard(signal: Signal, startPath = '/threads/thread_1') {
   const router = makeRouter()
   await router.push(startPath)
   await router.isReady()
@@ -123,19 +123,19 @@ describe('EmailSignalCard — admin reprocess', () => {
     expect(wrapper.find('[role="status"][aria-label="Reprocessing email…"]').exists()).toBe(false)
   })
 
-  it('redirects to the new arc when reprocessing moves the signal to a different arc', async () => {
-    vi.mocked(api.reprocessSignal).mockResolvedValue(ok(mockEmailSignal({ arcId: 'arc_2' })))
+  it('redirects to the new thread when reprocessing moves the signal to a different thread', async () => {
+    vi.mocked(api.reprocessSignal).mockResolvedValue(ok(mockEmailSignal({ threadId: 'thread_2' })))
 
     const { wrapper, router } = await mountCard(mockEmailSignal())
     await flushPromises()
 
-    expect(router.currentRoute.value.fullPath).toBe('/arcs/arc_2')
+    expect(router.currentRoute.value.fullPath).toBe('/threads/thread_2')
     expect(wrapper.emitted('reprocessed')).toBeUndefined()
   })
 
-  it('redirects to quarantine when reprocessing leaves the signal with no arc', async () => {
+  it('redirects to quarantine when reprocessing leaves the signal with no thread', async () => {
     vi.mocked(api.reprocessSignal).mockResolvedValue(
-      ok(mockEmailSignal({ arcId: undefined, status: 'quarantine_visible' })),
+      ok(mockEmailSignal({ threadId: undefined, status: 'quarantine_visible' })),
     )
 
     const { router } = await mountCard(mockEmailSignal())
@@ -146,7 +146,7 @@ describe('EmailSignalCard — admin reprocess', () => {
 
   it('redirects to the inbox when the signal is blocked or reported', async () => {
     vi.mocked(api.reprocessSignal).mockResolvedValue(
-      ok(mockEmailSignal({ arcId: undefined, status: 'report_violation' })),
+      ok(mockEmailSignal({ threadId: undefined, status: 'report_violation' })),
     )
 
     const { router } = await mountCard(mockEmailSignal())
@@ -155,13 +155,13 @@ describe('EmailSignalCard — admin reprocess', () => {
     expect(router.currentRoute.value.fullPath).toBe('/')
   })
 
-  it('emits reprocessed and restores the iframe when the signal stays in the same arc', async () => {
-    vi.mocked(api.reprocessSignal).mockResolvedValue(ok(mockEmailSignal({ arcId: 'arc_1' })))
+  it('emits reprocessed and restores the iframe when the signal stays in the same thread', async () => {
+    vi.mocked(api.reprocessSignal).mockResolvedValue(ok(mockEmailSignal({ threadId: 'thread_1' })))
 
     const { wrapper, router } = await mountCard(mockEmailSignal())
     await flushPromises()
 
-    expect(router.currentRoute.value.fullPath).toBe('/arcs/arc_1')
+    expect(router.currentRoute.value.fullPath).toBe('/threads/thread_1')
     expect(wrapper.emitted('reprocessed')).toHaveLength(1)
     expect(wrapper.find('[role="status"][aria-label="Reprocessing email…"]').exists()).toBe(false)
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)

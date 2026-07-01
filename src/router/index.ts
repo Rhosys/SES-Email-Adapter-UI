@@ -35,9 +35,9 @@ export const router = createRouter({
           component: () => import('@/views/InboxView.vue'),
         },
         {
-          path: 'arcs/:id',
-          name: 'arc-detail',
-          component: () => import('@/views/ArcDetailView.vue'),
+          path: 'threads/:id',
+          name: 'thread-detail',
+          component: () => import('@/views/ThreadDetailView.vue'),
         },
         {
           path: 'quarantine',
@@ -157,7 +157,7 @@ export const router = createRouter({
 
 const ROUTE_TITLES: Record<string, string> = {
   inbox: 'Inbox',
-  'arc-detail': 'Conversation',
+  'thread-detail': 'Conversation',
   quarantine: 'Quarantine',
   'quarantine-detail': 'Quarantined email',
   drafts: 'Drafts',

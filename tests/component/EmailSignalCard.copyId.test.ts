@@ -10,7 +10,7 @@ import type { Signal } from '@/types/server'
 function mockEmailSignal(overrides: Partial<Signal> = {}): Signal {
   return {
     signalId: 'sig_1',
-    arcId: 'arc_1',
+    threadId: 'thread_1',
     type: 'email',
     source: 'system',
     status: 'active',
@@ -36,7 +36,7 @@ function mockEmailSignal(overrides: Partial<Signal> = {}): Signal {
 function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/arcs/:id', name: 'arc-detail', component: { template: '<div />' } }],
+    routes: [{ path: '/threads/:id', name: 'thread-detail', component: { template: '<div />' } }],
   })
 }
 
@@ -45,7 +45,7 @@ const writeText = vi.fn().mockResolvedValue(undefined)
 
 async function mountCard(signal: Signal) {
   const router = makeRouter()
-  await router.push('/arcs/arc_1')
+  await router.push('/threads/thread_1')
   await router.isReady()
 
   const wrapper = mount(EmailSignalCard, {
@@ -92,17 +92,17 @@ describe('EmailSignalCard — copy IDs (mobile menu)', () => {
   })
 
   it('copies the thread ID and shows a confirmation toast', async () => {
-    const wrapper = await mountCard(mockEmailSignal({ arcId: 'arc_1' }))
+    const wrapper = await mountCard(mockEmailSignal({ threadId: 'thread_1' }))
     const button = wrapper.findAll('button').find((b) => b.text() === 'Copy Thread ID')!
     await button.trigger('click')
     await flushPromises()
 
-    expect(writeText).toHaveBeenCalledWith('arc_1')
+    expect(writeText).toHaveBeenCalledWith('thread_1')
     expect(useToast().toasts.value.some((t) => t.message === 'Thread ID copied')).toBe(true)
   })
 
   it('hides "Copy Thread ID" when the signal has no thread (e.g. quarantined)', async () => {
-    const wrapper = await mountCard(mockEmailSignal({ arcId: undefined, status: 'quarantine_visible' }))
+    const wrapper = await mountCard(mockEmailSignal({ threadId: undefined, status: 'quarantine_visible' }))
     expect(wrapper.findAll('button').some((b) => b.text() === 'Copy Thread ID')).toBe(false)
   })
 })

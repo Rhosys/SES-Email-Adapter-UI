@@ -5,7 +5,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_auth_1: [
     {
       signalId: 'sig_auth1_1',
-      arcId: 'thr_auth_1',
+      threadId: 'thr_auth_1',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -34,7 +34,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_auth_2: [
     {
       signalId: 'sig_auth2_1',
-      arcId: 'thr_auth_2',
+      threadId: 'thr_auth_2',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -61,7 +61,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_conv_1: [
     {
       signalId: 'sig_conv1_1',
-      arcId: 'thr_conv_1',
+      threadId: 'thr_conv_1',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -85,7 +85,7 @@ export const mockSignals: Record<string, Signal[]> = {
     },
     {
       signalId: 'sig_conv1_2',
-      arcId: 'thr_conv_1',
+      threadId: 'thr_conv_1',
       source: 'user',
       status: 'sent',
       type: 'email',
@@ -104,7 +104,7 @@ export const mockSignals: Record<string, Signal[]> = {
     },
     {
       signalId: 'sig_conv1_bounce',
-      arcId: 'thr_conv_1',
+      threadId: 'thr_conv_1',
       source: 'system',
       status: 'active',
       type: 'deliverability',
@@ -117,7 +117,7 @@ export const mockSignals: Record<string, Signal[]> = {
     },
     {
       signalId: 'sig_conv1_3',
-      arcId: 'thr_conv_1',
+      threadId: 'thr_conv_1',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -144,7 +144,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_conv_2: [
     {
       signalId: 'sig_conv2_1',
-      arcId: 'thr_conv_2',
+      threadId: 'thr_conv_2',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -172,7 +172,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_pkg_1: [
     {
       signalId: 'sig_pkg1_1',
-      arcId: 'thr_pkg_1',
+      threadId: 'thr_pkg_1',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -200,7 +200,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_travel_1: [
     {
       signalId: 'sig_travel1_1',
-      arcId: 'thr_travel_1',
+      threadId: 'thr_travel_1',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -225,7 +225,7 @@ export const mockSignals: Record<string, Signal[]> = {
     },
     {
       signalId: 'sig_travel1_cal',
-      arcId: 'thr_travel_1',
+      threadId: 'thr_travel_1',
       source: 'system',
       status: 'active',
       type: 'calendar_event',
@@ -244,7 +244,7 @@ export const mockSignals: Record<string, Signal[]> = {
     },
     {
       signalId: 'sig_travel1_rsvp',
-      arcId: 'thr_travel_1',
+      threadId: 'thr_travel_1',
       source: 'system',
       status: 'active',
       type: 'calendar_response',
@@ -261,7 +261,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_pay_1: [
     {
       signalId: 'sig_pay1_1',
-      arcId: 'thr_pay_1',
+      threadId: 'thr_pay_1',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -291,7 +291,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_pay_2: [
     {
       signalId: 'sig_pay2_1',
-      arcId: 'thr_pay_2',
+      threadId: 'thr_pay_2',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -318,7 +318,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_pay_3: [
     {
       signalId: 'sig_pay3_1',
-      arcId: 'thr_pay_3',
+      threadId: 'thr_pay_3',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -346,7 +346,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_alert_1: [
     {
       signalId: 'sig_alert1_1',
-      arcId: 'thr_alert_1',
+      threadId: 'thr_alert_1',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -374,7 +374,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_alert_2: [
     {
       signalId: 'sig_alert2_1',
-      arcId: 'thr_alert_2',
+      threadId: 'thr_alert_2',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -402,7 +402,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_content_1: [
     {
       signalId: 'sig_content1_1',
-      arcId: 'thr_content_1',
+      threadId: 'thr_content_1',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -430,7 +430,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_health_1: [
     {
       signalId: 'sig_health1_1',
-      arcId: 'thr_health_1',
+      threadId: 'thr_health_1',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -453,7 +453,7 @@ export const mockSignals: Record<string, Signal[]> = {
     },
     {
       signalId: 'sig_health1_cal',
-      arcId: 'thr_health_1',
+      threadId: 'thr_health_1',
       source: 'system',
       status: 'active',
       type: 'calendar_event',
@@ -476,7 +476,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_job_1: [
     {
       signalId: 'sig_job1_1',
-      arcId: 'thr_job_1',
+      threadId: 'thr_job_1',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -504,7 +504,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_support_1: [
     {
       signalId: 'sig_support1_1',
-      arcId: 'thr_support_1',
+      threadId: 'thr_support_1',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -527,7 +527,7 @@ export const mockSignals: Record<string, Signal[]> = {
     },
     {
       signalId: 'sig_support1_2',
-      arcId: 'thr_support_1',
+      threadId: 'thr_support_1',
       source: 'system',
       status: 'active',
       type: 'email',
@@ -554,7 +554,7 @@ export const mockSignals: Record<string, Signal[]> = {
   thr_test_1: [
     {
       signalId: 'sig_test1_1',
-      arcId: 'thr_test_1',
+      threadId: 'thr_test_1',
       source: 'system',
       status: 'active',
       type: 'email',

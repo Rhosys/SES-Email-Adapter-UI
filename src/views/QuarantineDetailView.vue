@@ -53,9 +53,9 @@ onMounted(async () => {
 
 async function allow() {
   if (!signal.value) return
-  const arcId = await quarantineStore.allow(signal.value.signalId)
-  if (arcId) {
-    void router.push({ name: 'arc-detail', params: { id: arcId } })
+  const threadId = await quarantineStore.allow(signal.value.signalId)
+  if (threadId) {
+    void router.push({ name: 'thread-detail', params: { id: threadId } })
   }
 }
 

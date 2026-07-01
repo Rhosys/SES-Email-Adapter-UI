@@ -22,8 +22,8 @@ const toLabel = emailData?.to?.map((e) => e.address).join(', ') ?? ''
 async function cancelSend() {
   if (!accountStore.accountId) return
   const result = await api.patchSignal(accountStore.accountId, props.signal.signalId, { status: 'draft' })
-  if (result.isOk() && props.signal.arcId) {
-    signalsStore.updateSignal(props.signal.arcId, result.value)
+  if (result.isOk() && props.signal.threadId) {
+    signalsStore.updateSignal(props.signal.threadId, result.value)
   }
   emit('cancelled')
 }

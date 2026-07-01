@@ -6,14 +6,14 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import AppSidebar from '@/components/AppSidebar.vue'
 import { useAccountStore } from '@/stores/account'
 import { useDraftsStore } from '@/stores/drafts'
-import type { Signal, Arc, Account } from '@/types/server'
+import type { Signal, Thread, Account } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
   return {
     ...actual,
     api: {
-      listArcs: vi.fn(),
+      listThreads: vi.fn(),
       listSignals: vi.fn(),
     },
   }
@@ -21,13 +21,13 @@ vi.mock('@/lib/api', async (importOriginal) => {
 
 import { api } from '@/lib/api'
 
-function mockArc(overrides: Partial<Arc> = {}): Arc {
+function mockThread(overrides: Partial<Thread> = {}): Thread {
   return {
-    arcId: 'arc_1',
+    threadId: 'thread_1',
     workflow: 'conversation',
     labels: [],
     status: 'active',
-    summary: 'Test arc',
+    summary: 'Test thread',
     lastSignalAt: '2025-01-01T12:00:00Z',
     createdAt: '2025-01-01T10:00:00Z',
     updatedAt: '2025-01-01T12:00:00Z',
@@ -35,10 +35,10 @@ function mockArc(overrides: Partial<Arc> = {}): Arc {
   }
 }
 
-function mockDraft(signalId: string, arcId = 'arc_1'): Signal {
+function mockDraft(signalId: string, threadId = 'thread_1'): Signal {
   return {
     signalId,
-    arcId,
+    threadId,
     type: 'email',
     source: 'user',
     status: 'draft',
@@ -92,11 +92,11 @@ describe('AppSidebar — draft count badge', () => {
   })
 
   it('hides the draft badge when there are no drafts', async () => {
-    vi.mocked(api.listArcs).mockResolvedValue(
-      ok({ arcs: [mockArc()], pagination: { cursor: null } }),
+    vi.mocked(api.listThreads).mockResolvedValue(
+      ok({ threads: [mockThread()], pagination: { cursor: null } }),
     )
     vi.mocked(api.listSignals).mockResolvedValue(ok({ signals: [], pagination: { cursor: null } }))
-    await useDraftsStore().refreshTopArcs()
+    await useDraftsStore().refreshTopThreads()
 
     const wrapper = await mountSidebar()
     const draftsLink = wrapper.get('a[href="/drafts"]')
@@ -105,13 +105,13 @@ describe('AppSidebar — draft count badge', () => {
   })
 
   it('shows the draft count badge when drafts are cached', async () => {
-    vi.mocked(api.listArcs).mockResolvedValue(
-      ok({ arcs: [mockArc()], pagination: { cursor: null } }),
+    vi.mocked(api.listThreads).mockResolvedValue(
+      ok({ threads: [mockThread()], pagination: { cursor: null } }),
     )
     vi.mocked(api.listSignals).mockResolvedValue(
       ok({ signals: [mockDraft('d1'), mockDraft('d2')], pagination: { cursor: null } }),
     )
-    await useDraftsStore().refreshTopArcs()
+    await useDraftsStore().refreshTopThreads()
 
     const wrapper = await mountSidebar()
     const draftsLink = wrapper.get('a[href="/drafts"]')

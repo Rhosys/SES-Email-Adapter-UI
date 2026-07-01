@@ -4,7 +4,7 @@ import { api } from '@/lib/api'
 import { useAccountStore } from '@/stores/account'
 import { getUndoExpiresAt } from '@/composables/usePendingSend'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
-import type { Arc, Signal } from '@/types/server'
+import type { Thread, Signal } from '@/types/server'
 
 const accountStore = useAccountStore()
 
@@ -13,7 +13,7 @@ const loading = ref(false)
 const errorMessage = ref<string | null>(null)
 
 const signal = ref<Signal | null>(null)
-const arc = ref<Arc | null>(null)
+const thread = ref<Thread | null>(null)
 const rawEmail = ref<string | null>(null)
 
 const reprocessing = ref(false)
@@ -21,13 +21,13 @@ const hasReprocessed = ref(false)
 const showingVersion = ref<'after' | 'before'>('after')
 
 const previousSignal = ref<Signal | null>(null)
-const previousArc = ref<Arc | null>(null)
+const previousThread = ref<Thread | null>(null)
 
 const displayedSignal = computed(() =>
   hasReprocessed.value && showingVersion.value === 'before' ? previousSignal.value : signal.value,
 )
-const displayedArc = computed(() =>
-  hasReprocessed.value && showingVersion.value === 'before' ? previousArc.value : arc.value,
+const displayedThread = computed(() =>
+  hasReprocessed.value && showingVersion.value === 'before' ? previousThread.value : thread.value,
 )
 
 const htmlBody = computed(() => {
@@ -54,16 +54,16 @@ async function reprocess() {
 
   // Store previous versions
   previousSignal.value = structuredClone(signal.value)
-  previousArc.value = arc.value ? structuredClone(arc.value) : null
+  previousThread.value = thread.value ? structuredClone(thread.value) : null
 
   reprocessing.value = true
   const result = await api.reprocessSignal(accountId, signal.value.signalId)
   if (result.isOk()) {
     signal.value = result.value
-    if (result.value.arcId) {
-      const arcResult = await api.getArc(accountId, result.value.arcId)
-      if (arcResult.isOk()) {
-        arc.value = arcResult.value
+    if (result.value.threadId) {
+      const threadResult = await api.getThread(accountId, result.value.threadId)
+      if (threadResult.isOk()) {
+        thread.value = threadResult.value
       }
     }
     hasReprocessed.value = true
@@ -83,7 +83,7 @@ async function lookup() {
   loading.value = true
   errorMessage.value = null
   signal.value = null
-  arc.value = null
+  thread.value = null
   rawEmail.value = null
 
   const signalResult = await api.getSignal(accountId, id)
@@ -94,11 +94,11 @@ async function lookup() {
   }
   signal.value = signalResult.value
 
-  // Fetch arc if signal belongs to one
-  if (signalResult.value.arcId) {
-    const arcResult = await api.getArc(accountId, signalResult.value.arcId)
-    if (arcResult.isOk()) {
-      arc.value = arcResult.value
+  // Fetch thread if signal belongs to one
+  if (signalResult.value.threadId) {
+    const threadResult = await api.getThread(accountId, signalResult.value.threadId)
+    if (threadResult.isOk()) {
+      thread.value = threadResult.value
     }
   }
 
@@ -159,14 +159,14 @@ async function lookup() {
       </button>
     </div>
 
-    <!-- Arc JSON -->
-    <section v-if="displayedArc">
-      <h3 class="mb-2 text-sm font-medium text-ctp-subtext1">Arc</h3>
-      <pre class="overflow-x-auto rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4 text-xs text-ctp-text">{{ JSON.stringify(displayedArc, null, 2) }}</pre>
+    <!-- Thread JSON -->
+    <section v-if="displayedThread">
+      <h3 class="mb-2 text-sm font-medium text-ctp-subtext1">Thread</h3>
+      <pre class="overflow-x-auto rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4 text-xs text-ctp-text">{{ JSON.stringify(displayedThread, null, 2) }}</pre>
     </section>
-    <section v-else-if="displayedSignal && !displayedSignal.arcId">
-      <h3 class="mb-2 text-sm font-medium text-ctp-subtext1">Arc</h3>
-      <p class="text-sm text-ctp-subtext0">No arc — signal has no arcId.</p>
+    <section v-else-if="displayedSignal && !displayedSignal.threadId">
+      <h3 class="mb-2 text-sm font-medium text-ctp-subtext1">Thread</h3>
+      <p class="text-sm text-ctp-subtext0">No thread — signal has no threadId.</p>
     </section>
 
     <!-- Signal JSON -->

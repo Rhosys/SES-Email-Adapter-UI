@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useArcsStore } from '@/stores/arcs'
+import { useThreadsStore } from '@/stores/threads'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import StatusTabs from '@/components/StatusTabs.vue'
 import BulkActionBar from '@/components/BulkActionBar.vue'
-import ArcListShell from '@/components/ArcListShell.vue'
-import ActiveArcRow from '@/components/ActiveArcRow.vue'
-import ArchivedArcRow from '@/components/ArchivedArcRow.vue'
-import AllArcRow from '@/components/AllArcRow.vue'
+import ThreadListShell from '@/components/ThreadListShell.vue'
+import ActiveThreadRow from '@/components/ActiveThreadRow.vue'
+import ArchivedThreadRow from '@/components/ArchivedThreadRow.vue'
+import AllThreadRow from '@/components/AllThreadRow.vue'
 import InboxError from '@/components/InboxError.vue'
 import InboxEmpty from '@/components/InboxEmpty.vue'
 import InboxZeroCelebration from '@/components/InboxZeroCelebration.vue'
@@ -16,57 +16,57 @@ import StatsWidget from '@/components/StatsWidget.vue'
 
 const route = useRoute()
 const router = useRouter()
-const arcsStore = useArcsStore()
+const threadsStore = useThreadsStore()
 const { onAction, offAction } = useKeyboardShortcuts()
 
 const VALID_TABS = ['active', 'archived', 'all'] as const
 type TabKey = (typeof VALID_TABS)[number]
 
-// Keyboard-navigable cursor through the arc list
-const focusedArcId = ref<string | null>(null)
+// Keyboard-navigable cursor through the thread list
+const focusedThreadId = ref<string | null>(null)
 
 function scrollFocusedIntoView() {
-  if (!focusedArcId.value) return
+  if (!focusedThreadId.value) return
   document
-    .querySelector(`[data-arc-id="${focusedArcId.value}"]`)
+    .querySelector(`[data-thread-id="${focusedThreadId.value}"]`)
     ?.scrollIntoView({ block: 'nearest' })
 }
 
 function moveNext() {
-  const items = arcsStore.sortedItems
+  const items = threadsStore.sortedItems
   if (!items.length) return
-  const idx = items.findIndex((a) => a.arcId === focusedArcId.value)
-  focusedArcId.value = items[Math.min(idx + 1, items.length - 1)].arcId
+  const idx = items.findIndex((a) => a.threadId === focusedThreadId.value)
+  focusedThreadId.value = items[Math.min(idx + 1, items.length - 1)].threadId
   scrollFocusedIntoView()
 }
 
 function movePrev() {
-  const items = arcsStore.sortedItems
+  const items = threadsStore.sortedItems
   if (!items.length) return
-  const idx = items.findIndex((a) => a.arcId === focusedArcId.value)
-  focusedArcId.value = items[Math.max(idx <= 0 ? 0 : idx - 1, 0)].arcId
+  const idx = items.findIndex((a) => a.threadId === focusedThreadId.value)
+  focusedThreadId.value = items[Math.max(idx <= 0 ? 0 : idx - 1, 0)].threadId
   scrollFocusedIntoView()
 }
 
 function openFocused() {
-  if (!focusedArcId.value) return
-  void router.push({ name: 'arc-detail', params: { id: focusedArcId.value } })
+  if (!focusedThreadId.value) return
+  void router.push({ name: 'thread-detail', params: { id: focusedThreadId.value } })
 }
 
 async function archiveFocused() {
-  if (!focusedArcId.value) return
-  await arcsStore.archiveArc(focusedArcId.value)
+  if (!focusedThreadId.value) return
+  await threadsStore.archiveThread(focusedThreadId.value)
 }
 
 function selectFocused() {
-  if (!focusedArcId.value) return
-  arcsStore.toggleSelect(focusedArcId.value)
+  if (!focusedThreadId.value) return
+  threadsStore.toggleSelect(focusedThreadId.value)
 }
 
 onMounted(async () => {
   const tab = route.query.tab as TabKey | undefined
-  if (tab && (VALID_TABS as readonly string[]).includes(tab)) arcsStore.setTab(tab)
-  await arcsStore.fetchArcs(true)
+  if (tab && (VALID_TABS as readonly string[]).includes(tab)) threadsStore.setTab(tab)
+  await threadsStore.fetchThreads(true)
 
   onAction('navigate_next', moveNext)
   onAction('navigate_prev', movePrev)
@@ -84,24 +84,24 @@ onUnmounted(() => {
 })
 
 function handleTabChange(tab: TabKey) {
-  arcsStore.setTab(tab)
+  threadsStore.setTab(tab)
   void router.replace({ query: tab === 'active' ? {} : { tab } })
 }
 
 function handleLoadMore() {
-  void arcsStore.fetchMoreArcs()
+  void threadsStore.fetchMoreThreads()
 }
 
 async function handleBulkArchive() {
-  await arcsStore.bulkArchive()
+  await threadsStore.bulkArchive()
 }
 
 async function handleBulkMoveToInbox() {
-  await arcsStore.bulkMoveToInbox()
+  await threadsStore.bulkMoveToInbox()
 }
 
 async function handleBulkLabel(label: string) {
-  await arcsStore.bulkLabel(label)
+  await threadsStore.bulkLabel(label)
 }
 
 // Inbox zero celebration — fires only when active tab transitions from items → 0
@@ -109,7 +109,7 @@ const showCelebration = ref(false)
 let prevActiveCount = -1
 
 watch(
-  [() => arcsStore.loading, () => arcsStore.sortedItems.length, () => arcsStore.activeTab],
+  [() => threadsStore.loading, () => threadsStore.sortedItems.length, () => threadsStore.activeTab],
   ([loading, count, tab]) => {
     if (loading) return
     if (tab === 'active') {
@@ -131,60 +131,60 @@ watch(
     <main class="mx-auto max-w-4xl px-4 py-4">
       <StatsWidget />
 
-      <InboxError v-if="arcsStore.error" :message="arcsStore.error" />
+      <InboxError v-if="threadsStore.error" :message="threadsStore.error" />
 
-      <StatusTabs :active-tab="arcsStore.activeTab" @change="handleTabChange" />
+      <StatusTabs :active-tab="threadsStore.activeTab" @change="handleTabChange" />
 
       <BulkActionBar
-        :count="arcsStore.selectedIds.size"
-        :pending="arcsStore.bulkActionPending"
-        :all-selected="arcsStore.allSelected"
-        :tab="arcsStore.activeTab"
+        :count="threadsStore.selectedIds.size"
+        :pending="threadsStore.bulkActionPending"
+        :all-selected="threadsStore.allSelected"
+        :tab="threadsStore.activeTab"
         :archive-action="handleBulkArchive"
         :move-to-inbox-action="handleBulkMoveToInbox"
         :label-action="handleBulkLabel"
-        @select-all="arcsStore.selectAll()"
-        @clear-selection="arcsStore.clearSelection()"
-        @clear="arcsStore.clearSelection()"
+        @select-all="threadsStore.selectAll()"
+        @clear-selection="threadsStore.clearSelection()"
+        @clear="threadsStore.clearSelection()"
       />
 
-      <ArcListShell
-        v-if="arcsStore.sortedItems.length > 0"
+      <ThreadListShell
+        v-if="threadsStore.sortedItems.length > 0"
       >
-        <template v-if="arcsStore.activeTab === 'active'">
-          <ActiveArcRow
-            v-for="arc in arcsStore.sortedItems"
-            :key="arc.arcId"
-            :arc="arc"
-            :selected="arcsStore.selectedIds.has(arc.arcId)"
-            :focused="arc.arcId === focusedArcId"
-            @toggle-select="arcsStore.toggleSelect"
+        <template v-if="threadsStore.activeTab === 'active'">
+          <ActiveThreadRow
+            v-for="thread in threadsStore.sortedItems"
+            :key="thread.threadId"
+            :thread="thread"
+            :selected="threadsStore.selectedIds.has(thread.threadId)"
+            :focused="thread.threadId === focusedThreadId"
+            @toggle-select="threadsStore.toggleSelect"
           />
         </template>
-        <template v-else-if="arcsStore.activeTab === 'archived'">
-          <ArchivedArcRow
-            v-for="arc in arcsStore.sortedItems"
-            :key="arc.arcId"
-            :arc="arc"
-            :selected="arcsStore.selectedIds.has(arc.arcId)"
-            :focused="arc.arcId === focusedArcId"
-            @toggle-select="arcsStore.toggleSelect"
+        <template v-else-if="threadsStore.activeTab === 'archived'">
+          <ArchivedThreadRow
+            v-for="thread in threadsStore.sortedItems"
+            :key="thread.threadId"
+            :thread="thread"
+            :selected="threadsStore.selectedIds.has(thread.threadId)"
+            :focused="thread.threadId === focusedThreadId"
+            @toggle-select="threadsStore.toggleSelect"
           />
         </template>
         <template v-else>
-          <AllArcRow
-            v-for="arc in arcsStore.sortedItems"
-            :key="arc.arcId"
-            :arc="arc"
-            :selected="arcsStore.selectedIds.has(arc.arcId)"
-            :focused="arc.arcId === focusedArcId"
-            @toggle-select="arcsStore.toggleSelect"
+          <AllThreadRow
+            v-for="thread in threadsStore.sortedItems"
+            :key="thread.threadId"
+            :thread="thread"
+            :selected="threadsStore.selectedIds.has(thread.threadId)"
+            :focused="thread.threadId === focusedThreadId"
+            @toggle-select="threadsStore.toggleSelect"
           />
         </template>
-      </ArcListShell>
+      </ThreadListShell>
 
       <div
-        v-else-if="arcsStore.loading"
+        v-else-if="threadsStore.loading"
         role="status"
         aria-label="Loading inbox…"
         class="inbox-skeleton-loader animate-pulse divide-y divide-ctp-surface0"
@@ -202,16 +202,16 @@ watch(
 
       <InboxEmpty
         v-else
-        :tab="arcsStore.activeTab"
+        :tab="threadsStore.activeTab"
       />
 
-      <div v-if="arcsStore.hasMore" class="mt-4 flex justify-center">
+      <div v-if="threadsStore.hasMore" class="mt-4 flex justify-center">
         <button
-          :disabled="arcsStore.loadingMore"
+          :disabled="threadsStore.loadingMore"
           class="rounded bg-ctp-surface0 px-4 py-2 text-sm text-ctp-text hover:bg-ctp-surface1 disabled:opacity-50"
           @click="handleLoadMore"
         >
-          {{ arcsStore.loadingMore ? 'Loading…' : 'Load more' }}
+          {{ threadsStore.loadingMore ? 'Loading…' : 'Load more' }}
         </button>
       </div>
     </main>

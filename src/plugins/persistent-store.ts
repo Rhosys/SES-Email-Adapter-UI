@@ -8,7 +8,7 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 export interface PersistOptions {
   /** Which top-level state key holds per-account data (default: '_byAccount') */
   accountKeyedRef?: string
-  /** Filter applied to items array before writing (e.g., only active arcs) */
+  /** Filter applied to items array before writing (e.g., only active threads) */
   filter?: (items: unknown[]) => unknown[]
 }
 

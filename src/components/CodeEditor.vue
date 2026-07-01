@@ -72,7 +72,7 @@ const catppuccinTheme = EditorView.theme(
 )
 
 // Signal and thread property completions for function code editors
-const SIGNAL_ARC_ITEMS = [
+const SIGNAL_THREAD_ITEMS = [
   { label: 'signal', type: 'variable', detail: 'Signal object' },
   { label: 'signal.from', type: 'property', detail: 'EmailAddress' },
   { label: 'signal.from.name', type: 'property', detail: 'string', info: 'Sender display name' },
@@ -85,20 +85,20 @@ const SIGNAL_ARC_ITEMS = [
   { label: 'signal.receivedAt', type: 'property', detail: 'string', info: 'ISO timestamp' },
   { label: 'signal.spamScore', type: 'property', detail: 'number | undefined', info: '0 = clean, 1 = spam' },
   { label: 'signal.workflowData', type: 'property', detail: 'WorkflowData | undefined' },
-  { label: 'arc', type: 'variable', detail: 'Arc object' },
-  { label: 'arc.workflow', type: 'property', detail: 'string', info: 'conversation | auth | crm | package…' },
-  { label: 'arc.summary', type: 'property', detail: 'string', info: 'AI-generated thread summary' },
-  { label: 'arc.urgency', type: 'property', detail: 'string', info: 'critical | high | normal | low | silent' },
-  { label: 'arc.status', type: 'property', detail: 'string', info: 'active | archived | deleted' },
-  { label: 'arc.labels', type: 'property', detail: 'string[]', info: 'Applied label IDs' },
-  { label: 'arc.lastSignalAt', type: 'property', detail: 'string', info: 'ISO timestamp of last activity' },
+  { label: 'thread', type: 'variable', detail: 'Thread object' },
+  { label: 'thread.workflow', type: 'property', detail: 'string', info: 'conversation | auth | crm | package…' },
+  { label: 'thread.summary', type: 'property', detail: 'string', info: 'AI-generated thread summary' },
+  { label: 'thread.urgency', type: 'property', detail: 'string', info: 'critical | high | normal | low | silent' },
+  { label: 'thread.status', type: 'property', detail: 'string', info: 'active | archived | deleted' },
+  { label: 'thread.labels', type: 'property', detail: 'string[]', info: 'Applied label IDs' },
+  { label: 'thread.lastSignalAt', type: 'property', detail: 'string', info: 'ISO timestamp of last activity' },
 ]
 
 function makeSignalCompletions(context: CompletionContext): CompletionResult | null {
   const word = context.matchBefore(/[\w.[\]]+/)
   if (!word || (word.from === word.to && !context.explicit)) return null
   const q = word.text.toLowerCase()
-  const options = SIGNAL_ARC_ITEMS.filter(
+  const options = SIGNAL_THREAD_ITEMS.filter(
     (item) => item.label.toLowerCase().startsWith(q) || item.label.toLowerCase().includes(q),
   )
   if (options.length === 0) return null

@@ -6,7 +6,7 @@ import type { Signal, AuthData, ConversationData, TestData } from '@/types/serve
 function makeSignal(workflowData?: unknown): Signal {
   return {
     signalId: 'sig_1',
-    arcId: 'arc_1',
+    threadId: 'thread_1',
     type: 'email',
     source: 'system',
     status: 'active',

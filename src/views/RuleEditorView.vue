@@ -144,7 +144,7 @@ function runTest() {
       workflow: testInput.value.workflow,
       spamScore: testInput.value.spamScore ? Number(testInput.value.spamScore) : 0,
     },
-    arc: { labels: [], urgency: 'normal', status: 'active' },
+    thread: { labels: [], urgency: 'normal', status: 'active' },
   }
   try {
     testResult.value = evalLogic(
@@ -189,7 +189,7 @@ const ACTION_META: ActionMeta[] = [
     label: 'Quarantine (hidden)',
     description: 'Hold without user notification',
   },
-  { type: 'archive', label: 'Archive', description: 'Archive the arc immediately' },
+  { type: 'archive', label: 'Archive', description: 'Archive the thread immediately' },
   { type: 'assign_label', label: 'Assign label', description: 'Tag with a label' },
   { type: 'assign_workflow', label: 'Assign workflow', description: 'Override workflow' },
   { type: 'set_urgency', label: 'Set urgency', description: 'Override urgency level' },
@@ -281,9 +281,9 @@ async function save() {
 
   if (signalId.value && signalAction.value) {
     if (signalAction.value === 'allow') {
-      const arcId = await quarantineStore.allow(signalId.value)
-      if (arcId) {
-        void router.push({ name: 'arc-detail', params: { id: arcId } })
+      const threadId = await quarantineStore.allow(signalId.value)
+      if (threadId) {
+        void router.push({ name: 'thread-detail', params: { id: threadId } })
         return
       }
     } else {
@@ -598,7 +598,7 @@ watch(signalAction, (val) => {
         <!-- JavaScript editor (js) -->
         <div v-else class="relative rounded-lg border border-ctp-surface1 bg-ctp-mantle p-3">
           <label for="js-condition" class="mb-1 block text-xs text-ctp-subtext0">
-            JavaScript condition function body — receives <code class="text-ctp-mauve">signal</code> and <code class="text-ctp-mauve">arc</code>, return <code class="text-ctp-mauve">true</code> to match.
+            JavaScript condition function body — receives <code class="text-ctp-mauve">signal</code> and <code class="text-ctp-mauve">thread</code>, return <code class="text-ctp-mauve">true</code> to match.
           </label>
           <textarea
             id="js-condition"
@@ -634,17 +634,17 @@ watch(signalAction, (val) => {
 
           <!-- Property reference hint -->
           <details class="mt-2">
-            <summary class="cursor-pointer text-xs text-ctp-subtext0 hover:text-ctp-text">Available properties (type <code class="text-ctp-mauve">signal.</code> or <code class="text-ctp-mauve">arc.</code> for autocomplete)</summary>
+            <summary class="cursor-pointer text-xs text-ctp-subtext0 hover:text-ctp-text">Available properties (type <code class="text-ctp-mauve">signal.</code> or <code class="text-ctp-mauve">thread.</code> for autocomplete)</summary>
             <div class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
               <div class="font-mono text-ctp-mauve">signal.from.address</div><div class="text-ctp-subtext0">Sender email</div>
               <div class="font-mono text-ctp-mauve">signal.from.domain</div><div class="text-ctp-subtext0">Sender domain</div>
               <div class="font-mono text-ctp-mauve">signal.subject</div><div class="text-ctp-subtext0">Email subject</div>
               <div class="font-mono text-ctp-mauve">signal.workflow</div><div class="text-ctp-subtext0">Detected workflow</div>
               <div class="font-mono text-ctp-mauve">signal.spamScore</div><div class="text-ctp-subtext0">0–10 spam score</div>
-              <div class="font-mono text-ctp-mauve">arc.workflow</div><div class="text-ctp-subtext0">Arc workflow</div>
-              <div class="font-mono text-ctp-mauve">arc.urgency</div><div class="text-ctp-subtext0">critical/high/normal/low/silent</div>
-              <div class="font-mono text-ctp-mauve">arc.labels</div><div class="text-ctp-subtext0">Applied label IDs (array)</div>
-              <div class="font-mono text-ctp-mauve">arc.status</div><div class="text-ctp-subtext0">active/archived/deleted</div>
+              <div class="font-mono text-ctp-mauve">thread.workflow</div><div class="text-ctp-subtext0">Thread workflow</div>
+              <div class="font-mono text-ctp-mauve">thread.urgency</div><div class="text-ctp-subtext0">critical/high/normal/low/silent</div>
+              <div class="font-mono text-ctp-mauve">thread.labels</div><div class="text-ctp-subtext0">Applied label IDs (array)</div>
+              <div class="font-mono text-ctp-mauve">thread.status</div><div class="text-ctp-subtext0">active/archived/deleted</div>
             </div>
           </details>
         </div>

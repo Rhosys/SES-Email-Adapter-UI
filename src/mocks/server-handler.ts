@@ -4,7 +4,7 @@
  * Just matches URL patterns and returns mock JSON.
  */
 import { mockAccounts } from './data/accounts'
-import { mockArcs } from './data/arcs'
+import { mockThreads } from './data/threads'
 import { mockSignals } from './data/signals'
 import { mockRules } from './data/rules'
 import { mockLabels } from './data/labels'
@@ -66,31 +66,31 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
     return { status: 200, body: mockAccounts[0] }
   }
 
-  // GET /accounts/:accountId/arcs
-  if (method === 'GET' && match('/accounts/:accountId/arcs', url)) {
+  // GET /accounts/:accountId/threads
+  if (method === 'GET' && match('/accounts/:accountId/threads', url)) {
     const qs = url.split('?')[1] ?? ''
     const statusParam = new URLSearchParams(qs).get('status')
-    const filtered = statusParam ? mockArcs.filter(a => a.status === statusParam) : mockArcs
-    return { status: 200, body: { arcs: filtered, pagination: { cursor: null } } }
+    const filtered = statusParam ? mockThreads.filter(a => a.status === statusParam) : mockThreads
+    return { status: 200, body: { threads: filtered, pagination: { cursor: null } } }
   }
 
-  // GET /accounts/:accountId/arcs/:arcId
-  params = match('/accounts/:accountId/arcs/:arcId', url)
+  // GET /accounts/:accountId/threads/:threadId
+  params = match('/accounts/:accountId/threads/:threadId', url)
   if (method === 'GET' && params) {
-    const arc = mockArcs.find((a) => a.arcId === params!.arcId) ?? mockArcs[0]
-    return { status: 200, body: arc }
+    const thread = mockThreads.find((a) => a.threadId === params!.threadId) ?? mockThreads[0]
+    return { status: 200, body: thread }
   }
 
-  // PATCH /accounts/:accountId/arcs/:arcId
-  if (method === 'PATCH' && match('/accounts/:accountId/arcs/:arcId', url)) {
-    return { status: 200, body: mockArcs[0] }
+  // PATCH /accounts/:accountId/threads/:threadId
+  if (method === 'PATCH' && match('/accounts/:accountId/threads/:threadId', url)) {
+    return { status: 200, body: mockThreads[0] }
   }
 
-  // GET /accounts/:accountId/arcs/:arcId/signals
-  if (method === 'GET' && match('/accounts/:accountId/arcs/:arcId/signals', url)) {
-    const arcParams = match('/accounts/:accountId/arcs/:arcId/signals', url)!
-    const arcSignals = mockSignals[arcParams.arcId] ?? []
-    return { status: 200, body: { signals: arcSignals, pagination: { cursor: null } } }
+  // GET /accounts/:accountId/threads/:threadId/signals
+  if (method === 'GET' && match('/accounts/:accountId/threads/:threadId/signals', url)) {
+    const threadParams = match('/accounts/:accountId/threads/:threadId/signals', url)!
+    const threadSignals = mockSignals[threadParams.threadId] ?? []
+    return { status: 200, body: { signals: threadSignals, pagination: { cursor: null } } }
   }
 
   // GET /accounts/:accountId/signals (quarantine)
@@ -197,12 +197,12 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
     return { status: 200, body: allSignals[0] ?? { signalId: 'sig_1', status: 'block_reject' } }
   }
 
-  // POST /accounts/:accountId/arcs/:arcId/signals — create draft
-  if (method === 'POST' && match('/accounts/:accountId/arcs/:arcId/signals', url)) {
-    const draftParams = match('/accounts/:accountId/arcs/:arcId/signals', url)!
+  // POST /accounts/:accountId/threads/:threadId/signals — create draft
+  if (method === 'POST' && match('/accounts/:accountId/threads/:threadId/signals', url)) {
+    const draftParams = match('/accounts/:accountId/threads/:threadId/signals', url)!
     return { status: 201, body: {
       signalId: 'sig_draft_' + Date.now(),
-      arcId: draftParams.arcId,
+      threadId: draftParams.threadId,
       source: 'user',
       status: 'draft',
       type: 'email',

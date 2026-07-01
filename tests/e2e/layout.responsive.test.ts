@@ -209,11 +209,11 @@ test.describe('settings page — responsive layout', () => {
 test.describe('inbox page — responsive layout', () => {
   test.beforeEach(async ({ page }) => {
     await injectAuth(page)
-    await page.route('**/arcs**', (route) =>
+    await page.route('**/threads**', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ arcs: [], pagination: { cursor: null } }),
+        body: JSON.stringify({ threads: [], pagination: { cursor: null } }),
       }),
     )
     await page.goto('/')

@@ -5,7 +5,7 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import { persistentStorePlugin } from '@/plugins/persistent-store'
 import { useAccountStore } from '@/stores/account'
 import { useStatsStore } from '@/stores/stats'
-import { useArcsStore } from '@/stores/arcs'
+import { useThreadsStore } from '@/stores/threads'
 import { useQuarantineStore } from '@/stores/quarantine'
 import StatsWidget from '@/components/StatsWidget.vue'
 import type { Account } from '@/types/server'
@@ -16,7 +16,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
     ...actual,
     api: {
       getStats: vi.fn().mockResolvedValue({ isErr: () => true, error: { message: 'offline' } }),
-      listArcs: vi.fn().mockResolvedValue({ isErr: () => true, error: { message: 'offline' } }),
+      listThreads: vi.fn().mockResolvedValue({ isErr: () => true, error: { message: 'offline' } }),
       listQuarantinedSignals: vi.fn().mockResolvedValue({ isErr: () => true, error: { message: 'offline' } }),
     },
   }
@@ -92,18 +92,18 @@ describe('stale cache resilience — stores survive outdated localStorage shapes
     expect(statsStore.stats.totals.blocked).toBe(0)
   })
 
-  it('arcs store handles non-array cache (old shape was maybe an object)', () => {
-    // If someone stored arcs as an object instead of array
-    seedLocalStorage('arcs', { arcId: 'old', status: 'active' })
+  it('threads store handles non-array cache (old shape was maybe an object)', () => {
+    // If someone stored threads as an object instead of array
+    seedLocalStorage('threads', { threadId: 'old', status: 'active' })
 
     const accountStore = useAccountStore()
     accountStore.account = { accountId: ACCOUNT_ID, name: 'Test' } as Account
 
-    const arcsStore = useArcsStore()
+    const threadsStore = useThreadsStore()
 
     // activeCount iterates _byAccount[id] with filter — must not crash
-    expect(arcsStore.activeCount).toBe(0)
-    expect(arcsStore.items).toEqual([])
+    expect(threadsStore.activeCount).toBe(0)
+    expect(threadsStore.items).toEqual([])
   })
 
   it('quarantine store handles cache missing visible/hidden keys', () => {
