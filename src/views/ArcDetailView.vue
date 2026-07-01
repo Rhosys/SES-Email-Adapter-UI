@@ -409,8 +409,10 @@ async function removeLabel(label: string) {
         Available until {{ availableUntil }}
       </RouterLink>
 
-      <div v-if="signalsStore.items.length > 0" class="mb-2 text-xs text-ctp-subtext0">
-        {{ signalsStore.items.length }}{{ signalsStore.hasMore ? '+' : '' }} signal{{ signalsStore.items.length === 1 && !signalsStore.hasMore ? '' : 's' }}
+      <div v-if="signalsStore.items.length > 0" class="mb-2">
+        <span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium" :class="primaryBadgeClass">
+          {{ signalsStore.items.length }}{{ signalsStore.hasMore ? '+' : '' }} Signal{{ signalsStore.items.length === 1 && !signalsStore.hasMore ? '' : 's' }}
+        </span>
       </div>
 
       <!-- Retention warning (≤30 days) -->

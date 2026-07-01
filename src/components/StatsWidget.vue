@@ -144,22 +144,22 @@ function toggleExpanded(e: Event) {
           <div class="flex items-center gap-1.5">
             <span class="inline-block h-2 w-2 rounded-full bg-[#a6e3a1]" />
             <span class="text-ctp-subtext1">{{ totals.allowed }}</span>
-            <span class="text-ctp-subtext0">allowed</span>
+            <span class="capitalize text-ctp-subtext0">allowed</span>
           </div>
           <div class="flex items-center gap-1.5">
             <span class="inline-block h-2 w-2 rounded-full bg-[#f9e2af]" />
             <span class="text-ctp-subtext1">{{ totals.quarantined }}</span>
-            <span class="text-ctp-subtext0">quarantined</span>
+            <span class="capitalize text-ctp-subtext0">quarantined</span>
           </div>
           <div class="flex items-center gap-1.5">
             <span class="inline-block h-2 w-2 rounded-full bg-[#f38ba8]" />
             <span class="text-ctp-subtext1">{{ totals.blocked }}</span>
-            <span class="text-ctp-subtext0">blocked</span>
+            <span class="capitalize text-ctp-subtext0">blocked</span>
           </div>
           <div class="flex items-center gap-1.5">
             <span class="inline-block h-2 w-2 rounded-full bg-ctp-mauve" />
             <span class="text-ctp-subtext1">{{ totals.aliases }}</span>
-            <span class="text-ctp-subtext0">aliases</span>
+            <span class="capitalize text-ctp-subtext0">aliases</span>
           </div>
         </div>
 

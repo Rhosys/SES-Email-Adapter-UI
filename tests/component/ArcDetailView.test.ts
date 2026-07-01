@@ -239,6 +239,46 @@ describe('ArcDetailView — no signals', () => {
     const arc = makeArc()
     const wrapper = await mountView(arc, [])
 
-    expect(wrapper.text()).not.toMatch(/\d+\+? signals?/)
+    expect(wrapper.text()).not.toMatch(/\d+\+? Signals?/)
+  })
+})
+
+describe('ArcDetailView — signal count badge', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    vi.clearAllMocks()
+
+    const accountStore = useAccountStore()
+    accountStore.account = {
+      accountId: 'acc_1',
+      name: 'Test',
+      filtering: { defaultUnknownSenderPolicy: 'quarantine_visible' },
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-01T00:00:00Z',
+    }
+    vi.mocked(api.listAccounts).mockResolvedValue(ok([accountStore.account]))
+  })
+
+  it('shows a capitalized "Signal" count and colors it like the primary status badge', async () => {
+    const arc = makeArc({ status: 'active' })
+    const wrapper = await mountView(arc, [mockEmailSignal()])
+
+    const badge = wrapper.findAll('span').find((s) => /^\d+\+? Signals?$/.test(s.text().trim()))
+    expect(badge).toBeTruthy()
+    expect(badge!.text().trim()).toBe('1 Signal')
+    expect(badge!.classes()).toContain('bg-ctp-green/20')
+    expect(badge!.classes()).toContain('text-ctp-green')
+  })
+
+  it('pluralizes and colors the badge as archived when the thread is archived', async () => {
+    const arc = makeArc({ status: 'archived' })
+    const wrapper = await mountView(arc, [mockEmailSignal(), mockEmailSignal({ signalId: 'sig_2' })])
+
+    const badge = wrapper.findAll('span').find((s) => /^\d+\+? Signals?$/.test(s.text().trim()))
+    expect(badge).toBeTruthy()
+    expect(badge!.text().trim()).toBe('2 Signals')
+    expect(badge!.classes()).toContain('bg-ctp-surface1')
+    expect(badge!.classes()).toContain('text-ctp-subtext0')
   })
 })
