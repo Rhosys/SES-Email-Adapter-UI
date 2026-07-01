@@ -26,7 +26,7 @@ const signalsStore = useSignalsStore()
 const arcsStore = useArcsStore()
 const accountStore = useAccountStore()
 const labelsStore = useLabelsStore()
-const { showUndo, deferAction } = useToast()
+const { showUndo, deferAction, notify } = useToast()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
 const overflowOpen = ref(false)
@@ -94,6 +94,15 @@ function onSignalUndo() {
 
 function onSignalReprocessed() {
   void signalsStore.fetchAll(arcId.value)
+}
+
+async function copyThreadId() {
+  try {
+    await navigator.clipboard.writeText(arcId.value)
+    notify('Thread ID copied')
+  } catch {
+    // Silent failure — clipboard access may be denied
+  }
 }
 
 async function archive() {
@@ -309,6 +318,14 @@ async function removeLabel(label: string) {
             @click="overflowOpen = false"
             @keydown.escape="overflowOpen = false"
           >
+            <button
+              type="button"
+              role="menuitem"
+              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text sm:hidden"
+              @click="copyThreadId()"
+            >
+              Copy Thread ID
+            </button>
             <button
               v-if="senderDomain && arc.recipientAddress"
               type="button"

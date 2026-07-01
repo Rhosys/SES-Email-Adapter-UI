@@ -41,9 +41,21 @@ function formatRemaining(ms: number): string {
       aria-label="Action notifications"
     >
       <TransitionGroup name="toast">
+        <template v-for="toast in toasts" :key="toast.id">
+        <!-- Compact, non-interactive confirmation (e.g. "Copied to clipboard") -->
         <div
-          v-for="toast in toasts"
-          :key="toast.id"
+          v-if="toast.type === 'info'"
+          role="status"
+          class="pointer-events-auto flex items-center gap-2 rounded-full border border-ctp-surface1 bg-ctp-mantle px-4 py-2.5 text-sm text-ctp-text shadow-2xl"
+        >
+          <svg class="h-4 w-4 shrink-0 text-ctp-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          {{ toast.message }}
+        </div>
+
+        <div
+          v-else
           role="status"
           class="pointer-events-auto flex w-[48rem] max-w-[calc(100vw-3rem)] items-center gap-5 rounded-3xl border border-ctp-surface1 bg-ctp-mantle px-8 py-7 shadow-2xl"
         >
@@ -126,6 +138,7 @@ function formatRemaining(ms: number): string {
             </button>
           </div>
         </div>
+        </template>
       </TransitionGroup>
     </div>
   </Teleport>

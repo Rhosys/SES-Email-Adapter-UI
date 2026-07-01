@@ -8,6 +8,7 @@ import { isAdminUser } from '@/stores/admin'
 import { useRulesStore } from '@/stores/rules'
 import { api } from '@/lib/api'
 import { useGestureHandler } from '@/composables/useGestureHandler'
+import { useToast } from '@/composables/useToast'
 import ActionBadge from '@/components/ActionBadge.vue'
 
 const props = withDefaults(defineProps<{ signal: Signal; defaultExpanded?: boolean }>(), { defaultExpanded: true })
@@ -17,6 +18,7 @@ const router = useRouter()
 const route = useRoute()
 const accountStore = useAccountStore()
 const rulesStore = useRulesStore()
+const { notify } = useToast()
 const expanded = ref(props.defaultExpanded)
 const menuOpen = ref(false)
 const reprocessing = ref(false)
@@ -177,6 +179,16 @@ async function undoSend() {
     emit('undo')
   } else {
     undoError.value = 'Email already delivered — cannot undo'
+  }
+}
+
+async function copyId(text: string, label: string) {
+  menuOpen.value = false
+  try {
+    await navigator.clipboard.writeText(text)
+    notify(`${label} copied`)
+  } catch {
+    // Silent failure — clipboard access may be denied
   }
 }
 
@@ -383,6 +395,21 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
             @click="showMatchedRules"
           >
             Show matched rules
+          </button>
+          <button
+            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text sm:hidden"
+            role="menuitem"
+            @click="copyId(signal.signalId, 'Signal ID')"
+          >
+            Copy Signal ID
+          </button>
+          <button
+            v-if="signal.arcId"
+            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text sm:hidden"
+            role="menuitem"
+            @click="copyId(signal.arcId, 'Thread ID')"
+          >
+            Copy Thread ID
           </button>
           <button
             v-if="isUserSent"

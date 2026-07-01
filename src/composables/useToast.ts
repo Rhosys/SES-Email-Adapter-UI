@@ -7,8 +7,8 @@ export interface ToastItem {
   undoMs: number
   startedAt: number
   undoLabel: string
-  /** 'undo' = action already done, undo reverses it; 'deferred' = action pending, timeout commits it */
-  type: 'undo' | 'deferred'
+  /** 'undo' = action already done, undo reverses it; 'deferred' = action pending, timeout commits it; 'info' = brief non-interactive confirmation */
+  type: 'undo' | 'deferred' | 'info'
   onUndo?: () => void | Promise<void>
   onCommit?: () => void | Promise<void>
 }
@@ -95,7 +95,22 @@ export function useToast() {
     toasts.value = toasts.value.filter((t) => t.id !== id)
   }
 
-  return { toasts, showUndo, deferAction, undo, dismiss }
+  /** Brief, non-interactive confirmation (e.g. "Copied to clipboard") — auto-dismisses. */
+  function notify(message: string, ms = 1600): string {
+    const id = crypto.randomUUID()
+    toasts.value.push({
+      id,
+      message,
+      undoMs: ms,
+      startedAt: Date.now(),
+      undoLabel: '',
+      type: 'info',
+    })
+    timers.set(id, setTimeout(() => _remove(id), ms))
+    return id
+  }
+
+  return { toasts, showUndo, deferAction, undo, dismiss, notify }
 }
 
 /**
