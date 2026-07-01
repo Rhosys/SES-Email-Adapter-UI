@@ -311,8 +311,8 @@ describe('ArcDetailView — copy thread ID (mobile menu)', () => {
   })
 
   it('copies the thread ID and shows a confirmation toast', async () => {
-    const arc = makeArc()
-    const wrapper = await mountView(arc, [mockEmailSignal()])
+    const thread = makeArc()
+    const wrapper = await mountView(thread, [mockEmailSignal()])
 
     await wrapper.find('[aria-label="More actions"]').trigger('click')
     const copyButton = wrapper.findAll('button').find((b) => b.text() === 'Copy Thread ID')!

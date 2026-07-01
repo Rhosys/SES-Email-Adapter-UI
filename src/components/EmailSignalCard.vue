@@ -25,6 +25,7 @@ const reprocessError = ref<string | null>(null)
 const undoPending = ref(false)
 const undoError = ref<string | null>(null)
 const isUserSent = computed(() => props.signal.source === 'user')
+const threadId = computed(() => props.signal.arcId)
 
 const signalMatchedRules = computed(() => {
   if (!isInboundEmailSignal(props.signal)) return []
@@ -392,9 +393,9 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
             @click="menuOpen = false"
           />
           <CopyMenuItem
-            v-if="signal.arcId"
+            v-if="threadId"
             class="px-4"
-            :value="signal.arcId"
+            :value="threadId"
             label="Thread ID"
             @click="menuOpen = false"
           />

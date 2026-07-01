@@ -34,6 +34,7 @@ const overflowOpen = ref(false)
 const arcData = ref<Arc | null>(null)
 
 const arcId = computed(() => route.params.id as string)
+const threadId = computed(() => arcId.value)
 
 const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalsStore.items)))
 
@@ -310,7 +311,7 @@ async function removeLabel(label: string) {
             @click="overflowOpen = false"
             @keydown.escape="overflowOpen = false"
           >
-            <CopyMenuItem class="px-3" :value="arcId" label="Thread ID" />
+            <CopyMenuItem class="px-3" :value="threadId" label="Thread ID" />
             <button
               v-if="senderDomain && arc.recipientAddress"
               type="button"

@@ -101,7 +101,7 @@ describe('EmailSignalCard — copy IDs (mobile menu)', () => {
     expect(useToast().toasts.value.some((t) => t.message === 'Thread ID copied')).toBe(true)
   })
 
-  it('hides "Copy Thread ID" when the signal has no arc (e.g. quarantined)', async () => {
+  it('hides "Copy Thread ID" when the signal has no thread (e.g. quarantined)', async () => {
     const wrapper = await mountCard(mockEmailSignal({ arcId: undefined, status: 'quarantine_visible' }))
     expect(wrapper.findAll('button').some((b) => b.text() === 'Copy Thread ID')).toBe(false)
   })
