@@ -27,9 +27,13 @@ describe('api request() error message', () => {
     global.fetch = originalFetch
   })
 
-  it('includes the response status, body title, and errorCode when present', async () => {
+  it('includes the response status, body title, details, and errorCode when present', async () => {
     vi.mocked(global.fetch).mockResolvedValue(
-      mockFetchResponse({ ok: false, status: 400, body: { title: 'Invalid signal', errorCode: 'SIG_INVALID' } }),
+      mockFetchResponse({
+        ok: false,
+        status: 400,
+        body: { title: 'Invalid signal', details: 'Signal is locked by another process', errorCode: 'SIG_INVALID' },
+      }),
     )
 
     const result = await api.reprocessSignal('acc_1', 'sig_1')
@@ -37,11 +41,11 @@ describe('api request() error message', () => {
     expect(result.isErr()).toBe(true)
     if (result.isErr()) {
       expect(result.error.status).toBe(400)
-      expect(result.error.message).toBe('Invalid signal (SIG_INVALID) [400]')
+      expect(result.error.message).toBe('Invalid signal: Signal is locked by another process (SIG_INVALID) [400]')
     }
   })
 
-  it('omits the errorCode segment when the body has no errorCode', async () => {
+  it('omits the details and errorCode segments when the body has neither', async () => {
     vi.mocked(global.fetch).mockResolvedValue(
       mockFetchResponse({ ok: false, status: 500, body: { title: 'Reprocess failed' } }),
     )
