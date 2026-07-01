@@ -3,13 +3,13 @@
  * UrgencyBadge — renders a colored "!" pill for critical/high urgency.
  * Only renders for urgencies that have a visual indicator. Normal/low/silent show nothing.
  *
- * ENUM PROP RULE: Every value of ArcUrgency must be listed here.
+ * ENUM PROP RULE: Every value of ThreadUrgency must be listed here.
  * To add a new urgency level, add it to the type AND decide whether it renders.
  */
 
-type ArcUrgency = 'critical' | 'high' | 'normal' | 'low' | 'silent'
+type ThreadUrgency = 'critical' | 'high' | 'normal' | 'low' | 'silent'
 
-defineProps<{ urgency?: ArcUrgency }>()
+defineProps<{ urgency?: ThreadUrgency }>()
 </script>
 
 <template>

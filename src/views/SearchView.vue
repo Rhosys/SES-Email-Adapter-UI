@@ -3,7 +3,7 @@ import { ref, computed, inject, watch, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
-import type { Arc, Rule, Signal, Alias, EmailTemplate } from '@/types/server'
+import type { Thread, Rule, Signal, Alias, EmailTemplate } from '@/types/server'
 import { isEmailSignal } from '@/lib/signal-guards'
 import { visibleLabels, findLabelMeta } from '@/lib/labels'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
@@ -26,22 +26,22 @@ function labelMeta(label: string) {
 const query = ref((route.query.q as string) ?? '')
 const searching = ref(false)
 
-type SectionKey = 'arcs' | 'signals' | 'aliases' | 'rules' | 'templates'
+type SectionKey = 'threads' | 'signals' | 'aliases' | 'rules' | 'templates'
 
-const visibleSections = ref<Set<SectionKey>>(new Set(['arcs', 'signals', 'aliases', 'rules', 'templates']))
+const visibleSections = ref<Set<SectionKey>>(new Set(['threads', 'signals', 'aliases', 'rules', 'templates']))
 
 const results = ref<{
-  arcs: Arc[]
+  threads: Thread[]
   signals: Signal[]
   aliases: Alias[]
   rules: Rule[]
   templates: EmailTemplate[]
   error: string | null
-}>({ arcs: [], signals: [], aliases: [], rules: [], templates: [], error: null })
+}>({ threads: [], signals: [], aliases: [], rules: [], templates: [], error: null })
 
 const hasResults = computed(
   () =>
-    results.value.arcs.length > 0 ||
+    results.value.threads.length > 0 ||
     results.value.signals.length > 0 ||
     results.value.aliases.length > 0 ||
     results.value.rules.length > 0 ||
@@ -64,8 +64,8 @@ function handleSignalClick(s: Signal) {
     }
     return
   }
-  if (s.arcId) {
-    void router.push(`/arcs/${s.arcId}`)
+  if (s.threadId) {
+    void router.push(`/threads/${s.threadId}`)
   } else {
     void router.push(`/quarantine/${s.signalId}`)
   }
@@ -77,18 +77,18 @@ async function directLookup(id: string): Promise<boolean> {
 
   searching.value = true
   searched.value = false
-  results.value = { arcs: [], signals: [], aliases: [], rules: [], templates: [], error: null }
+  results.value = { threads: [], signals: [], aliases: [], rules: [], templates: [], error: null }
 
-  const [signalRes, arcRes, aliasesRes, rulesRes, templatesRes] = await Promise.all([
+  const [signalRes, threadRes, aliasesRes, rulesRes, templatesRes] = await Promise.all([
     api.getSignal(accountId, id),
-    api.getArc(accountId, id),
+    api.getThread(accountId, id),
     api.listAliases(accountId),
     api.listRules(accountId),
     api.listTemplates(accountId),
   ])
 
   if (signalRes.isOk()) results.value.signals.push(signalRes.value)
-  if (arcRes.isOk()) results.value.arcs.push(arcRes.value)
+  if (threadRes.isOk()) results.value.threads.push(threadRes.value)
   if (aliasesRes.isOk()) {
     const match = aliasesRes.value.find((a) => a.alias === id || a.address === id)
     if (match) results.value.aliases.push(match)
@@ -130,12 +130,12 @@ async function doSearch() {
 
   searching.value = true
   searched.value = false
-  results.value = { arcs: [], signals: [], aliases: [], rules: [], templates: [], error: null }
+  results.value = { threads: [], signals: [], aliases: [], rules: [], templates: [], error: null }
 
   const id = accountStore.accountId
 
-  const [arcsRes, aliasesRes, rulesRes, templatesRes] = await Promise.all([
-    api.listArcs(id, { sender: q, limit: 20 }),
+  const [threadsRes, aliasesRes, rulesRes, templatesRes] = await Promise.all([
+    api.listThreads(id, { sender: q, limit: 20 }),
     api.listAliases(id),
     api.listRules(id),
     api.listTemplates(id),
@@ -144,9 +144,9 @@ async function doSearch() {
   searching.value = false
   searched.value = true
 
-  if (arcsRes.isOk()) {
+  if (threadsRes.isOk()) {
     const ql = q.toLowerCase()
-    results.value.arcs = arcsRes.value.arcs.filter(
+    results.value.threads = threadsRes.value.threads.filter(
       (a) =>
         a.summary?.toLowerCase().includes(ql) ||
         a.labels?.some((l) => l.toLowerCase().includes(ql)),
@@ -172,9 +172,9 @@ async function doSearch() {
     )
   }
 
-  if (arcsRes.isErr() || aliasesRes.isErr() || rulesRes.isErr() || templatesRes.isErr()) {
+  if (threadsRes.isErr() || aliasesRes.isErr() || rulesRes.isErr() || templatesRes.isErr()) {
     results.value.error =
-      (arcsRes.isErr() && arcsRes.error.message) ||
+      (threadsRes.isErr() && threadsRes.error.message) ||
       (aliasesRes.isErr() && aliasesRes.error.message) ||
       (rulesRes.isErr() && rulesRes.error.message) ||
       (templatesRes.isErr() && templatesRes.error.message) ||
@@ -228,8 +228,8 @@ onMounted(() => {
           ref="queryInput"
           v-model="query"
           type="search"
-          aria-label="Search arcs, signals, aliases, rules"
-          placeholder="Search arcs, signals, aliases, rules…"
+          aria-label="Search threads, signals, aliases, rules"
+          placeholder="Search threads, signals, aliases, rules…"
           class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-4 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
           @paste="onPaste"
         />
@@ -255,7 +255,7 @@ onMounted(() => {
         <span class="text-xs text-ctp-subtext0">Show:</span>
         <button
           v-for="{ key, label, count } in [
-            { key: 'arcs' as SectionKey, label: 'Arcs', count: results.arcs.length },
+            { key: 'threads' as SectionKey, label: 'Threads', count: results.threads.length },
             { key: 'signals' as SectionKey, label: 'Signals', count: results.signals.length },
             { key: 'aliases' as SectionKey, label: 'Addresses', count: results.aliases.length },
             { key: 'rules' as SectionKey, label: 'Rules', count: results.rules.length },
@@ -298,32 +298,32 @@ onMounted(() => {
         </p>
       </div>
 
-      <!-- Arcs section -->
-      <section v-if="visibleSections.has('arcs') && results.arcs.length > 0" class="mb-6">
+      <!-- Threads section -->
+      <section v-if="visibleSections.has('threads') && results.threads.length > 0" class="mb-6">
         <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-ctp-subtext0">
-          Arcs ({{ results.arcs.length }})
+          Threads ({{ results.threads.length }})
         </h2>
         <div class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <RouterLink
-            v-for="arc in results.arcs"
-            :key="arc.arcId"
-            :to="`/arcs/${arc.arcId}`"
+            v-for="thread in results.threads"
+            :key="thread.threadId"
+            :to="`/threads/${thread.threadId}`"
             class="block px-4 py-3 transition-colors hover:bg-ctp-surface0/50"
           >
             <div class="flex items-start justify-between gap-2">
-              <p class="min-w-0 flex-1 truncate text-sm font-medium text-ctp-text">{{ arc.subject || arc.summary }}</p>
+              <p class="min-w-0 flex-1 truncate text-sm font-medium text-ctp-text">{{ thread.subject || thread.summary }}</p>
               <span class="shrink-0 text-xs text-ctp-subtext0">
-                {{ relTime(arc.lastSignalAt) }}
+                {{ relTime(thread.lastSignalAt) }}
               </span>
             </div>
             <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-ctp-subtext0">
-              <span v-if="arc.senderAddress">From: {{ arc.senderAddress }}</span>
-              <span v-if="arc.recipientAddress">To: {{ arc.recipientAddress }}</span>
-              <span>{{ arc.workflow }}</span>
+              <span v-if="thread.senderAddress">From: {{ thread.senderAddress }}</span>
+              <span v-if="thread.recipientAddress">To: {{ thread.recipientAddress }}</span>
+              <span>{{ thread.workflow }}</span>
             </div>
-            <div v-if="visibleLabels(arc.labels).length" class="mt-1 flex flex-wrap gap-1">
+            <div v-if="visibleLabels(thread.labels).length" class="mt-1 flex flex-wrap gap-1">
               <span
-                v-for="label in visibleLabels(arc.labels)"
+                v-for="label in visibleLabels(thread.labels)"
                 :key="label"
                 class="flex items-center gap-1 rounded bg-ctp-surface1 px-1.5 py-0.5 text-xs text-ctp-subtext0"
               >

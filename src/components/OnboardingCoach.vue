@@ -93,7 +93,7 @@ async function skipTour() {
         aria-modal="true"
         aria-label="Getting started walkthrough"
       >
-        <!-- Arc-style header -->
+        <!-- Thread-style header -->
         <div class="flex items-start gap-3 border-b border-ctp-surface0 px-4 py-3">
           <!-- Envelope icon -->
           <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ctp-mauve/20 text-ctp-mauve">

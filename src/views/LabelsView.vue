@@ -321,7 +321,7 @@ onMounted(async () => {
         >
           <p class="text-base font-medium text-ctp-text">No labels yet</p>
           <p class="mx-auto mt-2 max-w-sm text-sm text-ctp-subtext0">
-            Labels make it easy to group and filter arcs at a glance. Create one and start attaching it in rules.
+            Labels make it easy to group and filter threads at a glance. Create one and start attaching it in rules.
           </p>
         </div>
         <TransitionGroup v-else name="list" tag="div" class="relative divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
@@ -407,7 +407,7 @@ onMounted(async () => {
                   <option v-for="wf in WORKFLOWS" :key="wf" :value="wf">{{ wf }}</option>
                 </select>
                 <p class="mt-1 text-xs text-ctp-subtext0">
-                  Limit this view to arcs from a specific automation workflow. Leave blank to show
+                  Limit this view to threads from a specific automation workflow. Leave blank to show
                   all workflows.
                 </p>
               </div>

@@ -57,34 +57,34 @@ describe('persistent-store plugin', () => {
   // ─────────────────────────────────────────────────────────
   describe('readFromLocalStorage', () => {
     it('returns undefined when key does not exist', () => {
-      const result = readFromLocalStorage('acc_test123', 'arcs')
+      const result = readFromLocalStorage('acc_test123', 'threads')
       expect(result).toBeUndefined()
     })
 
     it('returns data when valid envelope exists within TTL', () => {
-      const envelope = { data: [{ arcId: 'arc_1', status: 'active' }], writtenAt: Date.now() - 1000 }
-      storage.set('ses:v1:acc_test123:arcs', JSON.stringify(envelope))
+      const envelope = { data: [{ threadId: 'thread_1', status: 'active' }], writtenAt: Date.now() - 1000 }
+      storage.set('ses:v1:acc_test123:threads', JSON.stringify(envelope))
 
-      const result = readFromLocalStorage<{ arcId: string; status: string }[]>('acc_test123', 'arcs')
-      expect(result).toEqual([{ arcId: 'arc_1', status: 'active' }])
+      const result = readFromLocalStorage<{ threadId: string; status: string }[]>('acc_test123', 'threads')
+      expect(result).toEqual([{ threadId: 'thread_1', status: 'active' }])
     })
 
     it('returns undefined and removes key when data is expired (7 days)', () => {
       const sevenDaysMs = 7 * 24 * 60 * 60 * 1000
-      const envelope = { data: [{ arcId: 'arc_old' }], writtenAt: Date.now() - sevenDaysMs - 1 }
-      storage.set('ses:v1:acc_test123:arcs', JSON.stringify(envelope))
+      const envelope = { data: [{ threadId: 'thread_old' }], writtenAt: Date.now() - sevenDaysMs - 1 }
+      storage.set('ses:v1:acc_test123:threads', JSON.stringify(envelope))
 
-      const result = readFromLocalStorage('acc_test123', 'arcs')
+      const result = readFromLocalStorage('acc_test123', 'threads')
       expect(result).toBeUndefined()
-      expect(storage.has('ses:v1:acc_test123:arcs')).toBe(false)
+      expect(storage.has('ses:v1:acc_test123:threads')).toBe(false)
     })
 
     it('returns undefined and removes key when JSON is corrupted', () => {
-      storage.set('ses:v1:acc_test123:arcs', '{not valid json!!!')
+      storage.set('ses:v1:acc_test123:threads', '{not valid json!!!')
 
-      const result = readFromLocalStorage('acc_test123', 'arcs')
+      const result = readFromLocalStorage('acc_test123', 'threads')
       expect(result).toBeUndefined()
-      expect(storage.has('ses:v1:acc_test123:arcs')).toBe(false)
+      expect(storage.has('ses:v1:acc_test123:threads')).toBe(false)
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({ title: 'Cache read: corrupted JSON removed' }),
       )
@@ -131,10 +131,10 @@ describe('persistent-store plugin', () => {
   // ─────────────────────────────────────────────────────────
   describe('writeToLocalStorage', () => {
     it('writes data wrapped in CacheEnvelope with writtenAt timestamp', () => {
-      const data = [{ arcId: 'arc_1', status: 'active' }]
-      writeToLocalStorage('acc_test123', 'arcs', data)
+      const data = [{ threadId: 'thread_1', status: 'active' }]
+      writeToLocalStorage('acc_test123', 'threads', data)
 
-      const raw = storage.get('ses:v1:acc_test123:arcs')
+      const raw = storage.get('ses:v1:acc_test123:threads')
       expect(raw).toBeDefined()
       const parsed = JSON.parse(raw!)
       expect(parsed.data).toEqual(data)
@@ -146,7 +146,7 @@ describe('persistent-store plugin', () => {
         throw new Error('disk full')
       })
 
-      expect(() => writeToLocalStorage('acc_test123', 'arcs', 'data')).not.toThrow()
+      expect(() => writeToLocalStorage('acc_test123', 'threads', 'data')).not.toThrow()
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({ title: 'Cache write failed' }),
       )
@@ -158,38 +158,38 @@ describe('persistent-store plugin', () => {
   // ─────────────────────────────────────────────────────────
   describe('removeAllForAccount', () => {
     it('removes all keys matching ses:v1:{accountId}:*', () => {
-      storage.set('ses:v1:acc_target:arcs', 'a')
+      storage.set('ses:v1:acc_target:threads', 'a')
       storage.set('ses:v1:acc_target:signals', 'b')
       storage.set('ses:v1:acc_target:quarantine', 'c')
 
       removeAllForAccount('acc_target')
 
-      expect(storage.has('ses:v1:acc_target:arcs')).toBe(false)
+      expect(storage.has('ses:v1:acc_target:threads')).toBe(false)
       expect(storage.has('ses:v1:acc_target:signals')).toBe(false)
       expect(storage.has('ses:v1:acc_target:quarantine')).toBe(false)
     })
 
     it('does not remove keys for other accounts', () => {
-      storage.set('ses:v1:acc_target:arcs', 'a')
-      storage.set('ses:v1:acc_other:arcs', 'b')
+      storage.set('ses:v1:acc_target:threads', 'a')
+      storage.set('ses:v1:acc_other:threads', 'b')
       storage.set('ses:v1:acc_third:signals', 'c')
 
       removeAllForAccount('acc_target')
 
-      expect(storage.has('ses:v1:acc_other:arcs')).toBe(true)
+      expect(storage.has('ses:v1:acc_other:threads')).toBe(true)
       expect(storage.has('ses:v1:acc_third:signals')).toBe(true)
     })
 
     it('does not remove non-cache keys (e.g., ses:tabAccountId)', () => {
       storage.set('ses:tabAccountId', 'acc_target')
       storage.set('ses:lastAccountId', 'acc_target')
-      storage.set('ses:v1:acc_target:arcs', 'a')
+      storage.set('ses:v1:acc_target:threads', 'a')
 
       removeAllForAccount('acc_target')
 
       expect(storage.has('ses:tabAccountId')).toBe(true)
       expect(storage.has('ses:lastAccountId')).toBe(true)
-      expect(storage.has('ses:v1:acc_target:arcs')).toBe(false)
+      expect(storage.has('ses:v1:acc_target:threads')).toBe(false)
     })
   })
 
@@ -198,7 +198,7 @@ describe('persistent-store plugin', () => {
   // ─────────────────────────────────────────────────────────
   describe('key format', () => {
     it.each([
-      ['acc_abc123', 'arcs', 'ses:v1:acc_abc123:arcs'],
+      ['acc_abc123', 'threads', 'ses:v1:acc_abc123:threads'],
       ['acc_xyz789', 'signals', 'ses:v1:acc_xyz789:signals'],
       ['acc_foo', 'quarantine', 'ses:v1:acc_foo:quarantine'],
     ])('key for accountId=%s storeId=%s is %s', (accountId, storeId, expectedKey) => {
@@ -232,7 +232,7 @@ describe('persistent-store plugin', () => {
     }
 
     it('hydrates store from cache on creation when accountId available', () => {
-      const cachedData = [{ arcId: 'arc_cached', status: 'active' }]
+      const cachedData = [{ threadId: 'thread_cached', status: 'active' }]
       const envelope = { data: cachedData, writtenAt: Date.now() - 5000 }
       storage.set('ses:v1:acc_test123:hydrate1', JSON.stringify(envelope))
       mockAccountId = 'acc_test123'
@@ -249,7 +249,7 @@ describe('persistent-store plugin', () => {
     })
 
     it('does not hydrate when accountId is null', () => {
-      const envelope = { data: [{ arcId: 'arc_1' }], writtenAt: Date.now() }
+      const envelope = { data: [{ threadId: 'thread_1' }], writtenAt: Date.now() }
       storage.set('ses:v1:acc_test123:testStore2', JSON.stringify(envelope))
       mockAccountId = null
 
@@ -402,32 +402,32 @@ describe('persistent-store plugin', () => {
   describe('writeToLocalStorage — QuotaExceededError (destructive)', () => {
     it('on QuotaExceededError: calls removeAllForAccount and enters no-op mode', () => {
       // Seed keys for the account
-      storage.set('ses:v1:acc_test123:arcs', 'data1')
+      storage.set('ses:v1:acc_test123:threads', 'data1')
       storage.set('ses:v1:acc_test123:signals', 'data2')
-      storage.set('ses:v1:acc_other:arcs', 'other')
+      storage.set('ses:v1:acc_other:threads', 'other')
 
       const quotaError = new DOMException('quota exceeded', 'QuotaExceededError')
       localStorageMock.setItem.mockImplementationOnce(() => { throw quotaError })
 
-      writeToLocalStorage('acc_test123', 'arcs', { big: 'payload' })
+      writeToLocalStorage('acc_test123', 'threads', { big: 'payload' })
 
       // Should have removed keys for acc_test123
-      expect(storage.has('ses:v1:acc_test123:arcs')).toBe(false)
+      expect(storage.has('ses:v1:acc_test123:threads')).toBe(false)
       expect(storage.has('ses:v1:acc_test123:signals')).toBe(false)
       // Should NOT remove other account's keys
-      expect(storage.has('ses:v1:acc_other:arcs')).toBe(true)
+      expect(storage.has('ses:v1:acc_other:threads')).toBe(true)
       expect(logger.warn).toHaveBeenCalled()
 
       // After quota error, further writes are no-ops (localStorageAvailable = false)
       localStorageMock.setItem.mockImplementation((key: string, value: string) => {
         storage.set(key, value)
       })
-      writeToLocalStorage('acc_test123', 'arcs', { another: 'write' })
-      expect(storage.has('ses:v1:acc_test123:arcs')).toBe(false)
+      writeToLocalStorage('acc_test123', 'threads', { another: 'write' })
+      expect(storage.has('ses:v1:acc_test123:threads')).toBe(false)
 
       // Reads also return undefined now (module entered no-op mode)
-      storage.set('ses:v1:acc_test123:arcs', JSON.stringify({ data: 'x', writtenAt: Date.now() }))
-      expect(readFromLocalStorage('acc_test123', 'arcs')).toBeUndefined()
+      storage.set('ses:v1:acc_test123:threads', JSON.stringify({ data: 'x', writtenAt: Date.now() }))
+      expect(readFromLocalStorage('acc_test123', 'threads')).toBeUndefined()
     })
   })
 })

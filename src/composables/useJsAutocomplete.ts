@@ -18,12 +18,12 @@ const SIGNAL_COMPLETIONS: JsCompletion[] = [
   { path: 'signal.type', label: 'type', type: 'string', example: 'email' },
 ]
 
-const ARC_COMPLETIONS: JsCompletion[] = [
-  { path: 'arc.workflow', label: 'workflow', type: 'string', example: 'conversation' },
-  { path: 'arc.summary', label: 'summary', type: 'string', example: 'Customer asking about order' },
-  { path: 'arc.urgency', label: 'urgency', type: 'string', example: 'normal' },
-  { path: 'arc.status', label: 'status', type: 'string', example: 'active' },
-  { path: 'arc.labels', label: 'labels', type: 'string[]', example: '[]' },
+const THREAD_COMPLETIONS: JsCompletion[] = [
+  { path: 'thread.workflow', label: 'workflow', type: 'string', example: 'conversation' },
+  { path: 'thread.summary', label: 'summary', type: 'string', example: 'Customer asking about order' },
+  { path: 'thread.urgency', label: 'urgency', type: 'string', example: 'normal' },
+  { path: 'thread.status', label: 'status', type: 'string', example: 'active' },
+  { path: 'thread.labels', label: 'labels', type: 'string[]', example: '[]' },
 ]
 
 const METHOD_COMPLETIONS: JsCompletion[] = [
@@ -48,7 +48,7 @@ export function useJsAutocomplete() {
 
   const allCompletions = computed(() => {
     if (completionType.value === 'method') return METHOD_COMPLETIONS
-    return [...SIGNAL_COMPLETIONS, ...ARC_COMPLETIONS]
+    return [...SIGNAL_COMPLETIONS, ...THREAD_COMPLETIONS]
   })
 
   const filtered = computed(() => {
@@ -63,10 +63,10 @@ export function useJsAutocomplete() {
     const before = el.value.slice(0, pos)
 
     // Check for string method trigger (after a known string property)
-    const methodMatch = before.match(/(?:signal\.(?:from\.(?:address|domain|name)|subject|workflow|type)|arc\.(?:workflow|summary|urgency|status))(\.)([a-zA-Z]*)$/)
-    // Check for "signal." or "arc." trigger
+    const methodMatch = before.match(/(?:signal\.(?:from\.(?:address|domain|name)|subject|workflow|type)|thread\.(?:workflow|summary|urgency|status))(\.)([a-zA-Z]*)$/)
+    // Check for "signal." or "thread." trigger
     const signalMatch = before.match(/(signal\.)([a-zA-Z.]*)$/)
-    const arcMatch = before.match(/(arc\.)([a-zA-Z.]*)$/)
+    const threadMatch = before.match(/(thread\.)([a-zA-Z.]*)$/)
 
     if (methodMatch) {
       completionType.value = 'method'
@@ -76,10 +76,10 @@ export function useJsAutocomplete() {
       completionType.value = 'property'
       _insertStart = pos - signalMatch[0].length
       partial.value = signalMatch[0]
-    } else if (arcMatch) {
+    } else if (threadMatch) {
       completionType.value = 'property'
-      _insertStart = pos - arcMatch[0].length
-      partial.value = arcMatch[0]
+      _insertStart = pos - threadMatch[0].length
+      partial.value = threadMatch[0]
     } else {
       showPopup.value = false
       return

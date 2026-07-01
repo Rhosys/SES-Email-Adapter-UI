@@ -4,7 +4,7 @@ import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useLabelsStore } from '@/stores/labels'
 import { useViewsStore } from '@/stores/views'
 import { useAccountStore } from '@/stores/account'
-import { useArcsStore } from '@/stores/arcs'
+import { useThreadsStore } from '@/stores/threads'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useDraftsStore } from '@/stores/drafts'
 import { loginClient } from '@/lib/auth'
@@ -17,7 +17,7 @@ const router = useRouter()
 const labelsStore = useLabelsStore()
 const viewsStore = useViewsStore()
 const accountStore = useAccountStore()
-const arcsStore = useArcsStore()
+const threadsStore = useThreadsStore()
 const quarantineStore = useQuarantineStore()
 const draftsStore = useDraftsStore()
 
@@ -137,10 +137,10 @@ const accountSwitcherOpen = ref(false)
           </svg>
           <span class="flex-1">Inbox</span>
           <span
-            v-if="arcsStore.activeCount > 0"
+            v-if="threadsStore.activeCount > 0"
             class="shrink-0 rounded-full bg-ctp-green px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ctp-base"
           >
-            {{ formatBadgeCount(arcsStore.activeCount, arcsStore.activeCountHasMore) }}
+            {{ formatBadgeCount(threadsStore.activeCount, threadsStore.activeCountHasMore) }}
           </span>
         </RouterLink>
 

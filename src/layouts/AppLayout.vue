@@ -5,7 +5,7 @@ import { useAccountStore } from '@/stores/account'
 import { useLabelsStore } from '@/stores/labels'
 import { useViewsStore } from '@/stores/views'
 import { api } from '@/lib/api'
-import type { Arc, Rule, Alias } from '@/types/server'
+import type { Thread, Rule, Alias } from '@/types/server'
 import AppSidebar from '@/components/AppSidebar.vue'
 import AppNavbar from '@/components/AppNavbar.vue'
 import ActionBadge from '@/components/ActionBadge.vue'
@@ -78,24 +78,24 @@ watch(
   },
 )
 
-type SectionKey = 'arcs' | 'senders' | 'aliases' | 'rules'
+type SectionKey = 'threads' | 'senders' | 'aliases' | 'rules'
 
 const CATEGORIES: { key: SectionKey; label: string }[] = [
-  { key: 'arcs', label: 'Arcs' },
+  { key: 'threads', label: 'Threads' },
   { key: 'senders', label: 'Senders' },
   { key: 'aliases', label: 'Aliases' },
   { key: 'rules', label: 'Rules' },
 ]
 
-const activeCategories = ref<Set<SectionKey>>(new Set(['arcs', 'senders', 'aliases', 'rules']))
+const activeCategories = ref<Set<SectionKey>>(new Set(['threads', 'senders', 'aliases', 'rules']))
 
 const suggestions = ref<{
-  arcs: Arc[]
+  threads: Thread[]
   senders: string[]
   aliases: Alias[]
   rules: Rule[]
   loading: boolean
-}>({ arcs: [], senders: [], aliases: [], rules: [], loading: false })
+}>({ threads: [], senders: [], aliases: [], rules: [], loading: false })
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let activeQuery = ''
@@ -106,7 +106,7 @@ const dropdownOpen = computed(
 
 const hasVisibleResults = computed(
   () =>
-    (activeCategories.value.has('arcs') && suggestions.value.arcs.length > 0) ||
+    (activeCategories.value.has('threads') && suggestions.value.threads.length > 0) ||
     (activeCategories.value.has('senders') && suggestions.value.senders.length > 0) ||
     (activeCategories.value.has('aliases') && suggestions.value.aliases.length > 0) ||
     (activeCategories.value.has('rules') && suggestions.value.rules.length > 0),
@@ -127,7 +127,7 @@ watch(searchQuery, (q) => {
   const trimmed = q.trim()
   if (trimmed.length < 2) {
     hasSearched.value = false
-    suggestions.value = { arcs: [], senders: [], aliases: [], rules: [], loading: false }
+    suggestions.value = { threads: [], senders: [], aliases: [], rules: [], loading: false }
     return
   }
   suggestions.value.loading = true
@@ -141,8 +141,8 @@ async function fetchSuggestions(q: string) {
   const id = accountStore.accountId
   const ql = q.toLowerCase()
 
-  const [arcsRes, aliasesRes, rulesRes] = await Promise.all([
-    api.listArcs(id, { sender: q, limit: 8 }),
+  const [threadsRes, aliasesRes, rulesRes] = await Promise.all([
+    api.listThreads(id, { sender: q, limit: 8 }),
     api.listAliases(id),
     api.listRules(id),
   ])
@@ -152,10 +152,10 @@ async function fetchSuggestions(q: string) {
   suggestions.value.loading = false
   hasSearched.value = true
 
-  suggestions.value.arcs = arcsRes.isOk()
-    ? arcsRes.value.arcs
+  suggestions.value.threads = threadsRes.isOk()
+    ? threadsRes.value.threads
         .filter(
-          (a: Arc) =>
+          (a: Thread) =>
             a.summary?.toLowerCase().includes(ql) ||
             a.labels?.some((l: string) => l.toLowerCase().includes(ql)),
         )
@@ -202,10 +202,10 @@ function onKeyDown(e: KeyboardEvent) {
   }
 }
 
-function selectArc(arc: Arc) {
+function selectThread(thread: Thread) {
   searchQuery.value = ''
   inputFocused.value = false
-  void router.push(`/arcs/${arc.arcId}`)
+  void router.push(`/threads/${thread.threadId}`)
 }
 
 function selectSender(address: string) {
@@ -307,7 +307,7 @@ onMounted(async () => {
               ref="searchInput"
               v-model="searchQuery"
               type="search"
-              aria-label="Search arcs, rules, aliases"
+              aria-label="Search threads, rules, aliases"
               placeholder="Search…"
               class="h-7 w-full rounded-md border border-ctp-surface1 bg-ctp-base pl-8 pr-3 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
               autocomplete="off"
@@ -357,22 +357,22 @@ onMounted(async () => {
                 </div>
 
                 <template v-else>
-                  <!-- Arcs -->
-                  <template v-if="activeCategories.has('arcs') && suggestions.arcs.length">
+                  <!-- Threads -->
+                  <template v-if="activeCategories.has('threads') && suggestions.threads.length">
                     <div
                       class="border-b border-ctp-surface0 bg-ctp-base/40 px-3 py-1 text-xs font-medium uppercase tracking-wide text-ctp-subtext0"
                     >
-                      Arcs
+                      Threads
                     </div>
                     <button
-                      v-for="arc in suggestions.arcs"
-                      :key="arc.arcId"
+                      v-for="thread in suggestions.threads"
+                      :key="thread.threadId"
                       type="button"
                       class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-ctp-surface0"
-                      @mousedown.prevent="selectArc(arc)"
+                      @mousedown.prevent="selectThread(thread)"
                     >
-                      <span class="flex-1 truncate text-sm text-ctp-text">{{ arc.summary }}</span>
-                      <span class="shrink-0 text-xs text-ctp-subtext0">{{ arc.workflow }}</span>
+                      <span class="flex-1 truncate text-sm text-ctp-text">{{ thread.summary }}</span>
+                      <span class="shrink-0 text-xs text-ctp-subtext0">{{ thread.workflow }}</span>
                     </button>
                   </template>
 
@@ -381,7 +381,7 @@ onMounted(async () => {
                     <div
                       class="border-y border-ctp-surface0 bg-ctp-base/40 px-3 py-1 text-xs font-medium uppercase tracking-wide text-ctp-subtext0"
                       :class="{
-                        'border-t-0': !suggestions.arcs.length || !activeCategories.has('arcs'),
+                        'border-t-0': !suggestions.threads.length || !activeCategories.has('threads'),
                       }"
                     >
                       Senders
@@ -412,7 +412,7 @@ onMounted(async () => {
                       class="border-y border-ctp-surface0 bg-ctp-base/40 px-3 py-1 text-xs font-medium uppercase tracking-wide text-ctp-subtext0"
                       :class="{
                         'border-t-0':
-                          (!suggestions.arcs.length || !activeCategories.has('arcs')) &&
+                          (!suggestions.threads.length || !activeCategories.has('threads')) &&
                           (!suggestions.senders.length || !activeCategories.has('senders')),
                       }"
                     >
@@ -436,7 +436,7 @@ onMounted(async () => {
                       class="border-y border-ctp-surface0 bg-ctp-base/40 px-3 py-1 text-xs font-medium uppercase tracking-wide text-ctp-subtext0"
                       :class="{
                         'border-t-0':
-                          (!suggestions.arcs.length || !activeCategories.has('arcs')) &&
+                          (!suggestions.threads.length || !activeCategories.has('threads')) &&
                           (!suggestions.senders.length || !activeCategories.has('senders')) &&
                           (!suggestions.aliases.length || !activeCategories.has('aliases')),
                       }"

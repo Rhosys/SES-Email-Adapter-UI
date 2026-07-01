@@ -223,7 +223,7 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     actionPending.value = new Set([...actionPending.value].filter((x) => x !== signalId))
     if (result.isErr()) { error.value = result.error.message; return false }
     _removeSignal(id, signalId)
-    return result.value.arc?.arcId ?? false
+    return result.value.thread?.threadId ?? false
   }
 
   async function reject(signalId: string) {

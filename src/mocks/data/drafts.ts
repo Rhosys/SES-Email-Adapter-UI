@@ -3,7 +3,7 @@ import type { Signal } from '@/types/server'
 export const mockDraftSignals: Signal[] = [
   {
     signalId: 'sig_draft_1',
-    arcId: 'thr_conv_1',
+    threadId: 'thr_conv_1',
     source: 'user',
     status: 'draft',
     type: 'email',
@@ -21,7 +21,7 @@ export const mockDraftSignals: Signal[] = [
   },
   {
     signalId: 'sig_draft_2',
-    arcId: 'thr_conv_2',
+    threadId: 'thr_conv_2',
     source: 'user',
     status: 'draft',
     type: 'email',

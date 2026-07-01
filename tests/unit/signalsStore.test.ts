@@ -11,7 +11,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
     ...actual,
     api: {
       listSignals: vi.fn(),
-      patchArc: vi.fn(),
+      patchThread: vi.fn(),
       createDraftSignal: vi.fn(),
     },
   }
@@ -27,7 +27,7 @@ import logger from '@/lib/logger'
 function mockSignal(overrides: Partial<Signal> = {}): Signal {
   return {
     signalId: 'sig_1',
-    arcId: 'arc_1',
+    threadId: 'thread_1',
     type: 'email',
     source: 'system',
     status: 'active',
@@ -65,7 +65,7 @@ describe('signalsStore', () => {
     vi.mocked(api.listSignals).mockResolvedValue(ok(mockSignalList([mockSignal()])))
 
     const store = useSignalsStore()
-    await store.fetchAll('arc_1')
+    await store.fetchAll('thread_1')
 
     expect(store.items).toHaveLength(1)
     expect(store.loading).toBe(false)
@@ -76,7 +76,7 @@ describe('signalsStore', () => {
     vi.mocked(api.listSignals).mockResolvedValue(err(new ApiError(500, 'Server error')))
 
     const store = useSignalsStore()
-    await store.fetchAll('arc_1')
+    await store.fetchAll('thread_1')
 
     expect(store.error).toBe('Server error')
   })
@@ -88,7 +88,7 @@ describe('signalsStore', () => {
     vi.mocked(api.listSignals).mockResolvedValue(ok(mockSignalList([sig1, sig2])))
 
     const store = useSignalsStore()
-    await store.fetchAll('arc_1')
+    await store.fetchAll('thread_1')
 
     expect(store.latestSignal?.signalId).toBe('sig_2')
   })
@@ -99,7 +99,7 @@ describe('signalsStore', () => {
     )
 
     const store = useSignalsStore()
-    await store.fetchAll('arc_1')
+    await store.fetchAll('thread_1')
 
     expect(store.hasMore).toBe(true)
   })
@@ -109,12 +109,12 @@ describe('signalsStore', () => {
     vi.mocked(api.listSignals).mockResolvedValue(ok(mockSignalList([existing])))
 
     const store = useSignalsStore()
-    await store.fetchAll('arc_1')
+    await store.fetchAll('thread_1')
 
     const draft = mockSignal({ signalId: 'sig_draft', status: 'draft' })
     vi.mocked(api.createDraftSignal).mockResolvedValue(ok(draft))
 
-    await store.createDraft('arc_1')
+    await store.createDraft('thread_1')
 
     expect(store.items.map((s) => s.signalId)).toEqual(['sig_draft', 'sig_1'])
     expect(store.latestSignal?.signalId).toBe('sig_draft')
@@ -124,7 +124,7 @@ describe('signalsStore', () => {
     vi.mocked(api.listSignals).mockResolvedValue(ok(mockSignalList([mockSignal()])))
 
     const store = useSignalsStore()
-    await store.fetchAll('arc_1')
+    await store.fetchAll('thread_1')
     store.reset()
 
     expect(store.items).toHaveLength(0)
@@ -142,10 +142,10 @@ describe('stale-while-revalidate', { timeout: 5000 }, () => {
 
   it('fetchAll with cached data does not show loading state', async () => {
     const store = useSignalsStore()
-    store.$patch({ _byAccount: { acc_1: { arc_1: [mockSignal()] } } })
+    store.$patch({ _byAccount: { acc_1: { thread_1: [mockSignal()] } } })
 
     vi.mocked(api.listSignals).mockResolvedValue(ok(mockSignalList([mockSignal()])))
-    await store.fetchAll('arc_1')
+    await store.fetchAll('thread_1')
 
     expect(store.loading).toBe(false)
   })
@@ -156,11 +156,11 @@ describe('stale-while-revalidate', { timeout: 5000 }, () => {
     const sigC = mockSignal({ signalId: 'sig_C', createdAt: '2025-01-01T12:00:00Z' })
 
     const store = useSignalsStore()
-    store.$patch({ _byAccount: { acc_1: { arc_1: [sigA, sigB] } } })
+    store.$patch({ _byAccount: { acc_1: { thread_1: [sigA, sigB] } } })
 
     // API returns [sig_B, sig_C] (oldest first — store reverses to [sig_C, sig_B])
     vi.mocked(api.listSignals).mockResolvedValue(ok(mockSignalList([sigB, sigC])))
-    await store.fetchAll('arc_1')
+    await store.fetchAll('thread_1')
 
     // Fresh first (reversed): [sig_C, sig_B], then older cached not in fresh: [sig_A]
     expect(store.items.map((s) => s.signalId)).toEqual(['sig_C', 'sig_B', 'sig_A'])
@@ -168,10 +168,10 @@ describe('stale-while-revalidate', { timeout: 5000 }, () => {
 
   it('fetchAll failure with cached data retains cache and logs warning', async () => {
     const store = useSignalsStore()
-    store.$patch({ _byAccount: { acc_1: { arc_1: [mockSignal({ signalId: 'sig_cached' })] } } })
+    store.$patch({ _byAccount: { acc_1: { thread_1: [mockSignal({ signalId: 'sig_cached' })] } } })
 
     vi.mocked(api.listSignals).mockResolvedValue(err(new ApiError(500, 'Server error')))
-    await store.fetchAll('arc_1')
+    await store.fetchAll('thread_1')
 
     expect(store.items).toHaveLength(1)
     expect(store.items[0].signalId).toBe('sig_cached')

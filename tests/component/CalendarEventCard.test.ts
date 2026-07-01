@@ -14,7 +14,7 @@ vi.mock('@/lib/api', () => ({
 function makeSignal(overrides: Partial<CalendarEventSignal['data']> = {}): CalendarEventSignal {
   return {
     signalId: 'sig_cal_1',
-    arcId: 'arc_1',
+    threadId: 'thread_1',
     source: 'system',
     status: 'active',
     type: 'calendar_event',

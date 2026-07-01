@@ -2,7 +2,7 @@
 import { onMounted, onUnmounted, computed, ref, nextTick } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useSignalsStore } from '@/stores/signals'
-import { useArcsStore } from '@/stores/arcs'
+import { useThreadsStore } from '@/stores/threads'
 import { useAccountStore } from '@/stores/account'
 import { useToast } from '@/composables/useToast'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
@@ -19,41 +19,40 @@ import PendingSendCard from '@/components/PendingSendCard.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import CopyMenuItem from '@/components/CopyMenuItem.vue'
-import type { Arc } from '@/types/server'
+import type { Thread } from '@/types/server'
 
 const route = useRoute()
 const router = useRouter()
 const signalsStore = useSignalsStore()
-const arcsStore = useArcsStore()
+const threadsStore = useThreadsStore()
 const accountStore = useAccountStore()
 const labelsStore = useLabelsStore()
 const { showUndo, deferAction } = useToast()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
 const overflowOpen = ref(false)
-const arcData = ref<Arc | null>(null)
+const threadData = ref<Thread | null>(null)
 
-const arcId = computed(() => route.params.id as string)
-const threadId = computed(() => arcId.value)
+const threadId = computed(() => route.params.id as string)
 
 const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalsStore.items)))
 
-// Sender domain to block, derived from the arc's denormalised sender address
+// Sender domain to block, derived from the thread's denormalised sender address
 const senderDomain = computed(() => {
-  const sender = arc.value?.senderAddress
+  const sender = thread.value?.senderAddress
   const at = sender?.lastIndexOf('@') ?? -1
   return at >= 0 ? sender!.slice(at + 1) : null
 })
 
-// Look up arc from arcsStore items first, fall back to locally fetched data
-const arc = computed(() => {
-  const fromStore = arcsStore.items.find((a) => a.arcId === arcId.value)
-  return fromStore ?? arcData.value
+// Look up thread from threadsStore items first, fall back to locally fetched data
+const thread = computed(() => {
+  const fromStore = threadsStore.items.find((a) => a.threadId === threadId.value)
+  return fromStore ?? threadData.value
 })
 
 const availableUntil = computed(() => {
-  if (!arc.value?.retentionDuration) return null
-  return retentionExpiresAt(arc.value.createdAt, arc.value.retentionDuration)
+  if (!thread.value?.retentionDuration) return null
+  return retentionExpiresAt(thread.value.createdAt, thread.value.retentionDuration)
 })
 
 const showRetentionWarning = computed(() => {
@@ -73,9 +72,9 @@ const retentionMessage = computed(() => {
 
 onMounted(async () => {
   signalsStore.reset()
-  // Use arcs store for arc metadata — instant if cached, fetches if not
-  arcData.value = (await arcsStore.getArcAsync(arcId.value)) ?? null
-  await signalsStore.fetchAll(arcId.value)
+  // Use threads store for thread metadata — instant if cached, fetches if not
+  threadData.value = (await threadsStore.getThreadAsync(threadId.value)) ?? null
+  await signalsStore.fetchAll(threadId.value)
 })
 
 onUnmounted(() => {
@@ -83,30 +82,30 @@ onUnmounted(() => {
 })
 
 function onDraftDiscard() {
-  void signalsStore.fetchAll(arcId.value)
+  void signalsStore.fetchAll(threadId.value)
 }
 
 function onDraftSent() {
-  void signalsStore.fetchAll(arcId.value)
+  void signalsStore.fetchAll(threadId.value)
 }
 
 function onSignalUndo() {
-  void signalsStore.fetchAll(arcId.value)
+  void signalsStore.fetchAll(threadId.value)
 }
 
 function onSignalReprocessed() {
-  void signalsStore.fetchAll(arcId.value)
+  void signalsStore.fetchAll(threadId.value)
 }
 
 async function archive() {
-  const result = await arcsStore.archiveArc(arcId.value)
+  const result = await threadsStore.archiveThread(threadId.value)
   if (result.isErr()) return
-  const id = arcId.value
-  const summary = arc.value?.summary
+  const id = threadId.value
+  const summary = thread.value?.summary
   showUndo(
     'Thread archived',
     async () => {
-      await arcsStore.moveToInbox(id)
+      await threadsStore.moveToInbox(id)
     },
     8_000,
     { submessage: summary ? summary.slice(0, 70) : undefined },
@@ -115,7 +114,7 @@ async function archive() {
 }
 
 async function unsubscribe() {
-  const result = await arcsStore.unsubscribeArc(arcId.value)
+  const result = await threadsStore.unsubscribeThread(threadId.value)
   if (result.isErr()) return
   const url = result.value.url
   void router.push('/')
@@ -126,7 +125,7 @@ const hasUnsubscribe = computed(() =>
   signalsStore.items.some((s) => isInboundEmailSignal(s) && s.data.unsubscribe),
 )
 
-async function deleteArc() {
+async function deleteThread() {
   const confirmed = await confirmAction({
     title: 'Delete thread',
     message: 'Permanently delete this thread and all its messages? This cannot be undone.',
@@ -134,11 +133,11 @@ async function deleteArc() {
     confirmVariant: 'danger',
   })
   if (!confirmed) return
-  const id = arcId.value
+  const id = threadId.value
   deferAction(
     'Thread deleted',
     async () => {
-      await arcsStore.deleteArc(id)
+      await threadsStore.deleteThread(id)
     },
     8_000,
     { undoLabel: 'Undo' },
@@ -148,7 +147,7 @@ async function deleteArc() {
 
 async function blockSender() {
   const domain = senderDomain.value
-  const alias = arc.value?.recipientAddress
+  const alias = thread.value?.recipientAddress
   if (!domain || !alias) return
   const confirmed = await confirmAction({
     title: 'Block sender',
@@ -162,11 +161,11 @@ async function blockSender() {
     const result = await api.updateAliasSender(accountId, alias, domain, { policy: 'block_reject' })
     if (result.isErr()) return
   }
-  const id = arcId.value
+  const id = threadId.value
   deferAction(
     'Sender blocked, thread deleted',
     async () => {
-      await arcsStore.deleteArc(id)
+      await threadsStore.deleteThread(id)
     },
     8_000,
     { undoLabel: 'Undo' },
@@ -175,15 +174,15 @@ async function blockSender() {
 }
 
 async function loadMore() {
-  await signalsStore.fetchMore(arcId.value)
+  await signalsStore.fetchMore(threadId.value)
 }
 
 const primaryBadgeLabel = computed(() => {
-  if (!arc.value) return ''
-  if (arc.value.status === 'deleted') return 'Deleted'
+  if (!thread.value) return ''
+  if (thread.value.status === 'deleted') return 'Deleted'
   const latestSignal = signalsStore.latestSignal
   if (latestSignal && isInboundEmailSignal(latestSignal) && latestSignal.data.workflowData?.workflow === 'conversation' && latestSignal.data.workflowData.requiresReply) return 'Reply Needed'
-  if (arc.value.status === 'archived') return 'Archived'
+  if (thread.value.status === 'archived') return 'Archived'
   return 'Active'
 })
 
@@ -197,11 +196,11 @@ const primaryBadgeClass = computed(() => {
 })
 
 async function moveToInbox() {
-  const result = await arcsStore.moveToInbox(arcId.value)
+  const result = await threadsStore.moveToInbox(threadId.value)
   if (result.isErr()) return
   // Keep the local fallback in sync with the store's optimistic update.
-  arcData.value = result.value
-  await signalsStore.fetchAll(arcId.value)
+  threadData.value = result.value
+  await signalsStore.fetchAll(threadId.value)
 }
 
 async function scrollToDraft(signalId: string) {
@@ -215,7 +214,7 @@ async function startDraft() {
     await scrollToDraft(existingDraft.signalId)
     return
   }
-  const result = await signalsStore.createDraft(arcId.value)
+  const result = await signalsStore.createDraft(threadId.value)
   if (result.isOk()) {
     await scrollToDraft(result.value.signalId)
   }
@@ -233,18 +232,18 @@ async function removeLabel(label: string) {
     confirmVariant: 'danger',
   })
   if (!confirmed) return
-  if (!arc.value) return
-  const currentLabels = arc.value.labels.filter((l) => l !== label)
-  const result = await arcsStore.labelArc(arcId.value, currentLabels)
+  if (!thread.value) return
+  const currentLabels = thread.value.labels.filter((l) => l !== label)
+  const result = await threadsStore.labelThread(threadId.value, currentLabels)
   if (result.isOk()) {
-    arcData.value = result.value
-    await signalsStore.fetchAll(arcId.value)
+    threadData.value = result.value
+    await signalsStore.fetchAll(threadId.value)
   }
 }
 </script>
 
 <template>
-  <div class="arc-detail mx-auto flex min-h-full max-w-[1200px] flex-col px-4 py-6">
+  <div class="thread-detail mx-auto flex min-h-full max-w-[1200px] flex-col px-4 py-6">
     <!-- Top bar: Back link + actions -->
     <div class="mb-4 flex items-center justify-between gap-4">
       <RouterLink
@@ -254,9 +253,9 @@ async function removeLabel(label: string) {
         ← Back to inbox
       </RouterLink>
 
-      <div v-if="arc" class="flex items-center gap-2">
+      <div v-if="thread" class="flex items-center gap-2">
         <AsyncButton
-          v-if="hasUnsubscribe && arc.status === 'active'"
+          v-if="hasUnsubscribe && thread.status === 'active'"
           :action="unsubscribe"
           variant="outline"
           class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-peach hover:text-ctp-peach"
@@ -267,7 +266,7 @@ async function removeLabel(label: string) {
           Unsubscribe
         </AsyncButton>
         <AsyncButton
-          v-if="arc.status === 'active'"
+          v-if="thread.status === 'active'"
           :action="archive"
           variant="outline"
           class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-red hover:text-ctp-red"
@@ -278,7 +277,7 @@ async function removeLabel(label: string) {
           Archive
         </AsyncButton>
         <AsyncButton
-          v-if="arc.status === 'archived' || arc.status === 'deleted'"
+          v-if="thread.status === 'archived' || thread.status === 'deleted'"
           :action="moveToInbox"
           variant="outline"
           class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-green hover:text-ctp-green"
@@ -290,7 +289,7 @@ async function removeLabel(label: string) {
         </AsyncButton>
 
         <!-- Overflow menu -->
-        <div v-if="arc.status !== 'deleted'" class="relative">
+        <div v-if="thread.status !== 'deleted'" class="relative">
           <button
             type="button"
             class="flex h-8 w-8 items-center justify-center rounded border border-ctp-surface1 text-ctp-subtext1 hover:border-ctp-overlay0 hover:text-ctp-text"
@@ -313,7 +312,7 @@ async function removeLabel(label: string) {
           >
             <CopyMenuItem class="px-3" :value="threadId" label="Thread ID" />
             <button
-              v-if="senderDomain && arc.recipientAddress"
+              v-if="senderDomain && thread.recipientAddress"
               type="button"
               role="menuitem"
               class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0"
@@ -326,7 +325,7 @@ async function removeLabel(label: string) {
               type="button"
               role="menuitem"
               class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0"
-              @click="deleteArc()"
+              @click="deleteThread()"
             >
               <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
               Delete thread
@@ -370,26 +369,26 @@ async function removeLabel(label: string) {
       {{ signalsStore.error }}
     </div>
 
-    <template v-else-if="arc">
-      <!-- Arc header -->
+    <template v-else-if="thread">
+      <!-- Thread header -->
       <div class="mb-6">
         <!-- Line 1: Primary badge + Summary (multiline allowed) -->
         <div class="flex items-start gap-2">
           <span class="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" :class="primaryBadgeClass">{{ primaryBadgeLabel }}</span>
-          <h1 class="text-lg font-semibold text-ctp-text">{{ arc.summary }}</h1>
+          <h1 class="text-lg font-semibold text-ctp-text">{{ thread.summary }}</h1>
         </div>
         <!-- Line 2: From / Alias -->
         <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-ctp-subtext1">
-          <span v-if="arc.senderAddress"><span class="text-ctp-overlay1">From:</span> {{ arc.senderAddress }}</span>
+          <span v-if="thread.senderAddress"><span class="text-ctp-overlay1">From:</span> {{ thread.senderAddress }}</span>
         </div>
-        <div v-if="arc.recipientAddress" class="mt-1 text-sm text-ctp-subtext1">
-          <span class="text-ctp-overlay1">Alias:</span> <span class="text-ctp-sapphire">{{ arc.recipientAddress }}</span>
+        <div v-if="thread.recipientAddress" class="mt-1 text-sm text-ctp-subtext1">
+          <span class="text-ctp-overlay1">Alias:</span> <span class="text-ctp-sapphire">{{ thread.recipientAddress }}</span>
         </div>
         <!-- Line 4: Secondary badges (workflow, labels) -->
         <div class="mt-2 flex flex-wrap items-center gap-1.5">
-          <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ arc.workflow }}</span>
+          <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ thread.workflow }}</span>
           <button
-            v-for="label in visibleLabels(arc.labels)"
+            v-for="label in visibleLabels(thread.labels)"
             :key="label"
             class="flex items-center gap-1 cursor-pointer rounded-full bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1 hover:opacity-70"
             @click="removeLabel(label)"
@@ -402,8 +401,8 @@ async function removeLabel(label: string) {
             {{ labelMeta(label)?.name ?? label }}
           </button>
         </div>
-        <div v-if="arc.status === 'deleted' && arc.deletedAt" class="mt-2 text-xs text-ctp-subtext0">
-          Deleted on {{ new Date(arc.deletedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
+        <div v-if="thread.status === 'deleted' && thread.deletedAt" class="mt-2 text-xs text-ctp-subtext0">
+          Deleted on {{ new Date(thread.deletedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
         </div>
       </div>
 

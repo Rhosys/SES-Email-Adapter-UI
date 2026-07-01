@@ -15,9 +15,9 @@ export const FIELDS: { value: ConditionField; label: string }[] = [
   { value: 'signal.subject', label: 'Subject' },
   { value: 'signal.workflow', label: 'Workflow' },
   { value: 'signal.spamScore', label: 'Spam score' },
-  { value: 'arc.labels', label: 'Labels' },
-  { value: 'arc.urgency', label: 'Urgency' },
-  { value: 'arc.status', label: 'Arc status' },
+  { value: 'thread.labels', label: 'Labels' },
+  { value: 'thread.urgency', label: 'Urgency' },
+  { value: 'thread.status', label: 'Thread status' },
 ]
 
 export const OPERATORS: { value: ConditionOperator; label: string }[] = [

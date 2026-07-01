@@ -28,7 +28,7 @@ function mockSignal(overrides: Partial<Signal> & { signalId?: string; status?: s
   const { signalId = 'sig_1', status = 'quarantine_visible', ...rest } = overrides
   return {
     signalId,
-    arcId: 'arc_1',
+    threadId: 'thread_1',
     type: 'email',
     source: 'system',
     status,
@@ -181,9 +181,9 @@ describe('quarantineStore', () => {
     const store = useQuarantineStore()
     await store.fetchSignals(true)
 
-    vi.mocked(api.quarantineResponse).mockResolvedValue(ok({ arc: { arcId: 'arc-123' }, signal: mockSignal({ status: 'active' }) }))
+    vi.mocked(api.quarantineResponse).mockResolvedValue(ok({ thread: { threadId: 'thread-123' }, signal: mockSignal({ status: 'active' }) }))
     const result = await store.allow('sig_1')
-    expect(result).toBe('arc-123')
+    expect(result).toBe('thread-123')
     expect(store.quarantineVisible.map((s) => s.signalId)).toEqual(['sig_2'])
     expect(vi.mocked(api.quarantineResponse)).toHaveBeenCalledWith('acc_1', 'sig_1', 'active')
   })
@@ -232,7 +232,7 @@ describe('quarantineStore', () => {
     let resolve!: () => void
     vi.mocked(api.quarantineResponse).mockReturnValue(
       new Promise((res) => {
-        resolve = () => res(ok({ arc: { arcId: 'arc-x' }, signal: mockSignal({ status: 'active' }) }))
+        resolve = () => res(ok({ thread: { threadId: 'thread-x' }, signal: mockSignal({ status: 'active' }) }))
       }),
     )
     const p = store.allow('sig_1')

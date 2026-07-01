@@ -24,12 +24,12 @@ const SIGNAL_PROPS: PropInfo[] = [
   { path: 'signal.data.spamScore', type: 'number?', example: '0.02', note: '0 = clean, 1 = spam' },
 ]
 
-const ARC_PROPS: PropInfo[] = [
-  { path: 'arc.workflow', type: 'string', example: 'conversation', note: 'auth | conversation | crm | package | travel…' },
-  { path: 'arc.summary', type: 'string', example: 'Customer asking about order #12345', note: 'AI summary' },
-  { path: 'arc.urgency', type: 'string', example: 'normal', note: 'critical | high | normal | low | silent' },
-  { path: 'arc.status', type: 'string', example: 'active', note: 'active | archived | deleted' },
-  { path: 'arc.labels', type: 'string[]', example: '[]', note: 'Applied label IDs' },
+const THREAD_PROPS: PropInfo[] = [
+  { path: 'thread.workflow', type: 'string', example: 'conversation', note: 'auth | conversation | crm | package | travel…' },
+  { path: 'thread.summary', type: 'string', example: 'Customer asking about order #12345', note: 'AI summary' },
+  { path: 'thread.urgency', type: 'string', example: 'normal', note: 'critical | high | normal | low | silent' },
+  { path: 'thread.status', type: 'string', example: 'active', note: 'active | archived | deleted' },
+  { path: 'thread.labels', type: 'string[]', example: '[]', note: 'Applied label IDs' },
 ]
 
 function hbsFn(name: string) {
@@ -50,7 +50,7 @@ function copyPath(path: string) {
       class="flex w-full items-center justify-between px-3 py-2.5 text-left text-ctp-subtext1 hover:text-ctp-text"
       @click="expanded = !expanded"
     >
-      <span class="font-medium text-ctp-text">Signal &amp; Arc properties</span>
+      <span class="font-medium text-ctp-text">Signal &amp; Thread properties</span>
       <span class="ml-2 text-ctp-surface2">
         {{ expanded ? '▲ hide' : '▼ show' }}
       </span>
@@ -77,11 +77,11 @@ function copyPath(path: string) {
         </button>
       </div>
 
-      <!-- Arc props -->
-      <p class="mb-1.5 font-medium text-ctp-text">arc</p>
+      <!-- Thread props -->
+      <p class="mb-1.5 font-medium text-ctp-text">thread</p>
       <div class="mb-3 space-y-1">
         <button
-          v-for="p in ARC_PROPS"
+          v-for="p in THREAD_PROPS"
           :key="p.path"
           class="flex w-full items-start gap-2 rounded px-1.5 py-1 text-left hover:bg-ctp-surface0 active:bg-ctp-surface1"
           @click="copyPath(p.path)"

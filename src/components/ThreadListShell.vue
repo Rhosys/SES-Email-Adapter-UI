@@ -2,7 +2,7 @@
 </script>
 
 <template>
-  <div role="table" aria-label="Arc list">
+  <div role="table" aria-label="Thread list">
     <!-- Rows injected via slot -->
     <TransitionGroup name="list" tag="div" class="relative">
       <slot />

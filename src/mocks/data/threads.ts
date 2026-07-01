@@ -1,9 +1,9 @@
-import type { Arc } from '@/types/server'
+import type { Thread } from '@/types/server'
 
-export const mockArcs: Arc[] = [
+export const mockThreads: Thread[] = [
   // auth — OTP from Stripe
   {
-    arcId: 'thr_auth_1',
+    threadId: 'thr_auth_1',
     workflow: 'auth',
     labels: [],
     status: 'active',
@@ -19,7 +19,7 @@ export const mockArcs: Arc[] = [
   },
   // auth — magic link from Notion
   {
-    arcId: 'thr_auth_2',
+    threadId: 'thr_auth_2',
     workflow: 'auth',
     labels: [],
     status: 'archived',
@@ -34,7 +34,7 @@ export const mockArcs: Arc[] = [
   },
   // conversation — back and forth with colleague
   {
-    arcId: 'thr_conv_1',
+    threadId: 'thr_conv_1',
     workflow: 'conversation',
     labels: ['lbl_6'],
     status: 'active',
@@ -49,7 +49,7 @@ export const mockArcs: Arc[] = [
   },
   // conversation — negative sentiment
   {
-    arcId: 'thr_conv_2',
+    threadId: 'thr_conv_2',
     workflow: 'conversation',
     labels: ['lbl_5', 'lbl_6'],
     status: 'active',
@@ -64,7 +64,7 @@ export const mockArcs: Arc[] = [
   },
   // crm — recruiter
   {
-    arcId: 'thr_crm_1',
+    threadId: 'thr_crm_1',
     workflow: 'crm',
     labels: [],
     status: 'active',
@@ -79,7 +79,7 @@ export const mockArcs: Arc[] = [
   },
   // crm — sales outreach
   {
-    arcId: 'thr_crm_2',
+    threadId: 'thr_crm_2',
     workflow: 'crm',
     labels: [],
     status: 'archived',
@@ -94,7 +94,7 @@ export const mockArcs: Arc[] = [
   },
   // package — Amazon shipped
   {
-    arcId: 'thr_pkg_1',
+    threadId: 'thr_pkg_1',
     workflow: 'package',
     labels: ['lbl_7'],
     status: 'active',
@@ -109,7 +109,7 @@ export const mockArcs: Arc[] = [
   },
   // package — DHL delivery
   {
-    arcId: 'thr_pkg_2',
+    threadId: 'thr_pkg_2',
     workflow: 'package',
     labels: ['lbl_7'],
     status: 'active',
@@ -124,7 +124,7 @@ export const mockArcs: Arc[] = [
   },
   // travel — flight booking
   {
-    arcId: 'thr_travel_1',
+    threadId: 'thr_travel_1',
     workflow: 'travel',
     labels: ['lbl_4'],
     status: 'active',
@@ -139,7 +139,7 @@ export const mockArcs: Arc[] = [
   },
   // travel — hotel reservation
   {
-    arcId: 'thr_travel_2',
+    threadId: 'thr_travel_2',
     workflow: 'travel',
     labels: ['lbl_4'],
     status: 'active',
@@ -154,7 +154,7 @@ export const mockArcs: Arc[] = [
   },
   // payments — Hetzner invoice
   {
-    arcId: 'thr_pay_1',
+    threadId: 'thr_pay_1',
     workflow: 'payments',
     labels: ['lbl_1', 'lbl_3'],
     status: 'active',
@@ -169,7 +169,7 @@ export const mockArcs: Arc[] = [
   },
   // payments — Stripe subscription renewal
   {
-    arcId: 'thr_pay_2',
+    threadId: 'thr_pay_2',
     workflow: 'payments',
     labels: ['lbl_1', 'lbl_3'],
     status: 'archived',
@@ -184,7 +184,7 @@ export const mockArcs: Arc[] = [
   },
   // payments — failed payment
   {
-    arcId: 'thr_pay_3',
+    threadId: 'thr_pay_3',
     workflow: 'payments',
     labels: ['lbl_3', 'lbl_5'],
     status: 'active',
@@ -199,7 +199,7 @@ export const mockArcs: Arc[] = [
   },
   // alert — suspicious login GitHub
   {
-    arcId: 'thr_alert_1',
+    threadId: 'thr_alert_1',
     workflow: 'alert',
     labels: ['lbl_5'],
     status: 'active',
@@ -214,7 +214,7 @@ export const mockArcs: Arc[] = [
   },
   // alert — CI failure
   {
-    arcId: 'thr_alert_2',
+    threadId: 'thr_alert_2',
     workflow: 'alert',
     labels: ['lbl_6'],
     status: 'active',
@@ -229,7 +229,7 @@ export const mockArcs: Arc[] = [
   },
   // alert — cert expiry
   {
-    arcId: 'thr_alert_3',
+    threadId: 'thr_alert_3',
     workflow: 'alert',
     labels: ['lbl_5'],
     status: 'active',
@@ -245,7 +245,7 @@ export const mockArcs: Arc[] = [
   },
   // content — newsletter Morning Brew
   {
-    arcId: 'thr_content_1',
+    threadId: 'thr_content_1',
     workflow: 'content',
     labels: ['lbl_2'],
     status: 'active',
@@ -261,7 +261,7 @@ export const mockArcs: Arc[] = [
   },
   // content — product update Linear
   {
-    arcId: 'thr_content_2',
+    threadId: 'thr_content_2',
     workflow: 'content',
     labels: ['lbl_2'],
     status: 'active',
@@ -276,7 +276,7 @@ export const mockArcs: Arc[] = [
   },
   // onboarding — welcome email
   {
-    arcId: 'thr_onboard_1',
+    threadId: 'thr_onboard_1',
     workflow: 'onboarding',
     labels: [],
     status: 'archived',
@@ -291,7 +291,7 @@ export const mockArcs: Arc[] = [
   },
   // status — terms update Google
   {
-    arcId: 'thr_status_1',
+    threadId: 'thr_status_1',
     workflow: 'status',
     labels: [],
     status: 'archived',
@@ -306,7 +306,7 @@ export const mockArcs: Arc[] = [
   },
   // healthcare — appointment reminder
   {
-    arcId: 'thr_health_1',
+    threadId: 'thr_health_1',
     workflow: 'healthcare',
     labels: ['lbl_8'],
     status: 'active',
@@ -321,7 +321,7 @@ export const mockArcs: Arc[] = [
   },
   // job — interview request
   {
-    arcId: 'thr_job_1',
+    threadId: 'thr_job_1',
     workflow: 'job',
     labels: [],
     status: 'active',
@@ -336,7 +336,7 @@ export const mockArcs: Arc[] = [
   },
   // job — application status
   {
-    arcId: 'thr_job_2',
+    threadId: 'thr_job_2',
     workflow: 'job',
     labels: [],
     status: 'archived',
@@ -351,7 +351,7 @@ export const mockArcs: Arc[] = [
   },
   // support — ticket opened
   {
-    arcId: 'thr_support_1',
+    threadId: 'thr_support_1',
     workflow: 'support',
     labels: [],
     status: 'active',
@@ -366,7 +366,7 @@ export const mockArcs: Arc[] = [
   },
   // support — agent response
   {
-    arcId: 'thr_support_2',
+    threadId: 'thr_support_2',
     workflow: 'support',
     labels: [],
     status: 'active',
@@ -381,7 +381,7 @@ export const mockArcs: Arc[] = [
   },
   // test — test email from setup
   {
-    arcId: 'thr_test_1',
+    threadId: 'thr_test_1',
     workflow: 'test',
     labels: [],
     status: 'archived',
@@ -396,7 +396,7 @@ export const mockArcs: Arc[] = [
   },
   // deleted thread for testing
   {
-    arcId: 'thr_deleted_1',
+    threadId: 'thr_deleted_1',
     workflow: 'content',
     labels: ['lbl_2'],
     status: 'deleted',

@@ -1,20 +1,20 @@
 import { watch } from 'vue'
 import { useAccountStore } from '@/stores/account'
-import { useArcsStore } from '@/stores/arcs'
+import { useThreadsStore } from '@/stores/threads'
 import { useSignalsStore } from '@/stores/signals'
 import { loginClient } from '@/lib/auth'
-import type { ArcUrgency } from '@/types/server'
+import type { ThreadUrgency } from '@/types/server'
 import type { RealtimeEvent, SignalCreatedEvent } from '@/types/realtime'
 
 // Module-level singleton — one SharedWorker port for the whole page lifetime.
 let worker: SharedWorker | null = null
 
 // critical / high / normal → notify; low / silent → skip
-function shouldNotify(urgency: ArcUrgency): boolean {
+function shouldNotify(urgency: ThreadUrgency): boolean {
   return urgency !== 'low' && urgency !== 'silent'
 }
 
-function notifTitle(urgency: ArcUrgency): string {
+function notifTitle(urgency: ThreadUrgency): string {
   if (urgency === 'critical') return '🚨 Critical email'
   if (urgency === 'high') return '⚠️ High priority email'
   return 'New email'
@@ -28,7 +28,7 @@ function fireNotification(event: SignalCreatedEvent) {
     new Notification(notifTitle(event.urgency), {
       body: `From: ${event.from.name ?? event.from.address}\n${event.subject}`,
       icon: '/favicon.ico',
-      tag: event.arcId, // collapses duplicate OS notifications for the same arc
+      tag: event.threadId, // collapses duplicate OS notifications for the same thread
     })
   } catch {
     // Blocked at OS level even with permission granted
@@ -37,26 +37,26 @@ function fireNotification(event: SignalCreatedEvent) {
 
 export function useRealtime() {
   const accountStore = useAccountStore()
-  const arcsStore = useArcsStore()
+  const threadsStore = useThreadsStore()
   const signalsStore = useSignalsStore()
 
   function handleEvent(event: RealtimeEvent) {
     switch (event.type) {
       case 'signal:created':
         // Update the thread in the inbox list
-        void arcsStore.refreshArc(event.arcId)
+        void threadsStore.refreshThread(event.threadId)
         // If the detail view for this thread is open, pull the updated signals
-        if (signalsStore.currentArcId === event.arcId) {
-          void signalsStore.fetchAll(event.arcId)
+        if (signalsStore.currentThreadId === event.threadId) {
+          void signalsStore.fetchAll(event.threadId)
         }
         fireNotification(event)
         break
-      case 'arc:updated':
+      case 'thread:updated':
         // Update just this thread in the inbox list
-        void arcsStore.refreshArc(event.arcId)
+        void threadsStore.refreshThread(event.threadId)
         // If the detail view for this thread is open, refresh it too
-        if (signalsStore.currentArcId === event.arcId) {
-          void signalsStore.fetchAll(event.arcId)
+        if (signalsStore.currentThreadId === event.threadId) {
+          void signalsStore.fetchAll(event.threadId)
         }
         break
     }

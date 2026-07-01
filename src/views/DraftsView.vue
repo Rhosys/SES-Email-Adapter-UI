@@ -10,7 +10,7 @@ useRelativeTime()
 const isEmpty = computed(() => !store.loading && store.drafts.length === 0)
 
 onMounted(async () => {
-  await store.refreshTopArcs()
+  await store.refreshTopThreads()
 })
 </script>
 

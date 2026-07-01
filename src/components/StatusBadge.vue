@@ -6,9 +6,9 @@
  * To add a new status, add it to the `Status` type AND both maps below. The `Status` type
  * is the union of valid values, so the compiler rejects any unsupported value at the call site.
  */
-import type { ArcStatus, QuarantineStatus } from '@/types/server'
+import type { ThreadStatus, QuarantineStatus } from '@/types/server'
 
-type Status = ArcStatus | QuarantineStatus
+type Status = ThreadStatus | QuarantineStatus
 
 defineProps<{ status: Status }>()
 

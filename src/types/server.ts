@@ -20,9 +20,9 @@ export type Workflow =
   | 'support'
   | 'test'
 
-export type ArcStatus = 'active' | 'archived' | 'deleted' | 'report_violation'
+export type ThreadStatus = 'active' | 'archived' | 'deleted' | 'report_violation'
 
-export type ArcUrgency = 'critical' | 'high' | 'normal' | 'low' | 'silent'
+export type ThreadUrgency = 'critical' | 'high' | 'normal' | 'low' | 'silent'
 
 export type SignalStatus =
   | 'active'
@@ -122,20 +122,20 @@ export interface UserConfiguration {
   postSendView: PostSendView
 }
 
-// ─── Arc ──────────────────────────────────────────────────────────────────────
+// ─── Thread ──────────────────────────────────────────────────────────────────────
 
-export interface Arc {
-  arcId: string
+export interface Thread {
+  threadId: string
   workflow: Workflow
   labels: string[]
-  status: ArcStatus
+  status: ThreadStatus
   summary: string
   lastSignalAt: string
   deletedAt?: string
   createdAt: string
   updatedAt: string
   retentionDuration?: RetentionDuration
-  urgency?: ArcUrgency
+  urgency?: ThreadUrgency
   // Denormalised from latest inbound signal — backend TODO pending
   senderAddress?: string
   recipientAddress?: string
@@ -146,7 +146,7 @@ export interface Arc {
 
 export interface SignalBase {
   signalId: string
-  arcId?: string
+  threadId?: string
   source: SignalSource
   status: SignalStatus
   createdAt: string
@@ -190,7 +190,7 @@ export interface UnsubscribeInfo {
 export interface InboundEmailSignalData {
   receivedAt: string
   summary: string
-  urgency?: ArcUrgency
+  urgency?: ThreadUrgency
   from: EmailAddress
   to: EmailAddress[]
   cc: EmailAddress[]
@@ -530,9 +530,9 @@ export type ConditionField =
   | 'signal.subject'
   | 'signal.workflow'
   | 'signal.spamScore'
-  | 'arc.labels'
-  | 'arc.urgency'
-  | 'arc.status'
+  | 'thread.labels'
+  | 'thread.urgency'
+  | 'thread.status'
 
 export type ConditionOperator =
   | 'equals'

@@ -25,7 +25,7 @@ const reprocessError = ref<string | null>(null)
 const undoPending = ref(false)
 const undoError = ref<string | null>(null)
 const isUserSent = computed(() => props.signal.source === 'user')
-const threadId = computed(() => props.signal.arcId)
+const threadId = computed(() => props.signal.threadId)
 
 const signalMatchedRules = computed(() => {
   if (!isInboundEmailSignal(props.signal)) return []
@@ -198,22 +198,22 @@ async function reprocessSignal() {
 
   const newSignal = result.value
 
-  // Blocked / reported signals don't belong to any arc or quarantine screen the
+  // Blocked / reported signals don't belong to any thread or quarantine screen the
   // admin can view — send them back to the inbox.
   if (newSignal.status === 'block_hidden' || newSignal.status === 'block_reject' || newSignal.status === 'report_violation') {
     void router.push('/')
     return
   }
 
-  // No arc means the signal landed in quarantine.
-  if (!newSignal.arcId) {
+  // No thread means the signal landed in quarantine.
+  if (!newSignal.threadId) {
     void router.push(`/quarantine/${newSignal.signalId}`)
     return
   }
 
-  const currentArcId = route.params.id as string
-  if (newSignal.arcId !== currentArcId) {
-    void router.replace(`/arcs/${newSignal.arcId}`)
+  const currentThreadId = route.params.id as string
+  if (newSignal.threadId !== currentThreadId) {
+    void router.replace(`/threads/${newSignal.threadId}`)
     return
   }
 

@@ -83,10 +83,10 @@ watch([localPart, selectedDomain, subject, body], () => {
 
 async function persistDraft() {
   if (!accountStore.accountId) return
-  const arcId = props.signal.arcId
-  if (!arcId) return
+  const threadId = props.signal.threadId
+  if (!threadId) return
   saving.value = true
-  const result = await api.updateDraftSignal(accountStore.accountId, arcId, props.signal.signalId, {
+  const result = await api.updateDraftSignal(accountStore.accountId, threadId, props.signal.signalId, {
     from: fromAddress.value ? { address: fromAddress.value } : undefined,
     subject: subject.value,
     textBody: body.value,
@@ -96,7 +96,7 @@ async function persistDraft() {
     error.value = result.error.message
     return
   }
-  if (props.signal.arcId) signalsStore.updateSignal(props.signal.arcId, result.value)
+  if (props.signal.threadId) signalsStore.updateSignal(props.signal.threadId, result.value)
 }
 
 async function sendAndArchive() {
@@ -106,8 +106,8 @@ async function sendAndArchive() {
 
   const accountId = accountStore.accountId
   const signalId = props.signal.signalId
-  const sigArcId = props.signal.arcId
-  if (!sigArcId) return
+  const sigThreadId = props.signal.threadId
+  if (!sigThreadId) return
 
   sendState.value = 'cancellable'
   if (shouldReturnToInbox.value) void router.push('/')
@@ -115,10 +115,10 @@ async function sendAndArchive() {
   const id = deferAction(
     'Email sent + archived',
     async () => {
-      const result = await api.sendSignal(accountId, sigArcId, signalId)
+      const result = await api.sendSignal(accountId, sigThreadId, signalId)
       if (result.isOk()) {
-        signalsStore.updateSignal(sigArcId, result.value)
-        await api.patchArc(accountId, sigArcId, { status: 'archived' })
+        signalsStore.updateSignal(sigThreadId, result.value)
+        await api.patchThread(accountId, sigThreadId, { status: 'archived' })
       }
       sendState.value = 'idle'
       toastId.value = null
@@ -140,8 +140,8 @@ async function sendAndWait() {
 
   const accountId = accountStore.accountId
   const signalId = props.signal.signalId
-  const sigArcId = props.signal.arcId
-  if (!sigArcId) return
+  const sigThreadId = props.signal.threadId
+  if (!sigThreadId) return
 
   sendState.value = 'cancellable'
   if (shouldReturnToInbox.value) void router.push('/')
@@ -150,10 +150,10 @@ async function sendAndWait() {
   const id = deferAction(
     'Email sent — follow up in 7 days',
     async () => {
-      const result = await api.sendSignal(accountId, sigArcId, signalId)
+      const result = await api.sendSignal(accountId, sigThreadId, signalId)
       if (result.isOk()) {
-        signalsStore.updateSignal(sigArcId, result.value)
-        await api.patchArc(accountId, sigArcId, { followupAt })
+        signalsStore.updateSignal(sigThreadId, result.value)
+        await api.patchThread(accountId, sigThreadId, { followupAt })
       }
       sendState.value = 'idle'
       toastId.value = null
@@ -177,7 +177,7 @@ async function discard() {
   const result = await api.deleteDraftSignal(accountStore.accountId, props.signal.signalId)
   // Remove from local cache on success or 404 (already gone on server)
   if (result.isOk() || result.error.status === 404) {
-    if (props.signal.arcId) signalsStore.removeSignal(props.signal.arcId, props.signal.signalId)
+    if (props.signal.threadId) signalsStore.removeSignal(props.signal.threadId, props.signal.signalId)
   }
   emit('discard')
 }

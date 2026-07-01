@@ -10,24 +10,24 @@ import type { Signal } from '@/types/server'
 export const useSignalsStore = defineStore('signals', () => {
   const accountStore = useAccountStore()
 
-  // accountId -> arcId -> signals (newest first). Keyed by arcId (not just
-  // accountId) so signals for many arcs can be cached at once — this backs
-  // cross-arc derivations like the drafts indicator/list, which scan every
-  // cached arc for draft signals instead of calling a dedicated endpoint.
+  // accountId -> threadId -> signals (newest first). Keyed by threadId (not just
+  // accountId) so signals for many threads can be cached at once — this backs
+  // cross-thread derivations like the drafts indicator/list, which scan every
+  // cached thread for draft signals instead of calling a dedicated endpoint.
   const _byAccount = ref<Record<string, Record<string, Signal[]>>>({})
-  const currentArcId = ref<string | null>(null)
+  const currentThreadId = ref<string | null>(null)
   const nextCursor = ref<string | undefined>(undefined)
   const loading = ref(false)
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
 
-  function arcSignals(arcId: string): Signal[] {
+  function threadSignals(threadId: string): Signal[] {
     const accountId = accountStore.accountId
     if (!accountId) return []
-    return _byAccount.value[accountId]?.[arcId] ?? []
+    return _byAccount.value[accountId]?.[threadId] ?? []
   }
 
-  function setArcSignals(arcId: string, signals: Signal[]) {
+  function setThreadSignals(threadId: string, signals: Signal[]) {
     const accountId = accountStore.accountId
     if (!accountId) return
     // Always enforce newest-first by createdAt — fetchAll's merge of fresh +
@@ -35,29 +35,29 @@ export const useSignalsStore = defineStore('signals', () => {
     // (drafts) or out-of-window pagination can otherwise land out of order.
     const sorted = [...signals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     const forAccount = _byAccount.value[accountId] ?? {}
-    _byAccount.value = { ..._byAccount.value, [accountId]: { ...forAccount, [arcId]: sorted } }
+    _byAccount.value = { ..._byAccount.value, [accountId]: { ...forAccount, [threadId]: sorted } }
   }
 
-  const items = computed<Signal[]>(() => (currentArcId.value ? arcSignals(currentArcId.value) : []))
+  const items = computed<Signal[]>(() => (currentThreadId.value ? threadSignals(currentThreadId.value) : []))
   const hasMore = computed(() => !!nextCursor.value)
   const latestSignal = computed(() => items.value[0] ?? null)
 
-  // Every signal cached for the current account, across all arcs.
+  // Every signal cached for the current account, across all threads.
   const allSignals = computed<Signal[]>(() => {
     const accountId = accountStore.accountId
     if (!accountId) return []
     return Object.values(_byAccount.value[accountId] ?? {}).flat()
   })
 
-  async function fetchAll(arcId: string) {
+  async function fetchAll(threadId: string) {
     const accountId = accountStore.accountId
     if (!accountId) return
-    currentArcId.value = arcId
-    const cached = arcSignals(arcId)
+    currentThreadId.value = threadId
+    const cached = threadSignals(threadId)
     loading.value = cached.length === 0
     error.value = null
 
-    const signalsResult = await api.listSignals(accountId, arcId, { limit: 50 })
+    const signalsResult = await api.listSignals(accountId, threadId, { limit: 50 })
 
     if (signalsResult.isErr()) {
       if (cached.length > 0) {
@@ -73,23 +73,23 @@ export const useSignalsStore = defineStore('signals', () => {
     const fresh = [...signalsResult.value.signals].reverse()
 
     if (cached.length === 0) {
-      setArcSignals(arcId, fresh)
+      setThreadSignals(threadId, fresh)
     } else {
       const freshIds = new Set(fresh.map((s) => s.signalId))
       const olderCached = cached.filter((s) => !freshIds.has(s.signalId))
-      setArcSignals(arcId, [...fresh, ...olderCached])
+      setThreadSignals(threadId, [...fresh, ...olderCached])
     }
 
     nextCursor.value = signalsResult.value.pagination.cursor ?? undefined
     loading.value = false
   }
 
-  async function fetchMore(arcId: string) {
+  async function fetchMore(threadId: string) {
     const accountId = accountStore.accountId
     if (!accountId || !nextCursor.value || loadingMore.value) return
     loadingMore.value = true
 
-    const result = await api.listSignals(accountId, arcId, {
+    const result = await api.listSignals(accountId, threadId, {
       cursor: nextCursor.value,
       limit: 50,
     })
@@ -98,33 +98,33 @@ export const useSignalsStore = defineStore('signals', () => {
       error.value = result.error.message
     } else {
       // Append older signals (API returns them chronologically; items are newest-first)
-      setArcSignals(arcId, [...arcSignals(arcId), ...[...result.value.signals].reverse()])
+      setThreadSignals(threadId, [...threadSignals(threadId), ...[...result.value.signals].reverse()])
       nextCursor.value = result.value.pagination.cursor ?? undefined
     }
 
     loadingMore.value = false
   }
 
-  // Background refresh of several arcs at once — used by the Drafts page to
-  // pull fresh signals for the most recently active arcs on load, so any
+  // Background refresh of several threads at once — used by the Drafts page to
+  // pull fresh signals for the most recently active threads on load, so any
   // drafts hiding in them surface without a dedicated "list drafts" call.
-  async function fetchForArcs(arcIds: string[]) {
+  async function fetchForThreads(threadIds: string[]) {
     const accountId = accountStore.accountId
     if (!accountId) return
     await Promise.all(
-      arcIds.map(async (arcId) => {
-        const result = await api.listSignals(accountId, arcId, { limit: 50 })
+      threadIds.map(async (threadId) => {
+        const result = await api.listSignals(accountId, threadId, { limit: 50 })
         if (result.isOk()) {
-          setArcSignals(arcId, [...result.value.signals].reverse())
+          setThreadSignals(threadId, [...result.value.signals].reverse())
         }
       }),
     )
   }
 
-  async function createDraft(arcId: string): Promise<Result<Signal, ApiError | NoCurrentAccountError>> {
+  async function createDraft(threadId: string): Promise<Result<Signal, ApiError | NoCurrentAccountError>> {
     const accountId = accountStore.accountId
     if (!accountId) return err(new NoCurrentAccountError())
-    const existing = arcSignals(arcId)
+    const existing = threadSignals(threadId)
     // Use the latest non-draft signal as the reply target
     const replyTo = existing.find((s) => s.status !== 'draft') ?? existing[0]
 
@@ -158,7 +158,7 @@ export const useSignalsStore = defineStore('signals', () => {
       replySubject = /^re:\s/i.test(subj) ? subj : `Re: ${subj}`
     }
 
-    const result = await api.createDraftSignal(accountId, arcId, {
+    const result = await api.createDraftSignal(accountId, threadId, {
       from: { address: fromAddress },
       to: toAddresses,
       subject: replySubject,
@@ -168,28 +168,28 @@ export const useSignalsStore = defineStore('signals', () => {
       return err(result.error)
     }
     // newest-first; a new draft reply is the newest item
-    setArcSignals(arcId, [result.value, ...existing])
+    setThreadSignals(threadId, [result.value, ...existing])
     return ok(result.value)
   }
 
   // Patches a single cached signal in place — keeps the shared cache (and the
   // derived drafts indicator/list) in sync with edits made outside this
   // store, e.g. draft autosave or send, which call the API directly.
-  function updateSignal(arcId: string, signal: Signal) {
-    const existing = arcSignals(arcId)
+  function updateSignal(threadId: string, signal: Signal) {
+    const existing = threadSignals(threadId)
     const idx = existing.findIndex((s) => s.signalId === signal.signalId)
     if (idx === -1) return
     const updated = [...existing]
     updated[idx] = signal
-    setArcSignals(arcId, updated)
+    setThreadSignals(threadId, updated)
   }
 
-  function removeSignal(arcId: string, signalId: string) {
-    setArcSignals(arcId, arcSignals(arcId).filter((s) => s.signalId !== signalId))
+  function removeSignal(threadId: string, signalId: string) {
+    setThreadSignals(threadId, threadSignals(threadId).filter((s) => s.signalId !== signalId))
   }
 
   function reset() {
-    currentArcId.value = null
+    currentThreadId.value = null
     nextCursor.value = undefined
     loading.value = false
     loadingMore.value = false
@@ -198,7 +198,7 @@ export const useSignalsStore = defineStore('signals', () => {
 
   return {
     _byAccount,
-    currentArcId,
+    currentThreadId,
     items,
     allSignals,
     nextCursor,
@@ -209,11 +209,11 @@ export const useSignalsStore = defineStore('signals', () => {
     latestSignal,
     fetchAll,
     fetchMore,
-    fetchForArcs,
+    fetchForThreads,
     createDraft,
     updateSignal,
     removeSignal,
-    arcSignals,
+    threadSignals,
     reset,
   }
 }, {

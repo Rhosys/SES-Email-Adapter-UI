@@ -7,8 +7,8 @@ import type {
   Alias,
   AliasSender,
   SenderPolicy,
-  Arc,
-  ArcStatus,
+  Thread,
+  ThreadStatus,
   AuditEvent,
   BillingInfo,
   CreateDraftSignalBody,
@@ -43,7 +43,7 @@ export class ApiError {
   ) {}
 }
 
-export interface ArcListParams {
+export interface ThreadListParams {
   workflow?: string
   status?: string
   sender?: string
@@ -53,8 +53,8 @@ export interface ArcListParams {
   limit?: number
 }
 
-export interface PatchArcBody {
-  status?: ArcStatus
+export interface PatchThreadBody {
+  status?: ThreadStatus
   labels?: string[]
   followupAt?: string
 }
@@ -68,8 +68,8 @@ export interface QuarantineSignalListParams {
 }
 
 // Wire shapes returned by the backend list endpoints.
-interface ArcListWire {
-  arcs: Arc[]
+interface ThreadListWire {
+  threads: Thread[]
   pagination: Pagination
 }
 
@@ -136,7 +136,7 @@ export const api = {
     })
   },
 
-  listArcs(accountId: string, params: ArcListParams): Promise<Result<ArcListWire, ApiError>> {
+  listThreads(accountId: string, params: ThreadListParams): Promise<Result<ThreadListWire, ApiError>> {
     const qs = new URLSearchParams()
     if (params.workflow) qs.set('workflow', params.workflow)
     if (params.status) qs.set('status', params.status)
@@ -146,31 +146,31 @@ export const api = {
     if (params.cursor) qs.set('cursor', params.cursor)
     if (params.limit) qs.set('limit', String(params.limit))
     const query = qs.toString()
-    return request<ArcListWire>(
-      `/accounts/${accountId}/arcs${query ? `?${query}` : ''}`,
+    return request<ThreadListWire>(
+      `/accounts/${accountId}/threads${query ? `?${query}` : ''}`,
     )
   },
 
-  getArc(accountId: string, arcId: string): Promise<Result<Arc, ApiError>> {
-    return request<Arc>(`/accounts/${accountId}/arcs/${arcId}`)
+  getThread(accountId: string, threadId: string): Promise<Result<Thread, ApiError>> {
+    return request<Thread>(`/accounts/${accountId}/threads/${threadId}`)
   },
 
-  patchArc(accountId: string, arcId: string, body: PatchArcBody): Promise<Result<Arc, ApiError>> {
-    return request<Arc>(`/accounts/${accountId}/arcs/${arcId}`, {
+  patchThread(accountId: string, threadId: string, body: PatchThreadBody): Promise<Result<Thread, ApiError>> {
+    return request<Thread>(`/accounts/${accountId}/threads/${threadId}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     })
   },
 
-  unsubscribeArc(accountId: string, arcId: string): Promise<Result<{ status: string; url?: string }, ApiError>> {
-    return request<{ status: string; url?: string }>(`/accounts/${accountId}/arcs/${arcId}/unsubscribe`, {
+  unsubscribeThread(accountId: string, threadId: string): Promise<Result<{ status: string; url?: string }, ApiError>> {
+    return request<{ status: string; url?: string }>(`/accounts/${accountId}/threads/${threadId}/unsubscribe`, {
       method: 'POST',
     })
   },
 
   listSignals(
     accountId: string,
-    arcId: string,
+    threadId: string,
     params: { cursor?: string; limit?: number } = {},
   ): Promise<Result<SignalListWire, ApiError>> {
     const qs = new URLSearchParams()
@@ -178,7 +178,7 @@ export const api = {
     if (params.limit) qs.set('limit', String(params.limit))
     const query = qs.toString()
     return request<SignalListWire>(
-      `/accounts/${accountId}/arcs/${arcId}/signals${query ? `?${query}` : ''}`,
+      `/accounts/${accountId}/threads/${threadId}/signals${query ? `?${query}` : ''}`,
     )
   },
 
@@ -212,8 +212,8 @@ export const api = {
     accountId: string,
     signalId: string,
     status: 'active' | 'block_hidden' | 'block_reject',
-  ): Promise<Result<{ arc?: { arcId: string }; signal?: Signal } & Record<string, unknown>, ApiError>> {
-    return request<{ arc?: { arcId: string }; signal?: Signal } & Record<string, unknown>>(`/accounts/${accountId}/signals/${signalId}/quarantineResponse`, {
+  ): Promise<Result<{ thread?: { threadId: string }; signal?: Signal } & Record<string, unknown>, ApiError>> {
+    return request<{ thread?: { threadId: string }; signal?: Signal } & Record<string, unknown>>(`/accounts/${accountId}/signals/${signalId}/quarantineResponse`, {
       method: 'POST',
       body: JSON.stringify({ status }),
     })
@@ -223,11 +223,11 @@ export const api = {
 
   rsvpSignal(
     accountId: string,
-    arcId: string,
+    threadId: string,
     signalId: string,
     response: 'accepted' | 'declined' | 'tentative',
   ): Promise<Result<Signal, ApiError>> {
-    return request<Signal>(`/accounts/${accountId}/arcs/${arcId}/signals/${signalId}/rsvp`, {
+    return request<Signal>(`/accounts/${accountId}/threads/${threadId}/signals/${signalId}/rsvp`, {
       method: 'POST',
       body: JSON.stringify({ response }),
     })
@@ -237,10 +237,10 @@ export const api = {
 
   createDraftSignal(
     accountId: string,
-    arcId: string,
+    threadId: string,
     body: CreateDraftSignalBody,
   ): Promise<Result<Signal, ApiError>> {
-    return request<Signal>(`/accounts/${accountId}/arcs/${arcId}/signals`, {
+    return request<Signal>(`/accounts/${accountId}/threads/${threadId}/signals`, {
       method: 'POST',
       body: JSON.stringify(body),
     })
@@ -248,18 +248,18 @@ export const api = {
 
   updateDraftSignal(
     accountId: string,
-    arcId: string,
+    threadId: string,
     signalId: string,
     body: UpdateDraftSignalBody,
   ): Promise<Result<Signal, ApiError>> {
-    return request<Signal>(`/accounts/${accountId}/arcs/${arcId}/signals/${signalId}`, {
+    return request<Signal>(`/accounts/${accountId}/threads/${threadId}/signals/${signalId}`, {
       method: 'PUT',
       body: JSON.stringify(body),
     })
   },
 
-  sendSignal(accountId: string, arcId: string, signalId: string): Promise<Result<Signal, ApiError>> {
-    return request<Signal>(`/accounts/${accountId}/arcs/${arcId}/signals/${signalId}/send`, { method: 'POST' })
+  sendSignal(accountId: string, threadId: string, signalId: string): Promise<Result<Signal, ApiError>> {
+    return request<Signal>(`/accounts/${accountId}/threads/${threadId}/signals/${signalId}/send`, { method: 'POST' })
   },
 
   patchSignal(

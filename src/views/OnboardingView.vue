@@ -244,15 +244,15 @@ function startPolling(accountId: string) {
       clearInterval(pollInterval!)
       return
     }
-    // Check both quarantined signals and arcs — test emails may not be quarantined
-    const [quarantineResult, arcsResult] = await Promise.all([
+    // Check both quarantined signals and threads — test emails may not be quarantined
+    const [quarantineResult, threadsResult] = await Promise.all([
       api.listQuarantinedSignals(accountId, 'quarantine_visible', { limit: 1 }),
-      api.listArcs(accountId, { limit: 1 }),
+      api.listThreads(accountId, { limit: 1 }),
     ])
     const hasSignal = quarantineResult.isOk() && quarantineResult.value.signals.length > 0
-    const hasArc = arcsResult.isOk() && arcsResult.value.arcs.length > 0
-    if (hasSignal || hasArc) {
-      logger.info({ title: 'Onboarding: signal detected via poll', accountId, attempt: attempts, source: hasArc ? 'arc' : 'quarantine' })
+    const hasThread = threadsResult.isOk() && threadsResult.value.threads.length > 0
+    if (hasSignal || hasThread) {
+      logger.info({ title: 'Onboarding: signal detected via poll', accountId, attempt: attempts, source: hasThread ? 'thread' : 'quarantine' })
       clearInterval(pollInterval!)
       void onSignalArrived()
     }

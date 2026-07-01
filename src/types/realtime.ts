@@ -4,20 +4,20 @@
 // Everything else (rules, labels, archived status) is re-fetched on
 // navigation or page focus.
 
-import type { ArcUrgency } from './server'
+import type { ThreadUrgency } from './server'
 
 export interface SignalCreatedEvent {
   type: 'signal:created'
-  arcId: string
+  threadId: string
   signalId: string
-  urgency: ArcUrgency   // urgency of the thread after this signal lands
+  urgency: ThreadUrgency   // urgency of the thread after this signal lands
   from: { address: string; name?: string }
   subject: string
 }
 
-export interface ArcUpdatedEvent {
-  type: 'arc:updated'
-  arcId: string
+export interface ThreadUpdatedEvent {
+  type: 'thread:updated'
+  threadId: string
 }
 
-export type RealtimeEvent = SignalCreatedEvent | ArcUpdatedEvent
+export type RealtimeEvent = SignalCreatedEvent | ThreadUpdatedEvent

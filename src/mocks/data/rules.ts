@@ -137,7 +137,7 @@ export const mockRules: Rule[] = [
   {
     ruleId: 'rule_user_1',
     name: 'Archive newsletters older than 30d',
-    condition: '{"and":[{"==":[{"var":"signal.workflow"},"content"]},{">":[{"var":"arc.age_days"},30]}]}',
+    condition: '{"and":[{"==":[{"var":"signal.workflow"},"content"]},{">":[{"var":"thread.age_days"},30]}]}',
     conditionType: 'json_logic',
     actions: [{ type: 'archive' }],
     status: 'enabled',

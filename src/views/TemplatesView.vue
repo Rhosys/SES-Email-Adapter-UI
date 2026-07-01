@@ -119,7 +119,7 @@ function openFnEditor(idx: number) {
 }
 
 function addFunction() {
-  draftFunctions.value = [...draftFunctions.value, { name: '', code: '(signal, arc) => {\n  \n}' }]
+  draftFunctions.value = [...draftFunctions.value, { name: '', code: '(signal, thread) => {\n  \n}' }]
   openFnEditor(draftFunctions.value.length - 1)
 }
 
@@ -136,7 +136,7 @@ function cancelFnEditor() {
   if (editingFnIdx.value == null) return
   // If new and still unnamed+empty, remove it
   const fn = draftFunctions.value[editingFnIdx.value]
-  if (!fn.name && fn.code === '(signal, arc) => {\n  \n}') {
+  if (!fn.name && fn.code === '(signal, thread) => {\n  \n}') {
     draftFunctions.value = draftFunctions.value.filter((_, i) => i !== editingFnIdx.value)
   }
   showFnEditor.value = false
@@ -166,12 +166,12 @@ const signalProps: PropInfo[] = [
   { path: 'signal.data.spamScore', type: 'number?', example: '0.02', note: '0 = clean, 1 = spam' },
 ]
 
-const arcProps: PropInfo[] = [
-  { path: 'arc.workflow', type: 'string', example: 'conversation', note: 'auth | conversation | crm | package | travel…' },
-  { path: 'arc.summary', type: 'string', example: 'Customer asking about order #12345', note: 'AI summary' },
-  { path: 'arc.urgency', type: 'string', example: 'normal', note: 'critical | high | normal | low | silent' },
-  { path: 'arc.status', type: 'string', example: 'active', note: 'active | archived | deleted' },
-  { path: 'arc.labels', type: 'string[]', example: '[]', note: 'Applied label IDs' },
+const threadProps: PropInfo[] = [
+  { path: 'thread.workflow', type: 'string', example: 'conversation', note: 'auth | conversation | crm | package | travel…' },
+  { path: 'thread.summary', type: 'string', example: 'Customer asking about order #12345', note: 'AI summary' },
+  { path: 'thread.urgency', type: 'string', example: 'normal', note: 'critical | high | normal | low | silent' },
+  { path: 'thread.status', type: 'string', example: 'active', note: 'active | archived | deleted' },
+  { path: 'thread.labels', type: 'string[]', example: '[]', note: 'Applied label IDs' },
 ]
 
 function copyPropPath(path: string) {
@@ -190,7 +190,7 @@ const SAMPLE_SIGNAL = {
   receivedAt: new Date().toISOString(),
 }
 
-const SAMPLE_ARC = {
+const SAMPLE_THREAD = {
   workflow: 'conversation',
   summary: 'Customer asking about order #12345',
   urgency: 'normal',
@@ -199,13 +199,13 @@ const SAMPLE_ARC = {
 
 const WORKER_SRC = `
 self.onmessage = function(e) {
-  var fns = e.data.fns, signal = e.data.signal, arc = e.data.arc
+  var fns = e.data.fns, signal = e.data.signal, thread = e.data.thread
   var outputs = {}, errors = {}
   for (var i = 0; i < fns.length; i++) {
     var fn = fns[i]
     try {
-      var f = new Function('signal', 'arc', 'return (' + fn.code + ')(signal, arc)')
-      var result = f(signal, arc)
+      var f = new Function('signal', 'thread', 'return (' + fn.code + ')(signal, thread)')
+      var result = f(signal, thread)
       outputs[fn.name] = typeof result === 'string' ? result : String(result == null ? '' : result)
     } catch (err) {
       errors[fn.name] = err.message
@@ -241,7 +241,7 @@ function runWorker(
       worker.terminate()
       URL.revokeObjectURL(url)
     }
-    worker.postMessage({ fns, signal: SAMPLE_SIGNAL, arc: SAMPLE_ARC })
+    worker.postMessage({ fns, signal: SAMPLE_SIGNAL, thread: SAMPLE_THREAD })
   })
 }
 
@@ -478,7 +478,7 @@ onMounted(async () => {
             <code class="font-mono text-ctp-mauve">&#123;&#123;subject&#125;&#125;</code><span class="text-ctp-subtext0">Email subject line</span>
             <code class="font-mono text-ctp-mauve">&#123;&#123;to&#125;&#125;</code><span class="text-ctp-subtext0">Recipient address(es)</span>
             <code class="font-mono text-ctp-mauve">&#123;&#123;receivedAt&#125;&#125;</code><span class="text-ctp-subtext0">ISO timestamp the email was received</span>
-            <code class="font-mono text-ctp-mauve">&#123;&#123;arcId&#125;&#125;</code><span class="text-ctp-subtext0">Thread / arc identifier</span>
+            <code class="font-mono text-ctp-mauve">&#123;&#123;threadId&#125;&#125;</code><span class="text-ctp-subtext0">Thread / thread identifier</span>
             <code class="font-mono text-ctp-mauve">&#123;&#123;accountId&#125;&#125;</code><span class="text-ctp-subtext0">Your account ID</span>
             <!-- Dynamic properties (functions) -->
             <template v-for="fn in draftFunctions.filter(f => f.name.trim())" :key="fn.name">
@@ -706,7 +706,7 @@ onMounted(async () => {
                 v-model="fnDraftCode"
                 spellcheck="false"
                 class="flex-1 resize-none rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 font-mono text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-                placeholder="(signal, arc) => {&#10;  return signal.data.from.name&#10;}"
+                placeholder="(signal, thread) => {&#10;  return signal.data.from.name&#10;}"
               />
             </div>
             <div class="flex gap-3 border-t border-ctp-surface0 px-4 py-3">
@@ -722,7 +722,7 @@ onMounted(async () => {
             </div>
           </div>
 
-          <!-- Right: signal & arc properties reference -->
+          <!-- Right: signal & thread properties reference -->
           <div class="flex w-80 flex-col overflow-hidden">
             <div class="border-b border-ctp-surface0 px-4 py-3">
               <h4 class="text-xs font-semibold text-ctp-text">Available properties</h4>
@@ -742,10 +742,10 @@ onMounted(async () => {
                 </button>
               </div>
 
-              <p class="mb-1.5 font-medium text-ctp-text">arc</p>
+              <p class="mb-1.5 font-medium text-ctp-text">thread</p>
               <div class="space-y-1">
                 <button
-                  v-for="p in arcProps"
+                  v-for="p in threadProps"
                   :key="p.path"
                   class="flex w-full items-start gap-2 rounded px-1.5 py-1 text-left hover:bg-ctp-surface0 active:bg-ctp-surface1"
                   @click="copyPropPath(p.path)"
