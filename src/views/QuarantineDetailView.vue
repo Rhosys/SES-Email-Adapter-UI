@@ -69,6 +69,10 @@ const showReplyBlockedDialog = ref(false)
 function onReplyAttempt() {
   showReplyBlockedDialog.value = true
 }
+
+function onSignalReprocessed() {
+  void quarantineStore.fetchSignals(true)
+}
 </script>
 
 <template>
@@ -217,7 +221,7 @@ function onReplyAttempt() {
       </div>
 
       <!-- Email body -->
-      <SignalRenderer :signal="signal" @reply="onReplyAttempt" />
+      <SignalRenderer :signal="signal" @reply="onReplyAttempt" @reprocessed="onSignalReprocessed" />
     </template>
 
     <!-- Reply blocked dialog -->

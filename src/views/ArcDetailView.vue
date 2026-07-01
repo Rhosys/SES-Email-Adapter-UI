@@ -92,6 +92,10 @@ function onSignalUndo() {
   void signalsStore.fetchAll(arcId.value)
 }
 
+function onSignalReprocessed() {
+  void signalsStore.fetchAll(arcId.value)
+}
+
 async function archive() {
   const result = await arcsStore.archiveArc(arcId.value)
   if (result.isErr()) return
@@ -449,6 +453,7 @@ async function removeLabel(label: string) {
             :default-expanded="index === 0"
             @undo="onSignalUndo"
             @reply="startDraft"
+            @reprocessed="onSignalReprocessed"
           />
         </template>
       </div>

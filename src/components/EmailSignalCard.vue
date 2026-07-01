@@ -11,7 +11,7 @@ import { useGestureHandler } from '@/composables/useGestureHandler'
 import ActionBadge from '@/components/ActionBadge.vue'
 
 const props = withDefaults(defineProps<{ signal: Signal; defaultExpanded?: boolean }>(), { defaultExpanded: true })
-const emit = defineEmits<{ undo: []; reply: [] }>()
+const emit = defineEmits<{ undo: []; reply: []; reprocessed: [] }>()
 
 const router = useRouter()
 const route = useRoute()
@@ -20,6 +20,7 @@ const rulesStore = useRulesStore()
 const expanded = ref(props.defaultExpanded)
 const menuOpen = ref(false)
 const reprocessing = ref(false)
+const reprocessError = ref<string | null>(null)
 const undoPending = ref(false)
 const undoError = ref<string | null>(null)
 const isUserSent = computed(() => props.signal.source === 'user')
@@ -183,15 +184,39 @@ async function reprocessSignal() {
   menuOpen.value = false
   if (!accountStore.accountId || reprocessing.value) return
   reprocessing.value = true
+  reprocessError.value = null
+
   const result = await api.reprocessSignal(accountStore.accountId, props.signal.signalId)
-  reprocessing.value = false
-  if (result.isErr()) return
+
+  if (result.isErr()) {
+    reprocessing.value = false
+    reprocessError.value = result.error.message
+    return
+  }
 
   const newSignal = result.value
-  const currentArcId = route.params.id as string
-  if (newSignal.arcId && newSignal.arcId !== currentArcId) {
-    void router.replace(`/arcs/${newSignal.arcId}`)
+
+  // Blocked / reported signals don't belong to any arc or quarantine screen the
+  // admin can view — send them back to the inbox.
+  if (newSignal.status === 'block_hidden' || newSignal.status === 'block_reject' || newSignal.status === 'report_violation') {
+    void router.push('/')
+    return
   }
+
+  // No arc means the signal landed in quarantine.
+  if (!newSignal.arcId) {
+    void router.push(`/quarantine/${newSignal.signalId}`)
+    return
+  }
+
+  const currentArcId = route.params.id as string
+  if (newSignal.arcId !== currentArcId) {
+    void router.replace(`/arcs/${newSignal.arcId}`)
+    return
+  }
+
+  reprocessing.value = false
+  emit('reprocessed')
 }
 
 // Best-effort auto-height: works if the browser grants parent access to the
@@ -388,7 +413,25 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
     <!-- Email body -->
     <template v-if="expanded && signal.type === 'email'">
       <div class="signal-card__body border-t border-ctp-surface1">
-        <div v-if="signal.data.body" class="relative overflow-y-auto bg-white min-h-[min(650px,60dvh)] max-h-[calc(100dvh-160px)]" data-testid="email-body-container">
+        <div
+          v-if="reprocessing"
+          role="status"
+          aria-label="Reprocessing email…"
+          class="flex min-h-[min(650px,60dvh)] max-h-[calc(100dvh-160px)] items-center justify-center gap-2 bg-white text-sm text-ctp-subtext0"
+        >
+          <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" stroke-linecap="round" />
+          </svg>
+          Reprocessing…
+        </div>
+        <div
+          v-else-if="reprocessError"
+          role="alert"
+          class="m-4 rounded-lg border border-ctp-red/30 bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
+        >
+          Reprocessing failed: {{ reprocessError }}
+        </div>
+        <div v-else-if="signal.data.body" class="relative overflow-y-auto bg-white min-h-[min(650px,60dvh)] max-h-[calc(100dvh-160px)]" data-testid="email-body-container">
           <iframe
             :srcdoc="signal.data.body"
             sandbox="allow-popups allow-popups-to-escape-sandbox"
