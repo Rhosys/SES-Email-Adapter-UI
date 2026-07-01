@@ -91,6 +91,10 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 
 - [ ] **Deduplicate signals with identical bodies in arc detail view** — when multiple signals on the same arc have identical text bodies (different headers/metadata), collapse them into a single displayed signal with a "received N times" indicator. Compute body fingerprint (SHA-256 of normalized text body) client-side at render time. Show the most recent signal's headers; collapsed duplicates accessible via expand. Edge case: duplicate critical notifications still reach the user via push (backend sends per-signal) — this dedup is display-only, not notification suppression.
 
+### Testing infrastructure
+
+- [ ] **Wire `tests/e2e/*` into CI** — `.github/workflows/build.yml` only runs `vitest` (via `check:ci`) and the `pwa` Playwright project (via `test:pwa`, which targets `tests/pwa-e2e`, a separate directory). The broader Playwright suite in `tests/e2e/` (`layout.responsive.test.ts`, `a11y.test.ts`, `csp.test.ts`, `email-gesture.test.ts`) and the `laptop`/`desktop`/`tablet`/`narrow`/`pixel`/`mobile` projects in `playwright.config.ts` that exercise it are never invoked by CI — `npm run test:e2e` exists as a script but nothing calls it, so regressions there go unnoticed. Add a CI step/job that runs `npm run test:e2e` (or the relevant projects) on PRs. Doing so will surface 6 currently-broken tests in `layout.responsive.test.ts` (sidebar/searchbox/filter-input locators not found on `laptop`) that need to be fixed or explicitly addressed as part of wiring this up.
+
 ### Arc & Signal display actions
 
 - [x] **Reply button** — implemented in `ArcDetailView` and `ArcRow` (hidden for auth/test/status workflows).
