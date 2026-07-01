@@ -102,9 +102,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<Result<
       },
     })
     if (!res.ok) {
-      let message = `${init.method ?? 'GET'} ${path} → ${res.status}`
-      const body = (await res.json().catch(() => null)) as { title?: string } | null
-      if (body?.title) message = body.title
+      const body = (await res.json().catch(() => null)) as { title?: string; errorCode?: string } | null
+      const message = body?.title
+        ? `${body.title}${body.errorCode ? ` (${body.errorCode})` : ''} [${res.status}]`
+        : `${init.method ?? 'GET'} ${path} → ${res.status}`
       return err(new ApiError(res.status, message))
     }
     const data = res.status === 204 ? (undefined as T) : (await res.json()) as T
