@@ -210,3 +210,35 @@ describe('ArcDetailView — reply reuses existing draft', () => {
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
   })
 })
+
+describe('ArcDetailView — no signals', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    vi.clearAllMocks()
+
+    const accountStore = useAccountStore()
+    accountStore.account = {
+      accountId: 'acc_1',
+      name: 'Test',
+      filtering: { defaultUnknownSenderPolicy: 'quarantine_visible' },
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-01T00:00:00Z',
+    }
+    vi.mocked(api.listAccounts).mockResolvedValue(ok([accountStore.account]))
+  })
+
+  it('shows an empty-state message instead of a blank thread body', async () => {
+    const arc = makeArc()
+    const wrapper = await mountView(arc, [])
+
+    expect(wrapper.text()).toContain('No signals yet')
+  })
+
+  it('does not render the signal-count line when there are no signals', async () => {
+    const arc = makeArc()
+    const wrapper = await mountView(arc, [])
+
+    expect(wrapper.text()).not.toMatch(/\d+\+? signals?/)
+  })
+})

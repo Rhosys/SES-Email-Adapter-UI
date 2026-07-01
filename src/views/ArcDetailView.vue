@@ -428,7 +428,7 @@ async function removeLabel(label: string) {
       </div>
 
       <!-- Signal thread — newest first, received + draft signals -->
-      <div class="space-y-4">
+      <div v-if="dedupedSignals.length > 0" class="space-y-4">
         <template v-for="(group, index) in dedupedSignals" :key="group.signal.signalId">
           <DraftSignalCard
             v-if="group.signal.status === 'draft'"
@@ -451,6 +451,12 @@ async function removeLabel(label: string) {
             @reply="startDraft"
           />
         </template>
+      </div>
+      <div v-else class="py-12 text-center">
+        <p class="text-sm font-medium text-ctp-text">No signals yet</p>
+        <p class="mx-auto mt-1 max-w-sm text-xs text-ctp-subtext0">
+          This thread has no recorded messages or events yet.
+        </p>
       </div>
 
       <!-- Load earlier (older) signals — they sort to the bottom -->
