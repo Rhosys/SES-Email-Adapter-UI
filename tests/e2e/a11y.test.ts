@@ -1,41 +1,10 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { stubAccounts, gotoAuthed } from './helpers/auth'
 
-// Stub account that satisfies the router guard (onboarding completed).
-const STUB_ACCOUNT = {
-  id: 'acc_test',
-  name: 'Test account',
-  deletionRetentionDays: 30,
-  onboarding: {
-    completed: true,
-    notificationCoachCompleted: true,
-    featureTourCompleted: true,
-  },
-  createdAt: '2024-01-01T00:00:00Z',
-  updatedAt: '2024-01-01T00:00:00Z',
-}
-
-async function stubAuth(page: Page) {
-  // Make Authress SDK believe a session exists
-  await page.addInitScript(() => {
-    Object.defineProperty(window, '__authressSessionStub', { value: true })
-  })
-  await page.route('**/session/credentials', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  )
-}
-
+// Account-scoped endpoints return empty collections so each page renders its
+// empty state (rather than hanging on a real backend) for the audit.
 async function stubApi(page: Page) {
-  // Account list — router guard reads onboarding.completed from here
-  await page.route('**/accounts', (route) => {
-    if (route.request().method() !== 'GET') return route.continue()
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ accounts: [STUB_ACCOUNT] }),
-    })
-  })
-  // All other account-scoped endpoints return empty collections
   await page.route('**/accounts/**', (route) => {
     if (route.request().method() !== 'GET') return route.continue()
     route.fulfill({
@@ -69,14 +38,16 @@ test.use({ browserName: 'chromium' })
 
 test.describe('Accessibility — WCAG 2.x AA', () => {
   test.beforeEach(async ({ page }) => {
-    await stubAuth(page)
+    await stubAccounts(page)
     await stubApi(page)
   })
 
   for (const route of ROUTES) {
     test(`no violations on ${route}`, async ({ page }) => {
-      await page.goto(route)
-      await page.waitForLoadState('networkidle')
+      await gotoAuthed(page, route)
+      // Wait for the content region (not networkidle — the authenticated app
+      // holds a realtime connection open, so the network never goes idle).
+      await page.locator('#main-content').waitFor({ state: 'visible' })
 
       const results = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa'])

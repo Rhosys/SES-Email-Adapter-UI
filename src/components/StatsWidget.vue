@@ -91,9 +91,7 @@ const areaOption = computed(() => {
 const totals = computed(() => statsStore.stats.totals)
 const stats = computed(() => statsStore.stats)
 
-function toggleExpanded(e: Event) {
-  e.preventDefault()
-  e.stopPropagation()
+function toggleExpanded() {
   uiStore.statsWidgetExpanded = !uiStore.statsWidgetExpanded
 }
 </script>
@@ -101,27 +99,28 @@ function toggleExpanded(e: Event) {
 <template>
   <div
     class="stats-widget mb-4 rounded-lg border border-ctp-surface0 bg-ctp-mantle transition-colors hover:border-ctp-surface1"
-    :class="{ 'cursor-pointer': !uiStore.statsWidgetExpanded }"
-    role="button"
-    tabindex="0"
-    :aria-label="!uiStore.statsWidgetExpanded ? 'Expand stats widget' : undefined"
-    @click="!uiStore.statsWidgetExpanded && toggleExpanded($event)"
-    @keydown.enter="!uiStore.statsWidgetExpanded && toggleExpanded($event)"
-    @keydown.space.prevent="!uiStore.statsWidgetExpanded && toggleExpanded($event)"
   >
-    <div class="flex items-center justify-between px-3 py-2">
+    <!-- Single header button toggles expand/collapse. Kept as one control (not a
+         clickable card wrapping a button + link) so interactive elements aren't
+         nested — see a11y rule "nested-interactive". -->
+    <button
+      type="button"
+      class="flex w-full items-center justify-between px-3 py-2 text-left"
+      :aria-expanded="uiStore.statsWidgetExpanded"
+      aria-label="Toggle stats widget"
+      @click="toggleExpanded"
+    >
       <span class="text-xs font-medium text-ctp-subtext0 transition-colors hover:text-ctp-text">Stats</span>
-      <button
-        class="-m-2 p-2 text-ctp-subtext0 transition-transform hover:text-ctp-text"
+      <svg
+        xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+        class="shrink-0 text-ctp-subtext0 transition-transform"
         :class="{ 'rotate-180': uiStore.statsWidgetExpanded }"
-        aria-label="Toggle stats widget"
-        @click="toggleExpanded"
+        aria-hidden="true"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </button>
-    </div>
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    </button>
 
     <RouterLink
       v-if="uiStore.statsWidgetExpanded"
