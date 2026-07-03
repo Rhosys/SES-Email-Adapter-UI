@@ -304,6 +304,19 @@ const iframeStyle = computed(() => ({
 // none: we own all touch handling when zoomed in
 const overlayTouchAction = computed(() => (emailScale.value > 1 ? 'none' : 'pan-y'))
 
+// The overlay must stay interactive on touch devices at every scale — it's the
+// only way to catch the pinch/double-tap that *initiates* a zoom, since touches
+// starting inside the sandboxed iframe don't bubble to the parent document. On
+// mouse-only (fine pointer) devices it's pointer-events:none instead, so links
+// and text inside the email stay directly clickable/selectable — the gesture
+// system is touch-only and has no mouse-drag equivalent to offer them.
+const overlayPointerEvents =
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(pointer: coarse)').matches
+    ? 'auto'
+    : 'none'
+
 const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toFixed(1)}×`)
 </script>
 
@@ -457,15 +470,18 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
             @load="fitHeight"
           />
 
-          <!-- Transparent gesture capture overlay.
-               Only shown when zoomed — at 1× the iframe scrolls natively.
+          <!-- Transparent gesture capture overlay. Always mounted — it must be
+               present at 1× to capture the pinch/double-tap that initiates a
+               zoom in the first place. touch-action toggles between 'pan-y'
+               (native scroll, JS still gets pinch) and 'none' (JS owns pan)
+               depending on scale.
                Touch events that start inside a sandboxed iframe don't bubble
                to the parent document, so this overlay captures gestures. -->
           <div
-            v-if="emailScale > 1"
             ref="gestureOverlayRef"
             class="absolute inset-0"
-            :style="{ touchAction: overlayTouchAction }"
+            :style="{ touchAction: overlayTouchAction, pointerEvents: overlayPointerEvents }"
+            :data-h-swipe="emailScale > 1 ? '' : undefined"
             aria-hidden="true"
           />
 

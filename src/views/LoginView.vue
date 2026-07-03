@@ -25,7 +25,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex h-screen items-center justify-center bg-ctp-base">
+  <div class="flex h-dvh items-center justify-center bg-ctp-base">
     <div class="flex flex-col items-center gap-4">
       <div class="flex items-center gap-2">
         <svg viewBox="0 0 32 32" fill="none" class="h-8 w-8" aria-hidden="true">

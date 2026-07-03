@@ -8,6 +8,7 @@ import { api } from '@/lib/api'
 import type { Thread, Rule, Alias } from '@/types/server'
 import AppSidebar from '@/components/AppSidebar.vue'
 import AppNavbar from '@/components/AppNavbar.vue'
+import SearchInputShell, { SEARCH_FIELD_CLASS } from '@/components/SearchInputShell.vue'
 import ActionBadge from '@/components/ActionBadge.vue'
 import ToastStack from '@/components/ToastStack.vue'
 import FeatureTour from '@/components/FeatureTour.vue'
@@ -37,7 +38,12 @@ const searchInput = ref<HTMLInputElement | null>(null)
 const hasSearched = ref(false)
 const sidebarOpen = ref(false)
 
-// ── Edge swipe to open/close sidebar (mobile) ─────────────────────────────────
+// ── Swipe to open/close sidebar (mobile) ──────────────────────────────────────
+// Swipe-right anywhere opens the nav; swipe-left closes it. A region can claim
+// horizontal swipes for itself via `data-h-swipe` (e.g. the Settings tab strip,
+// a zoomed email) — we skip those, except a swipe from the very left edge, which
+// always opens the nav so the user can never get trapped.
+const EDGE_ZONE = 30
 let swipeStartX = 0
 let swipeStartY = 0
 let swipeStartTime = 0
@@ -49,8 +55,13 @@ function onMainTouchStart(e: TouchEvent) {
   swipeStartX = t.clientX
   swipeStartY = t.clientY
   swipeStartTime = Date.now()
-  // Track if touch starts within 30px of left edge (to open) or anywhere (to close)
-  swipeTracking = swipeStartX < 30 || sidebarOpen.value
+
+  if (sidebarOpen.value) {
+    swipeTracking = true // allow swipe-left to close from anywhere
+    return
+  }
+  const ownedByRegion = !!(e.target as Element | null)?.closest?.('[data-h-swipe]')
+  swipeTracking = swipeStartX < EDGE_ZONE || !ownedByRegion
 }
 
 function onMainTouchEnd(e: TouchEvent) {
@@ -63,7 +74,7 @@ function onMainTouchEnd(e: TouchEvent) {
   if (elapsed > 300 || Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return
   // Only apply on mobile (< 640px)
   if (window.innerWidth >= 640) return
-  if (dx > 0 && swipeStartX < 30 && !sidebarOpen.value) {
+  if (dx > 0 && !sidebarOpen.value) {
     sidebarOpen.value = true
   } else if (dx < 0 && sidebarOpen.value) {
     sidebarOpen.value = false
@@ -291,25 +302,16 @@ onMounted(async () => {
     <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
       <AppNavbar show-hamburger @toggle-sidebar="sidebarOpen = !sidebarOpen">
         <template #search>
-          <form v-if="route.path !== '/search'" class="flex w-full max-w-xl items-center gap-2" @submit.prevent="submitSearch">
-          <div class="relative flex-1">
-            <svg
-              class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ctp-subtext0"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 001.415-1.414l-3.85-3.85a1.007 1.007 0 00-.115-.099zm-5.242 1.156a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"
-              />
-            </svg>
+          <!-- Desktop: interactive typeahead (sm and up) -->
+          <form v-if="route.path !== '/search'" class="hidden w-full max-w-xl items-center gap-2 sm:flex" @submit.prevent="submitSearch">
+          <SearchInputShell>
             <input
               ref="searchInput"
               v-model="searchQuery"
               type="search"
               aria-label="Search threads, rules, aliases"
               placeholder="Search…"
-              class="h-7 w-full rounded-md border border-ctp-surface1 bg-ctp-base pl-8 pr-3 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+              :class="SEARCH_FIELD_CLASS"
               autocomplete="off"
               @focus="onInputFocus"
               @blur="onInputBlur"
@@ -470,8 +472,21 @@ onMounted(async () => {
                 </button>
               </div>
             </div>
-          </div>
+          </SearchInputShell>
         </form>
+
+          <!-- Mobile: looks exactly like the desktop search box, but taps
+               through to the full /search screen instead of typing inline. -->
+          <SearchInputShell v-if="route.path !== '/search'" class="flex sm:hidden">
+            <button
+              type="button"
+              :class="[SEARCH_FIELD_CLASS, 'flex items-center text-left']"
+              aria-label="Search"
+              @click="router.push('/search')"
+            >
+              <span class="text-ctp-subtext0">Search…</span>
+            </button>
+          </SearchInputShell>
         </template>
       </AppNavbar>
 
