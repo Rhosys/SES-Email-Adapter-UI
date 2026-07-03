@@ -49,6 +49,52 @@ jobs:
       - name: Validate PWA
         run: npm run test:pwa
 
+  # ── Responsive layout, a11y, CSP, and gesture E2E tests ─────────────────────
+  # Runs the tests/e2e/ Playwright suite (layout.responsive, a11y, csp,
+  # email-gesture) across the laptop/desktop/tablet/narrow/pixel/mobile viewport
+  # projects in playwright.config.ts. The pwa project has its own job above, so
+  # it's excluded here to avoid running it twice.
+  e2e:
+    if: >
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Tag MUST match the Playwright version in package-lock.json (currently
+    # 1.59.1); bump it when Playwright is upgraded, or tests fail to find the
+    # browser.
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (base path '/')
+        run: npm run build
+
+      - name: Run E2E tests
+        run: >
+          npx playwright test
+          --project=laptop --project=desktop --project=tablet
+          --project=narrow --project=pixel --project=mobile
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
   # ── Build, check, and deploy ───────────────────────────────────────────────
   build:
     if: >

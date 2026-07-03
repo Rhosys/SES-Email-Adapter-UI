@@ -1,4 +1,5 @@
 import { test, expect, type Page, type CDPSession } from '@playwright/test'
+import { stubAccounts, gotoAuthed } from './helpers/auth'
 
 // ---------------------------------------------------------------------------
 // Stub data
@@ -10,6 +11,8 @@ const THREAD_ID = 'test-thread-id'
 const STUB_ACCOUNT = {
   accountId: ACCOUNT_ID,
   name: 'Test Account',
+  filtering: { defaultUnknownSenderPolicy: 'allow_all' },
+  onboarding: { completed: true },
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
 }
@@ -64,23 +67,8 @@ const STUB_SIGNAL = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function injectAuth(page: Page) {
-  await page.addInitScript(() => {
-    Object.defineProperty(window, '__authressSessionStub', { value: true })
-  })
-  await page.route('**/session/credentials', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  )
-}
-
 async function stubEmailThread(page: Page) {
-  await page.route('**/accounts', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ accounts: [STUB_ACCOUNT] }),
-    }),
-  )
+  await stubAccounts(page, STUB_ACCOUNT)
   await page.route(`**/accounts/${ACCOUNT_ID}`, (route) =>
     route.fulfill({
       status: 200,
@@ -227,14 +215,19 @@ async function getIframeScale(page: Page): Promise<number> {
 // Tests
 // ---------------------------------------------------------------------------
 
-test.describe('email card — touch gestures', () => {
-  // CDP touch injection is Chromium-only; limits to chromium-based projects
-  test.use({ browserName: 'chromium' })
+// CDP touch injection is Chromium-only; limits to chromium-based projects.
+// Must be top-level (not inside describe) — it's a worker-scoped option.
+test.use({ browserName: 'chromium' })
 
-  test.beforeEach(async ({ page }) => {
-    await injectAuth(page)
+test.describe('email card — touch gestures', () => {
+  // The gesture overlay is only interactive on coarse-pointer (touch) devices —
+  // on mouse-only viewports it's pointer-events:none so email links stay
+  // clickable. So these tests only apply to the touch device-preset projects
+  // (pixel, mobile); `isMobile` is true only for those.
+  test.beforeEach(async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'touch-gesture tests require a coarse-pointer device')
     await stubEmailThread(page)
-    await page.goto(`/threads/${THREAD_ID}`)
+    await gotoAuthed(page, `/threads/${THREAD_ID}`)
     await expect(page.locator('[data-testid="email-body-container"]')).toBeVisible()
   })
 
@@ -347,7 +340,9 @@ test.describe('email card — touch gestures', () => {
 
     // Controls hidden after reset
     await expect(resetBtn).not.toBeVisible()
-    expect(await getIframeScale(page)).toBeCloseTo(1, 1)
+    // scale.value snaps to 1 immediately, but the iframe transform eases back
+    // over the 0.25s CSS transition — poll until it settles.
+    await expect.poll(() => getIframeScale(page)).toBeCloseTo(1, 1)
   })
 
   // ── Double-tap ─────────────────────────────────────────────────────────────
@@ -372,9 +367,9 @@ test.describe('email card — touch gestures', () => {
     await simulateDoubleTap(page, cx, cy)
     expect(await getIframeScale(page)).toBeGreaterThan(2)
 
-    // Reset via second double-tap
+    // Reset via second double-tap (transform eases back over the 0.25s transition)
     await simulateDoubleTap(page, cx, cy)
-    expect(await getIframeScale(page)).toBeCloseTo(1, 1)
+    await expect.poll(() => getIframeScale(page)).toBeCloseTo(1, 1)
     await expect(page.getByRole('button', { name: 'Reset zoom to 100%' })).not.toBeVisible()
   })
 
@@ -402,7 +397,9 @@ test.describe('email card — touch gestures', () => {
 
     // The card header button toggles expand/collapse (aria-expanded on the
     // button that wraps the from-label and timestamp)
-    const toggleBtn = page.locator('button[aria-expanded]').first()
+    // Scope to the email card's header toggle — a bare button[aria-expanded]
+    // also matches the (mobile-hidden) navbar user-menu button.
+    const toggleBtn = page.locator('.signal-card button[aria-expanded]').first()
     await toggleBtn.click() // collapse
     await expect(page.locator('iframe[title="Email content"]')).not.toBeVisible()
 
@@ -410,6 +407,7 @@ test.describe('email card — touch gestures', () => {
     await expect(page.locator('iframe[title="Email content"]')).toBeVisible()
 
     // Zoom should have been reset by the watch(expanded) in the component
-    expect(await getIframeScale(page)).toBeCloseTo(1, 1)
+    // (transform eases back over the 0.25s transition — poll until settled).
+    await expect.poll(() => getIframeScale(page)).toBeCloseTo(1, 1)
   })
 })
