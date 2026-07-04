@@ -8,6 +8,7 @@ import { isAdminUser } from '@/stores/admin'
 import { useRulesStore } from '@/stores/rules'
 import { api } from '@/lib/api'
 import { useGestureHandler } from '@/composables/useGestureHandler'
+import { EMAIL_PREVIEW_MODES, getEmailPreviewMode } from '@/utils/emailPreviewModes'
 import ActionBadge from '@/components/ActionBadge.vue'
 import CopyMenuItem from '@/components/CopyMenuItem.vue'
 
@@ -235,6 +236,16 @@ function fitHeight(e: Event) {
   }
 }
 
+// TEMP: A/B testing harness for the mobile overflow fix — see
+// src/utils/emailPreviewModes.ts. Once a mode wins, inline its `wrap` call
+// below, delete the ref/computed and the picker UI, and remove that file.
+const previewModeId = ref(EMAIL_PREVIEW_MODES[0].id)
+
+const emailSrcDoc = computed(() => {
+  if (!isEmailSignal(props.signal) || !props.signal.data.body) return ''
+  return getEmailPreviewMode(previewModeId.value).wrap(props.signal.data.body)
+})
+
 // --- Gesture / zoom for the email body iframe ---
 //
 // Touch events that start inside the iframe don't bubble to the parent document,
@@ -459,49 +470,74 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
         >
           Reprocessing failed: {{ reprocessError }}
         </div>
-        <div v-else-if="signal.data.body" class="relative overflow-y-auto bg-white min-h-[min(650px,60dvh)] max-h-[calc(100dvh-160px)]" data-testid="email-body-container">
-          <iframe
-            :srcdoc="signal.data.body"
-            sandbox="allow-popups allow-popups-to-escape-sandbox"
-            referrerpolicy="no-referrer"
-            class="w-full"
-            :style="iframeStyle"
-            title="Email content"
-            @load="fitHeight"
-          />
+        <div v-else-if="signal.data.body">
+          <div class="relative overflow-y-auto bg-white min-h-[min(650px,60dvh)] max-h-[calc(100dvh-160px)]" data-testid="email-body-container">
+            <iframe
+              :srcdoc="emailSrcDoc"
+              sandbox="allow-popups allow-popups-to-escape-sandbox"
+              referrerpolicy="no-referrer"
+              class="w-full"
+              :style="iframeStyle"
+              title="Email content"
+              @load="fitHeight"
+            />
 
-          <!-- Transparent gesture capture overlay. Always mounted — it must be
-               present at 1× to capture the pinch/double-tap that initiates a
-               zoom in the first place. touch-action toggles between 'pan-y'
-               (native scroll, JS still gets pinch) and 'none' (JS owns pan)
-               depending on scale.
-               Touch events that start inside a sandboxed iframe don't bubble
-               to the parent document, so this overlay captures gestures. -->
-          <div
-            ref="gestureOverlayRef"
-            class="absolute inset-0"
-            :style="{ touchAction: overlayTouchAction, pointerEvents: overlayPointerEvents }"
-            :data-h-swipe="emailScale > 1 ? '' : undefined"
-            aria-hidden="true"
-          />
+            <!-- Transparent gesture capture overlay. Always mounted — it must be
+                 present at 1× to capture the pinch/double-tap that initiates a
+                 zoom in the first place. touch-action toggles between 'pan-y'
+                 (native scroll, JS still gets pinch) and 'none' (JS owns pan)
+                 depending on scale.
+                 Touch events that start inside a sandboxed iframe don't bubble
+                 to the parent document, so this overlay captures gestures. -->
+            <div
+              ref="gestureOverlayRef"
+              class="absolute inset-0"
+              :style="{ touchAction: overlayTouchAction, pointerEvents: overlayPointerEvents }"
+              :data-h-swipe="emailScale > 1 ? '' : undefined"
+              aria-hidden="true"
+            />
 
-          <!-- Zoom controls — z-index above overlay so they receive clicks directly -->
-          <div
-            v-if="emailScale > 1"
-            class="absolute right-2 top-2 z-20 flex items-center gap-1.5"
-          >
-            <span
-              class="rounded-full bg-ctp-surface0/80 px-2 py-0.5 text-xs text-ctp-subtext1 backdrop-blur-sm"
-              aria-live="polite"
-              aria-label="Current zoom level"
-            >{{ zoomLabel }}</span>
-            <button
-              class="rounded-full bg-ctp-surface0/80 px-2 py-0.5 text-xs text-ctp-text backdrop-blur-sm hover:bg-ctp-surface1/90 active:bg-ctp-surface2"
-              aria-label="Reset zoom to 100%"
-              @click="resetEmailZoom"
+            <!-- Zoom controls — z-index above overlay so they receive clicks directly -->
+            <div
+              v-if="emailScale > 1"
+              class="absolute right-2 top-2 z-20 flex items-center gap-1.5"
             >
-              Reset
-            </button>
+              <span
+                class="rounded-full bg-ctp-surface0/80 px-2 py-0.5 text-xs text-ctp-subtext1 backdrop-blur-sm"
+                aria-live="polite"
+                aria-label="Current zoom level"
+              >{{ zoomLabel }}</span>
+              <button
+                class="rounded-full bg-ctp-surface0/80 px-2 py-0.5 text-xs text-ctp-text backdrop-blur-sm hover:bg-ctp-surface1/90 active:bg-ctp-surface2"
+                aria-label="Reset zoom to 100%"
+                @click="resetEmailZoom"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+
+          <!-- TEMP: mobile-overflow A/B testing harness — remove this block
+               and src/utils/emailPreviewModes.ts once a mode is picked. -->
+          <div class="flex flex-wrap items-center gap-2 border-t border-ctp-surface0 px-4 py-2 text-xs">
+            <span class="text-ctp-subtext0">Preview mode (testing):</span>
+            <div role="radiogroup" aria-label="Email preview mode" class="inline-flex overflow-hidden rounded-full border border-ctp-surface1">
+              <button
+                v-for="(mode, i) in EMAIL_PREVIEW_MODES"
+                :key="mode.id"
+                type="button"
+                role="radio"
+                :aria-checked="previewModeId === mode.id"
+                class="px-2.5 py-1 transition-colors"
+                :class="[
+                  previewModeId === mode.id ? 'bg-ctp-mauve text-ctp-base' : 'bg-ctp-mantle text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text',
+                  i > 0 ? 'border-l border-ctp-surface1' : '',
+                ]"
+                @click="previewModeId = mode.id"
+              >
+                {{ mode.label }}
+              </button>
+            </div>
           </div>
         </div>
         <p v-else class="px-4 py-3 text-sm text-ctp-subtext0">(No content)</p>

@@ -707,11 +707,11 @@ onMounted(async () => {
   }
   // Hydrate active tab from URL
   const VALID_TABS: TabKey[] = [
-    'profile',
     'emails',
-    'domains',
-    'forwarding',
     'email',
+    'forwarding',
+    'domains',
+    'profile',
     'team',
   ]
   const tab = route.query.tab as TabKey | undefined
@@ -719,11 +719,11 @@ onMounted(async () => {
 })
 
 const TABS: { key: TabKey; label: string; description: string }[] = [
-  { key: 'profile', label: 'Profile', description: 'Your identity, security, and linked accounts' },
   { key: 'emails', label: 'Aliases', description: 'Manage email addresses and sender policies' },
-  { key: 'domains', label: 'Domains', description: 'DNS setup and domain verification' },
-  { key: 'forwarding', label: 'Forwarding', description: 'Forward emails to external addresses' },
   { key: 'email', label: 'Email', description: 'Compose behavior and retention' },
+  { key: 'forwarding', label: 'Forwarding', description: 'Forward emails to external addresses' },
+  { key: 'domains', label: 'Domains', description: 'DNS setup and domain verification' },
+  { key: 'profile', label: 'Profile', description: 'Your identity, security, and linked accounts' },
   { key: 'team', label: 'Team', description: 'Members, roles, and invitations' },
 ]
 
