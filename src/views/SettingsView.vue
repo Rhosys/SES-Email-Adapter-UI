@@ -14,6 +14,7 @@ import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import FilterModeModal from '@/components/ui/FilterModeModal.vue'
 import SettingsTabBar from '@/components/settings/SettingsTabBar.vue'
+import BillingPanel from '@/components/settings/BillingPanel.vue'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useToast } from '@/composables/useToast'
@@ -37,7 +38,7 @@ const userConfigStore = useUserConfigStore()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 const { deferAction } = useToast()
 
-type TabKey = 'profile' | 'emails' | 'domains' | 'forwarding' | 'email' | 'team'
+type TabKey = 'profile' | 'emails' | 'domains' | 'forwarding' | 'email' | 'team' | 'billing'
 const activeTab = ref<TabKey>('profile')
 
 // ─── Profile tab ─────────────────────────────────────────────────────────────
@@ -713,6 +714,7 @@ onMounted(async () => {
     'domains',
     'profile',
     'team',
+    'billing',
   ]
   const tab = route.query.tab as TabKey | undefined
   if (tab && VALID_TABS.includes(tab)) await switchTab(tab)
@@ -725,6 +727,7 @@ const TABS: { key: TabKey; label: string; description: string }[] = [
   { key: 'domains', label: 'Domains', description: 'DNS setup and domain verification' },
   { key: 'profile', label: 'Profile', description: 'Your identity, security, and linked accounts' },
   { key: 'team', label: 'Team', description: 'Members, roles, and invitations' },
+  { key: 'billing', label: 'Billing', description: 'Manage your plan and payment details' },
 ]
 
 const activeTabLabel = computed(() => TABS.find((t) => t.key === activeTab.value)?.label ?? 'Settings')
@@ -1890,6 +1893,10 @@ useGestureHandler(settingsContentRef, {
             </button>
           </div>
         </div>
+      </section>
+
+      <section v-else-if="activeTab === 'billing'">
+        <BillingPanel />
       </section>
 
     </main>

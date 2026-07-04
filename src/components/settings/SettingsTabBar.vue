@@ -20,6 +20,7 @@ const ICONS: Record<string, string> = {
   email: '<path d="M4 8h9M4 16h5"/><circle cx="17" cy="8" r="2"/><circle cx="11" cy="16" r="2"/>',
   team:
     '<circle cx="9" cy="9" r="3"/><path d="M3 19c0-3 2.5-5 6-5s6 2 6 5"/><path d="M16 7.2a3 3 0 0 1 0 4.6M21 19c0-2.4-1.5-4-3.8-4.6"/>',
+  billing: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
 }
 </script>
 
