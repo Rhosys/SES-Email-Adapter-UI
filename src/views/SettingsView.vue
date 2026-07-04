@@ -14,6 +14,7 @@ import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import FilterModeModal from '@/components/ui/FilterModeModal.vue'
 import SettingsTabBar from '@/components/settings/SettingsTabBar.vue'
+import BillingPanel from '@/components/settings/BillingPanel.vue'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useToast } from '@/composables/useToast'
@@ -669,12 +670,6 @@ function sendTestNotification() {
 
 // ─── Tab loading ──────────────────────────────────────────────────────────────
 async function switchTab(tab: TabKey) {
-  // Billing isn't in-page content — it's its own route (no other nav gets you
-  // there right now), so this "tab" is really just a link out of Settings.
-  if (tab === 'billing') {
-    void router.push({ name: 'billing' })
-    return
-  }
   activeTab.value = tab
   void router.replace({ query: tab === 'profile' ? {} : { tab } })
   if (tab === 'emails' && aliases.value.length === 0) await loadAliases()
@@ -1898,6 +1893,10 @@ useGestureHandler(settingsContentRef, {
             </button>
           </div>
         </div>
+      </section>
+
+      <section v-else-if="activeTab === 'billing'">
+        <BillingPanel />
       </section>
 
     </main>
