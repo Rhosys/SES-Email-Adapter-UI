@@ -37,7 +37,7 @@ const userConfigStore = useUserConfigStore()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 const { deferAction } = useToast()
 
-type TabKey = 'profile' | 'emails' | 'domains' | 'forwarding' | 'email' | 'team'
+type TabKey = 'profile' | 'emails' | 'domains' | 'forwarding' | 'email' | 'team' | 'billing'
 const activeTab = ref<TabKey>('profile')
 
 // ─── Profile tab ─────────────────────────────────────────────────────────────
@@ -669,6 +669,12 @@ function sendTestNotification() {
 
 // ─── Tab loading ──────────────────────────────────────────────────────────────
 async function switchTab(tab: TabKey) {
+  // Billing isn't in-page content — it's its own route (no other nav gets you
+  // there right now), so this "tab" is really just a link out of Settings.
+  if (tab === 'billing') {
+    void router.push({ name: 'billing' })
+    return
+  }
   activeTab.value = tab
   void router.replace({ query: tab === 'profile' ? {} : { tab } })
   if (tab === 'emails' && aliases.value.length === 0) await loadAliases()
@@ -713,6 +719,7 @@ onMounted(async () => {
     'domains',
     'profile',
     'team',
+    'billing',
   ]
   const tab = route.query.tab as TabKey | undefined
   if (tab && VALID_TABS.includes(tab)) await switchTab(tab)
@@ -725,6 +732,7 @@ const TABS: { key: TabKey; label: string; description: string }[] = [
   { key: 'domains', label: 'Domains', description: 'DNS setup and domain verification' },
   { key: 'profile', label: 'Profile', description: 'Your identity, security, and linked accounts' },
   { key: 'team', label: 'Team', description: 'Members, roles, and invitations' },
+  { key: 'billing', label: 'Billing', description: 'Manage your plan and payment details' },
 ]
 
 const activeTabLabel = computed(() => TABS.find((t) => t.key === activeTab.value)?.label ?? 'Settings')
