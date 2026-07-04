@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, watchEffect, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import logger from '@/lib/logger'
@@ -11,8 +11,14 @@ import AsyncButton from '@/components/ui/AsyncButton.vue'
 import { useFeatureTour } from '@/composables/useFeatureTour'
 
 const router = useRouter()
+const route = useRoute()
 const accountStore = useAccountStore()
 const { startTour } = useFeatureTour()
+
+// ?force=true — preview mode: never auto-advance or redirect out of onboarding,
+// so every screen can be walked through manually (e.g. to review the flow on a
+// deploy from an already-onboarded account). See createAndAdvance / onSignalArrived.
+const forcePreview = route.query.force === 'true'
 
 // ── Deterministic test email username from domain hash ────────────────────────
 const WORDS = [
@@ -135,6 +141,15 @@ async function createAndAdvance() {
 
   if (msgInterval) { clearInterval(msgInterval); msgInterval = null }
   creatingAccount.value = false
+
+  // Preview mode: skip every auto-advance/redirect and start at the first real
+  // screen so the whole flow can be walked manually. Domain hydrates in the
+  // background for realism but never gates or skips a step.
+  if (forcePreview) {
+    void hydrateExistingDomain()
+    step.value = 2
+    return
+  }
 
   // Restore progress
   const ob = accountStore.account?.onboarding
@@ -322,6 +337,8 @@ function connectWs(accountId: string) {
 }
 
 async function onSignalArrived() {
+  // Preview mode never auto-advances — the user moves on via the manual skip.
+  if (forcePreview) return
   if (signalArrived.value) return
   signalArrived.value = true
   await persistProgress({ testEmailReceived: true })
@@ -836,6 +853,18 @@ onUnmounted(() => {
           </AsyncButton>
         </div>
       </section>
+
+      <!-- Preview mode (?force=true): manual advance for the Domain and Test-email
+           screens, which otherwise only move forward automatically. -->
+      <div v-if="forcePreview && (step === 2 || step === 3)" class="mt-8 flex justify-end">
+        <button
+          type="button"
+          class="text-xs text-ctp-subtext0 underline hover:text-ctp-text"
+          @click="step = step + 1"
+        >
+          Skip this step →
+        </button>
+      </div>
 
     </main>
 
