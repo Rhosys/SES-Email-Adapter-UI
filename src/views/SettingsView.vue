@@ -13,6 +13,8 @@ import ShortcutHelpOverlay from '@/components/ShortcutHelpOverlay.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import FilterModeModal from '@/components/ui/FilterModeModal.vue'
+import SettingsTabBar from '@/components/settings/SettingsTabBar.vue'
+import { useGestureHandler } from '@/composables/useGestureHandler'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useToast } from '@/composables/useToast'
 import type {
@@ -725,17 +727,36 @@ const TABS: { key: TabKey; label: string; description: string }[] = [
   { key: 'team', label: 'Team', description: 'Members, roles, and invitations' },
 ]
 
-const tabPickerOpen = ref(false)
 const activeTabLabel = computed(() => TABS.find((t) => t.key === activeTab.value)?.label ?? 'Settings')
 
-function onTabPick(key: string) {
-  tabPickerOpen.value = false
-  void switchTab(key as TabKey)
+/** Leave Settings, back to the app. */
+function goBack() {
+  void router.push('/')
 }
+
+/** Move to the tab `dir` steps away in TABS order (mobile swipe). Clamps at ends. */
+function switchToAdjacentTab(dir: 1 | -1) {
+  const i = TABS.findIndex((t) => t.key === activeTab.value)
+  const next = TABS[i + dir]
+  if (next) void switchTab(next.key)
+}
+
+// Mobile: horizontal swipe across the content moves between adjacent tabs.
+// The content region is marked data-h-swipe so AppLayout's swipe-to-open-nav
+// yields to it (except a swipe from the very left edge).
+const settingsContentRef = ref<HTMLElement | null>(null)
+useGestureHandler(settingsContentRef, {
+  onSwipe: (dir) => {
+    if (dir === 'left') switchToAdjacentTab(1)
+    else if (dir === 'right') switchToAdjacentTab(-1)
+  },
+})
 </script>
 
 <template>
-  <div>
+  <!-- Mobile: full-height flex column (top bar / scrolling content / bottom tab
+       bar). Desktop: normal flow, content scrolls in the app's main region. -->
+  <div class="flex h-full flex-col sm:block sm:h-auto">
     <header class="hidden border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3 sm:block">
       <h1 class="text-lg font-semibold">Settings</h1>
     </header>
@@ -761,32 +782,29 @@ function onTabPick(key: string) {
       </div>
     </div>
 
-    <!-- Tab picker button (mobile) -->
-    <div class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-2 sm:hidden">
+    <!-- Top bar (mobile): back to the app + current section label -->
+    <div class="flex shrink-0 items-center gap-1 border-b border-ctp-surface0 bg-ctp-mantle px-2 py-2 sm:hidden">
       <button
         type="button"
-        class="flex w-full items-center justify-between rounded-lg border border-ctp-surface1 px-4 py-3 text-left"
-        @click="tabPickerOpen = true"
+        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
+        aria-label="Back to app"
+        @click="goBack"
       >
-        <span class="text-base font-medium text-ctp-text">{{ activeTabLabel }}</span>
-        <svg class="h-4 w-4 text-ctp-subtext0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M4 6l4 4 4-4" />
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M15 5l-7 7 7 7" />
         </svg>
       </button>
+      <span class="truncate text-base font-medium text-ctp-text">{{ activeTabLabel }}</span>
     </div>
 
-    <!-- Tab picker modal (mobile) -->
-    <FilterModeModal
-      :open="tabPickerOpen"
-      title="Settings"
-      subtitle="Choose a settings section"
-      :current-mode="activeTab"
-      :modes="TABS.map((t) => ({ value: t.key, label: t.label, description: t.description }))"
-      @select="onTabPick"
-      @close="tabPickerOpen = false"
-    />
-
-    <main class="mx-auto max-w-2xl px-4 py-6">
+    <!-- Content. Mobile: the scrolling middle of the flex column, and the owner
+         of horizontal swipes (data-h-swipe) which move between adjacent tabs.
+         Desktop: normal flow (scrolls in the app's main region). -->
+    <main
+      ref="settingsContentRef"
+      data-h-swipe
+      class="mx-auto w-full min-h-0 max-w-2xl flex-1 overflow-y-auto px-4 py-6 sm:flex-none sm:overflow-visible"
+    >
       <!-- ── Profile tab ─────────────────────────────────────────────── -->
       <section v-if="activeTab === 'profile'" class="space-y-6">
         <!-- User identity -->
@@ -1875,6 +1893,14 @@ function onTabPick(key: string) {
       </section>
 
     </main>
+
+    <!-- Bottom tab bar (mobile) -->
+    <SettingsTabBar
+      class="shrink-0 sm:hidden"
+      :tabs="TABS"
+      :active="activeTab"
+      @select="(key) => switchTab(key as TabKey)"
+    />
 
     <ConfirmDialog
       :open="dialogOpen"

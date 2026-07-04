@@ -11,29 +11,6 @@ const router = useRouter()
 const route = useRoute()
 const accountStore = useAccountStore()
 
-const ROUTE_TITLES: Record<string, string> = {
-  inbox: 'Inbox',
-  'thread-detail': 'Conversation',
-  quarantine: 'Quarantine',
-  drafts: 'Drafts',
-  search: 'Search',
-  labels: 'Labels & Views',
-  rules: 'Rules',
-  'rules-new': 'New rule',
-  'rules-edit': 'Edit rule',
-  templates: 'Templates',
-  settings: 'Settings',
-  billing: 'Billing',
-  'audit-log': 'Audit log',
-  changelog: 'Changelog',
-  stats: 'Stats',
-}
-
-const pageTitle = computed(() => {
-  const name = String(route.name ?? '')
-  return ROUTE_TITLES[name] ?? 'Numaeel'
-})
-
 // ── Account switcher (only visible during onboarding) ─────────────────────────
 const switcherOpen = ref(false)
 const showAccountSwitcher = computed(() =>
@@ -163,27 +140,14 @@ function onUserMenuFocusout(e: FocusEvent) {
       </svg>
     </button>
 
-    <!-- Page title (mobile only) -->
-    <span class="flex-1 truncate text-lg font-semibold text-ctp-text sm:hidden">{{ pageTitle }}</span>
-
-    <!-- Search (uses slot so AppLayout can inject the full search with lookahead — desktop only) -->
-    <div class="hidden flex-1 sm:block">
+    <!-- Search — AppLayout injects the interactive typeahead (desktop) and a
+         matching tap-to-navigate facade (mobile) into this slot. -->
+    <div class="min-w-0 flex-1">
       <slot name="search" />
     </div>
 
-    <!-- Right section: search icon (mobile) + account switcher (onboarding) + user avatar (desktop only) -->
+    <!-- Right section: account switcher (onboarding) + user avatar (desktop only) -->
     <div class="flex items-center gap-2">
-      <!-- Search icon (mobile only) — navigates to /search -->
-      <button
-        type="button"
-        class="flex h-8 w-8 shrink-0 items-center justify-center rounded text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text sm:hidden"
-        aria-label="Search"
-        @click="void router.push('/search')"
-      >
-        <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-          <path d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 001.415-1.414l-3.85-3.85a1.007 1.007 0 00-.115-.099zm-5.242 1.156a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"/>
-        </svg>
-      </button>
 
       <!-- Account switcher (onboarding only) -->
       <div v-if="showAccountSwitcher" class="relative">

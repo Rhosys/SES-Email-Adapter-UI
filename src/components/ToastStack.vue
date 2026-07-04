@@ -36,6 +36,7 @@ function formatRemaining(ms: number): string {
   <Teleport to="body">
     <div
       class="pointer-events-none fixed bottom-6 right-6 z-[200] flex flex-col gap-3"
+      role="region"
       aria-live="polite"
       aria-atomic="false"
       aria-label="Action notifications"

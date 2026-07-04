@@ -97,9 +97,13 @@ function labelActionWrapper(action: (label: string) => Promise<unknown>) {
 
     <span class="text-ctp-subtext1">{{ count || 0 }} selected</span>
 
+    <!-- When nothing is selected the actions are dimmed and inert. `inert` (not
+         just opacity+pointer-events) removes them from the accessibility tree,
+         so the dimmed low-contrast text isn't audited or focusable. -->
     <div
       class="flex flex-wrap items-center gap-3 transition-opacity"
-      :class="{ 'pointer-events-none opacity-50': isEmpty }"
+      :class="{ 'opacity-50': isEmpty }"
+      :inert="isEmpty"
     >
       <!-- Archive (active + all tabs) -->
       <AsyncButton
