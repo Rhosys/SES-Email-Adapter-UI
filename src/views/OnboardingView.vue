@@ -1,18 +1,24 @@
 <script setup lang="ts">
 import { ref, computed, watch, watchEffect, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import logger from '@/lib/logger'
-import type { DnsRecord } from '@/types/server'
+import type { DnsRecord, RetentionDuration } from '@/types/server'
 import CopyInput from '@/components/CopyInput.vue'
 import AppNavbar from '@/components/AppNavbar.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import { useFeatureTour } from '@/composables/useFeatureTour'
 
 const router = useRouter()
+const route = useRoute()
 const accountStore = useAccountStore()
 const { startTour } = useFeatureTour()
+
+// ?force=true — preview mode: never auto-advance or redirect out of onboarding,
+// so every screen can be walked through manually (e.g. to review the flow on a
+// deploy from an already-onboarded account). See createAndAdvance / onSignalArrived.
+const forcePreview = route.query.force === 'true'
 
 // ── Deterministic test email username from domain hash ────────────────────────
 const WORDS = [
@@ -41,13 +47,52 @@ const testEmailUser = ref('test.numaeel')
 import { isValidDomain } from '@/lib/validation'
 
 // ── Steps ────────────────────────────────────────────────────────────────────
-const TOTAL_STEPS = 4
-const STEP_LABELS = ['Create Account', 'Configure Domain', 'Test Email', 'Done']
+const TOTAL_STEPS = 5
+const STEP_LABELS = ['Create Account', 'Configure Domain', 'Test Email', 'Retention', 'Done']
 const step = ref(1)
 
 function goToStep(n: number) {
   // Only allow navigating back to an already-reached step (not step 1 — it's auto)
   if (n >= 2 && n < step.value) step.value = n
+}
+
+// ── Retention (step 4) ────────────────────────────────────────────────────────
+// Free-tier durations only; longer retention is gated behind paid plans and
+// surfaced via the "Unlimited" option, which opens the upgrade modal instead of
+// being selectable. Mirrors the free options in SettingsView's RETENTION_OPTIONS.
+const RETENTION_ONBOARDING_OPTIONS: { value: RetentionDuration; label: string; description: string }[] = [
+  { value: 'P1M', label: '1 month', description: 'Keep conversations for 1 month' },
+  { value: 'P2M', label: '2 months', description: 'Keep conversations for 2 months' },
+  { value: 'P3M', label: '3 months', description: 'Recommended for most inboxes' },
+  { value: 'P5M', label: '5 months', description: 'Keep conversations for 5 months' },
+  { value: 'P6M', label: '6 months', description: 'The longest retention on the free plan' },
+]
+
+const selectedRetention = ref<RetentionDuration>(accountStore.account?.retentionDuration ?? 'P3M')
+
+const upgradeModalOpen = ref(false)
+
+// One-to-one Free vs paid comparison shown in the upgrade modal. Led by
+// retention/storage (the reason the user reached this prompt), then the broader
+// capabilities drawn from the billing plans so the value gap is clear.
+const PLAN_COMPARISON: { label: string; free: string; paid: string }[] = [
+  { label: 'Retention', free: 'Up to 6 months', paid: 'Up to Forever' },
+  { label: 'Storage', free: '500 signals / mo', paid: 'Unlimited' },
+  { label: 'Domains', free: '1', paid: 'Unlimited' },
+  { label: 'Team members', free: '1', paid: 'Unlimited' },
+  { label: 'Filtering', free: 'Basic', paid: 'Rules engine' },
+  { label: 'Email templates', free: '—', paid: 'Included' },
+  { label: 'Priority support', free: '—', paid: 'Included' },
+]
+
+async function saveRetentionAndContinue() {
+  if (accountStore.accountId) {
+    const result = await api.updateAccount(accountStore.accountId, {
+      retentionDuration: selectedRetention.value,
+    })
+    if (result.isOk()) accountStore.account = result.value
+  }
+  step.value = 5
 }
 
 // ── Step 1: Account creation ─────────────────────────────────────────────────
@@ -96,6 +141,15 @@ async function createAndAdvance() {
 
   if (msgInterval) { clearInterval(msgInterval); msgInterval = null }
   creatingAccount.value = false
+
+  // Preview mode: skip every auto-advance/redirect and start at the first real
+  // screen so the whole flow can be walked manually. Domain hydrates in the
+  // background for realism but never gates or skips a step.
+  if (forcePreview) {
+    void hydrateExistingDomain()
+    step.value = 2
+    return
+  }
 
   // Restore progress
   const ob = accountStore.account?.onboarding
@@ -283,6 +337,8 @@ function connectWs(accountId: string) {
 }
 
 async function onSignalArrived() {
+  // Preview mode never auto-advances — the user moves on via the manual skip.
+  if (forcePreview) return
   if (signalArrived.value) return
   signalArrived.value = true
   await persistProgress({ testEmailReceived: true })
@@ -463,7 +519,7 @@ function launchFireworks(canvas: HTMLCanvasElement) {
 }
 
 watch(step, (s) => {
-  if (s === 4) {
+  if (s === 5) {
     nextTick(() => {
       if (fireworksCanvas.value) launchFireworks(fireworksCanvas.value)
     })
@@ -702,8 +758,68 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <!-- ── Step 4: Done — Canvas fireworks celebration ──────────────────── -->
-      <section v-else-if="step === 4" class="relative flex flex-col items-center justify-center py-16 text-center">
+      <!-- ── Step 4: Retention ──────────────────────────────────────────────── -->
+      <section v-else-if="step === 4">
+        <h2 class="mb-1 text-xl font-semibold">Choose your retention</h2>
+        <p class="mb-6 text-sm text-ctp-subtext0">
+          How long should we keep your conversations? You can change this anytime in Settings.
+        </p>
+
+        <div class="space-y-2">
+          <button
+            v-for="opt in RETENTION_ONBOARDING_OPTIONS"
+            :key="opt.value"
+            type="button"
+            class="flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors"
+            :class="
+              selectedRetention === opt.value
+                ? 'border-ctp-mauve bg-ctp-mauve/10'
+                : 'border-ctp-surface1 hover:border-ctp-surface2'
+            "
+            @click="selectedRetention = opt.value"
+          >
+            <span
+              class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2"
+              :class="selectedRetention === opt.value ? 'border-ctp-mauve' : 'border-ctp-surface2'"
+            >
+              <span v-if="selectedRetention === opt.value" class="h-2 w-2 rounded-full bg-ctp-mauve" />
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-ctp-text">{{ opt.label }}</p>
+              <p class="text-xs text-ctp-subtext0">{{ opt.description }}</p>
+            </div>
+          </button>
+
+          <!-- Unlimited — gated behind a paid plan, opens the upgrade modal -->
+          <button
+            type="button"
+            class="flex w-full items-center gap-3 rounded-lg border border-ctp-yellow/40 px-4 py-3 text-left transition-colors hover:border-ctp-yellow"
+            @click="upgradeModalOpen = true"
+          >
+            <span class="flex h-4 w-4 shrink-0 items-center justify-center text-ctp-yellow">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M13 2L3 14h7v8l10-12h-7z" />
+              </svg>
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-ctp-yellow">Unlimited</p>
+              <p class="text-xs text-ctp-subtext0">Longer retention &amp; more storage</p>
+            </div>
+          </button>
+        </div>
+
+        <div class="mt-8 flex justify-end">
+          <AsyncButton
+            :action="saveRetentionAndContinue"
+            class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
+          >
+            Continue →
+          </AsyncButton>
+        </div>
+      </section>
+
+      <!-- ── Step 5: Done — Canvas fireworks celebration ──────────────────── -->
+      <section v-else-if="step === 5" class="relative flex flex-col items-center justify-center py-16 text-center">
 
         <!-- Canvas fireworks overlay -->
         <canvas
@@ -738,10 +854,98 @@ onUnmounted(() => {
         </div>
       </section>
 
+      <!-- Preview mode (?force=true): manual advance for the Domain and Test-email
+           screens, which otherwise only move forward automatically. -->
+      <div v-if="forcePreview && (step === 2 || step === 3)" class="mt-8 flex justify-end">
+        <button
+          type="button"
+          class="text-xs text-ctp-subtext0 underline hover:text-ctp-text"
+          @click="step = step + 1"
+        >
+          Skip this step →
+        </button>
+      </div>
+
     </main>
+
+    <!-- Upgrade modal — opened from the "Unlimited" retention option -->
+    <Teleport to="body">
+      <Transition name="upgrade-modal-fade">
+        <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -->
+        <div
+          v-if="upgradeModalOpen"
+          class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80 p-4"
+          @click.self="upgradeModalOpen = false"
+        >
+          <div class="relative w-full max-w-lg rounded-xl border border-ctp-surface1 bg-ctp-mantle p-6 shadow-2xl">
+            <div class="flex items-start gap-3">
+              <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ctp-yellow/15 text-ctp-yellow">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M13 2L3 14h7v8l10-12h-7z" />
+                </svg>
+              </span>
+              <div>
+                <h2 class="text-base font-semibold text-ctp-text">Unlock unlimited retention</h2>
+                <p class="mt-1 text-sm text-ctp-subtext0">
+                  Longer retention and larger storage are part of our paid plans. Upgrade for full
+                  control over how long your conversations are kept.
+                </p>
+              </div>
+            </div>
+
+            <!-- Free vs paid comparison -->
+            <div class="mt-5 overflow-hidden rounded-lg border border-ctp-surface1">
+              <div class="grid grid-cols-3 border-b border-ctp-surface1 bg-ctp-surface0/40 text-xs font-medium text-ctp-subtext0">
+                <span class="px-3 py-2"></span>
+                <span class="px-3 py-2 text-center">Free</span>
+                <span class="px-3 py-2 text-center text-ctp-yellow">Paid</span>
+              </div>
+              <div
+                v-for="(row, i) in PLAN_COMPARISON"
+                :key="row.label"
+                class="grid grid-cols-3 text-xs"
+                :class="i > 0 ? 'border-t border-ctp-surface0' : ''"
+              >
+                <span class="px-3 py-2 font-medium text-ctp-subtext1">{{ row.label }}</span>
+                <span class="px-3 py-2 text-center text-ctp-subtext0">{{ row.free }}</span>
+                <span class="px-3 py-2 text-center font-medium text-ctp-text">{{ row.paid }}</span>
+              </div>
+            </div>
+
+            <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                class="rounded-lg border border-ctp-surface1 px-4 py-2 text-sm font-medium text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
+                @click="upgradeModalOpen = false"
+              >
+                Keep current retention
+              </button>
+              <button
+                type="button"
+                class="flex items-center justify-center gap-1.5 rounded-lg bg-ctp-yellow px-4 py-2 text-sm font-semibold text-ctp-base hover:opacity-90"
+                @click="upgradeModalOpen = false"
+              >
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M13 2L3 14h7v8l10-12h-7z" />
+                </svg>
+                Upgrade to unlimited
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
-/* No component-specific styles needed — fireworks are Canvas-rendered */
+/* Fireworks are Canvas-rendered; only the upgrade modal needs a fade. */
+.upgrade-modal-fade-enter-active,
+.upgrade-modal-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.upgrade-modal-fade-enter-from,
+.upgrade-modal-fade-leave-to {
+  opacity: 0;
+}
 </style>

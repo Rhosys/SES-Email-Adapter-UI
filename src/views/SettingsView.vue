@@ -15,6 +15,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import FilterModeModal from '@/components/ui/FilterModeModal.vue'
 import SettingsTabBar from '@/components/settings/SettingsTabBar.vue'
 import BillingPanel from '@/components/settings/BillingPanel.vue'
+import BuildInfo from '@/components/BuildInfo.vue'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useToast } from '@/composables/useToast'
@@ -730,8 +731,6 @@ const TABS: { key: TabKey; label: string; description: string }[] = [
   { key: 'billing', label: 'Billing', description: 'Manage your plan and payment details' },
 ]
 
-const activeTabLabel = computed(() => TABS.find((t) => t.key === activeTab.value)?.label ?? 'Settings')
-
 /** Leave Settings, back to the app. */
 function goBack() {
   void router.push('/')
@@ -785,19 +784,19 @@ useGestureHandler(settingsContentRef, {
       </div>
     </div>
 
-    <!-- Top bar (mobile): back to the app + current section label -->
-    <div class="flex shrink-0 items-center gap-1 border-b border-ctp-surface0 bg-ctp-mantle px-2 py-2 sm:hidden">
+    <!-- Top bar (mobile): back to the app. The current section is shown by the
+         bottom tab bar, so no title is needed here. -->
+    <div class="flex shrink-0 items-center border-b border-ctp-surface0 bg-ctp-mantle px-2 py-2 sm:hidden">
       <button
         type="button"
-        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
-        aria-label="Back to app"
+        class="flex items-center gap-1 px-1 py-1 text-sm text-ctp-subtext1 hover:text-ctp-text"
         @click="goBack"
       >
-        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M15 5l-7 7 7 7" />
         </svg>
+        Back to app
       </button>
-      <span class="truncate text-base font-medium text-ctp-text">{{ activeTabLabel }}</span>
     </div>
 
     <!-- Content. Mobile: the scrolling middle of the flex column, and the owner
@@ -1251,6 +1250,11 @@ useGestureHandler(settingsContentRef, {
             </div>
           </section>
         </template>
+
+        <!-- Build/version footer -->
+        <div class="border-t border-ctp-surface0 pt-4">
+          <BuildInfo />
+        </div>
       </section>
 
       <!-- ── Email addresses tab ────────────────────────────────────────── -->
