@@ -8,6 +8,7 @@ import logger from './lib/logger'
 import { loginClient } from './lib/auth'
 import { useAccountStore } from './stores/account'
 import { useUserConfigStore } from './stores/userConfig'
+import { useLogStore } from './stores/logs'
 import { persistentStorePlugin } from '@/plugins/persistent-store'
 import buildInfo from '@/lib/buildInfo'
 
@@ -60,6 +61,11 @@ enableMocking().then(() => {
   window.addEventListener('beforeunload', () => logger.flushOnUnload())
 
   app.use(pinia).use(router).mount('#app')
+
+  // Mirror recent logs into a persistent store for on-device investigation.
+  // Wired eagerly (not gated on auth) so early-boot logs are captured too.
+  const logStore = useLogStore()
+  logger.setHistorySink((entry) => logStore.record(entry))
 
   // Gate all post-auth initialization on session readiness.
   // waitForUserSession blocks until authenticate() or userSessionExists() confirms a session.

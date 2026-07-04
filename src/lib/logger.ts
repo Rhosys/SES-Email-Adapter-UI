@@ -9,6 +9,16 @@ const BASE_URL = 'https://relay.rhosys.ch/v1/logs'
 type ContextGetter = () => { userId?: string; accountId?: string }
 type RouteGetter = () => string
 
+/** A compact record of a single log line, kept in the in-app history buffer. */
+export interface LogHistoryEntry {
+  timestamp: string
+  level: string
+  route: string
+  message: Record<string, unknown>
+}
+
+type HistorySink = (entry: LogHistoryEntry) => void
+
 function safeStringify(value: unknown): string {
   const seen = new WeakSet()
   return JSON.stringify(
@@ -49,6 +59,11 @@ class Logger {
   private messagesToPost: string[]
   private getContext: ContextGetter
   private getRoute: RouteGetter
+  // Recent-log history for on-device investigation. Until a sink is wired
+  // (from main.ts, into the persistent log store) entries are buffered so
+  // early-boot logs aren't lost.
+  private historySink: HistorySink | null = null
+  private historyBuffer: LogHistoryEntry[] = []
 
   constructor() {
     this.messagesToPost = []
@@ -80,6 +95,26 @@ class Logger {
 
   setRouteGetter(fn: RouteGetter) {
     this.getRoute = fn
+  }
+
+  /** Wire the history sink (the persistent log store). Flushes any buffered
+   *  entries captured before the store was available. */
+  setHistorySink(fn: HistorySink) {
+    this.historySink = fn
+    const buffered = this.historyBuffer
+    this.historyBuffer = []
+    for (const entry of buffered) {
+      try { fn(entry) } catch { /* a broken sink must never break logging */ }
+    }
+  }
+
+  private recordHistory(entry: LogHistoryEntry) {
+    if (this.historySink) {
+      try { this.historySink(entry) } catch { /* never break logging */ }
+      return
+    }
+    this.historyBuffer.push(entry)
+    if (this.historyBuffer.length > 200) this.historyBuffer.shift()
   }
 
   critical(message: unknown, display = true) {
@@ -168,6 +203,13 @@ class Logger {
       sessionId: this.sessionKey,
       message: messageAsObject,
     }
+
+    this.recordHistory({
+      timestamp: payload.timestamp,
+      level,
+      route: payload.route,
+      message: messageAsObject,
+    })
 
     const serialized = this.truncateToken(safeStringify(payload))
     this.messagesToPost.push(serialized)

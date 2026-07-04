@@ -2,11 +2,39 @@
 import { ref, computed } from 'vue'
 import { api } from '@/lib/api'
 import { useAccountStore } from '@/stores/account'
+import { useLogStore } from '@/stores/logs'
 import { getUndoExpiresAt } from '@/composables/usePendingSend'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
+import BuildInfo from '@/components/BuildInfo.vue'
 import type { Thread, Signal } from '@/types/server'
 
 const accountStore = useAccountStore()
+const logStore = useLogStore()
+
+// ── Log history (last hour) — on-device investigation aid ──────────────────
+const LOG_LEVEL_CLASS: Record<string, string> = {
+  CRITICAL: 'text-ctp-red',
+  ERROR: 'text-ctp-red',
+  WARN: 'text-ctp-peach',
+  INFO: 'text-ctp-blue',
+  TRACK: 'text-ctp-subtext0',
+  DEBUG: 'text-ctp-subtext0',
+}
+function logLevelClass(level: string): string {
+  return LOG_LEVEL_CLASS[level] ?? 'text-ctp-subtext1'
+}
+function formatLogTime(ts: string): string {
+  const d = new Date(ts)
+  return Number.isNaN(d.getTime()) ? ts : d.toLocaleTimeString()
+}
+function formatLogMessage(message: Record<string, unknown>): string {
+  if (typeof message.title === 'string' && Object.keys(message).length === 1) return message.title
+  try {
+    return JSON.stringify(message)
+  } catch {
+    return String(message)
+  }
+}
 
 const signalIdInput = ref('')
 const loading = ref(false)
@@ -114,7 +142,10 @@ async function lookup() {
 
 <template>
   <div class="mx-auto max-w-5xl space-y-6 p-6">
-    <h1 class="text-lg font-semibold text-ctp-text">Admin — Signal Inspector</h1>
+    <div>
+      <h1 class="text-lg font-semibold text-ctp-text">Admin — Signal Inspector</h1>
+      <BuildInfo class="mt-1" />
+    </div>
 
     <!-- Input -->
     <form class="flex gap-3" @submit.prevent="lookup">
@@ -228,6 +259,31 @@ async function lookup() {
         style="min-height: 650px; max-height: calc(100vh - 160px)"
         title="Email HTML body"
       />
+    </section>
+
+    <!-- Log history — recent in-app logs, for investigating issues on-device -->
+    <section>
+      <div class="mb-2 flex items-center justify-between">
+        <h3 class="text-sm font-medium text-ctp-subtext1">Logs — last hour ({{ logStore.recent.length }})</h3>
+        <button
+          class="rounded bg-ctp-surface1 px-2 py-0.5 text-xs text-ctp-text hover:bg-ctp-surface2"
+          @click="logStore.clear()"
+        >
+          Clear
+        </button>
+      </div>
+      <div class="max-h-96 overflow-y-auto rounded-lg border border-ctp-surface1 bg-ctp-mantle p-2 text-xs">
+        <p v-if="!logStore.recent.length" class="p-2 text-ctp-subtext0">No logs captured in the last hour.</p>
+        <div
+          v-for="(entry, i) in logStore.recent"
+          :key="i"
+          class="flex gap-2 border-b border-ctp-surface0/50 px-1 py-1 font-mono last:border-0"
+        >
+          <span class="shrink-0 text-ctp-subtext0">{{ formatLogTime(entry.timestamp) }}</span>
+          <span class="w-16 shrink-0 font-medium" :class="logLevelClass(entry.level)">{{ entry.level }}</span>
+          <span class="min-w-0 flex-1 break-all text-ctp-text">{{ formatLogMessage(entry.message) }}</span>
+        </div>
+      </div>
     </section>
   </div>
 </template>
