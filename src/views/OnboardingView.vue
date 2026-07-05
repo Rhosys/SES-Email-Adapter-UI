@@ -52,9 +52,19 @@ const TOTAL_STEPS = 5
 const STEP_LABELS = ['Create Account', 'Configure Domain', 'Retention', 'Test Email', 'Done']
 const step = ref(1)
 
+// Which step titles in the top progress bar are clickable.
+function canNavigateTo(n: number): boolean {
+  if (n === step.value) return false
+  // Preview mode (?force=true): every step is reachable in any order, so the
+  // whole flow can be walked for review (replaces the old bottom "Skip" link).
+  if (forcePreview) return true
+  // Normal onboarding: only navigate back to an already-reached step (step 1 is
+  // automatic and never a manual target).
+  return n >= 2 && n < step.value
+}
+
 function goToStep(n: number) {
-  // Only allow navigating back to an already-reached step (not step 1 — it's auto)
-  if (n >= 2 && n < step.value) step.value = n
+  if (canNavigateTo(n)) step.value = n
 }
 
 // ── Retention (step 3) ────────────────────────────────────────────────────────
@@ -425,10 +435,10 @@ onUnmounted(() => {
             class="flex-1 text-center text-xs transition-colors"
             :class="[
               i + 1 === step ? 'font-medium text-ctp-mauve' : 'text-ctp-subtext0',
-              i + 1 < step && i + 1 >= 2 ? 'cursor-pointer hover:text-ctp-text' : 'cursor-default',
+              canNavigateTo(i + 1) ? 'cursor-pointer hover:text-ctp-text' : 'cursor-default',
             ]"
             :aria-current="i + 1 === step ? 'step' : undefined"
-            :disabled="i + 1 >= step || i + 1 < 2"
+            :disabled="!canNavigateTo(i + 1)"
             @click="goToStep(i + 1)"
           >
             {{ label }}
@@ -712,18 +722,6 @@ onUnmounted(() => {
           </AsyncButton>
         </div>
       </section>
-
-      <!-- Preview mode (?force=true): manual advance for the Domain and Test-email
-           screens, which otherwise only move forward automatically. -->
-      <div v-if="forcePreview && (step === 2 || step === 4)" class="mt-8 flex justify-end">
-        <button
-          type="button"
-          class="text-xs text-ctp-subtext0 underline hover:text-ctp-text"
-          @click="step = step + 1"
-        >
-          Skip this step →
-        </button>
-      </div>
 
     </main>
 
