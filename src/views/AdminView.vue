@@ -71,7 +71,8 @@ const undoExpired = computed(() => undoExpiresAt.value ? new Date(undoExpiresAt.
 async function cancelPendingSend() {
   const accountId = accountStore.accountId
   if (!accountId || !signal.value) return
-  const result = await api.patchSignal(accountId, signal.value.signalId, { status: 'draft' })
+  const threadId = signal.value.threadId ?? 'QUARANTINED'
+  const result = await api.patchSignal(accountId, threadId, signal.value.signalId, { status: 'draft' })
   if (result.isOk()) signal.value = result.value
 }
 
@@ -84,8 +85,9 @@ async function reprocess() {
   previousSignal.value = structuredClone(signal.value)
   previousThread.value = thread.value ? structuredClone(thread.value) : null
 
+  const threadId = signal.value.threadId ?? 'QUARANTINED'
   reprocessing.value = true
-  const result = await api.reprocessSignal(accountId, signal.value.signalId)
+  const result = await api.reprocessSignal(accountId, threadId, signal.value.signalId)
   if (result.isOk()) {
     signal.value = result.value
     if (result.value.threadId) {
@@ -114,7 +116,7 @@ async function lookup() {
   thread.value = null
   rawEmail.value = null
 
-  const signalResult = await api.getSignal(accountId, id)
+  const signalResult = await api.getSignal(accountId, 'QUARANTINED', id)
   if (signalResult.isErr()) {
     errorMessage.value = signalResult.error.message
     loading.value = false
@@ -131,7 +133,8 @@ async function lookup() {
   }
 
   // Fetch raw email
-  const rawResult = await api.getRawEmail(accountId, id)
+  const rawThreadId = signalResult.value.threadId ?? 'QUARANTINED'
+  const rawResult = await api.getRawEmail(accountId, rawThreadId, id)
   if (rawResult.isOk()) {
     rawEmail.value = rawResult.value
   }

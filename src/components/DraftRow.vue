@@ -34,8 +34,8 @@ const subject = computed(() => emailData.value?.subject || 'New draft')
 const snippet = computed(() => emailData.value?.body?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() ?? '')
 
 async function discard() {
-  if (!accountStore.accountId) return
-  await api.deleteDraftSignal(accountStore.accountId, props.signal.signalId)
+  if (!accountStore.accountId || !props.signal.threadId) return
+  await api.deleteDraftSignal(accountStore.accountId, props.signal.threadId, props.signal.signalId)
   if (props.signal.threadId) draftsStore.removeDraft(props.signal.threadId, props.signal.signalId)
   emit('discard')
 }

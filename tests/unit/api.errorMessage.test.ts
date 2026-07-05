@@ -36,7 +36,7 @@ describe('api request() error message', () => {
       }),
     )
 
-    const result = await api.reprocessSignal('acc_1', 'sig_1')
+    const result = await api.reprocessSignal('acc_1', 'thr_1', 'sig_1')
 
     expect(result.isErr()).toBe(true)
     if (result.isErr()) {
@@ -50,7 +50,7 @@ describe('api request() error message', () => {
       mockFetchResponse({ ok: false, status: 500, body: { title: 'Reprocess failed' } }),
     )
 
-    const result = await api.reprocessSignal('acc_1', 'sig_1')
+    const result = await api.reprocessSignal('acc_1', 'thr_1', 'sig_1')
 
     expect(result.isErr()).toBe(true)
     if (result.isErr()) {
@@ -61,11 +61,11 @@ describe('api request() error message', () => {
   it('falls back to method/path/status when the body has no title', async () => {
     vi.mocked(global.fetch).mockResolvedValue(mockFetchResponse({ ok: false, status: 503, body: null }))
 
-    const result = await api.reprocessSignal('acc_1', 'sig_1')
+    const result = await api.reprocessSignal('acc_1', 'thr_1', 'sig_1')
 
     expect(result.isErr()).toBe(true)
     if (result.isErr()) {
-      expect(result.error.message).toBe('POST /accounts/acc_1/signals/sig_1/reprocess → 503')
+      expect(result.error.message).toBe('POST /accounts/acc_1/threads/thr_1/signals/sig_1/reprocess → 503')
     }
   })
 })

@@ -134,9 +134,9 @@ function viewOriginalEmail() {
 
   if (originalEmailSource.value) return
 
-  if (!accountStore.accountId) return
+  if (!accountStore.accountId || !props.signal.threadId) return
   originalLoading.value = true
-  void api.getRawEmail(accountStore.accountId, props.signal.signalId).then((result) => {
+  void api.getRawEmail(accountStore.accountId, props.signal.threadId, props.signal.signalId).then((result) => {
     originalLoading.value = false
     if (result.isOk()) {
       originalEmailSource.value = result.value
@@ -171,10 +171,10 @@ const sentAt = computed(() => {
 
 async function undoSend() {
   menuOpen.value = false
-  if (!accountStore.accountId || undoPending.value) return
+  if (!accountStore.accountId || !props.signal.threadId || undoPending.value) return
   undoPending.value = true
   undoError.value = null
-  const result = await api.patchSignal(accountStore.accountId, props.signal.signalId, { status: 'draft' })
+  const result = await api.patchSignal(accountStore.accountId, props.signal.threadId, props.signal.signalId, { status: 'draft' })
   undoPending.value = false
   if (result.isOk()) {
     emit('undo')
@@ -185,11 +185,11 @@ async function undoSend() {
 
 async function reprocessSignal() {
   menuOpen.value = false
-  if (!accountStore.accountId || reprocessing.value) return
+  if (!accountStore.accountId || !props.signal.threadId || reprocessing.value) return
   reprocessing.value = true
   reprocessError.value = null
 
-  const result = await api.reprocessSignal(accountStore.accountId, props.signal.signalId)
+  const result = await api.reprocessSignal(accountStore.accountId, props.signal.threadId, props.signal.signalId)
 
   if (result.isErr()) {
     reprocessing.value = false

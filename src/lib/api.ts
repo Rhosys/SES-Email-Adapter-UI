@@ -197,16 +197,7 @@ export const api = {
     return request<QuarantineSignalListWire>(`/accounts/${accountId}/signals?${qs.toString()}`)
   },
 
-  listDraftSignals(
-    accountId: string,
-    params: { cursor?: string; limit?: number } = {},
-  ): Promise<Result<SignalListWire, ApiError>> {
-    const qs = new URLSearchParams()
-    qs.set('status', 'draft')
-    if (params.cursor) qs.set('cursor', params.cursor)
-    if (params.limit) qs.set('limit', String(params.limit))
-    return request<SignalListWire>(`/accounts/${accountId}/signals?${qs.toString()}`)
-  },
+
 
   quarantineResponse(
     accountId: string,
@@ -264,17 +255,18 @@ export const api = {
 
   patchSignal(
     accountId: string,
+    threadId: string,
     signalId: string,
     body: { status: SignalStatus },
   ): Promise<Result<Signal, ApiError>> {
-    return request<Signal>(`/accounts/${accountId}/signals/${signalId}`, {
+    return request<Signal>(`/accounts/${accountId}/threads/${threadId}/signals/${signalId}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     })
   },
 
-  deleteDraftSignal(accountId: string, signalId: string): Promise<Result<void, ApiError>> {
-    return request<void>(`/accounts/${accountId}/signals/${signalId}`, { method: 'DELETE' })
+  deleteDraftSignal(accountId: string, threadId: string, signalId: string): Promise<Result<void, ApiError>> {
+    return request<void>(`/accounts/${accountId}/threads/${threadId}/signals/${signalId}`, { method: 'DELETE' })
   },
 
   // ─── Rules ───────────────────────────────────────────────────────────────
@@ -647,20 +639,20 @@ export const api = {
 
   // ─── Admin ──────────────────────────────────────────────────────────────────
 
-  getSignal(accountId: string, signalId: string): Promise<Result<Signal, ApiError>> {
-    return request<Signal>(`/accounts/${accountId}/signals/${signalId}`)
+  getSignal(accountId: string, threadId: string, signalId: string): Promise<Result<Signal, ApiError>> {
+    return request<Signal>(`/accounts/${accountId}/threads/${threadId}/signals/${signalId}`)
   },
 
-  reprocessSignal(accountId: string, signalId: string): Promise<Result<Signal, ApiError>> {
-    return request<Signal>(`/accounts/${accountId}/signals/${signalId}/reprocess`, {
+  reprocessSignal(accountId: string, threadId: string, signalId: string): Promise<Result<Signal, ApiError>> {
+    return request<Signal>(`/accounts/${accountId}/threads/${threadId}/signals/${signalId}/reprocess`, {
       method: 'POST',
     })
   },
 
-  async getRawEmail(accountId: string, signalId: string): Promise<Result<string, ApiError>> {
+  async getRawEmail(accountId: string, threadId: string, signalId: string): Promise<Result<string, ApiError>> {
     try {
       const token = await loginClient.ensureToken()
-      const res = await fetch(`${BASE}/accounts/${accountId}/signals/${signalId}/raw`, {
+      const res = await fetch(`${BASE}/accounts/${accountId}/threads/${threadId}/signals/${signalId}/raw`, {
         headers: { Authorization: `Bearer ${token}` },
         redirect: 'follow',
       })

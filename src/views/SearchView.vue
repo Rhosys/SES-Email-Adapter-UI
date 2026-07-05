@@ -80,7 +80,7 @@ async function directLookup(id: string): Promise<boolean> {
   results.value = { threads: [], signals: [], aliases: [], rules: [], templates: [], error: null }
 
   const [signalRes, threadRes, aliasesRes, rulesRes, templatesRes] = await Promise.all([
-    api.getSignal(accountId, id),
+    api.getSignal(accountId, 'QUARANTINED', id),
     api.getThread(accountId, id),
     api.listAliases(accountId),
     api.listRules(accountId),

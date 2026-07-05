@@ -52,10 +52,10 @@ function viewOriginal() {
 
 async function undoSend() {
   menuOpen.value = false
-  if (!accountStore.accountId || undoPending.value) return
+  if (!accountStore.accountId || !props.signal.threadId || undoPending.value) return
   undoPending.value = true
   undoError.value = null
-  const result = await api.patchSignal(accountStore.accountId, props.signal.signalId, { status: 'draft' })
+  const result = await api.patchSignal(accountStore.accountId, props.signal.threadId, props.signal.signalId, { status: 'draft' })
   undoPending.value = false
   if (result.isOk()) {
     emit('undo')
