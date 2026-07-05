@@ -44,14 +44,13 @@ export const useDraftsStore = defineStore('drafts', () => {
     const id = accountStore.accountId
     if (!id) return
     loading.value = true
-    if (threadsStore.items.length === 0) {
-      await threadsStore.fetchThreads(true)
-    }
-    const topThreadIds = threadsStore.sortedItems
+    // Always fetch fresh threads to get current lastSignalAt
+    await threadsStore.fetchThreads(true)
+    const topThreads = threadsStore.sortedItems
       .filter((a) => a.status === 'active')
       .slice(0, TOP_THREAD_LIMIT)
-      .map((a) => a.threadId)
-    await signalsStore.fetchForThreads(topThreadIds)
+      .map((a) => ({ threadId: a.threadId, lastSignalAt: a.lastSignalAt }))
+    await signalsStore.fetchForThreads(topThreads)
     loading.value = false
   }
 

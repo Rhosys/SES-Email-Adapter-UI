@@ -108,11 +108,23 @@ export const useSignalsStore = defineStore('signals', () => {
   // Background refresh of several threads at once — used by the Drafts page to
   // pull fresh signals for the most recently active threads on load, so any
   // drafts hiding in them surface without a dedicated "list drafts" call.
-  async function fetchForThreads(threadIds: string[]) {
+  // Staleness-aware: skips threads where the newest cached signal already
+  // covers the thread's lastSignalAt (no new signals since last fetch).
+  async function fetchForThreads(threads: Array<{ threadId: string; lastSignalAt: string }>) {
     const accountId = accountStore.accountId
     if (!accountId) return
+
+    const staleThreads = threads.filter(({ threadId, lastSignalAt }) => {
+      const cached = threadSignals(threadId)
+      if (cached.length === 0) return true
+      // cached[0] is newest (sorted newest-first by setThreadSignals)
+      return new Date(cached[0]!.createdAt).getTime() < new Date(lastSignalAt).getTime()
+    })
+
+    if (staleThreads.length === 0) return
+
     await Promise.all(
-      threadIds.map(async (threadId) => {
+      staleThreads.map(async ({ threadId }) => {
         const result = await api.listSignals(accountId, threadId, { limit: 50 })
         if (result.isOk()) {
           setThreadSignals(threadId, [...result.value.signals].reverse())

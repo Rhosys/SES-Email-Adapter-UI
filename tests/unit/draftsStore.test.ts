@@ -105,7 +105,10 @@ describe('draftsStore', () => {
         pagination: { cursor: null },
       }),
     )
-    await signalsStore.fetchForThreads(['thread_active', 'thread_archived'])
+    await signalsStore.fetchForThreads([
+      { threadId: 'thread_active', lastSignalAt: '2099-01-01T00:00:00Z' },
+      { threadId: 'thread_archived', lastSignalAt: '2099-01-01T00:00:00Z' },
+    ])
 
     const store = useDraftsStore()
     expect(store.drafts.map((s) => s.signalId)).toEqual(['draft_thread_active'])
