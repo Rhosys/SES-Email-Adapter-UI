@@ -14,7 +14,10 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 
 // Loop timing: 10s of fireworks, then 5s of nothing, repeating.
-const ACTIVE_MS = 10_000
+// ACTIVE_MS is the shell-launch window. The last volley keeps rising and fading
+// for ~2.5s after launches stop, so the *visible* burst runs a bit longer than
+// this — tuned so the whole show reads as roughly 7s on, then IDLE_MS of quiet.
+const ACTIVE_MS = 5_500
 const IDLE_MS = 5_000
 const CYCLE_MS = ACTIVE_MS + IDLE_MS
 
