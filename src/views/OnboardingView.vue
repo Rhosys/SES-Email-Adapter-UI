@@ -391,30 +391,48 @@ async function persistProgress(patch: Partial<{
 const fireworksCanvas = ref<HTMLCanvasElement | null>(null)
 let fireworksRaf = 0
 
-const FIREWORK_COLORS = [
-  '#cba6f7', '#f5c2e7', '#89b4fa', '#74c7ec',
-  '#a6e3a1', '#94e2d5', '#fab387', '#f9e2af',
-  '#f38ba8', '#eba0ac',
+const FIREWORK_COLORS: [number, number, number][] = [
+  [203, 166, 247], [245, 194, 231], [137, 180, 250], [116, 199, 236],
+  [166, 227, 161], [148, 226, 213], [250, 179, 135], [249, 226, 175],
+  [243, 139, 168], [235, 160, 172],
 ]
 
 interface Particle {
   x: number
   y: number
+  px: number  // previous position — the streak's tail (squash & stretch)
+  py: number
   vx: number
   vy: number
   alpha: number
   decay: number
   size: number
-  color: string
+  color: [number, number, number]
+  twinkle: number  // phase offset so embers flicker out of sync
 }
 
 interface Shell {
   x: number
   y: number
+  px: number
+  py: number
   vx: number
   vy: number
-  color: string
+  color: [number, number, number]
 }
+
+// A short-lived bloom of light at the moment of detonation — the "impact"
+// that sells the explosion before the sparks spread.
+interface Flash {
+  x: number
+  y: number
+  radius: number
+  maxRadius: number
+  alpha: number
+  color: [number, number, number]
+}
+
+const rgba = ([r, g, b]: [number, number, number], a: number) => `rgba(${r},${g},${b},${a})`
 
 function launchFireworks(canvas: HTMLCanvasElement) {
   const ctx = canvas.getContext('2d')
@@ -432,9 +450,11 @@ function launchFireworks(canvas: HTMLCanvasElement) {
 
   const particles: Particle[] = []
   const shells: Shell[] = []
+  const flashes: Flash[] = []
   const w = () => canvas.offsetWidth
   const h = () => canvas.offsetHeight
   const random = (min: number, max: number) => Math.random() * (max - min) + min
+  const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]!
 
   // Shells are spawned on staggered setTimeouts below, so on early frames both
   // particles and shells are still empty even though the show hasn't started yet.
@@ -457,28 +477,36 @@ function launchFireworks(canvas: HTMLCanvasElement) {
     shells.push({
       x,
       y: h(),
+      px: x,
+      py: h(),
       vx: random(-0.6, 0.6),
       vy: -Math.sqrt(2 * SHELL_GRAVITY * apexHeight),
-      color: FIREWORK_COLORS[Math.floor(random(0, FIREWORK_COLORS.length))],
+      color: pick(FIREWORK_COLORS),
     })
   }
 
   function explode(shell: Shell) {
-    const count = Math.floor(random(40, 70))
+    // Detonation bloom — a bright flash that expands and fades fast.
+    flashes.push({ x: shell.x, y: shell.y, radius: 4, maxRadius: random(50, 90), alpha: 1, color: shell.color })
+
+    // Sparks fly out on a roughly even ring (radial symmetry reads as a real
+    // burst), with jittered speed so the shell isn't a perfect circle.
+    const count = Math.floor(random(48, 78))
     for (let i = 0; i < count; i++) {
-      const angle = random(0, Math.PI * 2)
-      const speed = random(1, 5)
+      const angle = (i / count) * Math.PI * 2 + random(-0.12, 0.12)
+      const speed = random(1.5, 5.5)
       particles.push({
         x: shell.x,
         y: shell.y,
+        px: shell.x,
+        py: shell.y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         alpha: 1,
-        decay: random(0.012, 0.025),
-        size: random(1.5, 3.5),
-        color: Math.random() > 0.3
-          ? shell.color
-          : FIREWORK_COLORS[Math.floor(random(0, FIREWORK_COLORS.length))],
+        decay: random(0.010, 0.022),
+        size: random(1.2, 3),
+        color: Math.random() > 0.25 ? shell.color : pick(FIREWORK_COLORS),
+        twinkle: random(0, Math.PI * 2),
       })
     }
   }
@@ -491,18 +519,42 @@ function launchFireworks(canvas: HTMLCanvasElement) {
 
   function frame() {
     c.clearRect(0, 0, w(), h())
+    // Additive blending: where sparks overlap, light accumulates and the core
+    // blooms toward white — the glow that makes the burst feel hot and alive.
+    c.globalCompositeOperation = 'lighter'
+    c.lineCap = 'round'
 
-    // Update shells — rise along a curved (slightly drifting, gravity-decelerated)
-    // path and explode the instant they crest, i.e. vy crosses from negative to zero.
+    // Detonation flashes — expanding, fast-fading blooms drawn under the sparks.
+    for (let i = flashes.length - 1; i >= 0; i--) {
+      const f = flashes[i]!
+      f.radius += (f.maxRadius - f.radius) * 0.28  // ease-out expansion
+      f.alpha -= 0.08
+      if (f.alpha <= 0) { flashes.splice(i, 1); continue }
+      const g = c.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.radius)
+      g.addColorStop(0, rgba([255, 255, 255], 0.9 * f.alpha))
+      g.addColorStop(0.35, rgba(f.color, 0.55 * f.alpha))
+      g.addColorStop(1, rgba(f.color, 0))
+      c.fillStyle = g
+      c.beginPath()
+      c.arc(f.x, f.y, f.radius, 0, Math.PI * 2)
+      c.fill()
+    }
+
+    // Shells — rise along a curved (slightly drifting, gravity-decelerated) path,
+    // drawn as a stretched glowing streak (squash & stretch), and explode the
+    // instant they crest, i.e. vy crosses from negative to zero.
     for (let i = shells.length - 1; i >= 0; i--) {
       const s = shells[i]!
-
-      // Trail
+      c.globalAlpha = 1
+      c.strokeStyle = rgba(s.color, 0.9)
+      c.lineWidth = 2.5
       c.beginPath()
-      c.arc(s.x, s.y, 2, 0, Math.PI * 2)
-      c.fillStyle = s.color
-      c.fill()
+      c.moveTo(s.px, s.py)
+      c.lineTo(s.x, s.y)
+      c.stroke()
 
+      s.px = s.x
+      s.py = s.y
       s.x += s.vx
       s.y += s.vy
       s.vy += SHELL_GRAVITY
@@ -513,14 +565,18 @@ function launchFireworks(canvas: HTMLCanvasElement) {
       }
     }
 
-    // Update particles
+    // Sparks — gravity + air drag, drawn as a streak from previous to current
+    // position so fast particles stretch and slowing ones relax into dots.
     const gravity = 0.06
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i]!
+      p.px = p.x
+      p.py = p.y
       p.x += p.vx
       p.y += p.vy
       p.vy += gravity
       p.vx *= 0.985
+      p.vy *= 0.985
       p.alpha -= p.decay
 
       if (p.alpha <= 0) {
@@ -528,17 +584,24 @@ function launchFireworks(canvas: HTMLCanvasElement) {
         continue
       }
 
-      c.globalAlpha = p.alpha
+      // Twinkle: once an ember dims past half, flicker it so the burst sparkles
+      // out instead of fading uniformly.
+      p.twinkle += 0.3
+      const flicker = p.alpha < 0.5 ? 0.6 + 0.4 * Math.sin(p.twinkle) : 1
+      c.globalAlpha = Math.min(1, p.alpha * flicker)
+      c.strokeStyle = rgba(p.color, 1)
+      c.lineWidth = p.size
       c.beginPath()
-      c.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-      c.fillStyle = p.color
-      c.fill()
+      c.moveTo(p.px, p.py)
+      c.lineTo(p.x, p.y)
+      c.stroke()
     }
 
     c.globalAlpha = 1
+    c.globalCompositeOperation = 'source-over'
 
-    // Stop once every shell has spawned, exploded, and its particles faded
-    if (pendingShells <= 0 && particles.length === 0 && shells.length === 0) {
+    // Stop once every shell has spawned, exploded, and its sparks & flashes faded
+    if (pendingShells <= 0 && particles.length === 0 && shells.length === 0 && flashes.length === 0) {
       return
     }
 
