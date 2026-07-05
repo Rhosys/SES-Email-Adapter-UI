@@ -105,8 +105,9 @@ function openHelp() {
 
 async function signOut() {
   userMenuOpen.value = false
-  const basePath = import.meta.env.VITE_BASE_PATH ?? '/'
-  await loginClient.logout(`${window.location.origin}${basePath}`)
+  // Land on the public site root (the marketing/landing page), not the app's
+  // deploy base path — a signed-out user has nothing to see inside the app.
+  await loginClient.logout(`${window.location.origin}/`)
 }
 
 // Close user menu on outside click
