@@ -733,7 +733,9 @@ onUnmounted(() => {
       <section v-else-if="step === 3">
         <h2 class="mb-1 text-xl font-semibold">Choose your retention</h2>
         <p class="mb-6 text-sm text-ctp-subtext0">
-          How long should we keep your conversations? You can change this anytime in Settings.
+          You're set up and about to test sending and receiving — before you do, it's worth
+          getting your retention right so it matches your privacy needs. You can change this
+          anytime in Settings.
         </p>
 
         <div class="space-y-2">
