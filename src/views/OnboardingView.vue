@@ -665,12 +665,14 @@ onUnmounted(() => {
             <CopyInput :value="testEmailAddress" mono />
           </div>
 
-          <button
-            class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
-            @click="markEmailSent"
-          >
-            I've sent the email
-          </button>
+          <div class="flex justify-end">
+            <button
+              class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
+              @click="markEmailSent"
+            >
+              I've sent the email
+            </button>
+          </div>
         </div>
 
         <!-- Watching state -->
