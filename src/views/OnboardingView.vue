@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, watchEffect, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, watchEffect, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
@@ -8,6 +8,7 @@ import type { DnsRecord, RetentionDuration } from '@/types/server'
 import CopyInput from '@/components/CopyInput.vue'
 import AppNavbar from '@/components/AppNavbar.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
+import FireworksDisplay from '@/components/FireworksDisplay.vue'
 import { useFeatureTour } from '@/composables/useFeatureTour'
 
 const router = useRouter()
@@ -48,40 +49,52 @@ import { isValidDomain } from '@/lib/validation'
 
 // ── Steps ────────────────────────────────────────────────────────────────────
 const TOTAL_STEPS = 5
-const STEP_LABELS = ['Create Account', 'Configure Domain', 'Test Email', 'Retention', 'Done']
+const STEP_LABELS = ['Create Account', 'Configure Domain', 'Retention', 'Test Email', 'Done']
 const step = ref(1)
 
-function goToStep(n: number) {
-  // Only allow navigating back to an already-reached step (not step 1 — it's auto)
-  if (n >= 2 && n < step.value) step.value = n
+// Which step titles in the top progress bar are clickable.
+function canNavigateTo(n: number): boolean {
+  if (n === step.value) return false
+  // Preview mode (?force=true): every step is reachable in any order, so the
+  // whole flow can be walked for review (replaces the old bottom "Skip" link).
+  if (forcePreview) return true
+  // Normal onboarding: only navigate back to an already-reached step (step 1 is
+  // automatic and never a manual target).
+  return n >= 2 && n < step.value
 }
 
-// ── Retention (step 4) ────────────────────────────────────────────────────────
+function goToStep(n: number) {
+  if (canNavigateTo(n)) step.value = n
+}
+
+// ── Retention (step 3) ────────────────────────────────────────────────────────
 // Free-tier durations only; longer retention is gated behind paid plans and
 // surfaced via the "Unlimited" option, which opens the upgrade modal instead of
-// being selectable. Mirrors the free options in SettingsView's RETENTION_OPTIONS.
+// being selectable. A trimmed-down version of SettingsView's RETENTION_OPTIONS —
+// just the clearest low/mid/high free-tier choices.
 const RETENTION_ONBOARDING_OPTIONS: { value: RetentionDuration; label: string; description: string }[] = [
-  { value: 'P1M', label: '1 month', description: 'Keep conversations for 1 month' },
-  { value: 'P2M', label: '2 months', description: 'Keep conversations for 2 months' },
-  { value: 'P3M', label: '3 months', description: 'Recommended for most inboxes' },
-  { value: 'P5M', label: '5 months', description: 'Keep conversations for 5 months' },
-  { value: 'P6M', label: '6 months', description: 'The longest retention on the free plan' },
+  { value: 'P1M', label: '1 month', description: 'Keep your privacy at a maximum' },
+  { value: 'P3M', label: '3 months', description: 'Recommended for most inboxes and conversations' },
+  { value: 'P6M', label: '6 months', description: 'Ensure your conversations are available when you need them' },
 ]
 
 const selectedRetention = ref<RetentionDuration>(accountStore.account?.retentionDuration ?? 'P3M')
 
 const upgradeModalOpen = ref(false)
 
-// One-to-one Free vs paid comparison shown in the upgrade modal. Led by
-// retention/storage (the reason the user reached this prompt), then the broader
-// capabilities drawn from the billing plans so the value gap is clear.
+// One-to-one Free vs paid comparison shown in the upgrade modal, sourced from the
+// landing page's plan-comparison table (landing/compare/index.html). "Paid" here
+// reflects the Premium tier, since that's the plan that actually backs the
+// "Unlimited" retention promise (SettingsView gates RetentionDuration 'Infinity'
+// behind minPlan: 'premium'). Led by retention/storage — the reason the user
+// reached this prompt — then the broader capabilities so the value gap is clear.
 const PLAN_COMPARISON: { label: string; free: string; paid: string }[] = [
-  { label: 'Retention', free: 'Up to 6 months', paid: 'Up to Forever' },
-  { label: 'Storage', free: '500 signals / mo', paid: 'Unlimited' },
-  { label: 'Domains', free: '1', paid: 'Unlimited' },
-  { label: 'Team members', free: '1', paid: 'Unlimited' },
-  { label: 'Filtering', free: 'Basic', paid: 'Rules engine' },
-  { label: 'Email templates', free: '—', paid: 'Included' },
+  { label: 'Retention', free: '6 months', paid: 'Unlimited' },
+  { label: 'Storage', free: '5 GB', paid: '1 TB' },
+  { label: 'Domains', free: '3', paid: 'Unlimited' },
+  { label: 'Custom rules & templates', free: '—', paid: 'Included' },
+  { label: 'JMAP for any email client', free: '—', paid: 'Included' },
+  { label: 'Full audit trail', free: '—', paid: 'Included' },
   { label: 'Priority support', free: '—', paid: 'Included' },
 ]
 
@@ -92,7 +105,7 @@ async function saveRetentionAndContinue() {
     })
     if (result.isOk()) accountStore.account = result.value
   }
-  step.value = 5
+  step.value = 4
 }
 
 // ── Step 1: Account creation ─────────────────────────────────────────────────
@@ -159,7 +172,7 @@ async function createAndAdvance() {
   }
   if (ob?.testEmailReceived) {
     signalArrived.value = true
-    step.value = 4
+    step.value = 5
     return
   }
   // Hydrate before deciding which step to show; the 1000ms floor prevents a
@@ -303,8 +316,8 @@ function startPolling(accountId: string) {
       api.listQuarantinedSignals(accountId, 'quarantine_visible', { limit: 1 }),
       api.listThreads(accountId, { limit: 1 }),
     ])
-    const hasSignal = quarantineResult.isOk() && quarantineResult.value.signals.length > 0
-    const hasThread = threadsResult.isOk() && threadsResult.value.threads.length > 0
+    const hasSignal = quarantineResult.isOk() && (quarantineResult.value?.signals?.length ?? 0) > 0
+    const hasThread = threadsResult.isOk() && (threadsResult.value?.threads?.length ?? 0) > 0
     if (hasSignal || hasThread) {
       logger.info({ title: 'Onboarding: signal detected via poll', accountId, attempt: attempts, source: hasThread ? 'thread' : 'quarantine' })
       clearInterval(pollInterval!)
@@ -342,7 +355,7 @@ async function onSignalArrived() {
   if (signalArrived.value) return
   signalArrived.value = true
   await persistProgress({ testEmailReceived: true })
-  step.value = 4
+  step.value = 5
 }
 
 async function completeOnboarding() {
@@ -355,9 +368,24 @@ function markEmailSent() {
   emailSentClicked.value = true
 }
 
-// Connect WebSocket as soon as step 3 is shown
+function stopSignalWatch() {
+  if (pollInterval) { clearInterval(pollInterval); pollInterval = null }
+  if (ws) { ws.close(); ws = null }
+}
+
+// Connect WebSocket as soon as step 4 (Test email) is shown; tear it down (and any
+// fallback polling) the moment we leave that step, whether by receiving the signal
+// or by skipping past it — otherwise a skipped step keeps fetching in the background.
+watch(step, (s, prev) => {
+  if (s === 4 && accountStore.accountId) connectWs(accountStore.accountId)
+  if (prev === 4 && s !== 4) stopSignalWatch()
+})
+
+// Re-sync the retention choice from the account each time this step is shown —
+// the account may already have a retentionDuration set (e.g. resuming onboarding),
+// and by now it's already been fetched, so no extra network call is needed.
 watch(step, (s) => {
-  if (s === 3 && accountStore.accountId) connectWs(accountStore.accountId)
+  if (s === 3) selectedRetention.value = accountStore.account?.retentionDuration ?? 'P3M'
 })
 
 // ── Persistence ───────────────────────────────────────────────────────────────
@@ -370,162 +398,6 @@ async function persistProgress(patch: Partial<{
   if (result.isOk()) accountStore.account = result.value
 }
 
-// ── Canvas fireworks ──────────────────────────────────────────────────────────
-const fireworksCanvas = ref<HTMLCanvasElement | null>(null)
-let fireworksRaf = 0
-
-const FIREWORK_COLORS = [
-  '#cba6f7', '#f5c2e7', '#89b4fa', '#74c7ec',
-  '#a6e3a1', '#94e2d5', '#fab387', '#f9e2af',
-  '#f38ba8', '#eba0ac',
-]
-
-interface Particle {
-  x: number
-  y: number
-  vx: number
-  vy: number
-  alpha: number
-  decay: number
-  size: number
-  color: string
-}
-
-interface Shell {
-  x: number
-  y: number
-  vy: number
-  targetY: number
-  color: string
-  exploded: boolean
-}
-
-function launchFireworks(canvas: HTMLCanvasElement) {
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  // ctx is guaranteed non-null below this point; alias for closure narrowing
-  const c = ctx
-
-  const dpr = window.devicePixelRatio || 1
-  const resize = () => {
-    canvas.width = canvas.offsetWidth * dpr
-    canvas.height = canvas.offsetHeight * dpr
-    c.scale(dpr, dpr)
-  }
-  resize()
-
-  const particles: Particle[] = []
-  const shells: Shell[] = []
-  const w = () => canvas.offsetWidth
-  const h = () => canvas.offsetHeight
-  const random = (min: number, max: number) => Math.random() * (max - min) + min
-
-  function spawnShell() {
-    const x = random(w() * 0.15, w() * 0.85)
-    shells.push({
-      x,
-      y: h(),
-      vy: random(-h() * 0.018, -h() * 0.012),
-      targetY: random(h() * 0.15, h() * 0.45),
-      color: FIREWORK_COLORS[Math.floor(random(0, FIREWORK_COLORS.length))],
-      exploded: false,
-    })
-  }
-
-  function explode(shell: Shell) {
-    const count = Math.floor(random(40, 70))
-    for (let i = 0; i < count; i++) {
-      const angle = random(0, Math.PI * 2)
-      const speed = random(1, 5)
-      particles.push({
-        x: shell.x,
-        y: shell.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        alpha: 1,
-        decay: random(0.012, 0.025),
-        size: random(1.5, 3.5),
-        color: Math.random() > 0.3
-          ? shell.color
-          : FIREWORK_COLORS[Math.floor(random(0, FIREWORK_COLORS.length))],
-      })
-    }
-  }
-
-  // Schedule 8 shells over ~3 seconds
-  const shellTimers: ReturnType<typeof setTimeout>[] = []
-  for (let i = 0; i < 8; i++) {
-    shellTimers.push(setTimeout(spawnShell, i * 380 + random(0, 150)))
-  }
-
-  function frame() {
-    c.clearRect(0, 0, w(), h())
-
-    // Update shells
-    for (let i = shells.length - 1; i >= 0; i--) {
-      const s = shells[i]!
-      s.y += s.vy
-      s.vy *= 0.97
-
-      if (!s.exploded) {
-        // Draw trail
-        c.beginPath()
-        c.arc(s.x, s.y, 2, 0, Math.PI * 2)
-        c.fillStyle = s.color
-        c.fill()
-      }
-
-      if (s.y <= s.targetY && !s.exploded) {
-        s.exploded = true
-        explode(s)
-      }
-
-      if (s.exploded) shells.splice(i, 1)
-    }
-
-    // Update particles
-    const gravity = 0.06
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i]!
-      p.x += p.vx
-      p.y += p.vy
-      p.vy += gravity
-      p.vx *= 0.985
-      p.alpha -= p.decay
-
-      if (p.alpha <= 0) {
-        particles.splice(i, 1)
-        continue
-      }
-
-      c.globalAlpha = p.alpha
-      c.beginPath()
-      c.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-      c.fillStyle = p.color
-      c.fill()
-    }
-
-    c.globalAlpha = 1
-
-    // Stop when everything has faded
-    if (particles.length === 0 && shells.length === 0) {
-      return
-    }
-
-    fireworksRaf = requestAnimationFrame(frame)
-  }
-
-  fireworksRaf = requestAnimationFrame(frame)
-}
-
-watch(step, (s) => {
-  if (s === 5) {
-    nextTick(() => {
-      if (fireworksCanvas.value) launchFireworks(fireworksCanvas.value)
-    })
-  }
-})
-
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 onMounted(() => { void createAndAdvance() })
 
@@ -533,7 +405,6 @@ onUnmounted(() => {
   if (msgInterval) clearInterval(msgInterval)
   if (pollInterval) clearInterval(pollInterval)
   if (ws) { ws.close(); ws = null }
-  if (fireworksRaf) cancelAnimationFrame(fireworksRaf)
 })
 </script>
 
@@ -564,10 +435,10 @@ onUnmounted(() => {
             class="flex-1 text-center text-xs transition-colors"
             :class="[
               i + 1 === step ? 'font-medium text-ctp-mauve' : 'text-ctp-subtext0',
-              i + 1 < step && i + 1 >= 2 ? 'cursor-pointer hover:text-ctp-text' : 'cursor-default',
+              canNavigateTo(i + 1) ? 'cursor-pointer hover:text-ctp-text' : 'cursor-default',
             ]"
             :aria-current="i + 1 === step ? 'step' : undefined"
-            :disabled="i + 1 >= step || i + 1 < 2"
+            :disabled="!canNavigateTo(i + 1)"
             @click="goToStep(i + 1)"
           >
             {{ label }}
@@ -698,71 +569,19 @@ onUnmounted(() => {
               class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
               @click="step = 3"
             >
-              Continue to test email →
+              Continue to retention →
             </button>
           </div>
         </div>
       </section>
 
-      <!-- ── Step 3: Test email ──────────────────────────────────────────────── -->
+      <!-- ── Step 3: Retention ──────────────────────────────────────────────── -->
       <section v-else-if="step === 3">
-        <h2 class="mb-1 text-xl font-semibold">Test your new domain inbox</h2>
-        <p class="mb-6 text-sm text-ctp-subtext0">
-          Send an email to the address below to validate your setup. We'll detect it in real time.
-        </p>
-
-        <div v-if="!emailSentClicked" class="space-y-5">
-          <!-- Step-by-step instructions -->
-          <div class="rounded-lg border border-ctp-surface1 p-4 text-sm">
-            <p class="mb-3 font-medium text-ctp-text">Two quick steps:</p>
-            <ol class="space-y-3 text-ctp-subtext0">
-              <li class="flex gap-3">
-                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ctp-mauve/20 text-xs font-semibold text-ctp-mauve">1</span>
-                <span>Open your email client and compose a new email</span>
-              </li>
-              <li class="flex gap-3">
-                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ctp-mauve/20 text-xs font-semibold text-ctp-mauve">2</span>
-                <span>Send it to the address below — subject and body don't matter</span>
-              </li>
-            </ol>
-          </div>
-
-          <div>
-            <p class="mb-1.5 text-xs font-medium text-ctp-subtext0">Send to:</p>
-            <CopyInput :value="testEmailAddress" mono />
-          </div>
-
-          <button
-            class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
-            @click="markEmailSent"
-          >
-            I've sent the email
-          </button>
-        </div>
-
-        <!-- Watching state -->
-        <div v-else class="rounded-lg border border-ctp-surface1 p-6 text-center">
-          <div v-if="signalArrived" class="text-ctp-green">
-            <p class="text-3xl">✓</p>
-            <p class="mt-2 text-sm font-medium">Email received! Taking you to your inbox…</p>
-          </div>
-          <div v-else>
-            <div class="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-ctp-surface1 border-t-ctp-mauve" />
-            <p class="text-sm font-medium text-ctp-text">Watching for your email…</p>
-            <p class="mt-1 text-xs text-ctp-subtext0">We'll detect it the moment it arrives</p>
-            <div class="mt-4">
-              <p class="mb-1.5 text-xs text-ctp-subtext0">Sent to:</p>
-              <CopyInput :value="testEmailAddress" mono />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── Step 4: Retention ──────────────────────────────────────────────── -->
-      <section v-else-if="step === 4">
         <h2 class="mb-1 text-xl font-semibold">Choose your retention</h2>
         <p class="mb-6 text-sm text-ctp-subtext0">
-          How long should we keep your conversations? You can change this anytime in Settings.
+          You're set up and about to test sending and receiving — before you do, it's worth
+          getting your retention right so it matches your privacy needs. You can change this
+          anytime in Settings.
         </p>
 
         <div class="space-y-2">
@@ -803,7 +622,7 @@ onUnmounted(() => {
             </span>
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-ctp-yellow">Unlimited</p>
-              <p class="text-xs text-ctp-subtext0">Longer retention &amp; more storage</p>
+              <p class="text-xs text-ctp-subtext0">Save critical communications forever, it's worth the upgrade</p>
             </div>
           </button>
         </div>
@@ -813,20 +632,72 @@ onUnmounted(() => {
             :action="saveRetentionAndContinue"
             class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
           >
-            Continue →
+            Continue to test email →
           </AsyncButton>
+        </div>
+      </section>
+
+      <!-- ── Step 4: Test email ──────────────────────────────────────────────── -->
+      <section v-else-if="step === 4">
+        <h2 class="mb-1 text-xl font-semibold">Test your new domain inbox</h2>
+        <p class="mb-6 text-sm text-ctp-subtext0">
+          Send an email to the address below to validate your setup. We'll detect it in real time.
+        </p>
+
+        <div v-if="!emailSentClicked" class="space-y-5">
+          <!-- Step-by-step instructions -->
+          <div class="rounded-lg border border-ctp-surface1 p-4 text-sm">
+            <p class="mb-3 font-medium text-ctp-text">Two quick steps:</p>
+            <ol class="space-y-3 text-ctp-subtext0">
+              <li class="flex gap-3">
+                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ctp-mauve/20 text-xs font-semibold text-ctp-mauve">1</span>
+                <span>Open your email client and compose a new email</span>
+              </li>
+              <li class="flex gap-3">
+                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ctp-mauve/20 text-xs font-semibold text-ctp-mauve">2</span>
+                <span>Send it to the address below — subject and body don't matter</span>
+              </li>
+            </ol>
+          </div>
+
+          <div>
+            <p class="mb-1.5 text-xs font-medium text-ctp-subtext0">Send to:</p>
+            <CopyInput :value="testEmailAddress" mono />
+          </div>
+
+          <div class="flex justify-end">
+            <button
+              class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
+              @click="markEmailSent"
+            >
+              I've sent the email
+            </button>
+          </div>
+        </div>
+
+        <!-- Watching state -->
+        <div v-else class="rounded-lg border border-ctp-surface1 p-6 text-center">
+          <div v-if="signalArrived" class="text-ctp-green">
+            <p class="text-3xl">✓</p>
+            <p class="mt-2 text-sm font-medium">Email received! Finishing setup…</p>
+          </div>
+          <div v-else>
+            <div class="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-ctp-surface1 border-t-ctp-mauve" />
+            <p class="text-sm font-medium text-ctp-text">Watching for your email…</p>
+            <p class="mt-1 text-xs text-ctp-subtext0">We'll detect it the moment it arrives</p>
+            <div class="mt-4">
+              <p class="mb-1.5 text-xs text-ctp-subtext0">Sent to:</p>
+              <CopyInput :value="testEmailAddress" mono />
+            </div>
+          </div>
         </div>
       </section>
 
       <!-- ── Step 5: Done — Canvas fireworks celebration ──────────────────── -->
       <section v-else-if="step === 5" class="relative flex flex-col items-center justify-center py-16 text-center">
 
-        <!-- Canvas fireworks overlay -->
-        <canvas
-          ref="fireworksCanvas"
-          class="pointer-events-none fixed inset-0 z-0 h-full w-full"
-          aria-hidden="true"
-        />
+        <!-- Canvas fireworks overlay — loops 10s on / 5s off while shown -->
+        <FireworksDisplay />
 
         <!-- Done card -->
         <div class="relative z-10 flex flex-col items-center gap-5">
@@ -853,18 +724,6 @@ onUnmounted(() => {
           </AsyncButton>
         </div>
       </section>
-
-      <!-- Preview mode (?force=true): manual advance for the Domain and Test-email
-           screens, which otherwise only move forward automatically. -->
-      <div v-if="forcePreview && (step === 2 || step === 3)" class="mt-8 flex justify-end">
-        <button
-          type="button"
-          class="text-xs text-ctp-subtext0 underline hover:text-ctp-text"
-          @click="step = step + 1"
-        >
-          Skip this step →
-        </button>
-      </div>
 
     </main>
 
