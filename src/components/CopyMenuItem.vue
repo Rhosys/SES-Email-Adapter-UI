@@ -21,7 +21,7 @@ async function copy() {
   <button
     type="button"
     role="menuitem"
-    class="flex w-full items-center gap-2 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text sm:hidden"
+    class="flex w-full items-center gap-2 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
     @click="copy"
   >
     <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
