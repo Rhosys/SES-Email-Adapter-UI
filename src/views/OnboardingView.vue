@@ -48,7 +48,7 @@ import { isValidDomain } from '@/lib/validation'
 
 // ── Steps ────────────────────────────────────────────────────────────────────
 const TOTAL_STEPS = 5
-const STEP_LABELS = ['Create Account', 'Configure Domain', 'Test Email', 'Retention', 'Done']
+const STEP_LABELS = ['Create Account', 'Configure Domain', 'Retention', 'Test Email', 'Done']
 const step = ref(1)
 
 function goToStep(n: number) {
@@ -56,32 +56,34 @@ function goToStep(n: number) {
   if (n >= 2 && n < step.value) step.value = n
 }
 
-// ── Retention (step 4) ────────────────────────────────────────────────────────
+// ── Retention (step 3) ────────────────────────────────────────────────────────
 // Free-tier durations only; longer retention is gated behind paid plans and
 // surfaced via the "Unlimited" option, which opens the upgrade modal instead of
-// being selectable. Mirrors the free options in SettingsView's RETENTION_OPTIONS.
+// being selectable. A trimmed-down version of SettingsView's RETENTION_OPTIONS —
+// just the clearest low/mid/high free-tier choices.
 const RETENTION_ONBOARDING_OPTIONS: { value: RetentionDuration; label: string; description: string }[] = [
-  { value: 'P1M', label: '1 month', description: 'Keep conversations for 1 month' },
-  { value: 'P2M', label: '2 months', description: 'Keep conversations for 2 months' },
-  { value: 'P3M', label: '3 months', description: 'Recommended for most inboxes' },
-  { value: 'P5M', label: '5 months', description: 'Keep conversations for 5 months' },
-  { value: 'P6M', label: '6 months', description: 'The longest retention on the free plan' },
+  { value: 'P1M', label: '1 month', description: 'Keep your privacy at a maximum' },
+  { value: 'P3M', label: '3 months', description: 'Recommended for most inboxes and conversations' },
+  { value: 'P6M', label: '6 months', description: 'Ensure your conversations are available when you need them' },
 ]
 
 const selectedRetention = ref<RetentionDuration>(accountStore.account?.retentionDuration ?? 'P3M')
 
 const upgradeModalOpen = ref(false)
 
-// One-to-one Free vs paid comparison shown in the upgrade modal. Led by
-// retention/storage (the reason the user reached this prompt), then the broader
-// capabilities drawn from the billing plans so the value gap is clear.
+// One-to-one Free vs paid comparison shown in the upgrade modal, sourced from the
+// landing page's plan-comparison table (landing/compare/index.html). "Paid" here
+// reflects the Premium tier, since that's the plan that actually backs the
+// "Unlimited" retention promise (SettingsView gates RetentionDuration 'Infinity'
+// behind minPlan: 'premium'). Led by retention/storage — the reason the user
+// reached this prompt — then the broader capabilities so the value gap is clear.
 const PLAN_COMPARISON: { label: string; free: string; paid: string }[] = [
-  { label: 'Retention', free: 'Up to 6 months', paid: 'Up to Forever' },
-  { label: 'Storage', free: '500 signals / mo', paid: 'Unlimited' },
-  { label: 'Domains', free: '1', paid: 'Unlimited' },
-  { label: 'Team members', free: '1', paid: 'Unlimited' },
-  { label: 'Filtering', free: 'Basic', paid: 'Rules engine' },
-  { label: 'Email templates', free: '—', paid: 'Included' },
+  { label: 'Retention', free: '6 months', paid: 'Unlimited' },
+  { label: 'Storage', free: '5 GB', paid: '1 TB' },
+  { label: 'Domains', free: '3', paid: 'Unlimited' },
+  { label: 'Custom rules & templates', free: '—', paid: 'Included' },
+  { label: 'JMAP for any email client', free: '—', paid: 'Included' },
+  { label: 'Full audit trail', free: '—', paid: 'Included' },
   { label: 'Priority support', free: '—', paid: 'Included' },
 ]
 
@@ -92,7 +94,7 @@ async function saveRetentionAndContinue() {
     })
     if (result.isOk()) accountStore.account = result.value
   }
-  step.value = 5
+  step.value = 4
 }
 
 // ── Step 1: Account creation ─────────────────────────────────────────────────
@@ -159,7 +161,7 @@ async function createAndAdvance() {
   }
   if (ob?.testEmailReceived) {
     signalArrived.value = true
-    step.value = 4
+    step.value = 5
     return
   }
   // Hydrate before deciding which step to show; the 1000ms floor prevents a
@@ -303,8 +305,8 @@ function startPolling(accountId: string) {
       api.listQuarantinedSignals(accountId, 'quarantine_visible', { limit: 1 }),
       api.listThreads(accountId, { limit: 1 }),
     ])
-    const hasSignal = quarantineResult.isOk() && quarantineResult.value.signals.length > 0
-    const hasThread = threadsResult.isOk() && threadsResult.value.threads.length > 0
+    const hasSignal = quarantineResult.isOk() && (quarantineResult.value?.signals?.length ?? 0) > 0
+    const hasThread = threadsResult.isOk() && (threadsResult.value?.threads?.length ?? 0) > 0
     if (hasSignal || hasThread) {
       logger.info({ title: 'Onboarding: signal detected via poll', accountId, attempt: attempts, source: hasThread ? 'thread' : 'quarantine' })
       clearInterval(pollInterval!)
@@ -342,7 +344,7 @@ async function onSignalArrived() {
   if (signalArrived.value) return
   signalArrived.value = true
   await persistProgress({ testEmailReceived: true })
-  step.value = 4
+  step.value = 5
 }
 
 async function completeOnboarding() {
@@ -355,9 +357,24 @@ function markEmailSent() {
   emailSentClicked.value = true
 }
 
-// Connect WebSocket as soon as step 3 is shown
+function stopSignalWatch() {
+  if (pollInterval) { clearInterval(pollInterval); pollInterval = null }
+  if (ws) { ws.close(); ws = null }
+}
+
+// Connect WebSocket as soon as step 4 (Test email) is shown; tear it down (and any
+// fallback polling) the moment we leave that step, whether by receiving the signal
+// or by skipping past it — otherwise a skipped step keeps fetching in the background.
+watch(step, (s, prev) => {
+  if (s === 4 && accountStore.accountId) connectWs(accountStore.accountId)
+  if (prev === 4 && s !== 4) stopSignalWatch()
+})
+
+// Re-sync the retention choice from the account each time this step is shown —
+// the account may already have a retentionDuration set (e.g. resuming onboarding),
+// and by now it's already been fetched, so no extra network call is needed.
 watch(step, (s) => {
-  if (s === 3 && accountStore.accountId) connectWs(accountStore.accountId)
+  if (s === 3) selectedRetention.value = accountStore.account?.retentionDuration ?? 'P3M'
 })
 
 // ── Persistence ───────────────────────────────────────────────────────────────
@@ -420,7 +437,15 @@ function launchFireworks(canvas: HTMLCanvasElement) {
   const h = () => canvas.offsetHeight
   const random = (min: number, max: number) => Math.random() * (max - min) + min
 
+  // Shells are spawned on staggered setTimeouts below, so on early frames both
+  // particles and shells are still empty even though the show hasn't started yet.
+  // Track how many are still waiting to spawn so the loop doesn't mistake "hasn't
+  // started" for "finished" and bail out before a single shell fires.
+  const SHELL_COUNT = 8
+  let pendingShells = SHELL_COUNT
+
   function spawnShell() {
+    pendingShells--
     const x = random(w() * 0.15, w() * 0.85)
     shells.push({
       x,
@@ -452,9 +477,9 @@ function launchFireworks(canvas: HTMLCanvasElement) {
     }
   }
 
-  // Schedule 8 shells over ~3 seconds
+  // Schedule shells over ~3 seconds
   const shellTimers: ReturnType<typeof setTimeout>[] = []
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < SHELL_COUNT; i++) {
     shellTimers.push(setTimeout(spawnShell, i * 380 + random(0, 150)))
   }
 
@@ -507,8 +532,8 @@ function launchFireworks(canvas: HTMLCanvasElement) {
 
     c.globalAlpha = 1
 
-    // Stop when everything has faded
-    if (particles.length === 0 && shells.length === 0) {
+    // Stop once every shell has spawned, exploded, and its particles faded
+    if (pendingShells <= 0 && particles.length === 0 && shells.length === 0) {
       return
     }
 
@@ -698,68 +723,14 @@ onUnmounted(() => {
               class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
               @click="step = 3"
             >
-              Continue to test email →
+              Continue to retention →
             </button>
           </div>
         </div>
       </section>
 
-      <!-- ── Step 3: Test email ──────────────────────────────────────────────── -->
+      <!-- ── Step 3: Retention ──────────────────────────────────────────────── -->
       <section v-else-if="step === 3">
-        <h2 class="mb-1 text-xl font-semibold">Test your new domain inbox</h2>
-        <p class="mb-6 text-sm text-ctp-subtext0">
-          Send an email to the address below to validate your setup. We'll detect it in real time.
-        </p>
-
-        <div v-if="!emailSentClicked" class="space-y-5">
-          <!-- Step-by-step instructions -->
-          <div class="rounded-lg border border-ctp-surface1 p-4 text-sm">
-            <p class="mb-3 font-medium text-ctp-text">Two quick steps:</p>
-            <ol class="space-y-3 text-ctp-subtext0">
-              <li class="flex gap-3">
-                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ctp-mauve/20 text-xs font-semibold text-ctp-mauve">1</span>
-                <span>Open your email client and compose a new email</span>
-              </li>
-              <li class="flex gap-3">
-                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ctp-mauve/20 text-xs font-semibold text-ctp-mauve">2</span>
-                <span>Send it to the address below — subject and body don't matter</span>
-              </li>
-            </ol>
-          </div>
-
-          <div>
-            <p class="mb-1.5 text-xs font-medium text-ctp-subtext0">Send to:</p>
-            <CopyInput :value="testEmailAddress" mono />
-          </div>
-
-          <button
-            class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
-            @click="markEmailSent"
-          >
-            I've sent the email
-          </button>
-        </div>
-
-        <!-- Watching state -->
-        <div v-else class="rounded-lg border border-ctp-surface1 p-6 text-center">
-          <div v-if="signalArrived" class="text-ctp-green">
-            <p class="text-3xl">✓</p>
-            <p class="mt-2 text-sm font-medium">Email received! Taking you to your inbox…</p>
-          </div>
-          <div v-else>
-            <div class="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-ctp-surface1 border-t-ctp-mauve" />
-            <p class="text-sm font-medium text-ctp-text">Watching for your email…</p>
-            <p class="mt-1 text-xs text-ctp-subtext0">We'll detect it the moment it arrives</p>
-            <div class="mt-4">
-              <p class="mb-1.5 text-xs text-ctp-subtext0">Sent to:</p>
-              <CopyInput :value="testEmailAddress" mono />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── Step 4: Retention ──────────────────────────────────────────────── -->
-      <section v-else-if="step === 4">
         <h2 class="mb-1 text-xl font-semibold">Choose your retention</h2>
         <p class="mb-6 text-sm text-ctp-subtext0">
           How long should we keep your conversations? You can change this anytime in Settings.
@@ -803,7 +774,7 @@ onUnmounted(() => {
             </span>
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-ctp-yellow">Unlimited</p>
-              <p class="text-xs text-ctp-subtext0">Longer retention &amp; more storage</p>
+              <p class="text-xs text-ctp-subtext0">Save critical communications forever, it's worth the upgrade</p>
             </div>
           </button>
         </div>
@@ -813,8 +784,62 @@ onUnmounted(() => {
             :action="saveRetentionAndContinue"
             class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
           >
-            Continue →
+            Continue to test email →
           </AsyncButton>
+        </div>
+      </section>
+
+      <!-- ── Step 4: Test email ──────────────────────────────────────────────── -->
+      <section v-else-if="step === 4">
+        <h2 class="mb-1 text-xl font-semibold">Test your new domain inbox</h2>
+        <p class="mb-6 text-sm text-ctp-subtext0">
+          Send an email to the address below to validate your setup. We'll detect it in real time.
+        </p>
+
+        <div v-if="!emailSentClicked" class="space-y-5">
+          <!-- Step-by-step instructions -->
+          <div class="rounded-lg border border-ctp-surface1 p-4 text-sm">
+            <p class="mb-3 font-medium text-ctp-text">Two quick steps:</p>
+            <ol class="space-y-3 text-ctp-subtext0">
+              <li class="flex gap-3">
+                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ctp-mauve/20 text-xs font-semibold text-ctp-mauve">1</span>
+                <span>Open your email client and compose a new email</span>
+              </li>
+              <li class="flex gap-3">
+                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ctp-mauve/20 text-xs font-semibold text-ctp-mauve">2</span>
+                <span>Send it to the address below — subject and body don't matter</span>
+              </li>
+            </ol>
+          </div>
+
+          <div>
+            <p class="mb-1.5 text-xs font-medium text-ctp-subtext0">Send to:</p>
+            <CopyInput :value="testEmailAddress" mono />
+          </div>
+
+          <button
+            class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base hover:opacity-90"
+            @click="markEmailSent"
+          >
+            I've sent the email
+          </button>
+        </div>
+
+        <!-- Watching state -->
+        <div v-else class="rounded-lg border border-ctp-surface1 p-6 text-center">
+          <div v-if="signalArrived" class="text-ctp-green">
+            <p class="text-3xl">✓</p>
+            <p class="mt-2 text-sm font-medium">Email received! Finishing setup…</p>
+          </div>
+          <div v-else>
+            <div class="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-ctp-surface1 border-t-ctp-mauve" />
+            <p class="text-sm font-medium text-ctp-text">Watching for your email…</p>
+            <p class="mt-1 text-xs text-ctp-subtext0">We'll detect it the moment it arrives</p>
+            <div class="mt-4">
+              <p class="mb-1.5 text-xs text-ctp-subtext0">Sent to:</p>
+              <CopyInput :value="testEmailAddress" mono />
+            </div>
+          </div>
         </div>
       </section>
 
@@ -856,7 +881,7 @@ onUnmounted(() => {
 
       <!-- Preview mode (?force=true): manual advance for the Domain and Test-email
            screens, which otherwise only move forward automatically. -->
-      <div v-if="forcePreview && (step === 2 || step === 3)" class="mt-8 flex justify-end">
+      <div v-if="forcePreview && (step === 2 || step === 4)" class="mt-8 flex justify-end">
         <button
           type="button"
           class="text-xs text-ctp-subtext0 underline hover:text-ctp-text"
