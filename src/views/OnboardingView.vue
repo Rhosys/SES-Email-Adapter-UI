@@ -418,6 +418,7 @@ interface Shell {
   py: number
   vx: number
   vy: number
+  explodeY: number  // y at which to burst — somewhere in the final stretch of the climb
   color: [number, number, number]
 }
 
@@ -460,27 +461,41 @@ function launchFireworks(canvas: HTMLCanvasElement) {
   // particles and shells are still empty even though the show hasn't started yet.
   // Track how many are still waiting to spawn so the loop doesn't mistake "hasn't
   // started" for "finished" and bail out before a single shell fires.
-  const SHELL_COUNT = 8
+  const SHELL_COUNT = 18
   let pendingShells = SHELL_COUNT
 
   // Shells rise under real gravity (deceleration) rather than decaying velocity
   // toward zero — decay alone can stall short of any given height and never
   // arrive, leaving a dot drifting in place forever instead of exploding.
-  // Picking vy0 = sqrt(2 * gravity * apexHeight) makes the shell's velocity
-  // cross zero exactly at apexHeight, which is also when it explodes.
   const SHELL_GRAVITY = 0.15
 
   function spawnShell() {
     pendingShells--
-    const x = random(w() * 0.15, w() * 0.85)
-    const apexHeight = random(h() * 0.5, h() * 0.85)
+    // Launch from a mostly-central mortar just below the screen, so trails arc
+    // up into view rather than popping in mid-canvas.
+    const ox = w() * 0.5 + random(-w() * 0.08, w() * 0.08)
+    const oy = h() + random(20, 80)
+    // Aim each shell at a target apex spread across the full width. The offset
+    // between the central origin and that target is what fans the shells out to
+    // the left and right as well as up, instead of all going straight up.
+    const tx = random(w() * 0.05, w() * 0.95)
+    const ty = random(h() * 0.1, h() * 0.5)
+    const rise = oy - ty
+    // vy0 = sqrt(2·g·rise) makes vertical velocity cross zero exactly at ty (the
+    // apex); horizontal velocity is whatever carries it from ox to tx in that time.
+    const vy = -Math.sqrt(2 * SHELL_GRAVITY * rise)
+    const timeToApex = -vy / SHELL_GRAVITY
+    const vx = (tx - ox) / timeToApex
+    // Burst somewhere in the final 40% of the climb — not always at the very peak.
+    const explodeFraction = random(0.6, 1)
     shells.push({
-      x,
-      y: h(),
-      px: x,
-      py: h(),
-      vx: random(-0.6, 0.6),
-      vy: -Math.sqrt(2 * SHELL_GRAVITY * apexHeight),
+      x: ox,
+      y: oy,
+      px: ox,
+      py: oy,
+      vx,
+      vy,
+      explodeY: oy - rise * explodeFraction,
       color: pick(FIREWORK_COLORS),
     })
   }
@@ -490,7 +505,9 @@ function launchFireworks(canvas: HTMLCanvasElement) {
     flashes.push({ x: shell.x, y: shell.y, radius: 4, maxRadius: random(50, 90), alpha: 1, color: shell.color })
 
     // Sparks fly out on a roughly even ring (radial symmetry reads as a real
-    // burst), with jittered speed so the shell isn't a perfect circle.
+    // burst), with jittered speed so the shell isn't a perfect circle. A share of
+    // the shell's own momentum is carried into every spark, so a burst that goes
+    // off mid-arc drifts in the direction it was travelling instead of freezing.
     const count = Math.floor(random(48, 78))
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + random(-0.12, 0.12)
@@ -500,8 +517,8 @@ function launchFireworks(canvas: HTMLCanvasElement) {
         y: shell.y,
         px: shell.x,
         py: shell.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
+        vx: Math.cos(angle) * speed + shell.vx * 0.35,
+        vy: Math.sin(angle) * speed + shell.vy * 0.35,
         alpha: 1,
         decay: random(0.010, 0.022),
         size: random(1.2, 3),
@@ -511,10 +528,11 @@ function launchFireworks(canvas: HTMLCanvasElement) {
     }
   }
 
-  // Schedule shells over ~3 seconds
+  // Schedule shells over ~3.5 seconds, launching in quick overlapping succession
+  // so several are in the air at once.
   const shellTimers: ReturnType<typeof setTimeout>[] = []
   for (let i = 0; i < SHELL_COUNT; i++) {
-    shellTimers.push(setTimeout(spawnShell, i * 380 + random(0, 150)))
+    shellTimers.push(setTimeout(spawnShell, i * 190 + random(0, 120)))
   }
 
   function frame() {
@@ -559,7 +577,9 @@ function launchFireworks(canvas: HTMLCanvasElement) {
       s.y += s.vy
       s.vy += SHELL_GRAVITY
 
-      if (s.vy >= 0) {
+      // Burst on reaching the (possibly early) explosion height, or at the apex
+      // as a fallback should it never quite get there.
+      if (s.y <= s.explodeY || s.vy >= 0) {
         explode(s)
         shells.splice(i, 1)
       }
