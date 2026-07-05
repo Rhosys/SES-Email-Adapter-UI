@@ -411,10 +411,9 @@ interface Particle {
 interface Shell {
   x: number
   y: number
+  vx: number
   vy: number
-  targetY: number
   color: string
-  exploded: boolean
 }
 
 function launchFireworks(canvas: HTMLCanvasElement) {
@@ -444,16 +443,23 @@ function launchFireworks(canvas: HTMLCanvasElement) {
   const SHELL_COUNT = 8
   let pendingShells = SHELL_COUNT
 
+  // Shells rise under real gravity (deceleration) rather than decaying velocity
+  // toward zero — decay alone can stall short of any given height and never
+  // arrive, leaving a dot drifting in place forever instead of exploding.
+  // Picking vy0 = sqrt(2 * gravity * apexHeight) makes the shell's velocity
+  // cross zero exactly at apexHeight, which is also when it explodes.
+  const SHELL_GRAVITY = 0.15
+
   function spawnShell() {
     pendingShells--
     const x = random(w() * 0.15, w() * 0.85)
+    const apexHeight = random(h() * 0.5, h() * 0.85)
     shells.push({
       x,
       y: h(),
-      vy: random(-h() * 0.018, -h() * 0.012),
-      targetY: random(h() * 0.15, h() * 0.45),
+      vx: random(-0.6, 0.6),
+      vy: -Math.sqrt(2 * SHELL_GRAVITY * apexHeight),
       color: FIREWORK_COLORS[Math.floor(random(0, FIREWORK_COLORS.length))],
-      exploded: false,
     })
   }
 
@@ -486,26 +492,25 @@ function launchFireworks(canvas: HTMLCanvasElement) {
   function frame() {
     c.clearRect(0, 0, w(), h())
 
-    // Update shells
+    // Update shells — rise along a curved (slightly drifting, gravity-decelerated)
+    // path and explode the instant they crest, i.e. vy crosses from negative to zero.
     for (let i = shells.length - 1; i >= 0; i--) {
       const s = shells[i]!
+
+      // Trail
+      c.beginPath()
+      c.arc(s.x, s.y, 2, 0, Math.PI * 2)
+      c.fillStyle = s.color
+      c.fill()
+
+      s.x += s.vx
       s.y += s.vy
-      s.vy *= 0.97
+      s.vy += SHELL_GRAVITY
 
-      if (!s.exploded) {
-        // Draw trail
-        c.beginPath()
-        c.arc(s.x, s.y, 2, 0, Math.PI * 2)
-        c.fillStyle = s.color
-        c.fill()
-      }
-
-      if (s.y <= s.targetY && !s.exploded) {
-        s.exploded = true
+      if (s.vy >= 0) {
         explode(s)
+        shells.splice(i, 1)
       }
-
-      if (s.exploded) shells.splice(i, 1)
     }
 
     // Update particles
