@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useRelativeTime } from '@/composables/useRelativeTime'
@@ -12,9 +12,22 @@ const router = useRouter()
 const store = useQuarantineStore()
 useRelativeTime()
 
+// Per-section loading — true only until the first fetch resolves (cold start).
+const loadingVisible = ref(true)
+const loadingHidden = ref(true)
+
 const isEmpty = computed(
-  () => !store.loading && store.quarantineVisible.length === 0 && store.quarantineHidden.length === 0,
+  () => !loadingVisible.value && !loadingHidden.value && store.quarantineVisible.length === 0 && store.quarantineHidden.length === 0,
 )
+
+async function doFetch(reset: boolean) {
+  // If data already cached, skip showing skeleton
+  if (store.quarantineVisible.length > 0) loadingVisible.value = false
+  if (store.quarantineHidden.length > 0) loadingHidden.value = false
+  await store.fetchSignals(reset)
+  loadingVisible.value = false
+  loadingHidden.value = false
+}
 
 onMounted(async () => {
   const { sender, after, before } = route.query
@@ -23,7 +36,7 @@ onMounted(async () => {
     after: String(after || ''),
     before: String(before || ''),
   })
-  await store.fetchSignals(true)
+  await doFetch(true)
 })
 
 watch(
@@ -34,7 +47,7 @@ watch(
     if (filters.after) query.after = filters.after
     if (filters.before) query.before = filters.before
     void router.replace({ query })
-    await store.fetchSignals(true)
+    await doFetch(true)
   },
   { deep: true },
 )
@@ -69,25 +82,8 @@ async function loadMore() {
         <button class="ml-2 underline" @click="store.clearError()">Dismiss</button>
       </div>
 
-      <!-- Loading -->
-      <div
-        v-if="store.loading"
-        role="status"
-        aria-label="Loading quarantine…"
-        class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
-      >
-        <div v-for="i in 5" :key="i" class="flex items-center gap-3 px-4 py-3">
-          <div class="flex-1 space-y-1.5">
-            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${50 + (i * 13) % 35}%` }" />
-            <div class="h-3 w-32 rounded bg-ctp-surface1" />
-          </div>
-          <div class="h-7 w-16 shrink-0 rounded bg-ctp-surface1" />
-          <div class="h-7 w-14 shrink-0 rounded bg-ctp-surface1" />
-        </div>
-      </div>
-
       <!-- Empty -->
-      <div v-else-if="isEmpty" class="py-20 text-center text-ctp-subtext0">
+      <div v-if="isEmpty" class="py-20 text-center text-ctp-subtext0">
         <p class="text-base font-medium text-ctp-text">No emails waiting for review</p>
         <p class="mx-auto mt-2 max-w-sm text-sm">
           When a new sender writes to you, their email waits here — you decide whether to let them
@@ -116,6 +112,21 @@ async function loadMore() {
             />
           </TransitionGroup>
         </section>
+        <div
+          v-else-if="loadingVisible"
+          role="status"
+          aria-label="Loading quarantine…"
+          class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+        >
+          <div v-for="i in 5" :key="i" class="flex items-center gap-3 px-4 py-3">
+            <div class="flex-1 space-y-1.5">
+              <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${50 + (i * 13) % 35}%` }" />
+              <div class="h-3 w-32 rounded bg-ctp-surface1" />
+            </div>
+            <div class="h-7 w-16 shrink-0 rounded bg-ctp-surface1" />
+            <div class="h-7 w-14 shrink-0 rounded bg-ctp-surface1" />
+          </div>
+        </div>
 
         <!-- Silently held (quarantine_hidden) -->
         <section
@@ -147,6 +158,21 @@ async function loadMore() {
             />
           </TransitionGroup>
         </section>
+        <div
+          v-else-if="loadingHidden"
+          role="status"
+          aria-label="Loading silently held…"
+          class="mt-6 animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+        >
+          <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-4 py-3">
+            <div class="flex-1 space-y-1.5">
+              <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${50 + (i * 13) % 35}%` }" />
+              <div class="h-3 w-32 rounded bg-ctp-surface1" />
+            </div>
+            <div class="h-7 w-16 shrink-0 rounded bg-ctp-surface1" />
+            <div class="h-7 w-14 shrink-0 rounded bg-ctp-surface1" />
+          </div>
+        </div>
 
         <!-- Load more — fetches remaining visible pages first, then hidden -->
         <div v-if="store.hasMore" class="flex justify-center py-6">

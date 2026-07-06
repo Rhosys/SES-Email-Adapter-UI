@@ -60,7 +60,7 @@ export type RuleActionType =
   | 'forward'
   | 'block_hidden'
   | 'block_reject'
-  | 'quarantine'
+  | 'quarantine_visible'
   | 'quarantine_hidden'
   | 'set_urgency'
   | 'suppress_notification'

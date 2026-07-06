@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useThreadsStore } from '@/stores/threads'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
+import { useDeferredHide } from '@/composables/useDeferredHide'
 import StatusTabs from '@/components/StatusTabs.vue'
 import BulkActionBar from '@/components/BulkActionBar.vue'
 import ThreadListShell from '@/components/ThreadListShell.vue'
@@ -18,9 +19,15 @@ const route = useRoute()
 const router = useRouter()
 const threadsStore = useThreadsStore()
 const { onAction, offAction } = useKeyboardShortcuts()
+const { hiddenIds } = useDeferredHide()
 
 const VALID_TABS = ['active', 'archived', 'all'] as const
 type TabKey = (typeof VALID_TABS)[number]
+
+// Filter out threads that are optimistically hidden (deferred delete/block pending)
+const visibleItems = computed(() =>
+  threadsStore.sortedItems.filter((t) => !hiddenIds.value.has(t.threadId)),
+)
 
 // Keyboard-navigable cursor through the thread list
 const focusedThreadId = ref<string | null>(null)
@@ -33,7 +40,7 @@ function scrollFocusedIntoView() {
 }
 
 function moveNext() {
-  const items = threadsStore.sortedItems
+  const items = visibleItems.value
   if (!items.length) return
   const idx = items.findIndex((a) => a.threadId === focusedThreadId.value)
   focusedThreadId.value = items[Math.min(idx + 1, items.length - 1)].threadId
@@ -41,7 +48,7 @@ function moveNext() {
 }
 
 function movePrev() {
-  const items = threadsStore.sortedItems
+  const items = visibleItems.value
   if (!items.length) return
   const idx = items.findIndex((a) => a.threadId === focusedThreadId.value)
   focusedThreadId.value = items[Math.max(idx <= 0 ? 0 : idx - 1, 0)].threadId
@@ -109,7 +116,7 @@ const showCelebration = ref(false)
 let prevActiveCount = -1
 
 watch(
-  [() => threadsStore.loading, () => threadsStore.sortedItems.length, () => threadsStore.activeTab],
+  [() => threadsStore.loading, () => visibleItems.value.length, () => threadsStore.activeTab],
   ([loading, count, tab]) => {
     if (loading) return
     if (tab === 'active') {
@@ -149,11 +156,11 @@ watch(
       />
 
       <ThreadListShell
-        v-if="threadsStore.sortedItems.length > 0"
+        v-if="visibleItems.length > 0"
       >
         <template v-if="threadsStore.activeTab === 'active'">
           <ActiveThreadRow
-            v-for="thread in threadsStore.sortedItems"
+            v-for="thread in visibleItems"
             :key="thread.threadId"
             :thread="thread"
             :selected="threadsStore.selectedIds.has(thread.threadId)"
@@ -163,7 +170,7 @@ watch(
         </template>
         <template v-else-if="threadsStore.activeTab === 'archived'">
           <ArchivedThreadRow
-            v-for="thread in threadsStore.sortedItems"
+            v-for="thread in visibleItems"
             :key="thread.threadId"
             :thread="thread"
             :selected="threadsStore.selectedIds.has(thread.threadId)"
@@ -173,7 +180,7 @@ watch(
         </template>
         <template v-else>
           <AllThreadRow
-            v-for="thread in threadsStore.sortedItems"
+            v-for="thread in visibleItems"
             :key="thread.threadId"
             :thread="thread"
             :selected="threadsStore.selectedIds.has(thread.threadId)"

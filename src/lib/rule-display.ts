@@ -3,7 +3,7 @@ import type { Rule, RuleActionType } from '@/types/server'
 export const ACTION_LABELS: Partial<Record<RuleActionType, string>> = {
   block_hidden: 'Block (hidden)',
   block_reject: 'Block (reject)',
-  quarantine: 'Quarantine',
+  quarantine_visible: 'Quarantine',
   quarantine_hidden: 'Silently held',
   archive: 'Archive',
   assign_label: 'Label',
@@ -21,7 +21,7 @@ export const ACTION_LABELS: Partial<Record<RuleActionType, string>> = {
 export const ACTION_COLORS: Partial<Record<RuleActionType, string>> = {
   block_hidden: 'text-ctp-red bg-ctp-red/10',
   block_reject: 'text-ctp-red bg-ctp-red/10',
-  quarantine: 'text-ctp-peach bg-ctp-peach/10',
+  quarantine_visible: 'text-ctp-peach bg-ctp-peach/10',
   quarantine_hidden: 'text-ctp-subtext0 bg-ctp-surface1',
   archive: 'text-ctp-subtext0 bg-ctp-surface1',
   assign_label: 'text-ctp-blue bg-ctp-blue/10',

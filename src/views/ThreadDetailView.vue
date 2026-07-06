@@ -5,6 +5,7 @@ import { useSignalsStore } from '@/stores/signals'
 import { useThreadsStore } from '@/stores/threads'
 import { useAccountStore } from '@/stores/account'
 import { useToast } from '@/composables/useToast'
+import { useDeferredHide } from '@/composables/useDeferredHide'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { retentionExpiresAt } from '@/lib/retention'
@@ -27,7 +28,8 @@ const signalsStore = useSignalsStore()
 const threadsStore = useThreadsStore()
 const accountStore = useAccountStore()
 const labelsStore = useLabelsStore()
-const { showUndo, deferAction } = useToast()
+const { showUndo } = useToast()
+const { hideWithDefer } = useDeferredHide()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
 const overflowOpen = ref(false)
@@ -134,7 +136,8 @@ async function deleteThread() {
   })
   if (!confirmed) return
   const id = threadId.value
-  deferAction(
+  hideWithDefer(
+    id,
     'Thread deleted',
     async () => {
       await threadsStore.deleteThread(id)
@@ -162,7 +165,8 @@ async function blockSender() {
     if (result.isErr()) return
   }
   const id = threadId.value
-  deferAction(
+  hideWithDefer(
+    id,
     'Sender blocked, thread deleted',
     async () => {
       await threadsStore.deleteThread(id)

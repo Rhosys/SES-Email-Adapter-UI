@@ -7,6 +7,7 @@ import { useSignalsStore } from '@/stores/signals'
 import { useUserConfigStore } from '@/stores/userConfig'
 import { api } from '@/lib/api'
 import { useToast } from '@/composables/useToast'
+import { useDeferredHide } from '@/composables/useDeferredHide'
 import type { Signal, Domain } from '@/types/server'
 import { isEmailSignal } from '@/lib/signal-guards'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
@@ -19,6 +20,7 @@ const signalsStore = useSignalsStore()
 const userConfigStore = useUserConfigStore()
 const router = useRouter()
 const { deferAction, undo: undoToast } = useToast()
+const { hideWithDefer } = useDeferredHide()
 
 const shouldReturnToInbox = computed(() => userConfigStore.postSendView === 'return_to_inbox')
 
@@ -112,7 +114,8 @@ async function sendAndArchive() {
   sendState.value = 'cancellable'
   if (shouldReturnToInbox.value) void router.push('/')
 
-  const id = deferAction(
+  const id = hideWithDefer(
+    sigThreadId,
     'Email sent + archived',
     async () => {
       const result = await api.sendSignal(accountId, sigThreadId, signalId)

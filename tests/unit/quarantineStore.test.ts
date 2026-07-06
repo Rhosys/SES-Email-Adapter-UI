@@ -82,7 +82,6 @@ describe('quarantineStore', () => {
     // visible-first ordering is maintained; each bucket sorted by receivedAt desc
     expect(store.quarantineVisible.map((s) => s.signalId)).toEqual(['v1', 'v2'])
     expect(store.quarantineHidden.map((s) => s.signalId)).toEqual(['h1'])
-    expect(store.loading).toBe(false)
     expect(store.error).toBeNull()
   })
 
@@ -286,7 +285,7 @@ describe('stale-while-revalidate', { timeout: 5000 }, () => {
 
     await store.fetchSignals()
 
-    expect(store.loading).toBe(false)
+    expect(store.quarantineVisible).toHaveLength(1)
   })
 
   it('fetchSignals failure with cached data retains cache and logs warning', async () => {

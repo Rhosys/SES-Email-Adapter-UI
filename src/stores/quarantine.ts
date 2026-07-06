@@ -26,7 +26,6 @@ export const useQuarantineStore = defineStore('quarantine', () => {
 
   const _byAccount = ref<Record<string, QuarantineData>>({})
   const _cursors = ref<Record<string, { visible?: string; hidden?: string }>>({})
-  const loading = ref(false)
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
   const actionPending = ref<Set<string>>(new Set())
@@ -86,15 +85,9 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     const id = accountStore.accountId
     if (!id) return
     if (reset) {
-      _byAccount.value = {
-        ..._byAccount.value,
-        [id]: { visible: [], hidden: [] },
-      }
       const { [id]: _, ...rest } = _cursors.value
       _cursors.value = rest
     }
-    const cached = _byAccount.value[id]
-    loading.value = !cached || (cached.visible.length === 0 && cached.hidden.length === 0)
     error.value = null
     const start = Date.now()
 
@@ -107,13 +100,11 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     if (import.meta.env.MODE !== 'test' && elapsed < 1000) {
       await new Promise<void>((r) => setTimeout(r, 1000 - elapsed))
     }
-    loading.value = false
 
     if (visResult.isErr()) {
       const hasCached = (_byAccount.value[id]?.visible.length ?? 0) > 0 || (_byAccount.value[id]?.hidden.length ?? 0) > 0
       if (hasCached) {
         logger.warn({ title: 'Quarantine fetch failed with cache available', error: visResult.error.message })
-        loading.value = false
         return
       }
       error.value = visResult.error.message
@@ -123,7 +114,6 @@ export const useQuarantineStore = defineStore('quarantine', () => {
       const hasCached = (_byAccount.value[id]?.visible.length ?? 0) > 0 || (_byAccount.value[id]?.hidden.length ?? 0) > 0
       if (hasCached) {
         logger.warn({ title: 'Quarantine fetch failed with cache available', error: hidResult.error.message })
-        loading.value = false
         return
       }
       error.value = hidResult.error.message
@@ -251,7 +241,6 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     visibleCount,
     visibleCountHasMore,
     hasMore,
-    loading,
     loadingMore,
     error,
     actionPending,

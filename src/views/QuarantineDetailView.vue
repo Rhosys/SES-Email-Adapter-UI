@@ -8,6 +8,7 @@ import { conditionSummary } from '@/lib/rule-display'
 import SignalRenderer from '@/components/SignalRenderer.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ActionBadge from '@/components/ActionBadge.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -26,7 +27,6 @@ const signal = computed(() =>
 
 const inboundData = computed(() => (signal.value && isInboundEmailSignal(signal.value) ? signal.value.data : null))
 const matchedRules = computed(() => inboundData.value?.matchedRules ?? [])
-const isHidden = computed(() => signal.value?.status === 'quarantine_hidden')
 const pending = computed(() => (signal.value ? quarantineStore.actionPending.has(signal.value.signalId) : false))
 
 const expandedRuleIds = ref<Set<string>>(new Set())
@@ -119,12 +119,7 @@ function onSignalReprocessed() {
       <!-- Header -->
       <div class="mb-6">
         <div class="flex items-center gap-2">
-          <span
-            class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
-            :class="isHidden ? 'bg-ctp-surface1 text-ctp-subtext0' : 'bg-ctp-mauve/15 text-ctp-mauve'"
-          >
-            {{ isHidden ? 'Silently held' : 'Quarantined' }}
-          </span>
+          <StatusBadge :status="signal.status" />
           <h1 class="text-lg font-semibold text-ctp-text">{{ inboundData.subject || '(no subject)' }}</h1>
         </div>
         <div class="mt-1 text-sm text-ctp-subtext1">

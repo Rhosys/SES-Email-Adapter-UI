@@ -11,6 +11,7 @@ import { NOW_KEY } from '@/composables/useRelativeTime'
 import { useLabelsStore } from '@/stores/labels'
 import SignalRenderer from '@/components/SignalRenderer.vue'
 import ActionBadge from '@/components/ActionBadge.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 
 const now = inject(NOW_KEY)
 
@@ -370,10 +371,10 @@ onMounted(() => {
                   v-if="isBlockedSignal(signal)"
                   class="rounded bg-ctp-red/10 px-1.5 py-0.5 text-xs text-ctp-red"
                 >{{ signal.status }}</span>
-                <span
+                <StatusBadge
                   v-else-if="signal.status.startsWith('quarantine')"
-                  class="rounded bg-ctp-yellow/10 px-1.5 py-0.5 text-xs text-ctp-yellow"
-                >quarantine</span>
+                  :status="signal.status as 'quarantine_visible' | 'quarantine_hidden'"
+                />
               </div>
             </div>
             <!-- Expanded card (blocked signals only) -->

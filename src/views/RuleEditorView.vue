@@ -183,7 +183,7 @@ interface ActionMeta {
 const ACTION_META: ActionMeta[] = [
   { type: 'block_hidden', label: 'Block (hidden)', description: 'Silently discard — sender not notified' },
   { type: 'block_reject', label: 'Block (reject)', description: 'Discard and bounce to sender' },
-  { type: 'quarantine', label: 'Quarantine', description: 'Hold for manual review' },
+  { type: 'quarantine_visible', label: 'Quarantine', description: 'Hold for manual review' },
   {
     type: 'quarantine_hidden',
     label: 'Quarantine (hidden)',
