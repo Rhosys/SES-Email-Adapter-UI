@@ -2290,11 +2290,10 @@
     .nav.open .nav-toggle span:nth-child(2) { opacity: 0; }
     .nav.open .nav-toggle span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
 
-    /* ── Tablet & below (≤ 860px) ── */
-    @media (max-width: 860px) {
+    /* ── Tablet & below (≤ 980px) ── */
+    @media (max-width: 980px) {
       .nav-inner { height: 58px; }
       .nav-toggle { display: flex; }
-      .lang-indicator, .nav-signin { display: none; }
 
       /* Turn the link list into a slide-down panel */
       .nav ul {
@@ -2326,6 +2325,11 @@
       .understands { padding: 72px 0 !important; }
       .swiss-section, .workflows { padding: 0; }
       .swiss-section { padding: 72px 0; }
+    }
+
+    /* ── Phone (≤ 600px) — hide sign-in & lang switcher ── */
+    @media (max-width: 600px) {
+      .lang-indicator, .nav-signin { display: none; }
     }
 
     /* ── Phone (≤ 560px) ── */
