@@ -340,7 +340,7 @@ function toggleAliasExpand(address: string) {
 const filteredAliases = computed(() => {
   if (!aliasSearch.value.trim()) return aliases.value
   const q = aliasSearch.value.toLowerCase()
-  return aliases.value.filter((a) => a.address.toLowerCase().includes(q))
+  return aliases.value.filter((a) => a.alias.toLowerCase().includes(q))
 })
 
 const filterModalOpen = ref(false)
@@ -383,7 +383,7 @@ async function updateAliasMode(address: string, unknownSenderPolicy: UnknownSend
   if (!accountStore.accountId) return
   const result = await api.updateAlias(accountStore.accountId, address, { unknownSenderPolicy })
   if (result.isOk()) {
-    aliases.value = aliases.value.map((a) => (a.address === address ? result.value : a))
+    aliases.value = aliases.value.map((a) => (a.alias === address ? result.value : a))
   }
 }
 
@@ -407,7 +407,7 @@ async function deleteAddress(address: string) {
   })
   if (!confirmed) return
   const result = await api.deleteAlias(accountStore.accountId, address)
-  if (result.isOk()) aliases.value = aliases.value.filter((a) => a.address !== address)
+  if (result.isOk()) aliases.value = aliases.value.filter((a) => a.alias !== address)
 }
 
 // ─── Domains tab ──────────────────────────────────────────────────────────────
@@ -1330,19 +1330,19 @@ useGestureHandler(settingsContentRef, {
           </p>
         </div>
         <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
-          <div v-for="alias in filteredAliases" :key="alias.address" class="px-4 py-2.5" :class="expandedAlias === alias.address ? 'bg-ctp-surface0/30 border-l-2 border-l-ctp-mauve' : ''">
+          <div v-for="alias in filteredAliases" :key="alias.alias" class="px-4 py-2.5" :class="expandedAlias === alias.alias ? 'bg-ctp-surface0/30 border-l-2 border-l-ctp-mauve' : ''">
             <!-- Compact single-line row -->
             <div
               role="button"
               tabindex="0"
               class="flex items-center justify-between gap-2 cursor-pointer"
-              :aria-expanded="expandedAlias === alias.address"
-              :aria-label="`Toggle details for ${alias.address}`"
-              @click="toggleAliasExpand(alias.address)"
-              @keydown.enter="toggleAliasExpand(alias.address)"
-              @keydown.space.prevent="toggleAliasExpand(alias.address)"
+              :aria-expanded="expandedAlias === alias.alias"
+              :aria-label="`Toggle details for ${alias.alias}`"
+              @click="toggleAliasExpand(alias.alias)"
+              @keydown.enter="toggleAliasExpand(alias.alias)"
+              @keydown.space.prevent="toggleAliasExpand(alias.alias)"
             >
-              <p class="min-w-0 flex-1 truncate text-sm font-medium text-ctp-text">{{ alias.address }}</p>
+              <p class="min-w-0 flex-1 truncate text-sm font-medium text-ctp-text">{{ alias.alias }}</p>
               <button
                 type="button"
                 class="shrink-0 rounded-full border border-ctp-surface1 px-2.5 py-0.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
@@ -1350,27 +1350,27 @@ useGestureHandler(settingsContentRef, {
               >
                 {{ FILTER_MODES.find((m) => m.value === alias.unknownSenderPolicy)?.label ?? alias.unknownSenderPolicy }}
               </button>
-              <svg class="h-4 w-4 shrink-0 text-ctp-subtext0 transition-transform" :class="expandedAlias === alias.address ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
+              <svg class="h-4 w-4 shrink-0 text-ctp-subtext0 transition-transform" :class="expandedAlias === alias.alias ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
               </svg>
             </div>
             <!-- Expandable details -->
-            <div v-if="expandedAlias === alias.address" class="mt-2 space-y-3 border-t border-ctp-surface0 pt-3">
+            <div v-if="expandedAlias === alias.alias" class="mt-2 space-y-3 border-t border-ctp-surface0 pt-3">
               <!-- Senders list -->
               <div>
                 <span class="mb-1.5 block text-xs text-ctp-subtext0">Known senders</span>
-                <div v-if="aliasSendersLoading.has(alias.address)" class="animate-pulse space-y-1.5">
+                <div v-if="aliasSendersLoading.has(alias.alias)" class="animate-pulse space-y-1.5">
                   <div v-for="i in 2" :key="i" class="flex items-center gap-2">
                     <div class="h-3.5 flex-1 rounded bg-ctp-surface1" :style="{ maxWidth: `${80 + i * 30}px` }" />
                     <div class="h-5 w-14 rounded-full bg-ctp-surface1" />
                   </div>
                 </div>
-                <div v-else-if="!aliasSenders.get(alias.address)?.length" class="text-xs text-ctp-subtext0">
+                <div v-else-if="!aliasSenders.get(alias.alias)?.length" class="text-xs text-ctp-subtext0">
                   No senders recorded yet — senders appear here as emails arrive
                 </div>
                 <div v-else class="space-y-1">
                   <div
-                    v-for="sender in aliasSenders.get(alias.address)"
+                    v-for="sender in aliasSenders.get(alias.alias)"
                     :key="sender.sender"
                     class="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-ctp-surface0/50"
                   >
@@ -1379,7 +1379,7 @@ useGestureHandler(settingsContentRef, {
                       type="button"
                       class="shrink-0 rounded-full border border-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
                       :aria-label="`Policy for ${sender.sender}`"
-                      @click="senderPolicyModal = { open: true, aliasAddress: alias.address, senderDomain: sender.sender, currentPolicy: sender.policy }"
+                      @click="senderPolicyModal = { open: true, aliasAddress: alias.alias, senderDomain: sender.sender, currentPolicy: sender.policy }"
                     >
                       {{ SENDER_POLICIES.find((p) => p.value === sender.policy)?.label ?? sender.policy }}
                     </button>
@@ -1387,7 +1387,7 @@ useGestureHandler(settingsContentRef, {
                       type="button"
                       class="text-ctp-subtext0 hover:text-ctp-red"
                       title="Remove sender"
-                      @click="removeSender(alias.address, sender.sender)"
+                      @click="removeSender(alias.alias, sender.sender)"
                     >
                       <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8" /></svg>
                     </button>
@@ -1397,7 +1397,7 @@ useGestureHandler(settingsContentRef, {
               <button
                 class="text-ctp-subtext0 hover:text-ctp-red"
                 title="Remove alias"
-                @click="deleteAddress(alias.address)"
+                @click="deleteAddress(alias.alias)"
               >
                 <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
               </button>
@@ -1928,10 +1928,10 @@ useGestureHandler(settingsContentRef, {
 
     <FilterModeModal
       :open="filterModalOpen"
-      :title="`Filter mode for ${filterModalAlias?.address ?? ''}`"
+      :title="`Filter mode for ${filterModalAlias?.alias ?? ''}`"
       :current-mode="filterModalAlias?.unknownSenderPolicy ?? 'quarantine_visible'"
       :modes="FILTER_MODES"
-      @select="(mode) => { if (filterModalAlias) { updateAliasMode(filterModalAlias.address, mode as UnknownSenderPolicy); filterModalAlias = { ...filterModalAlias, unknownSenderPolicy: mode as UnknownSenderPolicy } } }"
+      @select="(mode) => { if (filterModalAlias) { updateAliasMode(filterModalAlias.alias, mode as UnknownSenderPolicy); filterModalAlias = { ...filterModalAlias, unknownSenderPolicy: mode as UnknownSenderPolicy } } }"
       @close="filterModalOpen = false"
     />
 
