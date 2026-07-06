@@ -20,6 +20,7 @@ import PendingSendCard from '@/components/PendingSendCard.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import CopyMenuItem from '@/components/CopyMenuItem.vue'
+import SenderInfoPopup from '@/components/SenderInfoPopup.vue'
 import type { Thread } from '@/types/server'
 
 const route = useRoute()
@@ -33,6 +34,7 @@ const { hideWithDefer } = useDeferredHide()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
 const overflowOpen = ref(false)
+const showSenderPopup = ref(false)
 const threadData = ref<Thread | null>(null)
 
 const threadId = computed(() => route.params.id as string)
@@ -383,7 +385,21 @@ async function removeLabel(label: string) {
         </div>
         <!-- Line 2: From / Alias -->
         <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-ctp-subtext1">
-          <span v-if="thread.senderAddress"><span class="text-ctp-overlay1">From:</span> {{ thread.senderAddress }}</span>
+          <span v-if="thread.senderAddress" class="relative">
+            <span class="text-ctp-overlay1">From:</span>
+            <button
+              type="button"
+              class="cursor-pointer hover:text-ctp-mauve hover:underline"
+              @click="showSenderPopup = !showSenderPopup"
+            >{{ thread.senderAddress }}</button>
+            <div v-if="showSenderPopup && accountStore.accountId" class="absolute left-0 top-full z-20 mt-1">
+              <SenderInfoPopup
+                :sender-address="thread.senderAddress"
+                :alias-address="thread.recipientAddress!"
+                :account-id="accountStore.accountId"
+              />
+            </div>
+          </span>
         </div>
         <div v-if="thread.recipientAddress" class="mt-1 text-sm text-ctp-subtext1">
           <span class="text-ctp-overlay1">Alias:</span> <span class="text-ctp-sapphire">{{ thread.recipientAddress }}</span>

@@ -234,7 +234,7 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
     if (url.includes('/labels/')) return { status: 200, body: mockLabels[0] }
     if (url.includes('/aliases/')) {
       const address = decodeURIComponent(url.split('/aliases/')[1]?.split('?')[0]?.split('/')[0] ?? '')
-      const found = mockAliases.find(a => a.address === address) ?? mockAliases[0]
+      const found = mockAliases.find(a => a.alias === address) ?? mockAliases[0]
       return { status: 200, body: found }
     }
     if (url.includes('/domains/')) return { status: 200, body: mockDomains[0] }

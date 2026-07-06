@@ -44,6 +44,7 @@ export class ApiError {
 }
 
 export interface ThreadListParams {
+  q?: string
   workflow?: string
   status?: string
   sender?: string
@@ -138,9 +139,13 @@ export const api = {
 
   listThreads(accountId: string, params: ThreadListParams): Promise<Result<ThreadListWire, ApiError>> {
     const qs = new URLSearchParams()
-    if (params.workflow) qs.set('workflow', params.workflow)
-    if (params.status) qs.set('status', params.status)
-    if (params.sender) qs.set('sender', params.sender)
+    if (params.q) {
+      qs.set('q', params.q)
+    } else {
+      if (params.workflow) qs.set('workflow', params.workflow)
+      if (params.status) qs.set('status', params.status)
+      if (params.sender) qs.set('sender', params.sender)
+    }
     if (params.after) qs.set('after', params.after)
     if (params.before) qs.set('before', params.before)
     if (params.cursor) qs.set('cursor', params.cursor)

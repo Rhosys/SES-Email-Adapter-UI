@@ -9,15 +9,19 @@ import SignalRenderer from '@/components/SignalRenderer.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ActionBadge from '@/components/ActionBadge.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import SenderInfoPopup from '@/components/SenderInfoPopup.vue'
+import { useAccountStore } from '@/stores/account'
 
 const route = useRoute()
 const router = useRouter()
 const quarantineStore = useQuarantineStore()
 const rulesStore = useRulesStore()
+const accountStore = useAccountStore()
 
 const signalId = computed(() => route.params.id as string)
 const loading = ref(true)
 const notFound = ref(false)
+const showSenderPopup = ref(false)
 
 const signal = computed(() =>
   [...quarantineStore.quarantineVisible, ...quarantineStore.quarantineHidden].find(
@@ -123,9 +127,24 @@ function onSignalReprocessed() {
           <h1 class="text-lg font-semibold text-ctp-text">{{ inboundData.subject || '(no subject)' }}</h1>
         </div>
         <div class="mt-1 text-sm text-ctp-subtext1">
-          <span class="text-ctp-overlay1">From:</span>
-          {{ inboundData.from.name || inboundData.from.address }}
-          <span v-if="inboundData.from.name" class="text-ctp-subtext0">&lt;{{ inboundData.from.address }}&gt;</span>
+          <span class="relative">
+            <span class="text-ctp-overlay1">From:</span>
+            <button
+              type="button"
+              class="cursor-pointer hover:text-ctp-mauve hover:underline"
+              @click="showSenderPopup = !showSenderPopup"
+            >
+              {{ inboundData.from.name || inboundData.from.address }}
+              <span v-if="inboundData.from.name" class="text-ctp-subtext0">&lt;{{ inboundData.from.address }}&gt;</span>
+            </button>
+            <div v-if="showSenderPopup && accountStore.accountId && inboundData.recipientAddress" class="absolute left-0 top-full z-20 mt-1">
+              <SenderInfoPopup
+                :sender-address="inboundData.from.address"
+                :alias-address="inboundData.recipientAddress"
+                :account-id="accountStore.accountId"
+              />
+            </div>
+          </span>
         </div>
         <div v-if="inboundData.recipientAddress" class="mt-1 text-sm text-ctp-subtext1">
           <span class="text-ctp-overlay1">Alias:</span> <span class="text-ctp-sapphire">{{ inboundData.recipientAddress }}</span>

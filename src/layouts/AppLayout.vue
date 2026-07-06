@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useAccountStore } from '@/stores/account'
 import { useLabelsStore } from '@/stores/labels'
 import { useViewsStore } from '@/stores/views'
-import { api } from '@/lib/api'
-import type { Thread, Rule, Alias } from '@/types/server'
+import type { Thread, Rule, EmailTemplate } from '@/types/server'
 import AppSidebar from '@/components/AppSidebar.vue'
 import AppNavbar from '@/components/AppNavbar.vue'
 import SearchInputShell, { SEARCH_FIELD_CLASS } from '@/components/SearchInputShell.vue'
@@ -18,10 +16,10 @@ import { useRealtime } from '@/composables/useRealtime'
 import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useRelativeTime } from '@/composables/useRelativeTime'
+import { useSearch } from '@/composables/useSearch'
 
 useRelativeTime()
 
-const accountStore = useAccountStore()
 const labelsStore = useLabelsStore()
 const viewsStore = useViewsStore()
 const router = useRouter()
@@ -31,11 +29,10 @@ const { coachVisible } = useOnboardingCoach()
 const { init: initShortcuts, onAction, setBlocked } = useKeyboardShortcuts()
 useRealtime()
 
-const searchQuery = ref('')
+const { query: searchQuery, results, loading, searched, onPaste: handlePaste } = useSearch({ mode: 'typeahead' })
 const inputFocused = ref(false)
 const shortcutHelpOpen = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
-const hasSearched = ref(false)
 const sidebarOpen = ref(false)
 
 // ── Swipe to open/close sidebar (mobile) ──────────────────────────────────────
@@ -89,38 +86,16 @@ watch(
   },
 )
 
-type SectionKey = 'threads' | 'senders' | 'aliases' | 'rules'
-
-const CATEGORIES: { key: SectionKey; label: string }[] = [
-  { key: 'threads', label: 'Threads' },
-  { key: 'senders', label: 'Senders' },
-  { key: 'aliases', label: 'Aliases' },
-  { key: 'rules', label: 'Rules' },
-]
-
-const activeCategories = ref<Set<SectionKey>>(new Set(['threads', 'senders', 'aliases', 'rules']))
-
-const suggestions = ref<{
-  threads: Thread[]
-  senders: string[]
-  aliases: Alias[]
-  rules: Rule[]
-  loading: boolean
-}>({ threads: [], senders: [], aliases: [], rules: [], loading: false })
-
-let debounceTimer: ReturnType<typeof setTimeout> | null = null
-let activeQuery = ''
-
 const dropdownOpen = computed(
-  () => inputFocused.value && searchQuery.value.trim().length >= 2 && route.path !== '/search',
+  () => inputFocused.value && searchQuery.value.trim().length >= 3 && route.path !== '/search',
 )
 
 const hasVisibleResults = computed(
   () =>
-    (activeCategories.value.has('threads') && suggestions.value.threads.length > 0) ||
-    (activeCategories.value.has('senders') && suggestions.value.senders.length > 0) ||
-    (activeCategories.value.has('aliases') && suggestions.value.aliases.length > 0) ||
-    (activeCategories.value.has('rules') && suggestions.value.rules.length > 0),
+    results.value.threads.length > 0 ||
+    results.value.aliases.length > 0 ||
+    results.value.rules.length > 0 ||
+    results.value.templates.length > 0,
 )
 
 // Sync input with /search route
@@ -131,70 +106,6 @@ watch(
     else searchQuery.value = ''
   },
 )
-
-// Lookahead on input change
-watch(searchQuery, (q) => {
-  if (debounceTimer) clearTimeout(debounceTimer)
-  const trimmed = q.trim()
-  if (trimmed.length < 2) {
-    hasSearched.value = false
-    suggestions.value = { threads: [], senders: [], aliases: [], rules: [], loading: false }
-    return
-  }
-  suggestions.value.loading = true
-  hasSearched.value = false
-  debounceTimer = setTimeout(() => void fetchSuggestions(trimmed), 250)
-})
-
-async function fetchSuggestions(q: string) {
-  if (!accountStore.accountId) return
-  activeQuery = q
-  const id = accountStore.accountId
-  const ql = q.toLowerCase()
-
-  const [threadsRes, aliasesRes, rulesRes] = await Promise.all([
-    api.listThreads(id, { sender: q, limit: 8 }),
-    api.listAliases(id),
-    api.listRules(id),
-  ])
-
-  if (activeQuery !== q) return
-
-  suggestions.value.loading = false
-  hasSearched.value = true
-
-  suggestions.value.threads = threadsRes.isOk()
-    ? threadsRes.value.threads
-        .filter(
-          (a: Thread) =>
-            a.summary?.toLowerCase().includes(ql) ||
-            a.labels?.some((l: string) => l.toLowerCase().includes(ql)),
-        )
-        .slice(0, 4)
-    : []
-
-  // Sender suggestions are now managed via /aliases/:address/senders sub-resource;
-  // not aggregated here to avoid N+1 calls
-  suggestions.value.senders = []
-
-  suggestions.value.aliases = aliasesRes.isOk()
-    ? aliasesRes.value.filter((a) => a.address.toLowerCase().includes(ql)).slice(0, 3)
-    : []
-
-  suggestions.value.rules = rulesRes.isOk()
-    ? rulesRes.value
-        .filter((r) => r.name.toLowerCase().includes(ql) || (r.condition ?? '').toLowerCase().includes(ql))
-        .slice(0, 3)
-    : []
-}
-
-function toggleCategory(key: SectionKey) {
-  if (activeCategories.value.has(key)) {
-    if (activeCategories.value.size > 1) activeCategories.value.delete(key)
-  } else {
-    activeCategories.value.add(key)
-  }
-}
 
 function onInputBlur() {
   setTimeout(() => {
@@ -219,12 +130,6 @@ function selectThread(thread: Thread) {
   void router.push(`/threads/${thread.threadId}`)
 }
 
-function selectSender(address: string) {
-  searchQuery.value = ''
-  inputFocused.value = false
-  void router.push({ path: '/', query: { sender: address } })
-}
-
 function selectAlias() {
   searchQuery.value = ''
   inputFocused.value = false
@@ -237,6 +142,12 @@ function selectRule(rule: Rule) {
   void router.push(`/rules/${rule.ruleId}`)
 }
 
+function selectTemplate(template: EmailTemplate) {
+  searchQuery.value = ''
+  inputFocused.value = false
+  void router.push(`/templates/${template.templateId}`)
+}
+
 function submitSearch() {
   inputFocused.value = false
   const q = searchQuery.value.trim()
@@ -245,11 +156,7 @@ function submitSearch() {
 }
 
 function onNavbarPaste(e: ClipboardEvent) {
-  const text = e.clipboardData?.getData('text/plain')?.trim()
-  if (!text) return
-  e.preventDefault()
-  inputFocused.value = false
-  void router.push({ path: '/search', query: { q: text } })
+  handlePaste(e)
 }
 
 watch(shortcutHelpOpen, (open) => setBlocked(open))
@@ -311,6 +218,7 @@ onMounted(async () => {
               type="search"
               aria-label="Search threads, rules, aliases"
               placeholder="Search…"
+              maxlength="64"
               :class="SEARCH_FIELD_CLASS"
               autocomplete="off"
               @focus="onInputFocus"
@@ -324,35 +232,12 @@ onMounted(async () => {
               v-if="dropdownOpen"
               class="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-ctp-surface1 bg-ctp-mantle shadow-lg"
             >
-              <!-- Category toggles -->
-              <div
-                class="flex items-center gap-1.5 border-b border-ctp-surface0 bg-ctp-base/40 px-3 py-2"
-              >
-                <span class="mr-0.5 text-xs text-ctp-subtext0">Show:</span>
-                <button
-                  v-for="cat in CATEGORIES"
-                  :key="cat.key"
-                  type="button"
-                  class="rounded-full border px-2.5 py-0.5 text-xs transition-colors"
-                  :class="
-                    activeCategories.has(cat.key)
-                      ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
-                      : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
-                  "
-                  :aria-pressed="activeCategories.has(cat.key)"
-                  :disabled="activeCategories.has(cat.key) && activeCategories.size === 1"
-                  @mousedown.prevent="toggleCategory(cat.key)"
-                >
-                  {{ cat.label }}
-                </button>
-              </div>
-
               <!-- Loading -->
-              <div v-if="suggestions.loading" class="px-4 py-3 text-sm text-ctp-subtext0">
+              <div v-if="loading" class="px-4 py-3 text-sm text-ctp-subtext0">
                 Searching…
               </div>
 
-              <template v-else-if="hasSearched">
+              <template v-else-if="searched">
                 <!-- No results -->
                 <div v-if="!hasVisibleResults" class="px-4 py-3 text-sm text-ctp-subtext0">
                   No matches
@@ -360,14 +245,14 @@ onMounted(async () => {
 
                 <template v-else>
                   <!-- Threads -->
-                  <template v-if="activeCategories.has('threads') && suggestions.threads.length">
+                  <template v-if="results.threads.length">
                     <div
                       class="border-b border-ctp-surface0 bg-ctp-base/40 px-3 py-1 text-xs font-medium uppercase tracking-wide text-ctp-subtext0"
                     >
                       Threads
                     </div>
                     <button
-                      v-for="thread in suggestions.threads"
+                      v-for="thread in results.threads"
                       :key="thread.threadId"
                       type="button"
                       class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-ctp-surface0"
@@ -378,75 +263,36 @@ onMounted(async () => {
                     </button>
                   </template>
 
-                  <!-- Senders -->
-                  <template v-if="activeCategories.has('senders') && suggestions.senders.length">
-                    <div
-                      class="border-y border-ctp-surface0 bg-ctp-base/40 px-3 py-1 text-xs font-medium uppercase tracking-wide text-ctp-subtext0"
-                      :class="{
-                        'border-t-0': !suggestions.threads.length || !activeCategories.has('threads'),
-                      }"
-                    >
-                      Senders
-                    </div>
-                    <button
-                      v-for="sender in suggestions.senders"
-                      :key="sender"
-                      type="button"
-                      class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-ctp-surface0"
-                      @mousedown.prevent="selectSender(sender)"
-                    >
-                      <svg
-                        class="h-3.5 w-3.5 shrink-0 text-ctp-subtext0"
-                        viewBox="0 0 16 16"
-                        fill="currentColor"
-                      >
-                        <path
-                          d="M8 8a3 3 0 100-6 3 3 0 000 6zm2-3a2 2 0 11-4 0 2 2 0 014 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.029 10 8 10c-2.029 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"
-                        />
-                      </svg>
-                      <span class="flex-1 truncate text-sm text-ctp-text">{{ sender }}</span>
-                    </button>
-                  </template>
-
                   <!-- Aliases -->
-                  <template v-if="activeCategories.has('aliases') && suggestions.aliases.length">
+                  <template v-if="results.aliases.length">
                     <div
                       class="border-y border-ctp-surface0 bg-ctp-base/40 px-3 py-1 text-xs font-medium uppercase tracking-wide text-ctp-subtext0"
-                      :class="{
-                        'border-t-0':
-                          (!suggestions.threads.length || !activeCategories.has('threads')) &&
-                          (!suggestions.senders.length || !activeCategories.has('senders')),
-                      }"
+                      :class="{ 'border-t-0': !results.threads.length }"
                     >
                       Aliases
                     </div>
                     <button
-                      v-for="alias in suggestions.aliases"
+                      v-for="alias in results.aliases"
                       :key="alias.alias"
                       type="button"
                       class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-ctp-surface0"
                       @mousedown.prevent="selectAlias"
                     >
-                      <span class="flex-1 truncate text-sm text-ctp-text">{{ alias.address }}</span>
+                      <span class="flex-1 truncate text-sm text-ctp-text">{{ alias.alias }}</span>
                       <span class="shrink-0 text-xs text-ctp-subtext0">{{ alias.unknownSenderPolicy }}</span>
                     </button>
                   </template>
 
                   <!-- Rules -->
-                  <template v-if="activeCategories.has('rules') && suggestions.rules.length">
+                  <template v-if="results.rules.length">
                     <div
                       class="border-y border-ctp-surface0 bg-ctp-base/40 px-3 py-1 text-xs font-medium uppercase tracking-wide text-ctp-subtext0"
-                      :class="{
-                        'border-t-0':
-                          (!suggestions.threads.length || !activeCategories.has('threads')) &&
-                          (!suggestions.senders.length || !activeCategories.has('senders')) &&
-                          (!suggestions.aliases.length || !activeCategories.has('aliases')),
-                      }"
+                      :class="{ 'border-t-0': !results.threads.length && !results.aliases.length }"
                     >
                       Rules
                     </div>
                     <button
-                      v-for="rule in suggestions.rules"
+                      v-for="rule in results.rules"
                       :key="rule.ruleId"
                       type="button"
                       class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-ctp-surface0"
@@ -455,6 +301,26 @@ onMounted(async () => {
                       <span class="flex-1 truncate text-sm text-ctp-text">{{ rule.name }}</span>
                       <ActionBadge v-if="rule.actions[0]" class="shrink-0" :type="rule.actions[0].type" />
                       <span v-else class="shrink-0 rounded px-1.5 py-0.5 text-xs bg-ctp-surface1 text-ctp-subtext0">—</span>
+                    </button>
+                  </template>
+
+                  <!-- Templates -->
+                  <template v-if="results.templates.length">
+                    <div
+                      class="border-y border-ctp-surface0 bg-ctp-base/40 px-3 py-1 text-xs font-medium uppercase tracking-wide text-ctp-subtext0"
+                      :class="{ 'border-t-0': !results.threads.length && !results.aliases.length && !results.rules.length }"
+                    >
+                      Templates
+                    </div>
+                    <button
+                      v-for="template in results.templates"
+                      :key="template.templateId"
+                      type="button"
+                      class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-ctp-surface0"
+                      @mousedown.prevent="selectTemplate(template)"
+                    >
+                      <span class="flex-1 truncate text-sm text-ctp-text">{{ template.name }}</span>
+                      <span class="shrink-0 truncate text-xs text-ctp-subtext0 max-w-[200px]">{{ template.subject }}</span>
                     </button>
                   </template>
                 </template>

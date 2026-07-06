@@ -667,7 +667,6 @@ export interface TeamMember {
 
 export interface Alias {
   alias: string
-  address: string
   unknownSenderPolicy: UnknownSenderPolicy
   createdAt: string
   updatedAt: string
