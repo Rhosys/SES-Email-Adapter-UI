@@ -39,7 +39,7 @@ const userConfigStore = useUserConfigStore()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 const { deferAction } = useToast()
 
-type TabKey = 'profile' | 'emails' | 'domains' | 'forwarding' | 'email' | 'team' | 'billing'
+type TabKey = 'profile' | 'emails' | 'email-forwarding' | 'team' | 'billing'
 const activeTab = ref<TabKey>('profile')
 
 // ─── Profile tab ─────────────────────────────────────────────────────────────
@@ -675,8 +675,10 @@ async function switchTab(tab: TabKey) {
   activeTab.value = tab
   void router.replace({ query: tab === 'profile' ? {} : { tab } })
   if (tab === 'emails' && aliases.value.length === 0) await loadAliases()
-  if (tab === 'domains' && domains.value.length === 0) await loadDomains()
-  if (tab === 'forwarding' && forwarding.value.length === 0) await loadForwarding()
+  if (tab === 'email-forwarding') {
+    if (domains.value.length === 0) await loadDomains()
+    if (forwarding.value.length === 0) await loadForwarding()
+  }
   if (tab === 'profile' && forwarding.value.length === 0) await loadForwarding()
   if (tab === 'team' && team.value.length === 0) await loadTeam()
 }
@@ -706,27 +708,29 @@ onMounted(async () => {
     }
     const { verifyAddress: _va, token: _tk, ...rest } = route.query
     void router.replace({ query: rest })
-    activeTab.value = 'forwarding'
+    activeTab.value = 'email-forwarding'
   }
-  // Hydrate active tab from URL
+  // Hydrate active tab from URL (map legacy tab keys to merged tab)
   const VALID_TABS: TabKey[] = [
     'emails',
-    'email',
-    'forwarding',
-    'domains',
+    'email-forwarding',
     'profile',
     'team',
     'billing',
   ]
-  const tab = route.query.tab as TabKey | undefined
+  const LEGACY_TAB_MAP: Record<string, TabKey> = {
+    email: 'email-forwarding',
+    forwarding: 'email-forwarding',
+    domains: 'email-forwarding',
+  }
+  const rawTab = route.query.tab as string | undefined
+  const tab = rawTab ? (LEGACY_TAB_MAP[rawTab] ?? rawTab) as TabKey : undefined
   if (tab && VALID_TABS.includes(tab)) await switchTab(tab)
 })
 
-const TABS: { key: TabKey; label: string; description: string }[] = [
+const TABS: { key: TabKey; label: string; mobileLabel?: string; description: string }[] = [
   { key: 'emails', label: 'Aliases', description: 'Manage email addresses and sender policies' },
-  { key: 'email', label: 'Email', description: 'Compose behavior and retention' },
-  { key: 'forwarding', label: 'Forwarding', description: 'Forward emails to external addresses' },
-  { key: 'domains', label: 'Domains', description: 'DNS setup and domain verification' },
+  { key: 'email-forwarding', label: 'Email & Forwarding', mobileLabel: 'Email', description: 'Domains, forwarding targets, and compose behavior' },
   { key: 'profile', label: 'Profile', description: 'Your identity, security, and linked accounts' },
   { key: 'team', label: 'Team', description: 'Members, roles, and invitations' },
   { key: 'billing', label: 'Billing', description: 'Manage your plan and payment details' },
@@ -1406,395 +1410,395 @@ useGestureHandler(settingsContentRef, {
         </div>
       </section>
 
-      <!-- ── Domains tab ────────────────────────────────────────────────── -->
-      <section v-else-if="activeTab === 'domains'">
-        <form class="mb-4 flex gap-2" @submit.prevent="addDomain">
-          <input
-            v-model="newDomain"
-            type="text"
-            aria-label="Domain name"
-            placeholder="yourdomain.com"
-            class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-          />
-          <AsyncButton
-            type="submit"
-            :action="addDomain"
-            :disabled="!newDomain.trim()"
-            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
-          >
-            Add domain
-          </AsyncButton>
-        </form>
+      <!-- ── Email & Forwarding tab ─────────────────────────────────────── -->
+      <section v-else-if="activeTab === 'email-forwarding'" class="space-y-8">
+        <!-- ─ Email settings ─ -->
+        <div class="space-y-6">
+          <h2 class="text-sm font-semibold text-ctp-text">Email</h2>
 
-        <div
-          v-if="domainsLoading"
-          role="status"
-          aria-label="Loading domains…"
-          class="animate-pulse space-y-3"
-        >
-          <div v-for="i in 2" :key="i" class="rounded-lg border border-ctp-surface1 p-4">
-            <div class="flex items-center justify-between">
-              <div class="space-y-1.5">
-                <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${120 + i * 40}px` }" />
-                <div class="h-3 w-20 rounded bg-ctp-surface1" />
-              </div>
-              <div class="h-6 w-20 shrink-0 rounded-full bg-ctp-surface1" />
-            </div>
-          </div>
-        </div>
-        <div
-          v-else-if="domains.length === 0"
-          class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
-        >
-          <p class="font-medium text-ctp-text">No domain connected yet</p>
-          <p class="mx-auto mt-1 max-w-sm">
-            Add your domain above and we'll generate the DNS records. Once you paste them into your
-            DNS provider, email starts flowing — usually within minutes.
-          </p>
-        </div>
-        <div v-else class="space-y-4">
-          <div
-            v-for="domain in domains"
-            :key="domain.domainId"
-            class="rounded-lg border border-ctp-surface1"
-          >
-            <!-- Domain header -->
-            <div class="flex items-center justify-between gap-2 px-4 py-3">
-              <div>
-                <p class="text-sm font-medium text-ctp-text">{{ domain.domain }}</p>
-                <div class="mt-1 flex flex-wrap gap-1.5">
-                  <span
-                    class="rounded-full px-2 py-0.5 text-xs font-medium"
-                    :class="domain.receivingSetupComplete ? 'bg-ctp-green/10 text-ctp-green' : 'bg-ctp-yellow/10 text-ctp-yellow'"
-                  >
-                    Receiving {{ domain.receivingSetupComplete ? '✓' : 'pending' }}
-                  </span>
-                  <span
-                    class="rounded-full px-2 py-0.5 text-xs font-medium"
-                    :class="domain.senderSetupComplete ? 'bg-ctp-green/10 text-ctp-green' : 'bg-ctp-yellow/10 text-ctp-yellow'"
-                  >
-                    Sending {{ domain.senderSetupComplete ? '✓' : 'pending' }}
-                  </span>
-                </div>
-              </div>
+          <!-- After send navigation -->
+          <div>
+            <span class="mb-1 block text-xs font-medium text-ctp-subtext0">After send</span>
+            <p class="mb-2 text-xs text-ctp-subtext0">Where to navigate after sending a reply</p>
+            <div class="flex gap-2">
               <AsyncButton
-                v-if="!domain.receivingSetupComplete || !domain.senderSetupComplete"
-                :action="() => recheckDomain(domain.domainId)"
-                variant="outline"
-                class="px-3 py-1.5 text-xs text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
+                v-for="option in [{ value: 'return_to_inbox' as const, label: 'Return to inbox' }, { value: 'stay_on_thread' as const, label: 'Stay on thread' }]"
+                :key="option.value"
+                :action="() => userConfigStore.update({ postSendView: option.value })"
+                variant="ghost"
+                :aria-pressed="userConfigStore.postSendView === option.value"
+                class="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs"
+                :class="
+                  userConfigStore.postSendView === option.value
+                    ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
+                    : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
+                "
               >
-                Re-check DNS
+                {{ option.label }}
               </AsyncButton>
-              <div class="relative">
-                <button
-                  type="button"
-                  class="rounded-lg border border-ctp-surface1 px-2 py-1.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
-                  :aria-label="`Actions for ${domain.domain}`"
-                  @click="domainMenuOpen = domainMenuOpen === domain.domainId ? null : domain.domainId"
-                >
-                  <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
-                    <circle cx="8" cy="3" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="8" cy="13" r="1.5" />
-                  </svg>
-                </button>
-                <template v-if="domainMenuOpen === domain.domainId">
-                  <div role="presentation" class="fixed inset-0 z-40" @click="domainMenuOpen = null" />
-                  <div class="absolute right-0 top-full z-50 mt-1 w-36 rounded-lg border border-ctp-surface1 bg-ctp-mantle py-1 shadow-lg">
-                    <button
-                      type="button"
-                      class="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-ctp-red hover:bg-ctp-red/10"
-                      @click="domainMenuOpen = null; deleteDomain(domain.domainId)"
-                    >
-                      Delete domain
-                    </button>
-                  </div>
-                </template>
-              </div>
             </div>
-            <!-- DNS records — two-tier display -->
-            <div v-if="domain.records?.length" class="border-t border-ctp-surface0">
-              <div
-                v-for="(rec, i) in domain.records"
-                :key="i"
-                class="border-b border-ctp-surface0/50 px-4 py-2 last:border-0"
+          </div>
+
+          <!-- Data retention -->
+          <div class="border-t border-ctp-surface0 pt-5">
+            <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Data retention</span>
+            <p class="mb-3 text-xs text-ctp-subtext0">How long conversations are kept</p>
+
+            <div class="relative">
+              <select
+                :value="selectedRetention"
+                :disabled="retentionPending"
+                aria-label="Retention duration"
+                class="w-full appearance-none rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 pr-8 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none disabled:opacity-50"
+                @change="updateRetention(($event.target as HTMLSelectElement).value as RetentionDuration)"
               >
-                <div class="flex items-start justify-between gap-4">
-                  <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2">
-                      <span
-                        class="shrink-0 rounded bg-ctp-surface1 px-1.5 py-0.5 font-mono text-xs text-ctp-subtext0"
-                        >{{ rec.type }}</span
-                      >
-                      <span class="truncate font-mono text-xs text-ctp-text">{{ rec.name }}</span>
-                    </div>
-                    <p class="mt-1 break-all font-mono text-xs text-ctp-subtext0">
-                      <span class="text-ctp-subtext1">Expected:</span> {{ rec.value }}
-                    </p>
-                    <p v-if="rec.currentValue" class="mt-0.5 break-all font-mono text-xs text-ctp-subtext0">
-                      <span class="text-ctp-subtext1">Current:</span> {{ rec.currentValue }}
-                    </p>
-                  </div>
-                  <div class="flex shrink-0 items-center gap-2">
-                    <span
-                      class="text-xs"
-                      :class="STATUS_COLORS[rec.status] ?? 'text-ctp-subtext0'"
-                    >
-                      {{ rec.status }}
-                    </span>
-                    <button
-                      class="rounded border border-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
-                      :title="`Copy ${rec.type} value`"
-                      @click="copyDnsValue(`${domain.domainId}-${i}`, rec.value)"
-                    >
-                      {{ copiedDns.has(`${domain.domainId}-${i}`) ? '✓' : 'Copy' }}
-                    </button>
-                  </div>
+                <option v-if="!selectedRetention" value="" disabled selected>Select duration…</option>
+                <option
+                  v-for="opt in retentionOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                  :disabled="!opt.available"
+                >
+                  {{ opt.label }}{{ !opt.available ? ` 🔒 ${opt.badge}` : '' }}
+                </option>
+              </select>
+              <svg class="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ctp-subtext0" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+              </svg>
+            </div>
+
+            <!-- Upgrade prompt -->
+            <div
+              v-if="retentionUpgradePrompt"
+              class="mt-2 rounded border border-ctp-yellow/40 bg-ctp-yellow/10 px-3 py-2 text-xs text-ctp-yellow"
+            >
+              This retention duration requires a higher plan.
+              <router-link to="/billing" class="font-medium underline hover:text-ctp-text">Upgrade</router-link>
+            </div>
+
+            <p class="mt-3 text-xs text-ctp-subtext0">
+              Applies to all conversations that receive new messages. Existing inactive threads keep their current retention.
+            </p>
+          </div>
+
+          <!-- Browser notifications test -->
+          <div class="border-t border-ctp-surface0 pt-5">
+            <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Browser notifications</span>
+            <p class="mb-2 text-xs text-ctp-subtext0">Test that OS notifications are working</p>
+            <div class="mt-3">
+              <button
+                class="rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
+                @click="sendTestNotification"
+              >
+                Send test notification
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─ Forwarding ─ -->
+        <div class="space-y-4 border-t border-ctp-surface0 pt-6">
+          <h2 class="text-sm font-semibold text-ctp-text">Forwarding</h2>
+          <!-- Verification feedback -->
+          <div v-if="verifySuccess" class="rounded-lg border border-ctp-green bg-ctp-green/10 px-4 py-3 text-sm text-ctp-green">
+            {{ verifySuccess }}
+          </div>
+          <div v-if="verifyError" class="rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red">
+            {{ verifyError }}
+          </div>
+
+          <!-- Calendar forwarding target -->
+          <div class="rounded-lg border border-ctp-surface1 p-4">
+            <label for="calendar-forwarding" class="mb-1 block text-xs font-medium text-ctp-subtext0">Calendar invite forwarding</label>
+            <p class="mb-2 text-xs text-ctp-subtext0">Calendar invites will be automatically forwarded to this target</p>
+            <div class="flex gap-2">
+              <select
+                id="calendar-forwarding"
+                v-model="calendarForwardingTargetId"
+                class="flex-1 appearance-none rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                @change="saveCalendarForwarding()"
+              >
+                <option value="">None</option>
+                <option
+                  v-for="t in verifiedForwardingTargets"
+                  :key="t.target"
+                  :value="t.target"
+                >
+                  {{ t.target }}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Add forwarding target button -->
+          <div>
+            <button
+              type="button"
+              class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
+              @click="addTargetDialogOpen = true"
+            >
+              Add Forwarding Target
+            </button>
+          </div>
+
+          <!-- Add target inline dialog -->
+          <div v-if="addTargetDialogOpen" class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
+            <div class="mb-3 flex items-center justify-between">
+              <span class="text-sm font-medium text-ctp-text">New forwarding target</span>
+              <button
+                type="button"
+                class="text-xs text-ctp-subtext0 hover:text-ctp-text"
+                @click="addTargetDialogOpen = false; addTargetType = null; newForwardTarget = ''"
+              >
+                Cancel
+              </button>
+            </div>
+            <!-- Type selection -->
+            <div v-if="!addTargetType" class="flex gap-2">
+              <button
+                type="button"
+                class="flex-1 rounded-lg border border-ctp-surface1 px-4 py-3 text-sm text-ctp-text transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
+                @click="addTargetType = 'email'"
+              >
+                <svg class="mx-auto mb-1 h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
+                Email
+              </button>
+              <button
+                type="button"
+                class="flex-1 rounded-lg border border-ctp-surface1 px-4 py-3 text-sm text-ctp-text transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
+                @click="addTargetType = 'webhook'"
+              >
+                <svg class="mx-auto mb-1 h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd"/></svg>
+                Webhook
+              </button>
+            </div>
+            <!-- Input form -->
+            <form v-else class="flex gap-2" @submit.prevent="addForwardingTarget">
+              <input
+                v-model="newForwardTarget"
+                :type="addTargetType === 'email' ? 'email' : 'url'"
+                :aria-label="addTargetType === 'email' ? 'Email address' : 'Webhook URL'"
+                :placeholder="addTargetType === 'email' ? 'forward@example.com' : 'https://hooks.example.com/...'"
+                class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-base px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
+                autofocus
+              />
+              <AsyncButton
+                type="submit"
+                :action="addForwardingTarget"
+                :disabled="!newForwardTarget.trim()"
+                class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
+              >
+                Add
+              </AsyncButton>
+              <button
+                type="button"
+                class="rounded-lg border border-ctp-surface1 px-3 py-2 text-xs text-ctp-subtext0 hover:text-ctp-text"
+                @click="addTargetType = null; newForwardTarget = ''"
+              >
+                Back
+              </button>
+            </form>
+          </div>
+
+          <!-- Forwarding targets list -->
+          <div
+            v-if="forwardingLoading"
+            role="status"
+            aria-label="Loading forwarding targets…"
+            class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+          >
+            <div v-for="i in 2" :key="i" class="flex items-center gap-3 px-4 py-3">
+              <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${130 + i * 50}px` }" />
+              <div class="ml-auto h-6 w-6 shrink-0 rounded bg-ctp-surface1" />
+            </div>
+          </div>
+          <div
+            v-else-if="forwarding.length === 0"
+            class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
+          >
+            <p class="font-medium text-ctp-text">No forwarding targets yet</p>
+            <p class="mx-auto mt-1 max-w-sm">
+              Forwarding lets you send matched emails to another inbox or webhook automatically. Add a
+              target here, then wire it up in a rule — useful for team handoffs, archiving, or
+              integrations.
+            </p>
+          </div>
+          <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
+            <div
+              v-for="fwd in forwarding"
+              :key="fwd.target"
+              class="flex items-center justify-between px-4 py-3"
+            >
+              <div class="flex items-center gap-2.5">
+                <svg v-if="fwd.type === 'email'" class="h-4 w-4 shrink-0 text-ctp-subtext0" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                </svg>
+                <svg v-else class="h-4 w-4 shrink-0 text-ctp-subtext0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd"/>
+                </svg>
+                <div>
+                  <p class="text-sm text-ctp-text">{{ fwd.target }}</p>
+                  <p v-if="fwd.verifiedAt" class="text-xs text-ctp-green">
+                    Verified on {{ new Date(fwd.verifiedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
+                  </p>
+                  <p v-else-if="fwd.status === 'disabled'" class="text-xs text-ctp-subtext0">Disabled</p>
+                  <p v-else class="text-xs text-ctp-yellow">Pending verification</p>
                 </div>
               </div>
+              <button
+                class="text-ctp-subtext0 hover:text-ctp-red"
+                title="Remove"
+                @click="removeForwarding(fwd.target)"
+              >
+                <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
+              </button>
             </div>
           </div>
         </div>
-      </section>
 
-      <!-- ── Forwarding tab ─────────────────────────────────────────────── -->
-      <section v-else-if="activeTab === 'forwarding'">
-        <!-- Verification feedback -->
-        <div v-if="verifySuccess" class="mb-4 rounded-lg border border-ctp-green bg-ctp-green/10 px-4 py-3 text-sm text-ctp-green">
-          {{ verifySuccess }}
-        </div>
-        <div v-if="verifyError" class="mb-4 rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red">
-          {{ verifyError }}
-        </div>
+        <!-- ─ Domains ─ -->
+        <div class="space-y-4 border-t border-ctp-surface0 pt-6">
+          <h2 class="text-sm font-semibold text-ctp-text">Domains</h2>
 
-        <!-- Calendar forwarding target -->
-        <div class="mb-6 rounded-lg border border-ctp-surface1 p-4">
-          <label for="calendar-forwarding" class="mb-1 block text-xs font-medium text-ctp-subtext0">Calendar invite forwarding</label>
-          <p class="mb-2 text-xs text-ctp-subtext0">Calendar invites will be automatically forwarded to this target</p>
-          <div class="flex gap-2">
-            <select
-              id="calendar-forwarding"
-              v-model="calendarForwardingTargetId"
-              class="flex-1 appearance-none rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
-              @change="saveCalendarForwarding()"
-            >
-              <option value="">None</option>
-              <option
-                v-for="t in verifiedForwardingTargets"
-                :key="t.target"
-                :value="t.target"
-              >
-                {{ t.target }}
-              </option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Add forwarding target button -->
-        <div class="mb-4">
-          <button
-            type="button"
-            class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
-            @click="addTargetDialogOpen = true"
-          >
-            Add Forwarding Target
-          </button>
-        </div>
-
-        <!-- Add target inline dialog -->
-        <div v-if="addTargetDialogOpen" class="mb-4 rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
-          <div class="mb-3 flex items-center justify-between">
-            <span class="text-sm font-medium text-ctp-text">New forwarding target</span>
-            <button
-              type="button"
-              class="text-xs text-ctp-subtext0 hover:text-ctp-text"
-              @click="addTargetDialogOpen = false; addTargetType = null; newForwardTarget = ''"
-            >
-              Cancel
-            </button>
-          </div>
-
-          <!-- Type selection -->
-          <div v-if="!addTargetType" class="flex gap-2">
-            <button
-              type="button"
-              class="flex-1 rounded-lg border border-ctp-surface1 px-4 py-3 text-sm text-ctp-text transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
-              @click="addTargetType = 'email'"
-            >
-              <svg class="mx-auto mb-1 h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
-              Email
-            </button>
-            <button
-              type="button"
-              class="flex-1 rounded-lg border border-ctp-surface1 px-4 py-3 text-sm text-ctp-text transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
-              @click="addTargetType = 'webhook'"
-            >
-              <svg class="mx-auto mb-1 h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd"/></svg>
-              Webhook
-            </button>
-          </div>
-
-          <!-- Input form -->
-          <form v-else class="flex gap-2" @submit.prevent="addForwardingTarget">
+          <form class="flex gap-2" @submit.prevent="addDomain">
             <input
-              v-model="newForwardTarget"
-              :type="addTargetType === 'email' ? 'email' : 'url'"
-              :aria-label="addTargetType === 'email' ? 'Email address' : 'Webhook URL'"
-              :placeholder="addTargetType === 'email' ? 'forward@example.com' : 'https://hooks.example.com/...'"
-              class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-base px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
-              autofocus
+              v-model="newDomain"
+              type="text"
+              aria-label="Domain name"
+              placeholder="yourdomain.com"
+              class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
             />
             <AsyncButton
               type="submit"
-              :action="addForwardingTarget"
-              :disabled="!newForwardTarget.trim()"
+              :action="addDomain"
+              :disabled="!newDomain.trim()"
               class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
             >
-              Add
+              Add domain
             </AsyncButton>
-            <button
-              type="button"
-              class="rounded-lg border border-ctp-surface1 px-3 py-2 text-xs text-ctp-subtext0 hover:text-ctp-text"
-              @click="addTargetType = null; newForwardTarget = ''"
-            >
-              Back
-            </button>
           </form>
-        </div>
 
-        <div
-          v-if="forwardingLoading"
-          role="status"
-          aria-label="Loading forwarding targets…"
-          class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
-        >
-          <div v-for="i in 2" :key="i" class="flex items-center gap-3 px-4 py-3">
-            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${130 + i * 50}px` }" />
-            <div class="ml-auto h-6 w-6 shrink-0 rounded bg-ctp-surface1" />
-          </div>
-        </div>
-        <div
-          v-else-if="forwarding.length === 0"
-          class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
-        >
-          <p class="font-medium text-ctp-text">No forwarding targets yet</p>
-          <p class="mx-auto mt-1 max-w-sm">
-            Forwarding lets you send matched emails to another inbox or webhook automatically. Add a
-            target here, then wire it up in a rule — useful for team handoffs, archiving, or
-            integrations.
-          </p>
-        </div>
-        <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div
-            v-for="fwd in forwarding"
-            :key="fwd.target"
-            class="flex items-center justify-between px-4 py-3"
+            v-if="domainsLoading"
+            role="status"
+            aria-label="Loading domains…"
+            class="animate-pulse space-y-3"
           >
-            <div class="flex items-center gap-2.5">
-              <!-- Type icon -->
-              <svg v-if="fwd.type === 'email'" class="h-4 w-4 shrink-0 text-ctp-subtext0" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-              </svg>
-              <svg v-else class="h-4 w-4 shrink-0 text-ctp-subtext0" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd"/>
-              </svg>
-              <div>
-                <p class="text-sm text-ctp-text">{{ fwd.target }}</p>
-                <p v-if="fwd.verifiedAt" class="text-xs text-ctp-green">
-                  Verified on {{ new Date(fwd.verifiedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
-                </p>
-                <p v-else-if="fwd.status === 'disabled'" class="text-xs text-ctp-subtext0">Disabled</p>
-                <p v-else class="text-xs text-ctp-yellow">Pending verification</p>
+            <div v-for="i in 2" :key="i" class="rounded-lg border border-ctp-surface1 p-4">
+              <div class="flex items-center justify-between">
+                <div class="space-y-1.5">
+                  <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${120 + i * 40}px` }" />
+                  <div class="h-3 w-20 rounded bg-ctp-surface1" />
+                </div>
+                <div class="h-6 w-20 shrink-0 rounded-full bg-ctp-surface1" />
               </div>
             </div>
-            <button
-              class="text-ctp-subtext0 hover:text-ctp-red"
-              title="Remove"
-              @click="removeForwarding(fwd.target)"
-            >
-              <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
-            </button>
           </div>
-        </div>
-      </section>
-
-      <!-- ── Email tab ──────────────────────────────────────────────── -->
-      <section v-else-if="activeTab === 'email'" class="space-y-6">
-        <!-- After send navigation -->
-        <div>
-          <span class="mb-1 block text-xs font-medium text-ctp-subtext0">After send</span>
-          <p class="mb-2 text-xs text-ctp-subtext0">Where to navigate after sending a reply</p>
-          <div class="flex gap-2">
-            <AsyncButton
-              v-for="option in [{ value: 'return_to_inbox' as const, label: 'Return to inbox' }, { value: 'stay_on_thread' as const, label: 'Stay on thread' }]"
-              :key="option.value"
-              :action="() => userConfigStore.update({ postSendView: option.value })"
-              variant="ghost"
-              :aria-pressed="userConfigStore.postSendView === option.value"
-              class="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs"
-              :class="
-                userConfigStore.postSendView === option.value
-                  ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
-                  : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
-              "
-            >
-              {{ option.label }}
-            </AsyncButton>
-          </div>
-        </div>
-
-        <!-- Data retention -->
-        <div class="border-t border-ctp-surface0 pt-5">
-          <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Data retention</span>
-          <p class="mb-3 text-xs text-ctp-subtext0">How long conversations are kept</p>
-
-          <div class="relative">
-            <select
-              :value="selectedRetention"
-              :disabled="retentionPending"
-              aria-label="Retention duration"
-              class="w-full appearance-none rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 pr-8 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none disabled:opacity-50"
-              @change="updateRetention(($event.target as HTMLSelectElement).value as RetentionDuration)"
-            >
-              <option v-if="!selectedRetention" value="" disabled selected>Select duration…</option>
-              <option
-                v-for="opt in retentionOptions"
-                :key="opt.value"
-                :value="opt.value"
-                :disabled="!opt.available"
-              >
-                {{ opt.label }}{{ !opt.available ? ` 🔒 ${opt.badge}` : '' }}
-              </option>
-            </select>
-            <svg class="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ctp-subtext0" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
-            </svg>
-          </div>
-
-          <!-- Upgrade prompt -->
           <div
-            v-if="retentionUpgradePrompt"
-            class="mt-2 rounded border border-ctp-yellow/40 bg-ctp-yellow/10 px-3 py-2 text-xs text-ctp-yellow"
+            v-else-if="domains.length === 0"
+            class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-10 text-center text-sm text-ctp-subtext0"
           >
-            This retention duration requires a higher plan.
-            <router-link to="/billing" class="font-medium underline hover:text-ctp-text">Upgrade</router-link>
+            <p class="font-medium text-ctp-text">No domain connected yet</p>
+            <p class="mx-auto mt-1 max-w-sm">
+              Add your domain above and we'll generate the DNS records. Once you paste them into your
+              DNS provider, email starts flowing — usually within minutes.
+            </p>
           </div>
-
-          <p class="mt-3 text-xs text-ctp-subtext0">
-            Applies to all conversations that receive new messages. Existing inactive threads keep their current retention.
-          </p>
-        </div>
-
-        <!-- Browser notifications test -->
-        <div class="border-t border-ctp-surface0 pt-5">
-          <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Browser notifications</span>
-          <p class="mb-2 text-xs text-ctp-subtext0">Test that OS notifications are working</p>
-          <div class="mt-3">
-            <button
-              class="rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
-              @click="sendTestNotification"
+          <div v-else class="space-y-4">
+            <div
+              v-for="domain in domains"
+              :key="domain.domainId"
+              class="rounded-lg border border-ctp-surface1"
             >
-              Send test notification
-            </button>
+              <!-- Domain header -->
+              <div class="flex items-center justify-between gap-2 px-4 py-3">
+                <div>
+                  <p class="text-sm font-medium text-ctp-text">{{ domain.domain }}</p>
+                  <div class="mt-1 flex flex-wrap gap-1.5">
+                    <span
+                      class="rounded-full px-2 py-0.5 text-xs font-medium"
+                      :class="domain.receivingSetupComplete ? 'bg-ctp-green/10 text-ctp-green' : 'bg-ctp-yellow/10 text-ctp-yellow'"
+                    >
+                      Receiving {{ domain.receivingSetupComplete ? '✓' : 'pending' }}
+                    </span>
+                    <span
+                      class="rounded-full px-2 py-0.5 text-xs font-medium"
+                      :class="domain.senderSetupComplete ? 'bg-ctp-green/10 text-ctp-green' : 'bg-ctp-yellow/10 text-ctp-yellow'"
+                    >
+                      Sending {{ domain.senderSetupComplete ? '✓' : 'pending' }}
+                    </span>
+                  </div>
+                </div>
+                <AsyncButton
+                  v-if="!domain.receivingSetupComplete || !domain.senderSetupComplete"
+                  :action="() => recheckDomain(domain.domainId)"
+                  variant="outline"
+                  class="px-3 py-1.5 text-xs text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
+                >
+                  Re-check DNS
+                </AsyncButton>
+                <div class="relative">
+                  <button
+                    type="button"
+                    class="rounded-lg border border-ctp-surface1 px-2 py-1.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
+                    :aria-label="`Actions for ${domain.domain}`"
+                    @click="domainMenuOpen = domainMenuOpen === domain.domainId ? null : domain.domainId"
+                  >
+                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+                      <circle cx="8" cy="3" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="8" cy="13" r="1.5" />
+                    </svg>
+                  </button>
+                  <template v-if="domainMenuOpen === domain.domainId">
+                    <div role="presentation" class="fixed inset-0 z-40" @click="domainMenuOpen = null" />
+                    <div class="absolute right-0 top-full z-50 mt-1 w-36 rounded-lg border border-ctp-surface1 bg-ctp-mantle py-1 shadow-lg">
+                      <button
+                        type="button"
+                        class="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-ctp-red hover:bg-ctp-red/10"
+                        @click="domainMenuOpen = null; deleteDomain(domain.domainId)"
+                      >
+                        Delete domain
+                      </button>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <!-- DNS records -->
+              <div v-if="domain.records?.length" class="border-t border-ctp-surface0">
+                <div
+                  v-for="(rec, i) in domain.records"
+                  :key="i"
+                  class="border-b border-ctp-surface0/50 px-4 py-2 last:border-0"
+                >
+                  <div class="flex items-start justify-between gap-4">
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-2">
+                        <span class="shrink-0 rounded bg-ctp-surface1 px-1.5 py-0.5 font-mono text-xs text-ctp-subtext0">{{ rec.type }}</span>
+                        <span class="truncate font-mono text-xs text-ctp-text">{{ rec.name }}</span>
+                      </div>
+                      <p class="mt-1 break-all font-mono text-xs text-ctp-subtext0">
+                        <span class="text-ctp-subtext1">Expected:</span> {{ rec.value }}
+                      </p>
+                      <p v-if="rec.currentValue" class="mt-0.5 break-all font-mono text-xs text-ctp-subtext0">
+                        <span class="text-ctp-subtext1">Current:</span> {{ rec.currentValue }}
+                      </p>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2">
+                      <span class="text-xs" :class="STATUS_COLORS[rec.status] ?? 'text-ctp-subtext0'">
+                        {{ rec.status }}
+                      </span>
+                      <button
+                        class="rounded border border-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
+                        :title="`Copy ${rec.type} value`"
+                        @click="copyDnsValue(`${domain.domainId}-${i}`, rec.value)"
+                      >
+                        {{ copiedDns.has(`${domain.domainId}-${i}`) ? '✓' : 'Copy' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

@@ -429,7 +429,7 @@ async function removeLabel(label: string) {
       <!-- Retention: always-visible expiry date -->
       <RouterLink
         v-if="availableUntil"
-        :to="{ name: 'settings', query: { tab: 'email' } }"
+        :to="{ name: 'settings', query: { tab: 'email-forwarding' } }"
         class="mb-2 block cursor-pointer text-xs text-ctp-subtext0 no-underline hover:text-ctp-text hover:underline"
       >
         Available until {{ availableUntil }}
@@ -444,7 +444,7 @@ async function removeLabel(label: string) {
       <!-- Retention warning (≤30 days) -->
       <RouterLink
         v-if="showRetentionWarning"
-        :to="{ name: 'settings', query: { tab: 'email' } }"
+        :to="{ name: 'settings', query: { tab: 'email-forwarding' } }"
         class="mb-4 block cursor-pointer rounded-lg border border-ctp-peach/30 bg-ctp-peach/10 px-4 py-2 text-xs text-ctp-peach no-underline hover:bg-ctp-peach/15"
       >
         ⚠ {{ retentionMessage }}
