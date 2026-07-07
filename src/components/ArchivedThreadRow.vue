@@ -41,7 +41,7 @@ async function unarchiveThread() {
           @click.prevent="unarchiveThread"
         >
           <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path d="M1 11v3a1 1 0 001 1h12a1 1 0 001-1v-3H9.5l-1 2h-1l-1-2H1zm0-1h4l1 2h4l1-2h4V3a1 1 0 00-1-1H2a1 1 0 00-1 1v7z"/>
+            <g transform="rotate(90 8 8)"><path d="M8 1a1 1 0 011 1v5.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 011.414-1.414L7 7.586V2a1 1 0 011-1zM2 10a1 1 0 011 1v2h10v-2a1 1 0 112 0v3a1 1 0 01-1 1H2a1 1 0 01-1-1v-3a1 1 0 011-1z"/></g>
           </svg>
           Inbox
         </button>

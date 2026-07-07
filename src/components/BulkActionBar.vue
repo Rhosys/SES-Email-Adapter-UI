@@ -128,7 +128,7 @@ function labelActionWrapper(action: (label: string) => Promise<unknown>) {
         class="flex items-center gap-1.5 rounded bg-ctp-surface0 px-3 py-1.5 text-ctp-text hover:bg-ctp-surface1"
       >
         <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-          <path d="M8 1a1 1 0 011 1v5.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 011.414-1.414L7 7.586V2a1 1 0 011-1zM2 10a1 1 0 011 1v2h10v-2a1 1 0 112 0v3a1 1 0 01-1 1H2a1 1 0 01-1-1v-3a1 1 0 011-1z"/>
+          <g transform="rotate(90 8 8)"><path d="M8 1a1 1 0 011 1v5.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 011.414-1.414L7 7.586V2a1 1 0 011-1zM2 10a1 1 0 011 1v2h10v-2a1 1 0 112 0v3a1 1 0 01-1 1H2a1 1 0 01-1-1v-3a1 1 0 011-1z"/></g>
         </svg>
         Inbox
       </AsyncButton>

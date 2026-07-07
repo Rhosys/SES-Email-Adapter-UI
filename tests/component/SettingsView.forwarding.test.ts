@@ -13,6 +13,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
     ...actual,
     api: {
       listAccounts: vi.fn(),
+      listDomains: vi.fn(),
       listForwardingAddresses: vi.fn(),
       createForwardingAddress: vi.fn(),
       deleteForwardingAddress: vi.fn(),
@@ -71,6 +72,7 @@ describe('SettingsView — forwarding verification date', () => {
     vi.clearAllMocks()
     useAccountStore().account = testAccount
     vi.mocked(api.listAccounts).mockResolvedValue(ok([testAccount]))
+    vi.mocked(api.listDomains).mockResolvedValue(ok([]))
   })
 
   it('shows "Verified on <date>" when verifiedAt is set', async () => {

@@ -131,9 +131,7 @@ const accountSwitcherOpen = ref(false)
         >
           <!-- Inbox icon -->
           <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path
-              d="M1 2.5A1.5 1.5 0 012.5 1h11A1.5 1.5 0 0115 2.5v11a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 13.5v-11zM2.5 2a.5.5 0 00-.5.5V9h2.5a.5.5 0 01.5.5 2.5 2.5 0 005 0 .5.5 0 01.5-.5H13V2.5a.5.5 0 00-.5-.5h-10z"
-            />
+            <g transform="rotate(90 8 8)"><path d="M8 1a1 1 0 011 1v5.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 011.414-1.414L7 7.586V2a1 1 0 011-1zM2 10a1 1 0 011 1v2h10v-2a1 1 0 112 0v3a1 1 0 01-1 1H2a1 1 0 01-1-1v-3a1 1 0 011-1z"/></g>
           </svg>
           <span class="flex-1">Inbox</span>
           <span
