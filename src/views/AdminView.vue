@@ -144,7 +144,7 @@ async function lookup() {
 </script>
 
 <template>
-  <div class="mx-auto max-w-5xl space-y-6 p-6">
+  <div class="mx-auto flex min-h-full max-w-5xl flex-col space-y-6 p-6">
     <div>
       <h1 class="text-lg font-semibold text-ctp-text">Admin — Signal Inspector</h1>
       <BuildInfo class="mt-1" />
@@ -265,7 +265,7 @@ async function lookup() {
     </section>
 
     <!-- Log history — recent in-app logs, for investigating issues on-device -->
-    <section>
+    <section class="flex min-h-0 flex-1 flex-col">
       <div class="mb-2 flex items-center justify-between">
         <h3 class="text-sm font-medium text-ctp-subtext1">Logs — last hour ({{ logStore.recent.length }})</h3>
         <button
@@ -275,7 +275,7 @@ async function lookup() {
           Clear
         </button>
       </div>
-      <div class="max-h-96 overflow-y-auto rounded-lg border border-ctp-surface1 bg-ctp-mantle p-2 text-xs">
+      <div class="min-h-24 flex-1 overflow-y-auto rounded-lg border border-ctp-surface1 bg-ctp-mantle p-2 text-xs">
         <p v-if="!logStore.recent.length" class="p-2 text-ctp-subtext0">No logs captured in the last hour.</p>
         <div
           v-for="(entry, i) in logStore.recent"
