@@ -1,3 +1,5 @@
+import logger from '@/lib/logger'
+
 interface NotifyOptions {
   title: string
   body: string
@@ -23,8 +25,11 @@ async function showViaServiceWorker(title: string, options: NotificationOptions)
 export function showNotification(title: string, options: NotificationOptions): Notification | null {
   try {
     return new Notification(title, options)
-  } catch {
-    void showViaServiceWorker(title, options)
+  } catch (e) {
+    logger.warn({ title: 'Notification constructor rejected, falling back to service worker', error: e })
+    showViaServiceWorker(title, options).catch((swError: unknown) => {
+      logger.warn({ title: 'Service worker notification fallback failed', error: swError })
+    })
     return null
   }
 }

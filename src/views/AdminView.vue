@@ -31,7 +31,11 @@ function formatLogMessage(message: Record<string, unknown>): string {
   if (typeof message.title === 'string' && Object.keys(message).length === 1) return message.title
   try {
     return JSON.stringify(message)
-  } catch {
+  } catch (e) {
+    // console directly, not the app logger — this renders the log stream
+    // itself, and logging through it here risks a display feedback loop.
+    // eslint-disable-next-line no-console
+    console.warn('[AdminView] Failed to stringify log message', e)
     return String(message)
   }
 }

@@ -6,6 +6,7 @@ import { useUserConfigStore } from '@/stores/userConfig'
 import { api } from '@/lib/api'
 import { notify } from '@/lib/notifications'
 import { loginClient } from '@/lib/auth'
+import logger from '@/lib/logger'
 import { UserConfigurationScreen } from '@authress/login'
 import type { DeviceType, Device, LinkedIdentity } from '@authress/login'
 import { useFeatureTour } from '@/composables/useFeatureTour'
@@ -82,8 +83,9 @@ async function loadSecurityDevices() {
   securityDeviceError.value = null
   try {
     securityDevices.value = await loginClient.getDevices()
-  } catch {
+  } catch (e) {
     securityDeviceError.value = 'Failed to load security devices'
+    logger.warn({ title: 'Failed to load security devices', error: e })
   } finally {
     securityDevicesLoading.value = false
   }
@@ -98,8 +100,9 @@ async function loadSecurityProfile() {
       .then((p) => {
         securityProfile.value = p
       })
-      .catch(() => {
+      .catch((e: unknown) => {
         securityProfileError.value = 'Failed to load identity connections'
+        logger.warn({ title: 'Failed to load identity connections', error: e })
       })
       .finally(() => {
         securityProfileLoading.value = false
@@ -141,8 +144,9 @@ async function disconnectIdentity(ident: LinkedIdentity) {
   try {
     await loginClient.unlinkIdentity(ident.connection.userId)
     securityProfile.value = await loginClient.getUserProfile()
-  } catch {
+  } catch (e) {
     securityProfileError.value = 'Failed to disconnect identity'
+    logger.warn({ title: 'Failed to disconnect identity', error: e })
   } finally {
     disconnectPending.value = null
   }
@@ -176,8 +180,9 @@ async function removeDevice(device: Device) {
   try {
     await loginClient.deleteDevice(device.deviceId)
     await loadSecurityDevices()
-  } catch {
+  } catch (e) {
     securityDeviceError.value = 'Failed to remove device'
+    logger.warn({ title: 'Failed to remove device', error: e })
   } finally {
     removePending.value = null
   }
@@ -193,8 +198,9 @@ async function registerPasskey() {
     await loadSecurityDevices()
     newPasskeyName.value = ''
     addingPasskey.value = false
-  } catch {
+  } catch (e) {
     securityDeviceError.value = 'Passkey registration failed — check your browser supports WebAuthn'
+    logger.warn({ title: 'Passkey registration failed', error: e })
   } finally {
     passkeyPending.value = false
   }

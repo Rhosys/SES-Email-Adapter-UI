@@ -1,3 +1,5 @@
+/* eslint-disable no-console -- runs in a SharedWorker global scope, where the
+   app logger (which touches window/document/localStorage) isn't available */
 /// <reference lib="webworker" />
 declare const self: SharedWorkerGlobalScope
 
@@ -56,8 +58,8 @@ function connect(): void {
       const data = JSON.parse(e.data) as { type: string }
       if (data.type === 'pong') return
       broadcast({ type: 'event', data })
-    } catch {
-      // ignore malformed frames
+    } catch (err) {
+      console.warn('[realtime worker] Ignoring malformed frame', err)
     }
   }
 

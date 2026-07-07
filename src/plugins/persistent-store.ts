@@ -37,7 +37,8 @@ try {
   const read = localStorage.getItem(testKey)
   localStorage.removeItem(testKey)
   localStorageAvailable = read === "1"
-} catch {
+} catch (e) {
+  logger.warn({ title: "localStorage unavailable", error: e })
   localStorageAvailable = false
 }
 

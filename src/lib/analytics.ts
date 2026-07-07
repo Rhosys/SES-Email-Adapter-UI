@@ -5,6 +5,7 @@ import 'posthog-js/dist/tracing-headers'
 import 'posthog-js/dist/web-vitals'
 import posthog from 'posthog-js'
 import environment from './environment'
+import logger from './logger'
 
 const key = (import.meta.env.VITE_POSTHOG_KEY as string) ?? 'phc_U2h7kAvWiXEAp0RzyaOxrhFJddQdJGWEWjiEHZhoRzR'
 const host = import.meta.env.VITE_POSTHOG_HOST ?? 'https://eu.posthog.com'
@@ -62,8 +63,8 @@ export function resetAnalytics() {
   try {
     posthog.reset()
     identified = false
-  } catch {
-    // best-effort
+  } catch (e) {
+    logger.warn({ title: 'Analytics: reset failed', error: e })
   }
 }
 
@@ -71,7 +72,7 @@ export function capture(event: string, data?: Record<string, unknown>) {
   if (!key) return
   try {
     posthog.capture(event, data ?? {})
-  } catch {
-    // best-effort
+  } catch (e) {
+    logger.warn({ title: 'Analytics: capture failed', event, error: e })
   }
 }

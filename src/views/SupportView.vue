@@ -19,8 +19,8 @@ const userId = ref<string | null>(null)
 try {
   const identity = loginClient.getUserIdentity() as { sub?: string } | null
   userId.value = identity?.sub ?? null
-} catch {
-  // best-effort
+} catch (e) {
+  logger.warn({ title: 'Support: failed to read user identity', error: e })
 }
 
 const statusUrl = computed(() => `https://status.${buildInfo.deployment.fdqn}`)

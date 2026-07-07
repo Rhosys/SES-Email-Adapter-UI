@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import logger from '@/lib/logger'
 
 export function useClipboard() {
   const copied = ref(false)
@@ -10,8 +11,8 @@ export function useClipboard() {
       setTimeout(() => {
         copied.value = false
       }, 1500)
-    } catch {
-      // Silent failure — clipboard access may be denied
+    } catch (e) {
+      logger.warn({ title: 'Clipboard write failed', error: e })
     }
   }
 

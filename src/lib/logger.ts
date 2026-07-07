@@ -37,7 +37,8 @@ function safeStringify(value: unknown): string {
           if (seen.has(val)) return '[Circular]'
           seen.add(val)
         }
-      } catch {
+      } catch (e) {
+        console.error('[Logger] Failed to serialize value', e)
         return '<Logger-FailedToSerialize>'
       }
       return val
@@ -79,8 +80,9 @@ class Logger {
         const cookieDomain = window.location.hostname.split('.').reverse().slice(0, 2).reverse().join('.')
         const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString()
         document.cookie = `Session=${this.sessionKey}; expires=${expires}; path=/; domain=${cookieDomain}; SameSite=Lax`
-      } catch {
+      } catch (e) {
         // Storage may be unavailable in sandboxed contexts
+        console.warn('[Logger] Failed to persist session id', e)
       }
     }
 
@@ -104,13 +106,13 @@ class Logger {
     const buffered = this.historyBuffer
     this.historyBuffer = []
     for (const entry of buffered) {
-      try { fn(entry) } catch { /* a broken sink must never break logging */ }
+      try { fn(entry) } catch (e) { console.error('[Logger] History sink threw (buffered flush)', e) }
     }
   }
 
   private recordHistory(entry: LogHistoryEntry) {
     if (this.historySink) {
-      try { this.historySink(entry) } catch { /* never break logging */ }
+      try { this.historySink(entry) } catch (e) { console.error('[Logger] History sink threw', e) }
       return
     }
     this.historyBuffer.push(entry)
@@ -179,8 +181,10 @@ class Logger {
     let sessionUrl: string | undefined
     try {
       sessionUrl = posthog.get_session_replay_url({ withTimestamp: true, timestampLookBack: 30 })
-    } catch {
-      // posthog not initialized
+    } catch (e) {
+      // posthog not initialized — this runs on every log call, so use debug to
+      // avoid spamming the console at a higher severity.
+      console.debug('[Logger] Session replay URL unavailable', e)
     }
 
     const { userId, accountId } = this.getContext()
@@ -250,8 +254,8 @@ class Logger {
         const blob = new Blob([this.nextMessagesAsPayload()], { type: 'text/plain' })
         navigator.sendBeacon(BASE_URL, blob)
       }
-    } catch {
-      // Best-effort
+    } catch (e) {
+      console.warn('[Logger] Failed to flush logs on unload', e)
     }
   }
 

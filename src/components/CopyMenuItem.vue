@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useToast } from '@/composables/useToast'
+import logger from '@/lib/logger'
 
 const props = defineProps<{ value: string; label: string }>()
 const emit = defineEmits<{ click: [] }>()
@@ -11,8 +12,8 @@ async function copy() {
   try {
     await navigator.clipboard.writeText(props.value)
     notify(`${props.label} copied`)
-  } catch {
-    // Silent failure — clipboard access may be denied
+  } catch (e) {
+    logger.warn({ title: 'Clipboard write failed', label: props.label, error: e })
   }
 }
 </script>

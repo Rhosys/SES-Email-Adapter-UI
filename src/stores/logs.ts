@@ -1,3 +1,6 @@
+/* eslint-disable no-console -- this store backs the app logger's own history
+   sink, so its own failure paths log via console directly to avoid a
+   load/persist feedback loop through the logger. */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { LogHistoryEntry } from '@/lib/logger'
@@ -26,7 +29,8 @@ function load(): LogHistoryEntry[] {
     if (!raw) return []
     const parsed = JSON.parse(raw) as unknown
     return Array.isArray(parsed) ? prune(parsed as LogHistoryEntry[]) : []
-  } catch {
+  } catch (e) {
+    console.warn('[logs] Failed to load persisted log history', e)
     return []
   }
 }
@@ -43,8 +47,9 @@ export const useLogStore = defineStore('logs', () => {
       saveTimer = null
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(entries.value))
-      } catch {
+      } catch (e) {
         // localStorage unavailable or over quota — history stays in-memory only.
+        console.warn('[logs] Failed to persist log history', e)
       }
     }, 1000)
   }
@@ -61,8 +66,8 @@ export const useLogStore = defineStore('logs', () => {
     if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
     try {
       localStorage.removeItem(STORAGE_KEY)
-    } catch {
-      // ignore
+    } catch (e) {
+      console.warn('[logs] Failed to clear persisted log history', e)
     }
   }
 

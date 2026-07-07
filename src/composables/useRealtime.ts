@@ -4,6 +4,7 @@ import { useThreadsStore } from '@/stores/threads'
 import { useSignalsStore } from '@/stores/signals'
 import { loginClient } from '@/lib/auth'
 import { showNotification } from '@/lib/notifications'
+import logger from '@/lib/logger'
 import type { ThreadUrgency } from '@/types/server'
 import type { RealtimeEvent, SignalCreatedEvent } from '@/types/realtime'
 
@@ -63,8 +64,9 @@ export function useRealtime() {
     let token = ''
     try {
       token = (await loginClient.ensureToken()) ?? ''
-    } catch {
+    } catch (e) {
       // token stays empty; server may reject — worker will retry on reconnect
+      logger.warn({ title: 'Realtime: failed to acquire token', error: e })
     }
 
     if (!worker) {

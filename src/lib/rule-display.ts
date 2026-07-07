@@ -1,4 +1,5 @@
 import type { Rule, RuleActionType } from '@/types/server'
+import logger from '@/lib/logger'
 
 export const ACTION_LABELS: Partial<Record<RuleActionType, string>> = {
   block_hidden: 'Block (hidden)',
@@ -39,7 +40,8 @@ export function conditionSummary(rule: Rule): string {
   try {
     const tree = JSON.parse(rule.condition) as unknown
     return summarizeLogic(tree)
-  } catch {
+  } catch (e) {
+    logger.warn({ title: 'Failed to summarize rule condition', ruleId: rule.ruleId, error: e })
     return rule.condition
   }
 }

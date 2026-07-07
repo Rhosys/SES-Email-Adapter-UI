@@ -275,10 +275,15 @@ const hbsContext = computed(() => ({
   fn: fnOutputs.value,
 }))
 
+// These re-run on every keystroke while editing, so failures — expected while
+// mid-edit on an incomplete template — are logged locally only (not through
+// the app logger) to avoid spamming remote logs.
 const previewSubject = computed(() => {
   try {
     return Handlebars.compile(draftSubject.value)(hbsContext.value)
-  } catch {
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.debug('[TemplatesView] Subject template compile failed', e)
     return draftSubject.value
   }
 })
@@ -288,6 +293,8 @@ const _bodyResult = computed(() => {
     const rendered = Handlebars.compile(draftBody.value)(hbsContext.value)
     return { html: marked.parse(rendered) as string, error: null as string | null }
   } catch (e) {
+    // eslint-disable-next-line no-console
+    console.debug('[TemplatesView] Body template compile failed', e)
     return { html: '', error: e instanceof Error ? e.message : 'Template syntax error' }
   }
 })

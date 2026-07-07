@@ -1,5 +1,6 @@
 import { ok, err, type Result } from 'neverthrow'
 import { loginClient } from './auth'
+import logger from '@/lib/logger'
 import type {
   Account,
   AccountFilteringConfig,
@@ -113,6 +114,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<Result<
     return ok(data)
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Network error'
+    logger.warn({ title: 'API request failed', path, error: message })
     return err(new ApiError(0, message))
   }
 }
@@ -665,6 +667,7 @@ export const api = {
       return ok(await res.text())
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Network error'
+      logger.warn({ title: 'Failed to fetch raw email', accountId, threadId, signalId, error: message })
       return err(new ApiError(0, message))
     }
   },

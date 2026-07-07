@@ -53,8 +53,8 @@ export const useAccountStore = defineStore('account', () => {
           logger.info({ title: 'Removed cache for revoked account', accountId: cachedId })
         }
       }
-    } catch {
-      // localStorage may be unavailable — non-fatal
+    } catch (e) {
+      logger.warn({ title: 'Failed to clean up stale account cache', error: e })
     }
 
     const preferred =
