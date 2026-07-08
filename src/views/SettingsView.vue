@@ -14,6 +14,7 @@ import ShortcutHelpOverlay from '@/components/ShortcutHelpOverlay.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import FilterModeModal from '@/components/ui/FilterModeModal.vue'
+import OverflowMenu from '@/components/ui/OverflowMenu.vue'
 import SettingsTabBar from '@/components/settings/SettingsTabBar.vue'
 import BillingPanel from '@/components/settings/BillingPanel.vue'
 import BuildInfo from '@/components/BuildInfo.vue'
@@ -422,7 +423,6 @@ const domainsLoading = ref(false)
 const newDomain = ref('')
 const addDomainPending = ref(false)
 const recheckPending = ref<Set<string>>(new Set())
-const domainMenuOpen = ref<string | null>(null)
 const senderPolicyModal = ref<{ open: boolean; aliasAddress: string; senderDomain: string; currentPolicy: SenderPolicy }>({
   open: false, aliasAddress: '', senderDomain: '', currentPolicy: 'allow',
 })
@@ -1744,30 +1744,21 @@ useGestureHandler(settingsContentRef, {
                 >
                   Re-check DNS
                 </AsyncButton>
-                <div class="relative">
+                <OverflowMenu
+                  :label="`Actions for ${domain.domain}`"
+                  :sheet-title="domain.domain"
+                  menu-width-class="w-36"
+                  trigger-class="rounded-lg border border-ctp-surface1 px-2 py-1.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
+                >
                   <button
                     type="button"
-                    class="rounded-lg border border-ctp-surface1 px-2 py-1.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
-                    :aria-label="`Actions for ${domain.domain}`"
-                    @click="domainMenuOpen = domainMenuOpen === domain.domainId ? null : domain.domainId"
+                    role="menuitem"
+                    class="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-ctp-red hover:bg-ctp-red/10"
+                    @click="deleteDomain(domain.domainId)"
                   >
-                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
-                      <circle cx="8" cy="3" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="8" cy="13" r="1.5" />
-                    </svg>
+                    Delete domain
                   </button>
-                  <template v-if="domainMenuOpen === domain.domainId">
-                    <div role="presentation" class="fixed inset-0 z-40" @click="domainMenuOpen = null" />
-                    <div class="absolute right-0 top-full z-50 mt-1 w-36 rounded-lg border border-ctp-surface1 bg-ctp-mantle py-1 shadow-lg">
-                      <button
-                        type="button"
-                        class="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-ctp-red hover:bg-ctp-red/10"
-                        @click="domainMenuOpen = null; deleteDomain(domain.domainId)"
-                      >
-                        Delete domain
-                      </button>
-                    </div>
-                  </template>
-                </div>
+                </OverflowMenu>
               </div>
               <!-- DNS records -->
               <div v-if="domain.records?.length" class="border-t border-ctp-surface0">

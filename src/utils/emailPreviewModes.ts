@@ -42,12 +42,10 @@ export interface EmailPreviewMode {
   wrap: (rawHtml: string) => string
 }
 
+// Ordered so the first entry is the default the picker starts on (currently
+// "Wrap text"). The old raw "baseline" pass-through was removed — it was the
+// one confirmed-wrong option — leaving four candidates still under evaluation.
 export const EMAIL_PREVIEW_MODES: EmailPreviewMode[] = [
-  {
-    id: 'baseline',
-    label: 'Current',
-    wrap: (html) => html,
-  },
   {
     id: 'wrap-shrink',
     label: 'Wrap text',
