@@ -68,7 +68,7 @@ describe('EmailSignalCard — attachments', () => {
     }
   })
 
-  it('renders a download link with filename and size for an attachment with a URL', async () => {
+  it('renders a clickable chip with filename and size for an attachment with a URL', async () => {
     const wrapper = await mountCard(
       mockEmailSignal({
         data: {
@@ -80,15 +80,12 @@ describe('EmailSignalCard — attachments', () => {
       } as Partial<Signal>),
     )
 
-    const link = wrapper.find('a[href="https://cdn.example.com/att_1"]')
-    expect(link.exists()).toBe(true)
-    expect(link.text()).toContain('invoice.pdf')
-    expect(link.text()).toContain('20.0 KB')
-    expect(link.attributes('target')).toBe('_blank')
-    expect(link.attributes('rel')).toBe('noopener noreferrer')
+    const chip = wrapper.findAll('button').find((b) => b.text().includes('invoice.pdf'))!
+    expect(chip.exists()).toBe(true)
+    expect(chip.text()).toContain('20.0 KB')
   })
 
-  it('shows an unavailable state (not a link) when the attachment has no URL', async () => {
+  it('shows an unavailable state (not clickable) when the attachment has no URL', async () => {
     const wrapper = await mountCard(
       mockEmailSignal({
         data: {
@@ -100,14 +97,98 @@ describe('EmailSignalCard — attachments', () => {
       } as Partial<Signal>),
     )
 
-    expect(wrapper.find('a[href]').exists()).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text().includes('photo.png'))).toBe(false)
     expect(wrapper.text()).toContain('photo.png')
     expect(wrapper.text()).toContain('Unavailable')
   })
 
-  it('renders nothing when there are no attachments', async () => {
+  it('renders no attachment chips when there are no attachments', async () => {
     const wrapper = await mountCard(mockEmailSignal())
-    expect(wrapper.find('a[href]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Unavailable')
+  })
+
+  it('opens a preview modal with an image and a download link when clicking an image attachment', async () => {
+    const wrapper = await mountCard(
+      mockEmailSignal({
+        data: {
+          ...mockEmailSignal().data,
+          attachments: [
+            { attachmentId: 'att_3', filename: 'photo.png', mimeType: 'image/png', sizeBytes: 2048, url: 'https://cdn.example.com/att_3' },
+          ],
+        },
+      } as Partial<Signal>),
+    )
+
+    const chip = wrapper.findAll('button').find((b) => b.text().includes('photo.png'))!
+    await chip.trigger('click')
+
+    const img = document.body.querySelector('img[src="https://cdn.example.com/att_3"]')
+    expect(img).not.toBeNull()
+
+    const downloadLink = document.body.querySelector('a[href="https://cdn.example.com/att_3"]')
+    expect(downloadLink).not.toBeNull()
+    expect(downloadLink!.getAttribute('download')).toBe('photo.png')
+  })
+
+  it('renders a PDF preview in an iframe when clicking a PDF attachment', async () => {
+    const wrapper = await mountCard(
+      mockEmailSignal({
+        data: {
+          ...mockEmailSignal().data,
+          attachments: [
+            { attachmentId: 'att_4', filename: 'invoice.pdf', mimeType: 'application/pdf', sizeBytes: 20480, url: 'https://cdn.example.com/att_4' },
+          ],
+        },
+      } as Partial<Signal>),
+    )
+
+    const chip = wrapper.findAll('button').find((b) => b.text().includes('invoice.pdf'))!
+    await chip.trigger('click')
+
+    const iframe = document.body.querySelector('iframe[src="https://cdn.example.com/att_4"]')
+    expect(iframe).not.toBeNull()
+  })
+
+  it('shows a "no preview available" fallback for an unsupported file type', async () => {
+    const wrapper = await mountCard(
+      mockEmailSignal({
+        data: {
+          ...mockEmailSignal().data,
+          attachments: [
+            { attachmentId: 'att_5', filename: 'report.csv', mimeType: 'text/csv', sizeBytes: 4200, url: 'https://cdn.example.com/att_5' },
+          ],
+        },
+      } as Partial<Signal>),
+    )
+
+    const chip = wrapper.findAll('button').find((b) => b.text().includes('report.csv'))!
+    await chip.trigger('click')
+
+    expect(document.body.querySelector('img[src="https://cdn.example.com/att_5"]')).toBeNull()
+    expect(document.body.querySelector('iframe[src="https://cdn.example.com/att_5"]')).toBeNull()
+    expect(document.body.textContent).toContain('No preview available')
+  })
+
+  it('closes the preview modal when clicking Close', async () => {
+    const wrapper = await mountCard(
+      mockEmailSignal({
+        data: {
+          ...mockEmailSignal().data,
+          attachments: [
+            { attachmentId: 'att_6', filename: 'photo.png', mimeType: 'image/png', sizeBytes: 2048, url: 'https://cdn.example.com/att_6' },
+          ],
+        },
+      } as Partial<Signal>),
+    )
+
+    const chip = wrapper.findAll('button').find((b) => b.text().includes('photo.png'))!
+    await chip.trigger('click')
+    expect(document.body.querySelector('img[src="https://cdn.example.com/att_6"]')).not.toBeNull()
+
+    const closeButtons = Array.from(document.body.querySelectorAll('button')).filter((b) => b.textContent === 'Close')
+    ;(closeButtons[closeButtons.length - 1] as HTMLElement).click()
+    await wrapper.vm.$nextTick()
+
+    expect(document.body.querySelector('img[src="https://cdn.example.com/att_6"]')).toBeNull()
   })
 })
