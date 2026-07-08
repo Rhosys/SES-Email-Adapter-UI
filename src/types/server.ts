@@ -67,7 +67,6 @@ export type RuleActionType =
   | 'pong'
   | 'approve_sender'
   | 'auto_draft'
-  | 'webhook'
   | 'forwardCalendarInvite'
 
 // ─── Account ──────────────────────────────────────────────────────────────────
