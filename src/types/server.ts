@@ -67,7 +67,6 @@ export type RuleActionType =
   | 'pong'
   | 'approve_sender'
   | 'auto_draft'
-  | 'webhook'
   | 'forwardCalendarInvite'
 
 // ─── Account ──────────────────────────────────────────────────────────────────
@@ -138,7 +137,7 @@ export interface Thread {
   updatedAt: string
   retentionDuration?: RetentionDuration
   urgency?: ThreadUrgency
-  // Denormalised from latest inbound signal — backend TODO pending
+  // Denormalised from latest inbound signal — see TODO.md (Backend routes — Threads)
   senderAddress?: string
   recipientAddress?: string
   subject?: string

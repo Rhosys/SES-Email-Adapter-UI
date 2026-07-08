@@ -31,8 +31,7 @@ interface PlanDef {
   recommended?: boolean
 }
 
-// TODO: Replace with actual Stripe price IDs from your Stripe dashboard once the account is set up
-// (Dashboard → Products → select product → copy Price ID, format: price_1ABC...)
+// Placeholder Stripe price IDs — see TODO.md (Billing screen)
 const starterPriceId = 'price_TODO_starter'
 const proPriceId = 'price_TODO_pro'
 

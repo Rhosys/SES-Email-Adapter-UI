@@ -15,7 +15,6 @@ export const ACTION_LABELS: Partial<Record<RuleActionType, string>> = {
   suppress_notification: 'Suppress',
   auto_draft: 'Auto draft',
   pong: 'Pong',
-  webhook: 'Webhook',
   forwardCalendarInvite: 'Forward calendar',
 }
 
@@ -32,7 +31,6 @@ export const ACTION_COLORS: Partial<Record<RuleActionType, string>> = {
   suppress_notification: 'text-ctp-lavender bg-ctp-lavender/10',
   pong: 'text-ctp-teal bg-ctp-teal/10',
   auto_draft: 'text-ctp-mauve bg-ctp-mauve/10',
-  webhook: 'text-ctp-mauve bg-ctp-mauve/10',
 }
 
 export function conditionSummary(rule: Rule): string {

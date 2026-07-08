@@ -21,6 +21,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
       deleteRule: vi.fn(),
       listLabels: vi.fn(),
       listTemplates: vi.fn().mockResolvedValue(ok([])),
+      listForwardingAddresses: vi.fn().mockResolvedValue(ok([])),
     },
   }
 })
