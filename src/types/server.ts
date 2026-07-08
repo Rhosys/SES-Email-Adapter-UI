@@ -130,7 +130,9 @@ export interface Thread {
   labels: string[]
   status: ThreadStatus
   summary: string
-  lastSignalAt: string
+  // Null once the thread has no signals (e.g. its only signal was reprocessed onto
+  // another thread or back to quarantine). Such threads are hidden from the inbox.
+  lastSignalAt: string | null
   deletedAt?: string
   createdAt: string
   updatedAt: string

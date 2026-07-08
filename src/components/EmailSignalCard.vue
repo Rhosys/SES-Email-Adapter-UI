@@ -7,7 +7,6 @@ import { useAccountStore } from '@/stores/account'
 import { isAdminUser } from '@/stores/admin'
 import { useRulesStore } from '@/stores/rules'
 import { useSignalsStore } from '@/stores/signals'
-import { useThreadsStore } from '@/stores/threads'
 import { api } from '@/lib/api'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 import { EMAIL_PREVIEW_MODES, getEmailPreviewMode } from '@/utils/emailPreviewModes'
@@ -21,7 +20,6 @@ const router = useRouter()
 const accountStore = useAccountStore()
 const rulesStore = useRulesStore()
 const signalsStore = useSignalsStore()
-const threadsStore = useThreadsStore()
 const expanded = ref(props.defaultExpanded)
 const menuOpen = ref(false)
 const reprocessing = ref(false)
@@ -204,14 +202,11 @@ async function reprocessSignal() {
   const originThreadId = props.signal.threadId
 
   // Whenever reprocessing moves the signal off its original thread, drop the stale
-  // copy from that thread's cache so the old thread no longer shows it. If the
-  // origin thread is left with no signals, hide it from the inbox entirely.
+  // copy from that thread's cache so the old thread no longer shows it. Threads left
+  // with no signals (null lastSignalAt) are hidden by the threads store itself.
   function detachFromOriginThread() {
     if (!originThreadId) return
     signalsStore.removeSignal(originThreadId, props.signal.signalId)
-    if (signalsStore.threadSignals(originThreadId).length === 0) {
-      threadsStore.removeThread(originThreadId)
-    }
   }
 
   // Blocked / reported signals don't belong to any thread or quarantine screen the

@@ -106,7 +106,7 @@ onMounted(() => {
             <div class="flex items-start justify-between gap-2">
               <p class="min-w-0 flex-1 truncate text-sm font-medium text-ctp-text">{{ thread.subject || thread.summary }}</p>
               <span class="shrink-0 text-xs text-ctp-subtext0">
-                {{ relTime(thread.lastSignalAt) }}
+                {{ relTime(thread.lastSignalAt ?? thread.createdAt) }}
               </span>
             </div>
             <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-ctp-subtext0">
