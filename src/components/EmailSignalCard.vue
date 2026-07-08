@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import type { Signal } from '@/types/server'
+import type { Attachment, Signal } from '@/types/server'
 import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
 import { useAccountStore } from '@/stores/account'
 import { isAdminUser } from '@/stores/admin'
@@ -89,10 +89,43 @@ const replyToLabel = computed(() => {
   return rt.name ? `${rt.name} <${rt.address}>` : rt.address
 })
 
-const attachmentCount = computed(() => {
-  if (!isEmailSignal(props.signal)) return 0
-  return props.signal.data.attachments.length
+const attachments = computed(() => {
+  if (!isEmailSignal(props.signal)) return []
+  return props.signal.data.attachments
 })
+
+const attachmentCount = computed(() => attachments.value.length)
+
+function formatAttachmentSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function attachmentIcon(mimeType: string): string {
+  if (mimeType.startsWith('image/')) return '🖼️'
+  if (mimeType === 'application/pdf') return '📄'
+  if (mimeType.startsWith('text/') || mimeType === 'application/json') return '📝'
+  if (mimeType.includes('spreadsheet') || mimeType === 'text/csv') return '📊'
+  if (mimeType.includes('zip') || mimeType.includes('compressed')) return '🗜️'
+  return '📎'
+}
+
+type AttachmentPreviewKind = 'image' | 'pdf' | 'none'
+
+function attachmentPreviewKind(mimeType: string): AttachmentPreviewKind {
+  if (mimeType.startsWith('image/')) return 'image'
+  if (mimeType === 'application/pdf') return 'pdf'
+  return 'none'
+}
+
+const previewAttachment = ref<Attachment | null>(null)
+const previewKind = computed(() => (previewAttachment.value ? attachmentPreviewKind(previewAttachment.value.mimeType) : 'none'))
+
+function openAttachmentPreview(att: Attachment) {
+  if (!att.url) return
+  previewAttachment.value = att
+}
 
 const subjectLine = computed(() => {
   if (!isEmailSignal(props.signal)) return ''
@@ -557,6 +590,30 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
           </div>
         </div>
         <p v-else class="px-4 py-3 text-sm text-ctp-subtext0">(No content)</p>
+
+        <div v-if="attachments.length > 0" class="flex flex-wrap gap-2 border-t border-ctp-surface0 px-4 py-3">
+          <template v-for="att in attachments" :key="att.attachmentId">
+            <button
+              v-if="att.url"
+              type="button"
+              class="flex items-center gap-2 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-text hover:border-ctp-mauve"
+              @click="openAttachmentPreview(att)"
+            >
+              <span aria-hidden="true">{{ attachmentIcon(att.mimeType) }}</span>
+              <span class="max-w-[180px] truncate" :title="att.filename">{{ att.filename }}</span>
+              <span class="text-ctp-subtext0">{{ formatAttachmentSize(att.sizeBytes) }}</span>
+            </button>
+            <span
+              v-else
+              class="flex items-center gap-2 rounded-lg border border-dashed border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext0"
+              :title="`${att.filename} — unavailable`"
+            >
+              <span aria-hidden="true">{{ attachmentIcon(att.mimeType) }}</span>
+              <span class="max-w-[180px] truncate">{{ att.filename }}</span>
+              <span>Unavailable</span>
+            </span>
+          </template>
+        </div>
       </div>
     </template>
 
@@ -642,6 +699,49 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
                 {{ label }}
               </span>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Attachment preview modal -->
+  <Teleport to="body">
+    <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -->
+    <div v-if="previewAttachment" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80" @click.self="previewAttachment = null">
+      <div class="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-ctp-surface1 bg-ctp-mantle shadow-2xl">
+        <div class="flex items-center justify-between border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
+          <h3 class="truncate text-sm font-semibold text-ctp-text" :title="previewAttachment.filename">
+            {{ attachmentIcon(previewAttachment.mimeType) }} {{ previewAttachment.filename }}
+          </h3>
+          <div class="flex shrink-0 items-center gap-3">
+            <a
+              :href="previewAttachment.url"
+              :download="previewAttachment.filename"
+              class="rounded-lg bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
+            >
+              Download
+            </a>
+            <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="previewAttachment = null">Close</button>
+          </div>
+        </div>
+        <div class="flex-1 overflow-auto bg-ctp-crust">
+          <img
+            v-if="previewKind === 'image'"
+            :src="previewAttachment.url"
+            :alt="previewAttachment.filename"
+            class="mx-auto max-h-[80vh] max-w-full object-contain"
+          />
+          <iframe
+            v-else-if="previewKind === 'pdf'"
+            :src="previewAttachment.url"
+            :title="previewAttachment.filename"
+            class="h-[80vh] w-full"
+          />
+          <div v-else class="flex h-[40vh] flex-col items-center justify-center gap-2 text-center text-sm text-ctp-subtext0">
+            <span class="text-4xl" aria-hidden="true">{{ attachmentIcon(previewAttachment.mimeType) }}</span>
+            <p>No preview available for this file type.</p>
+            <p>{{ formatAttachmentSize(previewAttachment.sizeBytes) }} — use Download to save it.</p>
           </div>
         </div>
       </div>
