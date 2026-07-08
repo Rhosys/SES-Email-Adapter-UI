@@ -89,10 +89,18 @@ const replyToLabel = computed(() => {
   return rt.name ? `${rt.name} <${rt.address}>` : rt.address
 })
 
-const attachmentCount = computed(() => {
-  if (!isEmailSignal(props.signal)) return 0
-  return props.signal.data.attachments.length
+const attachments = computed(() => {
+  if (!isEmailSignal(props.signal)) return []
+  return props.signal.data.attachments
 })
+
+const attachmentCount = computed(() => attachments.value.length)
+
+function formatAttachmentSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 
 const subjectLine = computed(() => {
   if (!isEmailSignal(props.signal)) return ''
@@ -557,6 +565,31 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
           </div>
         </div>
         <p v-else class="px-4 py-3 text-sm text-ctp-subtext0">(No content)</p>
+
+        <div v-if="attachments.length > 0" class="flex flex-wrap gap-2 border-t border-ctp-surface0 px-4 py-3">
+          <template v-for="att in attachments" :key="att.attachmentId">
+            <a
+              v-if="att.url"
+              :href="att.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="flex items-center gap-2 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-text hover:border-ctp-mauve"
+            >
+              <span aria-hidden="true">📎</span>
+              <span class="max-w-[180px] truncate" :title="att.filename">{{ att.filename }}</span>
+              <span class="text-ctp-subtext0">{{ formatAttachmentSize(att.sizeBytes) }}</span>
+            </a>
+            <span
+              v-else
+              class="flex items-center gap-2 rounded-lg border border-dashed border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext0"
+              :title="`${att.filename} — unavailable`"
+            >
+              <span aria-hidden="true">📎</span>
+              <span class="max-w-[180px] truncate">{{ att.filename }}</span>
+              <span>Unavailable</span>
+            </span>
+          </template>
+        </div>
       </div>
     </template>
 
