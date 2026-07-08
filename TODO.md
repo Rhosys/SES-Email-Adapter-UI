@@ -167,12 +167,6 @@ These are all `// TODO(backend)` items in `src/lib/api.ts`, consolidated here so
 
 - `GET` — list domains (POST and PATCH already implemented)
 
-### Forwarding addresses (`/accounts/:id/forwarding-addresses`)
-
-- `GET` — list forwarding addresses
-- `POST` — create `{ address }`
-- `DELETE /:id` — delete
-
 ### Team members (`/accounts/:id/users`)
 
 - `GET` — list team members

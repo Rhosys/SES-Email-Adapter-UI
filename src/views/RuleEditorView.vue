@@ -6,12 +6,14 @@ import { useRulesStore } from '@/stores/rules'
 import { useLabelsStore } from '@/stores/labels'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useTemplatesStore } from '@/stores/templates'
+import { api } from '@/lib/api'
 import logger from '@/lib/logger'
 import type {
   ConditionField,
   ConditionGroup,
   ConditionLeaf,
   ConditionOperator,
+  ForwardingTarget,
   RuleAction,
   RuleActionType,
 } from '@/types/server'
@@ -230,6 +232,9 @@ const WORKFLOW_OPTIONS = [
 ]
 const URGENCY_OPTIONS = ['critical', 'high', 'normal', 'low', 'silent']
 
+const forwardingTargets = ref<ForwardingTarget[]>([])
+const verifiedForwardingTargets = computed(() => forwardingTargets.value.filter((t) => t.status === 'verified'))
+
 const webhookTestResult = ref<{ ok: boolean; status: number; error?: string } | null>(null)
 
 async function testWebhook(url: string) {
@@ -305,7 +310,15 @@ async function save() {
 // ─── Load ─────────────────────────────────────────────────────────────────────
 
 onMounted(async () => {
-  await Promise.all([labelsStore.fetchLabels(), templatesStore.fetchTemplates()])
+  await Promise.all([
+    labelsStore.fetchLabels(),
+    templatesStore.fetchTemplates(),
+    (async () => {
+      if (!accountStore.accountId) return
+      const result = await api.listForwardingAddresses(accountStore.accountId)
+      if (result.isOk()) forwardingTargets.value = result.value
+    })(),
+  ])
 
   if (isEditing.value) {
     if (rulesStore.items.length === 0) await rulesStore.fetchRules()
@@ -715,15 +728,38 @@ watch(signalAction, (val) => {
               </select>
             </template>
 
-            <template v-else-if="act.type === 'forward' || act.type === 'forwardCalendarInvite'">
-              <input
+            <template v-else-if="act.type === 'forward'">
+              <select
                 :value="act.value ?? ''"
-                type="email"
-                aria-label="Forward to address"
-                placeholder="forward@example.com"
-                class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-                @input="updateAction(idx, { value: ($event.target as HTMLInputElement).value })"
-              />
+                aria-label="Forward to target"
+                class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-0.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                @change="updateAction(idx, { value: ($event.target as HTMLSelectElement).value || undefined })"
+              >
+                <option value="">Pick forwarding target…</option>
+                <option v-for="t in verifiedForwardingTargets" :key="t.target" :value="t.target">
+                  {{ t.target }} ({{ t.type }})
+                </option>
+              </select>
+              <RouterLink
+                to="/settings?tab=email-forwarding"
+                class="shrink-0 text-xs text-ctp-mauve hover:opacity-80"
+                title="Manage forwarding targets"
+              >
+                Manage
+              </RouterLink>
+            </template>
+
+            <template v-else-if="act.type === 'forwardCalendarInvite'">
+              <p class="flex-1 text-xs text-ctp-subtext0">
+                Uses the calendar invite forwarding target configured in Settings — no per-rule address needed.
+              </p>
+              <RouterLink
+                to="/settings?tab=email-forwarding"
+                class="shrink-0 text-xs text-ctp-mauve hover:opacity-80"
+                title="Manage calendar forwarding target"
+              >
+                Manage
+              </RouterLink>
             </template>
 
             <template v-else-if="act.type === 'auto_draft'">
