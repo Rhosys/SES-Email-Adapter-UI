@@ -136,7 +136,7 @@ export interface Thread {
   updatedAt: string
   retentionDuration?: RetentionDuration
   urgency?: ThreadUrgency
-  // Denormalised from latest inbound signal — backend TODO pending
+  // Denormalised from latest inbound signal — see TODO.md (Backend routes — Threads)
   senderAddress?: string
   recipientAddress?: string
   subject?: string

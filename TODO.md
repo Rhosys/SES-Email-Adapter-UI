@@ -32,9 +32,6 @@ The frontend previously had a top-level `status` field on Domain (using a DnsSta
 
 Backend fields that exist on the frontend type but aren't yet surfaced in any UI component.
 
-### View
-- [ ] `View.layout` — custom component layout array. Deferred to the modular component system V2 (layout editor).
-
 ### Composite signal cards
 - [ ] Merge linked signals into a single card so the user sees context inline rather than navigating. Affected pairs:
   - `DomainMisconfigurationSignal` ← source email that exposed the misconfiguration
@@ -110,6 +107,8 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 
 - [ ] **Billing view in Settings** — new route `/settings/billing` displaying all available plans, current subscription status, and upgrade/downgrade actions. Calls `GET /accounts/:id/billing` for current state and `POST .../checkout-session` or `.../portal-session` for Stripe flows.
 
+- [ ] **Real Stripe price IDs in `BillingPanel.vue`** — `starterPriceId`/`proPriceId` are placeholders (`price_TODO_starter`, `price_TODO_pro`). Replace with actual Price IDs from the Stripe dashboard (Products → select product → copy Price ID, format `price_1ABC...`) once the account is set up.
+
 ### Extensibility & integrations
 
 - [ ] **Webhooks UI in Settings** — outbound webhook subscriptions so users can pipe arc events into Slack, Discord, or Linear without writing custom code. New tab in the Settings view. Requires backend (see Backend TODOs — Webhooks).
@@ -138,6 +137,10 @@ These are all `// TODO(backend)` items in `src/lib/api.ts`, consolidated here so
 
 - `POST /accounts` — create a new account (required for self-service onboarding; Step 1 of the onboarding wizard calls this before any domain/alias setup can proceed)
 - `GET /accounts` — list all accounts the authenticated user belongs to (needed for account switcher)
+
+### Threads
+
+- `Thread.senderAddress` / `recipientAddress` / `subject` — should be denormalised from the latest inbound signal onto the thread itself so the frontend doesn't have to join against signals. Currently optional on the frontend type pending this backend work (see `src/types/server.ts`).
 
 ### Labels (`/accounts/:id/labels`)
 
