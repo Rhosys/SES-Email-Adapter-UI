@@ -425,6 +425,30 @@ const iframeStyle = {
           <!-- Native touch handling: no overlay sits on the iframe, so scroll,
                link taps, text selection and pinch-to-zoom all work directly. -->
           <div class="overflow-y-auto bg-white min-h-[min(650px,60dvh)] max-h-[calc(100dvh-160px)]" data-testid="email-body-container">
+            <!--
+              SECURITY — the sandbox below renders UNTRUSTED email HTML. Do not
+              add `allow-scripts` or `allow-same-origin` (enforced by
+              EmailSignalCard.sandbox.test.ts). Why each is dangerous here:
+
+              • allow-scripts — lets the email run arbitrary JS in the user's
+                session. That alone is an XSS; combined with allow-same-origin it
+                also lets the frame delete its own sandbox and fully escape.
+
+              • allow-same-origin — makes this srcdoc frame share the app's
+                origin instead of a unique opaque one. Two consequences:
+                (1) our cookies are on this domain, and a same-origin frame is
+                treated as SAME-SITE, so `SameSite=Lax/Strict` cookies would be
+                attached to any request the email triggers (e.g. `<img src>`,
+                CSS url()) — a credentialed CSRF vector, no JS required, and
+                HttpOnly does not help (the browser still sends the cookie).
+                Today the opaque origin is cross-site, so SameSite blocks this.
+                (2) it grants the frame access to same-origin storage/DOM (only
+                reachable via script, but it removes the second safety net).
+
+              The one feature these would have bought — pinch-to-zoom scoped to
+              just the email — is intentionally NOT worth this exposure. Pinch
+              uses the browser's native page zoom instead. See PR #47 discussion.
+            -->
             <iframe
               :srcdoc="emailSrcDoc"
               sandbox="allow-popups allow-popups-to-escape-sandbox"
