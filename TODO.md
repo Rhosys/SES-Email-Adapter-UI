@@ -116,8 +116,6 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 
 - [ ] **API keys management** — list, create (with one-time secret reveal), and revoke keys. New tab in Settings or Profile. Requires backend (see Backend TODOs — API keys).
 
-- [ ] **AI-powered "code" rule action** — user describes a filter rule in plain English; the browser's built-in LLM (`window.LanguageModel`, Chrome 127+ Gemini Nano) generates a `(signal) => boolean` JS predicate shown for review before saving. Hidden if no browser LLM is available. Requires backend to sandbox and execute the predicate server-side.
-
 ---
 
 ## V2 — Blocked pending app release
@@ -129,8 +127,6 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 - [ ] **Test coverage backfill** — the following have no tests at all:
   - Stores: `templates`, `theme`, `account`, `signals`, `views`
   - Views: `SettingsView`, `TemplatesView`, `OnboardingView`, `QuarantineView`, `ArcDetailView`
-
-- [ ] **Modular component system + LLM-composable layouts** — decompose every view into a registry of self-describing, slot-composable components so that an LLM can produce a valid layout tree for any view and users can save a custom layout per view.
 
 ---
 
