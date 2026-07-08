@@ -15,7 +15,7 @@ const labelsStore = useLabelsStore()
 const signalsStore = useSignalsStore()
 
 const timestamp = computed(() =>
-  now ? formatRelativeTime(props.thread.lastSignalAt, now.value) : '',
+  now ? formatRelativeTime(props.thread.lastSignalAt ?? props.thread.createdAt, now.value) : '',
 )
 
 const hasPendingSend = computed(() =>

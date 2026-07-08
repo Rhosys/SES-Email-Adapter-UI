@@ -64,6 +64,38 @@ describe('threadsStore', () => {
     expect(store.error).toBe('Server error')
   })
 
+  it('hides threads with a null lastSignalAt (no signals left)', async () => {
+    vi.mocked(api.listThreads).mockResolvedValue(
+      ok({
+        threads: [
+          mockThread({ threadId: 'thread_1', lastSignalAt: '2025-01-01T12:00:00Z' }),
+          mockThread({ threadId: 'thread_empty', lastSignalAt: null }),
+        ],
+        pagination: { cursor: null },
+      }),
+    )
+    const store = useThreadsStore()
+    await store.fetchThreads(true)
+    expect(store.items.map((a) => a.threadId)).toEqual(['thread_1'])
+    expect(store.activeCount).toBe(1)
+  })
+
+  it('hides null-lastSignalAt threads on the "all" tab too', async () => {
+    vi.mocked(api.listThreads).mockResolvedValue(
+      ok({
+        threads: [
+          mockThread({ threadId: 'thread_1' }),
+          mockThread({ threadId: 'thread_empty', lastSignalAt: null }),
+        ],
+        pagination: { cursor: null },
+      }),
+    )
+    const store = useThreadsStore()
+    store.activeTab = 'all'
+    await store.fetchThreads(true)
+    expect(store.items.map((a) => a.threadId)).toEqual(['thread_1'])
+  })
+
   it('sortedItems orders threads by lastSignalAt descending', async () => {
     vi.mocked(api.listThreads).mockResolvedValue(
       ok({

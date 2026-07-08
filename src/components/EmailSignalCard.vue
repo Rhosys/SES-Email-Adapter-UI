@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import type { Signal } from '@/types/server'
 import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
 import { useAccountStore } from '@/stores/account'
 import { isAdminUser } from '@/stores/admin'
 import { useRulesStore } from '@/stores/rules'
+import { useSignalsStore } from '@/stores/signals'
 import { api } from '@/lib/api'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 import { EMAIL_PREVIEW_MODES, getEmailPreviewMode } from '@/utils/emailPreviewModes'
@@ -16,9 +17,9 @@ const props = withDefaults(defineProps<{ signal: Signal; defaultExpanded?: boole
 const emit = defineEmits<{ undo: []; reply: []; reprocessed: [] }>()
 
 const router = useRouter()
-const route = useRoute()
 const accountStore = useAccountStore()
 const rulesStore = useRulesStore()
+const signalsStore = useSignalsStore()
 const expanded = ref(props.defaultExpanded)
 const menuOpen = ref(false)
 const reprocessing = ref(false)
@@ -198,22 +199,33 @@ async function reprocessSignal() {
   }
 
   const newSignal = result.value
+  const originThreadId = props.signal.threadId
+
+  // Whenever reprocessing moves the signal off its original thread, drop the stale
+  // copy from that thread's cache so the old thread no longer shows it. Threads left
+  // with no signals (null lastSignalAt) are hidden by the threads store itself.
+  function detachFromOriginThread() {
+    if (!originThreadId) return
+    signalsStore.removeSignal(originThreadId, props.signal.signalId)
+  }
 
   // Blocked / reported signals don't belong to any thread or quarantine screen the
   // admin can view — send them back to the inbox.
   if (newSignal.status === 'block_hidden' || newSignal.status === 'block_reject' || newSignal.status === 'report_violation') {
+    detachFromOriginThread()
     void router.push('/')
     return
   }
 
   // No thread means the signal landed in quarantine.
   if (!newSignal.threadId) {
+    detachFromOriginThread()
     void router.push(`/quarantine/${newSignal.signalId}`)
     return
   }
 
-  const currentThreadId = route.params.id as string
-  if (newSignal.threadId !== currentThreadId) {
+  if (newSignal.threadId !== originThreadId) {
+    detachFromOriginThread()
     void router.replace(`/threads/${newSignal.threadId}`)
     return
   }

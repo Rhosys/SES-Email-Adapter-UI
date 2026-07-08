@@ -28,7 +28,7 @@ export const useThreadsStore = defineStore('threads', () => {
     if (!id) return 0
     const cached = _byAccount.value[id]
     if (!Array.isArray(cached)) return 0
-    return cached.filter((a) => a.status === 'active').length
+    return cached.filter((a) => a.status === 'active' && a.lastSignalAt != null).length
   })
 
   const activeCountHasMore = computed(() => {
@@ -48,8 +48,11 @@ export const useThreadsStore = defineStore('threads', () => {
     if (!id) return []
     const all = _byAccount.value[id]
     if (!Array.isArray(all)) return []
-    if (activeTab.value === 'all') return all
-    return all.filter((a) => a.status === activeTab.value)
+    // Hide threads with no signals — a null lastSignalAt means the thread has nothing
+    // left to show (e.g. its only signal was reprocessed onto another thread).
+    const withSignals = all.filter((a) => a.lastSignalAt != null)
+    if (activeTab.value === 'all') return withSignals
+    return withSignals.filter((a) => a.status === activeTab.value)
   })
 
   const nextCursor = computed<string | undefined>(() =>
@@ -65,7 +68,7 @@ export const useThreadsStore = defineStore('threads', () => {
   )
 
   function byLastSignalDesc(a: Thread, b: Thread) {
-    return new Date(b.lastSignalAt).getTime() - new Date(a.lastSignalAt).getTime()
+    return new Date(b.lastSignalAt ?? 0).getTime() - new Date(a.lastSignalAt ?? 0).getTime()
   }
 
   const sortedItems = computed<Thread[]>(() => [...items.value].sort(byLastSignalDesc))
