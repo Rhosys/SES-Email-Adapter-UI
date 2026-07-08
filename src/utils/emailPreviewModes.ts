@@ -27,13 +27,13 @@ function injectIntoHtml(rawHtml: string, markup: string): string {
   return `<!doctype html><html><head>${markup}</head><body>${rawHtml}</body></html>`
 }
 
-// "Design width" the auto-scale modes shrink down to fit the real viewport —
+// "Design width" the zoom-fit mode shrinks down to fit the real viewport —
 // most fixed-width marketing/hybrid emails are built around 600-650px. There's
 // no way to measure the email's *actual* rendered width from here (sandbox has
 // no allow-same-origin), so content wider than this assumption still overflows
-// proportionally — verified against a 900px test table, where zoom-fit/
-// transform-fit left the content partially cut off but wrap-shrink/
-// fluid-tables (true reflow, width-independent) did not.
+// proportionally — verified against a 900px test table, where zoom-fit left the
+// content partially cut off but wrap-shrink (true reflow, width-independent)
+// did not.
 const ASSUMED_EMAIL_WIDTH = 640
 
 export interface EmailPreviewMode {
@@ -43,8 +43,9 @@ export interface EmailPreviewMode {
 }
 
 // Ordered so the first entry is the default the picker starts on (currently
-// "Wrap text"). The old raw "baseline" pass-through was removed — it was the
-// one confirmed-wrong option — leaving four candidates still under evaluation.
+// "Wrap text"). Removed so far as they underperformed: the raw "baseline"
+// pass-through, "Stack tables" (fluid-tables), and "Auto-scale (transform)"
+// (transform-fit). Two candidates remain under evaluation.
 export const EMAIL_PREVIEW_MODES: EmailPreviewMode[] = [
   {
     id: 'wrap-shrink',
@@ -63,21 +64,6 @@ export const EMAIL_PREVIEW_MODES: EmailPreviewMode[] = [
     </style>`),
   },
   {
-    id: 'fluid-tables',
-    label: 'Stack tables',
-    wrap: (html) => injectIntoHtml(html, `${VIEWPORT_META}<style>
-      html, body { overflow-x: hidden !important; }
-      * { max-width: 100% !important; box-sizing: border-box !important; }
-      img, video, svg { height: auto !important; }
-      body, p, span, div, td, th, a, li {
-        word-wrap: break-word !important;
-        overflow-wrap: break-word !important;
-        word-break: break-word !important;
-      }
-      table, tbody, tr, td, th { display: block !important; width: 100% !important; }
-    </style>`),
-  },
-  {
     id: 'zoom-fit',
     label: 'Auto-scale (zoom)',
     wrap: (html) => injectIntoHtml(html, `${VIEWPORT_META}<style>
@@ -88,20 +74,6 @@ export const EMAIL_PREVIEW_MODES: EmailPreviewMode[] = [
         /* dividing by "Npx" (not bare N) keeps this a unitless ratio — zoom
            rejects a length and silently falls back to 1 otherwise */
         zoom: calc(100cqi / ${ASSUMED_EMAIL_WIDTH}px);
-      }
-      img, video, svg { max-width: 100%; height: auto !important; }
-    </style>`),
-  },
-  {
-    id: 'transform-fit',
-    label: 'Auto-scale (transform)',
-    wrap: (html) => injectIntoHtml(html, `${VIEWPORT_META}<style>
-      html { container-type: inline-size; overflow-x: hidden !important; }
-      body {
-        margin: 0;
-        width: ${ASSUMED_EMAIL_WIDTH}px;
-        transform: scale(calc(100cqi / ${ASSUMED_EMAIL_WIDTH}px));
-        transform-origin: top left;
       }
       img, video, svg { max-width: 100%; height: auto !important; }
     </style>`),
