@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import logger from '@/lib/logger'
 
 export type ShortcutAction =
   | 'navigate_next'
@@ -229,7 +230,8 @@ function readStored(): Partial<Record<ShortcutAction, KeyBinding | null>> {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return {}
     return JSON.parse(raw) as Partial<Record<ShortcutAction, KeyBinding | null>>
-  } catch {
+  } catch (e) {
+    logger.warn({ title: 'Failed to parse stored keyboard shortcuts', error: e })
     return {}
   }
 }
@@ -259,8 +261,8 @@ export const useShortcutsStore = defineStore('shortcuts', () => {
   function persist() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(bindings.value))
-    } catch {
-      // storage unavailable
+    } catch (e) {
+      logger.warn({ title: 'Failed to persist keyboard shortcuts', error: e })
     }
   }
 
@@ -296,8 +298,8 @@ export const useShortcutsStore = defineStore('shortcuts', () => {
     bindings.value = {}
     try {
       localStorage.removeItem(STORAGE_KEY)
-    } catch {
-      // ignore
+    } catch (e) {
+      logger.warn({ title: 'Failed to clear stored keyboard shortcuts', error: e })
     }
   }
 

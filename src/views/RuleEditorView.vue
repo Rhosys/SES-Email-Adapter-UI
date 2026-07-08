@@ -6,6 +6,7 @@ import { useRulesStore } from '@/stores/rules'
 import { useLabelsStore } from '@/stores/labels'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useTemplatesStore } from '@/stores/templates'
+import logger from '@/lib/logger'
 import type {
   ConditionField,
   ConditionGroup,
@@ -151,7 +152,12 @@ function runTest() {
       JSON.parse(serializeCondition(groups.value)) as unknown,
       data as Record<string, unknown>,
     )
-  } catch {
+  } catch (e) {
+    // Re-runs on every keystroke of the test inputs while the tester is open,
+    // so failures — expected while typing an incomplete test case — are
+    // logged locally only, not through the app logger.
+    // eslint-disable-next-line no-console
+    console.debug('[RuleEditorView] Rule test evaluation failed', e)
     testResult.value = false
   }
 }
@@ -233,8 +239,9 @@ async function testWebhook(url: string) {
   try {
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     webhookTestResult.value = { ok: res.ok, status: res.status }
-  } catch {
+  } catch (e) {
     webhookTestResult.value = { ok: false, status: 0, error: 'Request blocked — your endpoint may need CORS headers, or it will work when called from our servers' }
+    logger.warn({ title: 'Webhook test request failed', url, error: e })
   }
 }
 

@@ -257,7 +257,8 @@ async function verifyWithGoogleDns(type: string, host: string): Promise<boolean>
     if (!res.ok) return false
     const data = (await res.json()) as { Answer?: unknown[] }
     return (data.Answer?.length ?? 0) > 0
-  } catch {
+  } catch (e) {
+    logger.warn({ title: 'Onboarding: Google DNS verification failed', type, host, error: e })
     return false
   }
 }

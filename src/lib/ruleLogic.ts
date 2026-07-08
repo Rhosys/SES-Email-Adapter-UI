@@ -4,6 +4,7 @@ import type {
   ConditionLeaf,
   ConditionOperator,
 } from '@/types/server'
+import logger from '@/lib/logger'
 
 export function defaultLeaf(): ConditionLeaf {
   return { field: 'signal.from.address', operator: 'equals', value: '' }
@@ -71,7 +72,8 @@ export function serializeCondition(groups: ConditionGroup[]): string {
 export function logicToGroups(condition: string): ConditionGroup[] {
   try {
     return parseTree(JSON.parse(condition) as unknown)
-  } catch {
+  } catch (e) {
+    logger.warn({ title: 'Failed to parse rule condition', condition, error: e })
     return [{ mode: 'and', conditions: [defaultLeaf()] }]
   }
 }

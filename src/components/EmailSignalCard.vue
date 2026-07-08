@@ -231,8 +231,12 @@ function fitHeight(e: Event) {
   try {
     const h = iframe.contentDocument?.documentElement.scrollHeight
     if (h) iframe.style.height = `${h}px`
-  } catch {
-    // Cross-origin sandbox blocked contentDocument access — keep CSS min-height
+  } catch (e) {
+    // Cross-origin sandbox blocked contentDocument access — keep CSS min-height.
+    // This is expected often enough (by design) that it's logged locally only,
+    // not through the app logger, to avoid spamming remote logs.
+    // eslint-disable-next-line no-console
+    console.debug('[EmailSignalCard] iframe auto-height skipped', e)
   }
 }
 

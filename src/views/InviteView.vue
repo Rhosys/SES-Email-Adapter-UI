@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { loginClient } from '@/lib/auth'
+import logger from '@/lib/logger'
 
 const router = useRouter()
 
@@ -41,8 +42,9 @@ onMounted(async () => {
   let hasSession = false
   try {
     hasSession = await loginClient.userSessionExists()
-  } catch {
+  } catch (e) {
     // network error — fall through to authenticate
+    logger.warn({ title: 'Invite: session check failed', error: e })
   }
 
   if (hasSession) {
