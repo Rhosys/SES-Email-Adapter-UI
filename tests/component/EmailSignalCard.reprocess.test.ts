@@ -5,6 +5,8 @@ import { ok, err } from 'neverthrow'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import EmailSignalCard from '@/components/EmailSignalCard.vue'
 import { useAccountStore } from '@/stores/account'
+import { useSignalsStore } from '@/stores/signals'
+import { useThreadsStore } from '@/stores/threads'
 import { ApiError } from '@/lib/api'
 import type { Result } from 'neverthrow'
 import type { ApiError as ApiErrorType } from '@/lib/api'
@@ -131,6 +133,44 @@ describe('EmailSignalCard — admin reprocess', () => {
 
     expect(router.currentRoute.value.fullPath).toBe('/threads/thread_2')
     expect(wrapper.emitted('reprocessed')).toBeUndefined()
+  })
+
+  it('drops the signal from the origin thread and hides the now-empty thread', async () => {
+    const signalsStore = useSignalsStore()
+    const threadsStore = useThreadsStore()
+    // Origin thread holds just the one signal, so removing it should hide the thread.
+    signalsStore.$patch({ _byAccount: { [ADMIN_ACCOUNT_ID]: { thread_1: [mockEmailSignal()] } } })
+    const removeThread = vi.spyOn(threadsStore, 'removeThread')
+    vi.mocked(api.reprocessSignal).mockResolvedValue(ok(mockEmailSignal({ threadId: 'thread_2' })))
+
+    await mountCard(mockEmailSignal())
+    await flushPromises()
+
+    expect(signalsStore.threadSignals('thread_1')).toHaveLength(0)
+    expect(removeThread).toHaveBeenCalledWith('thread_1')
+  })
+
+  it('keeps the origin thread when it still has other signals after reprocess', async () => {
+    const signalsStore = useSignalsStore()
+    const threadsStore = useThreadsStore()
+    signalsStore.$patch({
+      _byAccount: {
+        [ADMIN_ACCOUNT_ID]: {
+          thread_1: [
+            mockEmailSignal(),
+            mockEmailSignal({ signalId: 'sig_2', createdAt: '2025-01-01T11:00:00Z' }),
+          ],
+        },
+      },
+    })
+    const removeThread = vi.spyOn(threadsStore, 'removeThread')
+    vi.mocked(api.reprocessSignal).mockResolvedValue(ok(mockEmailSignal({ threadId: undefined, status: 'quarantine_visible' })))
+
+    await mountCard(mockEmailSignal())
+    await flushPromises()
+
+    expect(signalsStore.threadSignals('thread_1').map((s) => s.signalId)).toEqual(['sig_2'])
+    expect(removeThread).not.toHaveBeenCalled()
   })
 
   it('redirects to quarantine when reprocessing leaves the signal with no thread', async () => {
