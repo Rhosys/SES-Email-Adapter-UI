@@ -10,11 +10,11 @@ The frontend onboarding wizard previously tracked step-by-step progress via `dom
 ### TeamMember display fields
 The frontend previously rendered `email`, `name`, `status`, `invitedAt`, and `joinedAt` on team members. The backend only returns `{ userId: string; role: UserRole }`. Display information needs to be resolved via Authress user profiles or the backend needs to include these fields.
 
-### Arc grouping and sent-message tracking
-- `Arc.groupingKey` — used by the frontend to group arcs by sender/thread; not in backend wire shape.
-- `Arc.sentMessageIds` — tracked which outbound signals belonged to an arc; not in backend wire shape.
-- `Arc.lastUserConfirmedAt` — showed when the user last interacted with an arc; not in backend.
-- `Arc.ttl` — time-to-live for auto-deletion; backend uses `retentionDuration` instead.
+### Thread grouping and sent-message tracking
+- `Thread.groupingKey` — used by the frontend to group threads by sender or subject; not in backend wire shape.
+- `Thread.sentMessageIds` — tracked which outbound signals belonged to a thread; not in backend wire shape.
+- `Thread.lastUserConfirmedAt` — showed when the user last interacted with a thread; not in backend.
+- `Thread.ttl` — time-to-live for auto-deletion; backend uses `retentionDuration` instead.
 
 ### RuleAction specific fields
 - `RuleAction.labelId` — which label to assign; replaced by generic `value` field.
@@ -54,9 +54,9 @@ Every store except `stats.ts` exposes a `loading` ref that fundamentally breaks 
 - [ ] `rules.ts` — unconditional `loading = true` on every fetch + artificial 1s delay. Same problem.
 - [ ] `views.ts` — unconditional `loading = true` on every fetch. Flashes loading state on every navigation to a page that uses views.
 - [ ] `templates.ts` — unconditional `loading = true` on every fetch. Same as views.
-- [ ] `arcs.ts` — partially fixed (only loads when cache is empty), but still exposes `loading` and `loadingMore` flags that consumers branch on.
+- [ ] `threads.ts` — partially fixed (only loads when cache is empty), but still exposes `loading` and `loadingMore` flags that consumers branch on.
 - [ ] `quarantine.ts` — partially fixed (stale-while-revalidate), but still exposes `loading` and `loadingMore`.
-- [ ] `signals.ts` — partially fixed (only loads when arc cache is empty), but still exposes `loading` and `loadingMore`.
+- [ ] `signals.ts` — partially fixed (only loads when thread cache is empty), but still exposes `loading` and `loadingMore`.
 - [ ] `drafts.ts` — derived store that still tracks its own `loading` ref for no reason.
 
 **Pattern to follow (`stats.ts`):**
@@ -82,23 +82,23 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 - [ ] **Identity store** — `loginClient.getUserIdentity()` is called and stored in a local `ref<Identity | null>` independently in `UserAvatar.vue`, `AppNavbar.vue`, and `SettingsView.vue` (three copies of the same `picture`/`displayName`/`userId`/`email` computeds). Extract into `src/stores/identity.ts`.
 - [ ] **Billing store** — `BillingView.vue` holds `account`/`billing` as local nullable refs and refetches both (`api.getAccount` + `api.getBilling`) on every mount with no cache; `account` also duplicates data already in `accountStore`. Extract `billing` into a store; drop the redundant `api.getAccount` call in favor of `accountStore.account`.
 - [ ] **Audit log store** — `AuditLogView.vue` keeps `events` in a local `ref<AuditEvent[]>([])`, refetching from scratch every visit. Move to a per-account cached store (with cursor/pagination state).
-- [ ] **Settings sub-resource stores** — `SettingsView.vue` fetches `aliases`, `domains`, `forwarding`, `team`, and `securityDevices` directly into local refs with no caching layer, unlike `labels`/`arcs`/`rules` which already have stores. Extract each into its own store (or one `settings` store with sub-state) so switching tabs doesn't always refetch.
+- [ ] **Settings sub-resource stores** — `SettingsView.vue` fetches `aliases`, `domains`, `forwarding`, `team`, and `securityDevices` directly into local refs with no caching layer, unlike `labels`/`threads`/`rules` which already have stores. Extract each into its own store (or one `settings` store with sub-state) so switching tabs doesn't always refetch.
 
 - [ ] **Review feature tour implementation in Kiro** — validate that the tour step targets, spotlight behaviour, and completion/skip persistence work correctly end-to-end.
 
-- [ ] **Deduplicate signals with identical bodies in arc detail view** — when multiple signals on the same arc have identical text bodies (different headers/metadata), collapse them into a single displayed signal with a "received N times" indicator. Compute body fingerprint (SHA-256 of normalized text body) client-side at render time. Show the most recent signal's headers; collapsed duplicates accessible via expand. Edge case: duplicate critical notifications still reach the user via push (backend sends per-signal) — this dedup is display-only, not notification suppression.
+- [ ] **Deduplicate signals with identical bodies in thread detail view** — when multiple signals on the same thread have identical text bodies (different headers/metadata), collapse them into a single displayed signal with a "received N times" indicator. Compute body fingerprint (SHA-256 of normalized text body) client-side at render time. Show the most recent signal's headers; collapsed duplicates accessible via expand. Edge case: duplicate critical notifications still reach the user via push (backend sends per-signal) — this dedup is display-only, not notification suppression.
 
 ### Testing infrastructure
 
 - [ ] **Wire `tests/e2e/*` into CI** — `.github/workflows/build.yml` only runs `vitest` (via `check:ci`) and the `pwa` Playwright project (via `test:pwa`, which targets `tests/pwa-e2e`, a separate directory). The broader Playwright suite in `tests/e2e/` (`layout.responsive.test.ts`, `a11y.test.ts`, `csp.test.ts`, `email-gesture.test.ts`) and the `laptop`/`desktop`/`tablet`/`narrow`/`pixel`/`mobile` projects in `playwright.config.ts` that exercise it are never invoked by CI — `npm run test:e2e` exists as a script but nothing calls it, so regressions there go unnoticed. Add a CI step/job that runs `npm run test:e2e` (or the relevant projects) on PRs. Doing so will surface 6 currently-broken tests in `layout.responsive.test.ts` (sidebar/searchbox/filter-input locators not found on `laptop`) that need to be fixed or explicitly addressed as part of wiring this up.
 
-### Arc & Signal display actions
+### Thread & Signal display actions
 
-- [x] **Reply button** — implemented in `ArcDetailView` and `ArcRow` (hidden for auth/test/status workflows).
-- [x] **Archive button** — implemented in `ArcDetailView` (with undo toast) and `ArcRow`.
+- [x] **Reply button** — implemented in `ThreadDetailView` and `ThreadRow` (hidden for auth/test/status workflows).
+- [x] **Archive button** — implemented in `ThreadDetailView` (with undo toast) and `ThreadRow`.
 - [ ] **Attachments display** — render attachment icons and filenames on signal cards. Each attachment should be a clickable link that triggers a download (via presigned S3 URL from `GET /accounts/:accountId/signals/:id/attachments/:key`). Show file type icon, filename, and size. Handle missing/expired presigned URLs gracefully (show "unavailable" state, not a broken link).
-- [x] **Delete button** — implemented in ArcDetailView overflow menu with two-step ConfirmDialog.
-- [ ] **Retention badge on ArcRow** — `ArcDetailView` already shows "Available until…" inline in the header metadata, but `ArcRow` (the inbox list) shows nothing. Add a small expiry badge (e.g. "deletes in 3d") to the row when `arc.retentionDuration` is set and the deadline is within 7 days.
+- [x] **Delete button** — implemented in ThreadDetailView overflow menu with two-step ConfirmDialog.
+- [ ] **Retention badge on ThreadRow** — `ThreadDetailView` already shows "Available until…" inline in the header metadata, but `ThreadRow` (the inbox list) shows nothing. Add a small expiry badge (e.g. "deletes in 3d") to the row when `thread.retentionDuration` is set and the deadline is within 7 days.
 - [ ] **Composite signal cards** — `attachLinkedSignals()` wires linked signals to their parent but the cards don't visually merge. Pairs that should render as a single unified card: `domain_misconfiguration` + source email, `calendar_event` + invite email, `calendar_response` + original event, `deliverability` + bounced outbound email. Currently each signal renders as a separate card with a `LinkedSignalSummary` link row; they should collapse into one card showing the primary data with the linked context inline.
 - [ ] **Retry Send action on failed signals** — `SystemAlertCard` renders `domain_misconfiguration` and `send_failed` alerts but has no action button. Add a "Retry Send" button that calls the retry endpoint, and surface a warning banner on the Domains settings tab when any domain has an incomplete setup.
 - [x] **Remove SchedulingPanel dead stub** — `src/components/panels/SchedulingPanel.vue` is dead code (comment: "backend has no 'scheduling' workflow"). Remove the file and the `v-else-if` branch in `WorkflowPanel.vue`.
@@ -111,7 +111,7 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 
 ### Extensibility & integrations
 
-- [ ] **Webhooks UI in Settings** — outbound webhook subscriptions so users can pipe arc events into Slack, Discord, or Linear without writing custom code. New tab in the Settings view. Requires backend (see Backend TODOs — Webhooks).
+- [ ] **Webhooks UI in Settings** — outbound webhook subscriptions so users can pipe thread events into Slack, Discord, or Linear without writing custom code. New tab in the Settings view. Requires backend (see Backend TODOs — Webhooks).
 
 - [ ] **API keys management** — list, create (with one-time secret reveal), and revoke keys. New tab in Settings or Profile. Requires backend (see Backend TODOs — API keys).
 
@@ -121,11 +121,11 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 
 - [ ] **Bundle-size budget in CI** — harden the existing advisory bundle-size check into a hard build failure with defined chunk and total KB limits.
 
-- [ ] **Axe-core — extend to full route list** — extend `tests/e2e/a11y.test.ts` to cover: `/onboarding`, `/invite`, `/billing`, `/profile`, `/rules/new`, `/rules/:id`, `/arcs/:id`, `/templates`, `/audit-log`, `/terms`, `/privacy`. Add `wcag21a`, `wcag21aa`, `best-practice` tags.
+- [ ] **Axe-core — extend to full route list** — extend `tests/e2e/a11y.test.ts` to cover: `/onboarding`, `/invite`, `/billing`, `/profile`, `/rules/new`, `/rules/:id`, `/threads/:id`, `/templates`, `/audit-log`, `/terms`, `/privacy`. Add `wcag21a`, `wcag21aa`, `best-practice` tags.
 
 - [ ] **Test coverage backfill** — the following have no tests at all:
   - Stores: `templates`, `theme`, `account`, `signals`, `views`
-  - Views: `SettingsView`, `TemplatesView`, `OnboardingView`, `QuarantineView`, `ArcDetailView`
+  - Views: `SettingsView`, `TemplatesView`, `OnboardingView`, `QuarantineView`, `ThreadDetailView`
 
 ---
 
@@ -184,7 +184,7 @@ These are all `// TODO(backend)` items in `src/lib/api.ts`, consolidated here so
 ```ts
 interface TemplateFunction {
   name: string  // JS identifier — referenced in body as {{fn.name}}
-  code: string  // full JS expression: (signal, arc) => string
+  code: string  // full JS expression: (signal, thread) => string
 }
 
 interface EmailTemplate {
@@ -231,7 +231,7 @@ interface EmailTemplate {
 ### WebSocket realtime events
 
 - `signal:created` — broadcast when a new inbound signal is processed
-- `arc:updated` — broadcast when any arc field changes
+- `thread:updated` — broadcast when any thread field changes
 
 ### Attachments (new — needed for compose image paste)
 
@@ -245,7 +245,7 @@ interface EmailTemplate {
 
 ### Reminders (new — needed for "Send + Remind Me")
 
-- `POST /accounts/:id/arcs/:arcId/reminders` — body `{ remindAt: string }`
+- `POST /accounts/:id/threads/:threadId/reminders` — body `{ remindAt: string }`
 - `GET /accounts/:id/reminders` → `{ reminders: Reminder[] }`
 - `DELETE /accounts/:id/reminders/:reminderId` → 204
 
@@ -297,12 +297,12 @@ interface EmailTemplate {
 ### Refactor
 
 - [x] **Rename Arc → Thread across entire site** — switch all API calls to `/threads/` endpoints, rename `Arc` type to `Thread`, `arcId` to `threadId`, `arcsStore` to `threadsStore`, all component names (`ActiveArcRow` → `ActiveThreadRow`, `ArcDetailView` → `ThreadDetailView`, etc.), route paths (`/arcs/:id` → `/threads/:id`), and file names. Use compiler-driven approach: rename the type first, let `vue-tsc --noEmit` enumerate every broken site, fix all. ~40 files affected.
-- [ ] **Apply data-first display pattern to all views** — every component that renders async data must follow: `if (data) → content; else if (loading) → skeleton; else → empty state`. No skeleton when data is already cached. Applies to: list views (inbox, quarantine, drafts, rules, templates, labels, audit, search), detail views (arc/thread detail, quarantine detail), single-resource views (billing, stats), and settings sub-tabs. This eliminates skeleton flashes on navigation, tab switches, and page revisits.
+- [ ] **Apply data-first display pattern to all views** — every component that renders async data must follow: `if (data) → content; else if (loading) → skeleton; else → empty state`. No skeleton when data is already cached. Applies to: list views (inbox, quarantine, drafts, rules, templates, labels, audit, search), detail views (thread detail, quarantine detail), single-resource views (billing, stats), and settings sub-tabs. This eliminates skeleton flashes on navigation, tab switches, and page revisits.
 - [ ] **Add retention badge to thread rows** — show "expires in Xd" badge on inbox rows when a thread's retention deadline is within 7 days.
 
 ### Bugs
 
-- [x] **Skeleton flash when switching from Inbox to All tab** — fixed: reordered template to show arcs first, skeleton only when no data and loading.
+- [x] **Skeleton flash when switching from Inbox to All tab** — fixed: reordered template to show threads first, skeleton only when no data and loading.
 - [x] **Stats not counting "allowed" for test workflow emails** — fixed in backend: buildDiffUpdateParams was writing to wrong DynamoDB path.
 - [x] **Monthly stats chart not rendering correctly** — fixed: show symbols when ≤3 data points so single-month data is visible.
 
@@ -324,8 +324,8 @@ interface EmailTemplate {
 
 ### Pending-send state visibility
 
-- [x] **Badge on arc row** — when an arc has a signal in `pending_send` status, show a "Sending…" badge on the arc row in the inbox list.
-- [x] **Alert on arc detail** — when viewing an arc that has a `pending_send` signal, show an inline alert banner at the top: "Email sending — cancel available until {undoExpiresAt countdown}".
+- [x] **Badge on thread row** — when a thread has a signal in `pending_send` status, show a "Sending…" badge on the thread row in the inbox list.
+- [x] **Alert on thread detail** — when viewing a thread that has a `pending_send` signal, show an inline alert banner at the top: "Email sending — cancel available until {undoExpiresAt countdown}".
 - [x] **Cancel send button on signal card** — for `pending_send` signals in the signal list, show a "Cancel send" button in the signal card footer (next to the reply button). Clicking it PATCHes the signal back to `draft` status.
 - [x] **Admin view signal status** — surface `pending_send` status distinctly in the admin signal list with a cancel action.
 - [x] **Persist undoExpiresAt** — computed client-side from sendInitiatedAt + body length (matches backend undo-window.ts). No server-side persistence needed — countdown survives page reloads via signal data already on the signal.
