@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
-import { loginClient } from '@/lib/auth'
+import { loginClient, logout } from '@/lib/auth'
 
 const emit = defineEmits<{ toggleSidebar: [] }>()
 defineProps<{ showHamburger?: boolean; hideSettings?: boolean }>()
@@ -107,7 +107,7 @@ async function signOut() {
   userMenuOpen.value = false
   // Land on the public site root (the marketing/landing page), not the app's
   // deploy base path — a signed-out user has nothing to see inside the app.
-  await loginClient.logout(`${window.location.origin}/`)
+  await logout(`${window.location.origin}/`)
 }
 
 // Close user menu on outside click

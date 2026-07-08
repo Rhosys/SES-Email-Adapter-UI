@@ -29,6 +29,7 @@ import {
   readFromLocalStorage,
   writeToLocalStorage,
   removeAllForAccount,
+  clearAllPersistedCache,
   persistentStorePlugin,
 } from './persistent-store'
 import logger from '@/lib/logger'
@@ -190,6 +191,35 @@ describe('persistent-store plugin', () => {
       expect(storage.has('ses:tabAccountId')).toBe(true)
       expect(storage.has('ses:lastAccountId')).toBe(true)
       expect(storage.has('ses:v1:acc_target:threads')).toBe(false)
+    })
+  })
+
+  // ─────────────────────────────────────────────────────────
+  // clearAllPersistedCache
+  // ─────────────────────────────────────────────────────────
+  describe('clearAllPersistedCache', () => {
+    it('removes cached stores across every account', () => {
+      storage.set('ses:v1:acc_target:threads', 'a')
+      storage.set('ses:v1:acc_target:signals', 'b')
+      storage.set('ses:v1:acc_other:threads', 'c')
+
+      clearAllPersistedCache()
+
+      expect(storage.has('ses:v1:acc_target:threads')).toBe(false)
+      expect(storage.has('ses:v1:acc_target:signals')).toBe(false)
+      expect(storage.has('ses:v1:acc_other:threads')).toBe(false)
+    })
+
+    it('leaves non-cache keys (account selection prefs) intact', () => {
+      storage.set('ses:tabAccountId', 'acc_target')
+      storage.set('ses:lastAccountId', 'acc_target')
+      storage.set('ses:v1:acc_target:signals', 'a')
+
+      clearAllPersistedCache()
+
+      expect(storage.has('ses:tabAccountId')).toBe(true)
+      expect(storage.has('ses:lastAccountId')).toBe(true)
+      expect(storage.has('ses:v1:acc_target:signals')).toBe(false)
     })
   })
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { loginClient } from '@/lib/auth'
+import { loginClient, logout } from '@/lib/auth'
 
 defineProps<{ sidebar?: boolean }>()
 
@@ -72,7 +72,7 @@ async function signOut() {
   open.value = false
   // Land on the public site root (the marketing/landing page), not the app's
   // deploy base path — a signed-out user has nothing to see inside the app.
-  await loginClient.logout(`${window.location.origin}/`)
+  await logout(`${window.location.origin}/`)
 }
 
 function copyEmail() {

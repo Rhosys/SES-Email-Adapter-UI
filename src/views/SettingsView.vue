@@ -5,7 +5,7 @@ import { useAccountStore } from '@/stores/account'
 import { useUserConfigStore } from '@/stores/userConfig'
 import { api } from '@/lib/api'
 import { notify } from '@/lib/notifications'
-import { loginClient } from '@/lib/auth'
+import { loginClient, logout } from '@/lib/auth'
 import logger from '@/lib/logger'
 import { UserConfigurationScreen } from '@authress/login'
 import type { DeviceType, Device, LinkedIdentity } from '@authress/login'
@@ -572,7 +572,7 @@ async function signOut() {
   signingOut.value = true
   // Land on the public site root (the marketing/landing page), not the app's
   // deploy base path — a signed-out user has nothing to see inside the app.
-  await loginClient.logout(`${window.location.origin}/`)
+  await logout(`${window.location.origin}/`)
 }
 
 // ─── DNS copy-to-clipboard ───────────────────────────────────────────────────

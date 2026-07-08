@@ -102,6 +102,27 @@ export function removeAllForAccount(accountId: string): void {
   }
 }
 
+/**
+ * Remove every persisted store cache (threads, signals, drafts, …) for all accounts.
+ * Called on sign-out so a subsequent login starts from a clean slate and never
+ * re-hydrates stale, account-scoped data (e.g. a signal that was reprocessed away).
+ */
+export function clearAllPersistedCache(): void {
+  if (typeof localStorage === "undefined") return
+
+  const prefix = `ses:v${VERSION}:`
+  const keysToRemove: string[] = []
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key && key.startsWith(prefix)) {
+      keysToRemove.push(key)
+    }
+  }
+  for (const key of keysToRemove) {
+    localStorage.removeItem(key)
+  }
+}
+
 export function persistentStorePlugin(context: PiniaPluginContext): void {
   const { options, store } = context
   const config = options.persist
