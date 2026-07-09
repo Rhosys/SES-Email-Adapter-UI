@@ -9,6 +9,7 @@ import { loginClient } from './lib/auth'
 import { useAccountStore } from './stores/account'
 import { useUserConfigStore } from './stores/userConfig'
 import { useLogStore } from './stores/logs'
+import { useIdentity } from './composables/useIdentity'
 import { persistentStorePlugin } from '@/plugins/persistent-store'
 import buildInfo from '@/lib/buildInfo'
 
@@ -67,6 +68,8 @@ enableMocking().then(() => {
   const logStore = useLogStore()
   logger.setHistorySink((entry) => logStore.record(entry))
 
+  const identity = useIdentity()
+
   // Gate all post-auth initialization on session readiness.
   // waitForUserSession blocks until authenticate() or userSessionExists() confirms a session.
   // Once resolved, start the accounts fetch — guards will await this promise, never initiate their own.
@@ -74,8 +77,8 @@ enableMocking().then(() => {
     const accountStore = useAccountStore()
     accountStore.startFetch()
 
-    const identity = loginClient.getUserIdentity() as { userId?: string } | null
-    if (identity?.userId) {
+    identity.load()
+    if (identity.userId) {
       const userConfigStore = useUserConfigStore()
       userConfigStore.fetch(identity.userId)
     }
@@ -84,9 +87,8 @@ enableMocking().then(() => {
   // Wire logger context after stores are available
   logger.setContext(() => {
     const accountStore = useAccountStore()
-    const identity = loginClient.getUserIdentity()
     return {
-      userId: (identity as { userId?: string } | null)?.userId ?? undefined,
+      userId: identity.userId ?? undefined,
       accountId: accountStore.accountId ?? undefined,
     }
   })

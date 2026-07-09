@@ -1,5 +1,13 @@
 # SES Email Adapter UI — Build Plan
 
+> **Priority order:** within a section, and across sections, items are listed top-to-bottom in priority order. Work the first unchecked item before later ones unless told otherwise.
+
+## Next up
+
+- [x] **Identity store** — `loginClient.getUserIdentity()` was called and stored in a local `ref<Identity | null>` independently in 6 places (`UserAvatar.vue`, `AppNavbar.vue`, `AppSidebar.vue`, `SettingsView.vue`, `main.ts` ×2, `SupportView.vue`). Not a Pinia store — it's a synchronous, purely-derived SDK read with no server round-trip, so a shared `src/composables/useIdentity.ts` (not global app state) is the right layer. Also extracted `src/components/UserAvatarIcon.vue` for the picture-or-initials circle markup, which was separately duplicated 6 times across the same call sites.
+
+---
+
 ## Frontend fields requiring backend support
 
 Fields that the old frontend used but the backend doesn't provide. Removed during the API contract reconciliation (spec: `api-contract-reconciliation`).
@@ -79,7 +87,6 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 
 `src/stores/stats.ts` is the reference implementation: a per-account cache keyed off `accountStore.accountId`, a computed that always returns a populated default (never `null`), and a `fetch*()` that only shows a loading state on the first fetch — revisits show the cached value immediately while refreshing in the background. Several places still fetch directly in the component with a local `ref<T | null>(null)`, which means no cache between mounts and `null`-guards sprinkled through templates. Port these to stores following the same shape:
 
-- [ ] **Identity store** — `loginClient.getUserIdentity()` is called and stored in a local `ref<Identity | null>` independently in `UserAvatar.vue`, `AppNavbar.vue`, and `SettingsView.vue` (three copies of the same `picture`/`displayName`/`userId`/`email` computeds). Extract into `src/stores/identity.ts`.
 - [ ] **Billing store** — `BillingView.vue` holds `account`/`billing` as local nullable refs and refetches both (`api.getAccount` + `api.getBilling`) on every mount with no cache; `account` also duplicates data already in `accountStore`. Extract `billing` into a store; drop the redundant `api.getAccount` call in favor of `accountStore.account`.
 - [ ] **Settings sub-resource stores** — `SettingsView.vue` fetches `aliases`, `domains`, `forwarding`, `team`, and `securityDevices` directly into local refs with no caching layer, unlike `labels`/`threads`/`rules` which already have stores. Extract each into its own store (or one `settings` store with sub-state) so switching tabs doesn't always refetch.
 
@@ -93,14 +100,9 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 
 ### Thread & Signal display actions
 
-- [x] **Reply button** — implemented in `ThreadDetailView` and `ThreadRow` (hidden for auth/test/status workflows).
-- [x] **Archive button** — implemented in `ThreadDetailView` (with undo toast) and `ThreadRow`.
-- [x] **Attachments display** — `EmailSignalCard` lists each attachment as a link (filename + size) using the CDN `url` the backend already puts on the attachment object, opening in a new tab so the browser's native viewer/download applies. Shows an "Unavailable" state when `url` is missing.
-- [x] **Delete button** — implemented in ThreadDetailView overflow menu with two-step ConfirmDialog.
 - [ ] **Retention badge on ThreadRow** — `ThreadDetailView` already shows "Available until…" inline in the header metadata, but `ThreadRow` (the inbox list) shows nothing. Add a small expiry badge (e.g. "deletes in 3d") to the row when `thread.retentionDuration` is set and the deadline is within 7 days.
 - [ ] **Composite signal cards** — `attachLinkedSignals()` wires linked signals to their parent but the cards don't visually merge. Pairs that should render as a single unified card: `domain_misconfiguration` + source email, `calendar_event` + invite email, `calendar_response` + original event, `deliverability` + bounced outbound email. Currently each signal renders as a separate card with a `LinkedSignalSummary` link row; they should collapse into one card showing the primary data with the linked context inline.
 - [ ] **Retry Send action on failed signals** — `SystemAlertCard` renders `domain_misconfiguration` and `send_failed` alerts but has no action button. Add a "Retry Send" button that calls the retry endpoint, and surface a warning banner on the Domains settings tab when any domain has an incomplete setup.
-- [x] **Remove SchedulingPanel dead stub** — `src/components/panels/SchedulingPanel.vue` is dead code (comment: "backend has no 'scheduling' workflow"). Remove the file and the `v-else-if` branch in `WorkflowPanel.vue`.
 
 ### Billing screen
 
@@ -111,8 +113,6 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 ### Extensibility & integrations
 
 - [ ] **Webhooks UI in Settings** — outbound webhook subscriptions so users can pipe thread events into Slack, Discord, or Linear without writing custom code. New tab in the Settings view. Requires backend (see Backend TODOs — Webhooks).
-
-- [ ] **API keys management** — list, create (with one-time secret reveal), and revoke keys. New tab in Settings or Profile. Requires backend (see Backend TODOs — API keys).
 
 ---
 
@@ -130,83 +130,7 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 
 ## Backend routes the frontend calls that must be implemented
 
-These are all `// TODO(backend)` items in `src/lib/api.ts`, consolidated here so they can be ported to `rhosys/ses-email-adapter`.
-
-### Account management
-
-- `POST /accounts` — create a new account (required for self-service onboarding; Step 1 of the onboarding wizard calls this before any domain/alias setup can proceed)
-- `GET /accounts` — list all accounts the authenticated user belongs to (needed for account switcher)
-
-### Threads
-
-- `Thread.senderAddress` / `recipientAddress` / `subject` — should be denormalised from the latest inbound signal onto the thread itself so the frontend doesn't have to join against signals. Currently optional on the frontend type pending this backend work (see `src/types/server.ts`).
-
-### Labels (`/accounts/:id/labels`)
-
-- `GET` — list labels
-- `POST` — create label `{ name, color?, icon? }`
-- `PATCH /:labelId` — update label
-- `DELETE /:labelId` — delete label
-
-### Saved views (`/accounts/:id/views`)
-
-- `GET` — list views
-- `POST` — create view
-- `PATCH /:viewId` — update view
-- `DELETE /:viewId` — delete view
-
-### Rules (`/accounts/:id/rules`)
-
-- `GET` — list rules
-- `POST` — create rule
-- `PATCH /:ruleId` — update rule
-- `DELETE /:ruleId` — delete rule
-
-### Domains (`/accounts/:id/domains`)
-
-- `GET` — list domains (POST and PATCH already implemented)
-
-### Team members (`/accounts/:id/users`)
-
-- `GET` — list team members
-- `POST` — invite `{ email, role }`
-- `PATCH /:userId` — update role
-- `DELETE /:userId` — remove
-
-### Audit log (`/accounts/:id/audit`)
-
-- `GET` — cursor-paginated event list; response shape: `{ events: AuditEvent[], pagination: { cursor: string | null } }`
-
-### Email templates (`/accounts/:id/templates`)
-
-**Resource shapes:**
-```ts
-interface TemplateFunction {
-  name: string  // JS identifier — referenced in body as {{fn.name}}
-  code: string  // full JS expression: (signal, thread) => string
-}
-
-interface EmailTemplate {
-  id: string
-  accountId: string
-  name: string               // display name, e.g. "Order confirmation reply"
-  subject: string            // email subject, may contain {{sender.name}}, {{sender.address}}, {{fn.*}}
-  body: string               // markdown body, same variable set
-  functions: TemplateFunction[]
-  createdAt: string          // ISO 8601
-  updatedAt: string          // ISO 8601
-}
-```
-
-**Endpoints:**
-- `GET /accounts/:id/templates` → `{ templates: EmailTemplate[] }`
-- `POST /accounts/:id/templates` — body `{ name, subject, body, functions }` → `EmailTemplate` (201)
-- `PUT /accounts/:id/templates/:templateId` — full replace → `EmailTemplate`
-- `DELETE /accounts/:id/templates/:templateId` → 204
-
-### Quarantine response
-
-- `POST /accounts/:id/signals/:signalId/quarantineResponse` — body `{ status: 'active' | 'block_hidden' | 'block_reject' }`
+Backend routes the frontend already calls (or is already coded to call) that don't exist yet, consolidated here so they can be ported to `rhosys/ses-email-adapter`. (Account management, Threads denormalization, Labels, Saved views, Rules, Domains, Team members, Audit log, Email templates, and Quarantine response were all in this list previously — verified against the backend's OpenAPI spec and removed as already implemented.)
 
 ### Billing / Stripe
 
@@ -295,41 +219,8 @@ interface EmailTemplate {
 
 ### Refactor
 
-- [x] **Rename Arc → Thread across entire site** — switch all API calls to `/threads/` endpoints, rename `Arc` type to `Thread`, `arcId` to `threadId`, `arcsStore` to `threadsStore`, all component names (`ActiveArcRow` → `ActiveThreadRow`, `ArcDetailView` → `ThreadDetailView`, etc.), route paths (`/arcs/:id` → `/threads/:id`), and file names. Use compiler-driven approach: rename the type first, let `vue-tsc --noEmit` enumerate every broken site, fix all. ~40 files affected.
 - [ ] **Apply data-first display pattern to all views** — every component that renders async data must follow: `if (data) → content; else if (loading) → skeleton; else → empty state`. No skeleton when data is already cached. Applies to: list views (inbox, quarantine, drafts, rules, templates, labels, audit, search), detail views (thread detail, quarantine detail), single-resource views (billing, stats), and settings sub-tabs. This eliminates skeleton flashes on navigation, tab switches, and page revisits.
-- [ ] **Add retention badge to thread rows** — show "expires in Xd" badge on inbox rows when a thread's retention deadline is within 7 days.
-
-### Bugs
-
-- [x] **Skeleton flash when switching from Inbox to All tab** — fixed: reordered template to show threads first, skeleton only when no data and loading.
-- [x] **Stats not counting "allowed" for test workflow emails** — fixed in backend: buildDiffUpdateParams was writing to wrong DynamoDB path.
-- [x] **Monthly stats chart not rendering correctly** — fixed: show symbols when ≤3 data points so single-month data is visible.
-
-### Navigation & Layout
-
-- [x] **Delete ProfileView.vue** — the `/profile` route now redirects to `/settings?tab=profile`. The old `ProfileView.vue` file is dead code and should be removed.
 
 ### UI Consistency
 
 - [ ] **Audit and unify UI patterns across all views** — Investigate inconsistencies in empty states, section headers, spacing, button variants, text hierarchy (title/description/help-text), and interactive element styling across all screens. Define a shared pattern for: empty states (title + description + CTA), settings sections (label + help text + control), list rows (structure, hover states, action positioning), confirmation flows, and loading skeletons. Document the canonical pattern per element type so new screens match automatically. The Rules empty state inconsistency (fixed separately) is an example of the problem — there are likely more.
-
-### Settings & Configuration
-
-- [ ] **Developer section in Settings** — Webhooks and API Keys will need their own tabs. To avoid tab sprawl, consider grouping them under a "Developer" tab with sub-sections, or a collapsible advanced section.
-
-### Rules
-
-- [x] **Rules tab text contrast** — the empty state description text is small and dim. Review font sizes and contrast against the Templates empty state (which looks correct) and match styling.
-
-### Pending-send state visibility
-
-- [x] **Badge on thread row** — when a thread has a signal in `pending_send` status, show a "Sending…" badge on the thread row in the inbox list.
-- [x] **Alert on thread detail** — when viewing a thread that has a `pending_send` signal, show an inline alert banner at the top: "Email sending — cancel available until {undoExpiresAt countdown}".
-- [x] **Cancel send button on signal card** — for `pending_send` signals in the signal list, show a "Cancel send" button in the signal card footer (next to the reply button). Clicking it PATCHes the signal back to `draft` status.
-- [x] **Admin view signal status** — surface `pending_send` status distinctly in the admin signal list with a cancel action.
-- [x] **Persist undoExpiresAt** — computed client-side from sendInitiatedAt + body length (matches backend undo-window.ts). No server-side persistence needed — countdown survives page reloads via signal data already on the signal.
-
-
-## Merge "New address handling" into "Default filter mode"
-
-- [x] **Rename "Default filter mode" → "New address handling" in the UI** — the account-level `defaultUnknownSenderPolicy` field is what actually controls how new/unknown addresses are treated. The UI currently shows two separate settings: "Default filter mode" (the real enum: allow_all, quarantine_visible, etc.) and "New address handling" (a redundant auto_allow/block_until_approved toggle). Merge them: remove the separate "New address handling" toggle entirely, rename the "Default filter mode" setting to use the title and help text that currently belongs to "New address handling" (since that copy better explains the user intent), but keep the underlying API property as `defaultUnknownSenderPolicy` with its full enum of values. The result: one setting, named "New address handling", backed by `defaultUnknownSenderPolicy`, with all six policy values available.

@@ -2,10 +2,10 @@
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
-import { loginClient } from '@/lib/auth'
 import { api } from '@/lib/api'
 import buildInfo from '@/lib/buildInfo'
 import logger from '@/lib/logger'
+import { useIdentity } from '@/composables/useIdentity'
 
 const route = useRoute()
 const accountStore = useAccountStore()
@@ -15,13 +15,8 @@ const submitting = ref(false)
 const submitted = ref(false)
 const submitError = ref<string | null>(null)
 
-const userId = ref<string | null>(null)
-try {
-  const identity = loginClient.getUserIdentity() as { sub?: string } | null
-  userId.value = identity?.sub ?? null
-} catch (e) {
-  logger.warn({ title: 'Support: failed to read user identity', error: e })
-}
+const identity = useIdentity()
+identity.load()
 
 const statusUrl = computed(() => `https://status.${buildInfo.deployment.fdqn}`)
 
@@ -114,7 +109,7 @@ const canSubmit = computed(
 function buildContext(): string {
   const lines = [
     `Account: ${accountStore.accountId ?? 'unknown'}`,
-    `User: ${userId.value ?? 'unknown'}`,
+    `User: ${identity.userId ?? 'unknown'}`,
     `Route: ${route.fullPath}`,
     `Browser: ${navigator.userAgent}`,
   ]

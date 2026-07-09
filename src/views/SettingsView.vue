@@ -18,9 +18,11 @@ import OverflowMenu from '@/components/ui/OverflowMenu.vue'
 import SettingsTabBar from '@/components/settings/SettingsTabBar.vue'
 import BillingPanel from '@/components/settings/BillingPanel.vue'
 import BuildInfo from '@/components/BuildInfo.vue'
+import UserAvatarIcon from '@/components/UserAvatarIcon.vue'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useToast } from '@/composables/useToast'
+import { useIdentity } from '@/composables/useIdentity'
 import type {
   Domain,
   DnsRecord,
@@ -45,14 +47,7 @@ type TabKey = 'profile' | 'emails' | 'email-forwarding' | 'team' | 'billing'
 const activeTab = ref<TabKey>('profile')
 
 // ─── Profile tab ─────────────────────────────────────────────────────────────
-interface Identity {
-  userId?: string
-  sub?: string
-  email?: string
-  name?: string
-  picture?: string
-}
-const identity = ref<Identity | null>(null)
+const identity = useIdentity()
 
 // ─── Profile sub-tabs (Configuration / Security) ─────────────────────────────
 type ProfileSubTab = 'configuration' | 'security'
@@ -558,9 +553,8 @@ const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
 const userIdCopied = ref(false)
 
 function copyUserId() {
-  const id = identity.value?.userId ?? identity.value?.sub
-  if (!id) return
-  void navigator.clipboard.writeText(id).then(() => {
+  if (!identity.userId) return
+  void navigator.clipboard.writeText(identity.userId).then(() => {
     userIdCopied.value = true
     setTimeout(() => { userIdCopied.value = false }, 1500)
   })
@@ -690,7 +684,7 @@ async function switchTab(tab: TabKey) {
 }
 
 onMounted(async () => {
-  identity.value = loginClient.getUserIdentity() as Identity | null
+  identity.load()
   if (accountStore.account) {
     calendarForwardingTargetId.value = accountStore.account.defaultCalendarInviteForwardingTargetId ?? ''
     selectedRetention.value = accountStore.account.retentionDuration
@@ -823,25 +817,13 @@ useGestureHandler(settingsContentRef, {
         <!-- User identity -->
         <div class="flex items-center gap-4">
           <span class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-ctp-surface1">
-            <img
-              v-if="identity?.picture"
-              :src="identity.picture"
-              :alt="identity.name ?? 'Profile'"
-              class="h-full w-full object-cover"
-              referrerpolicy="no-referrer"
-            />
-            <span
-              v-else
-              class="flex h-full w-full items-center justify-center bg-ctp-surface1 text-lg font-semibold text-ctp-subtext1"
-            >
-              {{ (identity?.name ?? identity?.email ?? '?').slice(0, 2).toUpperCase() }}
-            </span>
+            <UserAvatarIcon :picture="identity.picture" :initials="identity.initials" :display-name="identity.displayName" text-size="text-lg" />
           </span>
           <div class="min-w-0 flex-1">
-            <p v-if="identity?.name" class="truncate text-sm font-semibold text-ctp-text">{{ identity.name }}</p>
-            <p v-if="identity?.email" class="truncate text-xs text-ctp-subtext0">{{ identity.email }}</p>
-            <div v-if="identity?.userId ?? identity?.sub" class="mt-1 flex items-center gap-1.5">
-              <p class="truncate font-mono text-xs text-ctp-subtext0">{{ identity?.userId ?? identity?.sub }}</p>
+            <p v-if="identity.displayName" class="truncate text-sm font-semibold text-ctp-text">{{ identity.displayName }}</p>
+            <p v-if="identity.email && identity.email !== identity.displayName" class="truncate text-xs text-ctp-subtext0">{{ identity.email }}</p>
+            <div v-if="identity.userId" class="mt-1 flex items-center gap-1.5">
+              <p class="truncate font-mono text-xs text-ctp-subtext0">{{ identity.userId }}</p>
               <button
                 type="button"
                 class="shrink-0 transition-colors"
