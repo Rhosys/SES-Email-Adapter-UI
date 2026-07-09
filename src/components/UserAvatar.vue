@@ -1,50 +1,25 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { loginClient, logout } from '@/lib/auth'
+import { logout } from '@/lib/auth'
+import { useIdentity } from '@/composables/useIdentity'
+import UserAvatarIcon from '@/components/UserAvatarIcon.vue'
 
 defineProps<{ sidebar?: boolean }>()
 
 const router = useRouter()
-
-interface Identity {
-  userId?: string
-  sub?: string
-  email?: string
-  name?: string
-  picture?: string
-}
-
-const identity = ref<Identity | null>(null)
+const identity = useIdentity()
 const open = ref(false)
 const emailCopied = ref(false)
 const userIdCopied = ref(false)
 let closeTimer: ReturnType<typeof setTimeout> | null = null
 
 onMounted(() => {
-  identity.value = loginClient.getUserIdentity() as Identity | null
+  identity.load()
 })
 
 onUnmounted(() => {
   if (closeTimer) clearTimeout(closeTimer)
-})
-
-const picture = computed(() => identity.value?.picture ?? null)
-const displayName = computed(() => identity.value?.name ?? identity.value?.email ?? null)
-const userId = computed(() => identity.value?.userId ?? identity.value?.sub ?? null)
-const email = computed(() => identity.value?.email ?? null)
-
-const initials = computed(() => {
-  const n = identity.value?.name
-  if (n) {
-    const parts = n.trim().split(/\s+/)
-    return parts.length >= 2
-      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-      : n.slice(0, 2).toUpperCase()
-  }
-  const e = identity.value?.email
-  if (e) return e.slice(0, 2).toUpperCase()
-  return '?'
 })
 
 function show() {
@@ -76,16 +51,16 @@ async function signOut() {
 }
 
 function copyEmail() {
-  if (!email.value) return
-  void navigator.clipboard.writeText(email.value).then(() => {
+  if (!identity.email) return
+  void navigator.clipboard.writeText(identity.email).then(() => {
     emailCopied.value = true
     setTimeout(() => { emailCopied.value = false }, 1500)
   })
 }
 
 function copyUserId() {
-  if (!userId.value) return
-  void navigator.clipboard.writeText(userId.value).then(() => {
+  if (!identity.userId) return
+  void navigator.clipboard.writeText(identity.userId).then(() => {
     userIdCopied.value = true
     setTimeout(() => { userIdCopied.value = false }, 1500)
   })
@@ -112,21 +87,9 @@ function copyUserId() {
       @click="navigateToProfile"
     >
       <span class="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full">
-        <img
-          v-if="picture"
-          :src="picture"
-          :alt="displayName ?? 'Profile'"
-          class="h-full w-full object-cover"
-          referrerpolicy="no-referrer"
-        />
-        <span
-          v-else
-          class="flex h-full w-full items-center justify-center bg-ctp-surface1 text-xs font-semibold text-ctp-subtext1"
-        >
-          {{ initials }}
-        </span>
+        <UserAvatarIcon :picture="identity.picture" :initials="identity.initials" :display-name="identity.displayName" />
       </span>
-      <span class="flex-1 truncate text-left">{{ displayName ?? 'Profile' }}</span>
+      <span class="flex-1 truncate text-left">{{ identity.displayName ?? 'Profile' }}</span>
     </button>
 
     <!-- ── Compact mode: avatar circle ───────────────────────────────────── -->
@@ -136,19 +99,7 @@ function copyUserId() {
       class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full ring-2 ring-transparent transition-all hover:ring-ctp-mauve/50"
       @click="navigateToProfile"
     >
-      <img
-        v-if="picture"
-        :src="picture"
-        :alt="displayName ?? 'Profile'"
-        class="h-full w-full object-cover"
-        referrerpolicy="no-referrer"
-      />
-      <span
-        v-else
-        class="flex h-full w-full items-center justify-center bg-ctp-surface1 text-xs font-semibold text-ctp-subtext1"
-      >
-        {{ initials }}
-      </span>
+      <UserAvatarIcon :picture="identity.picture" :initials="identity.initials" :display-name="identity.displayName" />
     </button>
 
     <!-- ── Popup — v-show keeps the img in the DOM so it only loads once ─── -->
@@ -167,36 +118,24 @@ function copyUserId() {
       <!-- Header: avatar + name + email -->
       <div class="flex items-center gap-3 bg-ctp-base px-4 py-3">
         <span class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-ctp-surface1">
-          <img
-            v-if="picture"
-            :src="picture"
-            :alt="displayName ?? 'Profile'"
-            class="h-full w-full object-cover"
-            referrerpolicy="no-referrer"
-          />
-          <span
-            v-else
-            class="flex h-full w-full items-center justify-center bg-ctp-surface1 text-sm font-semibold text-ctp-subtext1"
-          >
-            {{ initials }}
-          </span>
+          <UserAvatarIcon :picture="identity.picture" :initials="identity.initials" :display-name="identity.displayName" text-size="text-sm" />
         </span>
         <div class="min-w-0 flex-1">
-          <p v-if="displayName" class="truncate text-sm font-semibold text-ctp-text">
-            {{ displayName }}
+          <p v-if="identity.displayName" class="truncate text-sm font-semibold text-ctp-text">
+            {{ identity.displayName }}
           </p>
-          <p v-if="email && email !== displayName" class="truncate text-xs text-ctp-subtext0">
-            {{ email }}
+          <p v-if="identity.email && identity.email !== identity.displayName" class="truncate text-xs text-ctp-subtext0">
+            {{ identity.email }}
           </p>
         </div>
       </div>
 
       <!-- Body: copyable fields — plain text + clipboard icon, no input box -->
       <div class="space-y-2 px-4 py-3">
-        <div v-if="email" class="flex items-center justify-between gap-2">
+        <div v-if="identity.email" class="flex items-center justify-between gap-2">
           <div class="min-w-0 flex-1">
             <p class="text-xs font-medium text-ctp-subtext0">Email</p>
-            <p class="truncate text-sm text-ctp-text">{{ email }}</p>
+            <p class="truncate text-sm text-ctp-text">{{ identity.email }}</p>
           </div>
           <button
             type="button"
@@ -217,10 +156,10 @@ function copyUserId() {
           </button>
         </div>
 
-        <div v-if="userId" class="flex items-center justify-between gap-2">
+        <div v-if="identity.userId" class="flex items-center justify-between gap-2">
           <div class="min-w-0 flex-1">
             <p class="text-xs font-medium text-ctp-subtext0">User ID</p>
-            <p class="truncate font-mono text-sm text-ctp-text">{{ userId }}</p>
+            <p class="truncate font-mono text-sm text-ctp-text">{{ identity.userId }}</p>
           </div>
           <button
             type="button"

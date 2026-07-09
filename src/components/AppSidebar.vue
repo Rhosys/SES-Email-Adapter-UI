@@ -7,8 +7,9 @@ import { useAccountStore } from '@/stores/account'
 import { useThreadsStore } from '@/stores/threads'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useDraftsStore } from '@/stores/drafts'
-import { loginClient } from '@/lib/auth'
 import { isAdminUser } from '@/stores/admin'
+import { useIdentity } from '@/composables/useIdentity'
+import UserAvatarIcon from '@/components/UserAvatarIcon.vue'
 
 defineProps<{ open: boolean }>()
 
@@ -33,33 +34,10 @@ function formatBadgeCount(count: number, hasMore: boolean) {
 }
 
 // ── User identity for mobile profile row ──────────────────────────────────────
-interface Identity {
-  userId?: string
-  sub?: string
-  email?: string
-  name?: string
-  picture?: string
-}
-const identity = ref<Identity | null>(null)
+const identity = useIdentity()
 
 onMounted(() => {
-  identity.value = loginClient.getUserIdentity() as Identity | null
-})
-
-const displayName = computed(() => identity.value?.name ?? identity.value?.email ?? null)
-const email = computed(() => identity.value?.email ?? null)
-const picture = computed(() => identity.value?.picture ?? null)
-const initials = computed(() => {
-  const n = identity.value?.name
-  if (n) {
-    const parts = n.trim().split(/\s+/)
-    return parts.length >= 2
-      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-      : n.slice(0, 2).toUpperCase()
-  }
-  const e = identity.value?.email
-  if (e) return e.slice(0, 2).toUpperCase()
-  return '?'
+  identity.load()
 })
 
 function navigateToProfile() {
@@ -334,23 +312,11 @@ const accountSwitcherOpen = ref(false)
         @click="navigateToProfile"
       >
         <span class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-ctp-surface1">
-          <img
-            v-if="picture"
-            :src="picture"
-            :alt="displayName ?? 'Profile'"
-            class="h-full w-full object-cover"
-            referrerpolicy="no-referrer"
-          />
-          <span
-            v-else
-            class="flex h-full w-full items-center justify-center bg-ctp-surface1 text-xs font-semibold text-ctp-subtext1"
-          >
-            {{ initials }}
-          </span>
+          <UserAvatarIcon :picture="identity.picture" :initials="identity.initials" :display-name="identity.displayName" />
         </span>
         <div class="min-w-0 flex-1">
-          <p v-if="displayName" class="truncate text-sm font-medium text-ctp-text">{{ displayName }}</p>
-          <p v-if="email && email !== displayName" class="truncate text-xs text-ctp-subtext0">{{ email }}</p>
+          <p v-if="identity.displayName" class="truncate text-sm font-medium text-ctp-text">{{ identity.displayName }}</p>
+          <p v-if="identity.email && identity.email !== identity.displayName" class="truncate text-xs text-ctp-subtext0">{{ identity.email }}</p>
         </div>
       </button>
     </div>

@@ -4,7 +4,7 @@
 
 ## Next up
 
-- [ ] **Identity store** — `loginClient.getUserIdentity()` is called and stored in a local `ref<Identity | null>` independently in `UserAvatar.vue`, `AppNavbar.vue`, and `SettingsView.vue` (three copies of the same `picture`/`displayName`/`userId`/`email` computeds). Extract into `src/stores/identity.ts`, following the same per-account cached-store pattern as `stats.ts` (see "Adopt cached per-account store pattern everywhere" below).
+- [x] **Identity store** — `loginClient.getUserIdentity()` was called and stored in a local `ref<Identity | null>` independently in 6 places (`UserAvatar.vue`, `AppNavbar.vue`, `AppSidebar.vue`, `SettingsView.vue`, `main.ts` ×2, `SupportView.vue`). Not a Pinia store — it's a synchronous, purely-derived SDK read with no server round-trip, so a shared `src/composables/useIdentity.ts` (not global app state) is the right layer. Also extracted `src/components/UserAvatarIcon.vue` for the picture-or-initials circle markup, which was separately duplicated 6 times across the same call sites.
 
 ---
 
@@ -220,7 +220,6 @@ Backend routes the frontend already calls (or is already coded to call) that don
 ### Refactor
 
 - [ ] **Apply data-first display pattern to all views** — every component that renders async data must follow: `if (data) → content; else if (loading) → skeleton; else → empty state`. No skeleton when data is already cached. Applies to: list views (inbox, quarantine, drafts, rules, templates, labels, audit, search), detail views (thread detail, quarantine detail), single-resource views (billing, stats), and settings sub-tabs. This eliminates skeleton flashes on navigation, tab switches, and page revisits.
-- [ ] **Add retention badge to thread rows** — show "expires in Xd" badge on inbox rows when a thread's retention deadline is within 7 days.
 
 ### UI Consistency
 
