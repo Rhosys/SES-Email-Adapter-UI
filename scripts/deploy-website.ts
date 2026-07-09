@@ -33,10 +33,11 @@ const awsArchitect = new AwsArchitect(
   { bucket, contentDirectory: 'dist' },
 )
 
-// 'main' is the canonical version key for the root S3 deployment (CloudFront /).
-// PR previews use 'pr/<slug>' which maps directly to an S3 prefix.
-const isMain = version === 'main'
-const s3Prefix = isMain ? '' : version
+// The version argument is always the S3 key prefix (production: 'a/main/<year>',
+// previews: 'pr/<slug>'). Whether this is the production deploy is decided by the
+// branch we're building — from GitHub's GITHUB_REF_NAME — not by the prefix.
+const isMain = process.env.GITHUB_REF_NAME === 'main'
+const s3Prefix = version
 
 // PR previews are ephemeral — never cache anything so every push is seen immediately.
 // Main builds use stale-while-revalidate so users get instant responses while the

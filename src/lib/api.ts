@@ -18,6 +18,7 @@ import type {
   Domain,
   EmailTemplate,
   ForwardingTarget,
+  HealthCheckValidation,
   Label,
   NotificationSettings,
   Pagination,
@@ -654,6 +655,11 @@ export const api = {
     return request<Signal>(`/accounts/${accountId}/threads/${threadId}/signals/${signalId}/reprocess`, {
       method: 'POST',
     })
+  },
+
+  // ─── Health check validation (admin) ─────────────────────────────────────
+  validateHealthCheck(): Promise<Result<HealthCheckValidation, ApiError>> {
+    return request<HealthCheckValidation>('/healthcheck')
   },
 
   async getRawEmail(accountId: string, threadId: string, signalId: string): Promise<Result<string, ApiError>> {

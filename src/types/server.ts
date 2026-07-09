@@ -781,3 +781,21 @@ export interface StatsResponse {
   daily: StatsDailyBucket[]
   monthly: StatsDailyBucket[]
 }
+
+// ── Health check validation (admin) ────────────────────────────────────────
+export type HealthCheckStatus = 'pass' | 'fail' | 'unknown'
+
+export interface HealthCheckItem {
+  id: string
+  label: string
+  status: HealthCheckStatus
+  detail?: string
+}
+
+export interface HealthCheckValidation {
+  status: HealthCheckStatus
+  checkedDate: string
+  messageId: string
+  checkedAt: string
+  checks: HealthCheckItem[]
+}

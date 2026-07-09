@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { api } from '@/lib/api'
 import { useAccountStore } from '@/stores/account'
 import { useLogStore } from '@/stores/logs'
 import { getUndoExpiresAt } from '@/composables/usePendingSend'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import BuildInfo from '@/components/BuildInfo.vue'
-import type { Thread, Signal } from '@/types/server'
+import type { Thread, Signal, HealthCheckValidation, HealthCheckStatus } from '@/types/server'
 
 const accountStore = useAccountStore()
 const logStore = useLogStore()
@@ -39,6 +39,53 @@ function formatLogMessage(message: Record<string, unknown>): string {
     return String(message)
   }
 }
+
+// ── Health check validation ────────────────────────────────────────────────
+const healthCheck = ref<HealthCheckValidation | null>(null)
+const healthCheckLoading = ref(false)
+const healthCheckError = ref<string | null>(null)
+
+async function runHealthCheckValidation() {
+  healthCheckLoading.value = true
+  healthCheckError.value = null
+  const result = await api.validateHealthCheck()
+  if (result.isOk()) {
+    healthCheck.value = result.value
+  } else {
+    healthCheckError.value = result.error.message
+  }
+  healthCheckLoading.value = false
+}
+
+const HEALTH_STATUS_LABEL: Record<HealthCheckStatus, string> = {
+  pass: 'All checks passing',
+  fail: 'One or more checks failing',
+  unknown: 'Validation could not be completed',
+}
+function healthStatusLabel(status: HealthCheckStatus): string {
+  return HEALTH_STATUS_LABEL[status] ?? status
+}
+// Overall alert styling by status.
+const HEALTH_ALERT_CLASS: Record<HealthCheckStatus, string> = {
+  pass: 'border-ctp-green/40 bg-ctp-green/10 text-ctp-green',
+  fail: 'border-ctp-red/40 bg-ctp-red/10 text-ctp-red',
+  unknown: 'border-ctp-peach/40 bg-ctp-peach/10 text-ctp-peach',
+}
+// Per-check status icon color.
+const HEALTH_ITEM_CLASS: Record<HealthCheckStatus, string> = {
+  pass: 'text-ctp-green',
+  fail: 'text-ctp-red',
+  unknown: 'text-ctp-subtext0',
+}
+const HEALTH_ITEM_ICON: Record<HealthCheckStatus, string> = {
+  pass: '✓',
+  fail: '✗',
+  unknown: '—',
+}
+
+onMounted(() => {
+  void runHealthCheckValidation()
+})
 
 const signalIdInput = ref('')
 const loading = ref(false)
@@ -153,6 +200,78 @@ async function lookup() {
       <h1 class="text-lg font-semibold text-ctp-text">Admin — Signal Inspector</h1>
       <BuildInfo class="mt-1" />
     </div>
+
+    <!-- Health check validation -->
+    <section>
+      <div class="mb-2 flex items-center justify-between">
+        <h3 class="text-sm font-medium text-ctp-subtext1">Pipeline Health Check</h3>
+        <button
+          :disabled="healthCheckLoading"
+          class="inline-flex items-center gap-1 rounded bg-ctp-surface1 px-2 py-0.5 text-xs font-medium text-ctp-text transition-colors hover:bg-ctp-surface2 disabled:opacity-50"
+          @click="runHealthCheckValidation"
+        >
+          <svg
+            :class="{ 'animate-spin': healthCheckLoading }"
+            class="h-3 w-3"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" stroke-linecap="round" />
+          </svg>
+          Refresh
+        </button>
+      </div>
+
+      <!-- In-progress alert -->
+      <div
+        v-if="healthCheckLoading"
+        class="flex items-center gap-2 rounded-lg border border-ctp-blue/30 bg-ctp-blue/10 px-4 py-3 text-sm text-ctp-blue"
+      >
+        <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" stroke-linecap="round" />
+        </svg>
+        Health check validation in progress…
+      </div>
+
+      <!-- Error alert -->
+      <div
+        v-else-if="healthCheckError"
+        class="rounded-lg border border-ctp-red/30 bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
+      >
+        Health check validation failed to run: {{ healthCheckError }}
+      </div>
+
+      <!-- Result -->
+      <div v-else-if="healthCheck" class="space-y-3">
+        <div class="rounded-lg border px-4 py-3 text-sm" :class="HEALTH_ALERT_CLASS[healthCheck.status]">
+          <div class="font-medium">{{ healthStatusLabel(healthCheck.status) }}</div>
+          <div class="mt-0.5 text-xs opacity-80">
+            Validated healthcheck for {{ healthCheck.checkedDate }} · checked {{ new Date(healthCheck.checkedAt).toLocaleString() }}
+          </div>
+        </div>
+
+        <ul class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface1 bg-ctp-mantle">
+          <li
+            v-for="item in healthCheck.checks"
+            :key="item.id"
+            class="flex items-start gap-3 px-4 py-2.5"
+          >
+            <span class="mt-0.5 w-4 shrink-0 text-center text-sm font-bold" :class="HEALTH_ITEM_CLASS[item.status]">
+              {{ HEALTH_ITEM_ICON[item.status] }}
+            </span>
+            <div class="min-w-0 flex-1">
+              <div class="text-sm text-ctp-text">{{ item.label }}</div>
+              <div v-if="item.detail" class="text-xs text-ctp-subtext0">{{ item.detail }}</div>
+            </div>
+            <span class="shrink-0 text-xs font-medium uppercase" :class="HEALTH_ITEM_CLASS[item.status]">
+              {{ item.status }}
+            </span>
+          </li>
+        </ul>
+      </div>
+    </section>
 
     <!-- Input -->
     <form class="flex gap-3" @submit.prevent="lookup">

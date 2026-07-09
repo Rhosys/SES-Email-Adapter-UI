@@ -211,6 +211,25 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
     }}
   }
 
+  // GET /healthcheck — admin health check validation
+  if (method === 'GET' && match('/healthcheck', url)) {
+    return {
+      status: 200,
+      body: {
+        status: 'fail',
+        checkedDate: '2026-07-08',
+        messageId: 'healthcheck-2026-07-08@platform.email.rhosys.cloud',
+        checkedAt: new Date().toISOString(),
+        checks: [
+          { id: 'signal-received', label: 'Healthcheck email received', status: 'pass' },
+          { id: 'thread-assigned', label: 'Thread assigned to signal', status: 'pass' },
+          { id: 'workflow-classified', label: 'Classified as healthcheck workflow', status: 'pass' },
+          { id: 'embedding-indexed', label: 'Embedding indexed for search', status: 'fail', detail: 'No embedding found in the search index for this thread.' },
+        ],
+      },
+    }
+  }
+
   // POST catch-all for mutation endpoints
   if (method === 'POST') {
     if (url.includes('/rules')) return { status: 201, body: mockRules[0] }
