@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
-import { ok, err } from 'neverthrow'
+import { ok, err, type Result } from 'neverthrow'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import AdminView from '@/views/AdminView.vue'
 import { useAccountStore } from '@/stores/account'
@@ -72,7 +72,7 @@ describe('AdminView — health check validation', () => {
   })
 
   it('runs the validation automatically on mount and shows the in-progress alert while loading', async () => {
-    let resolve: (v: ReturnType<typeof ok<HealthCheckValidation, ApiError>>) => void = () => {}
+    let resolve: (v: Result<HealthCheckValidation, ApiError>) => void = () => {}
     vi.mocked(api.validateHealthCheck).mockReturnValue(new Promise((r) => { resolve = r }))
 
     const wrapper = await mountView()
