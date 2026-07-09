@@ -389,9 +389,16 @@ async function removeLabel(label: string) {
         <div v-if="thread.recipientAddress" class="mt-1 text-sm text-ctp-subtext1">
           <span class="text-ctp-overlay1">Alias:</span> <span class="text-ctp-sapphire">{{ thread.recipientAddress }}</span>
         </div>
-        <!-- Line 4: Secondary badges (workflow, labels) -->
+        <!-- Line 4: Secondary badges (workflow, signal count, labels) -->
         <div class="mt-2 flex flex-wrap items-center gap-1.5">
           <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ thread.workflow }}</span>
+          <span
+            v-if="signalsStore.items.length > 0"
+            class="rounded-full px-2 py-0.5 text-xs font-medium"
+            :class="primaryBadgeClass"
+          >
+            {{ signalsStore.items.length }}{{ signalsStore.hasMore ? '+' : '' }} Signal{{ signalsStore.items.length === 1 && !signalsStore.hasMore ? '' : 's' }}
+          </span>
           <button
             v-for="label in visibleLabels(thread.labels)"
             :key="label"
@@ -419,12 +426,6 @@ async function removeLabel(label: string) {
       >
         Available until {{ availableUntil }}
       </RouterLink>
-
-      <div v-if="signalsStore.items.length > 0" class="mb-2">
-        <span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium" :class="primaryBadgeClass">
-          {{ signalsStore.items.length }}{{ signalsStore.hasMore ? '+' : '' }} Signal{{ signalsStore.items.length === 1 && !signalsStore.hasMore ? '' : 's' }}
-        </span>
-      </div>
 
       <!-- Retention warning (≤30 days) -->
       <RouterLink

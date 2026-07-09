@@ -31,6 +31,9 @@ interface TouchLike {
   preventDefault?: () => void
 }
 
+// Dead-zone (px) the finger must travel before we commit to an axis. Below it,
+// tiny jitter during a tap/long-press is ignored so it doesn't register as a
+// drag; once exceeded we lock to horizontal (swipe) or vertical (list scroll).
 const MOVE_SLOP = 10
 
 export function useSwipeableRow(opts: UseSwipeableRowOptions = {}) {
