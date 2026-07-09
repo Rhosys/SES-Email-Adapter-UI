@@ -225,7 +225,3 @@ Backend routes the frontend already calls (or is already coded to call) that don
 ### UI Consistency
 
 - [ ] **Audit and unify UI patterns across all views** — Investigate inconsistencies in empty states, section headers, spacing, button variants, text hierarchy (title/description/help-text), and interactive element styling across all screens. Define a shared pattern for: empty states (title + description + CTA), settings sections (label + help text + control), list rows (structure, hover states, action positioning), confirmation flows, and loading skeletons. Document the canonical pattern per element type so new screens match automatically. The Rules empty state inconsistency (fixed separately) is an example of the problem — there are likely more.
-
-### Settings & Configuration
-
-- [ ] **Developer section in Settings** — Webhooks will need its own tab. Consider a "Developer" tab (or a collapsible advanced section) rather than adding it directly to the top-level tab bar, so it's easy to fold in related tooling later without more tab sprawl.
