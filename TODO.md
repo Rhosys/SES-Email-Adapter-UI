@@ -130,83 +130,7 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 
 ## Backend routes the frontend calls that must be implemented
 
-These are all `// TODO(backend)` items in `src/lib/api.ts`, consolidated here so they can be ported to `rhosys/ses-email-adapter`.
-
-### Account management
-
-- `POST /accounts` — create a new account (required for self-service onboarding; Step 1 of the onboarding wizard calls this before any domain/alias setup can proceed)
-- `GET /accounts` — list all accounts the authenticated user belongs to (needed for account switcher)
-
-### Threads
-
-- `Thread.senderAddress` / `recipientAddress` / `subject` — should be denormalised from the latest inbound signal onto the thread itself so the frontend doesn't have to join against signals. Currently optional on the frontend type pending this backend work (see `src/types/server.ts`).
-
-### Labels (`/accounts/:id/labels`)
-
-- `GET` — list labels
-- `POST` — create label `{ name, color?, icon? }`
-- `PATCH /:labelId` — update label
-- `DELETE /:labelId` — delete label
-
-### Saved views (`/accounts/:id/views`)
-
-- `GET` — list views
-- `POST` — create view
-- `PATCH /:viewId` — update view
-- `DELETE /:viewId` — delete view
-
-### Rules (`/accounts/:id/rules`)
-
-- `GET` — list rules
-- `POST` — create rule
-- `PATCH /:ruleId` — update rule
-- `DELETE /:ruleId` — delete rule
-
-### Domains (`/accounts/:id/domains`)
-
-- `GET` — list domains (POST and PATCH already implemented)
-
-### Team members (`/accounts/:id/users`)
-
-- `GET` — list team members
-- `POST` — invite `{ email, role }`
-- `PATCH /:userId` — update role
-- `DELETE /:userId` — remove
-
-### Audit log (`/accounts/:id/audit`)
-
-- `GET` — cursor-paginated event list; response shape: `{ events: AuditEvent[], pagination: { cursor: string | null } }`
-
-### Email templates (`/accounts/:id/templates`)
-
-**Resource shapes:**
-```ts
-interface TemplateFunction {
-  name: string  // JS identifier — referenced in body as {{fn.name}}
-  code: string  // full JS expression: (signal, thread) => string
-}
-
-interface EmailTemplate {
-  id: string
-  accountId: string
-  name: string               // display name, e.g. "Order confirmation reply"
-  subject: string            // email subject, may contain {{sender.name}}, {{sender.address}}, {{fn.*}}
-  body: string               // markdown body, same variable set
-  functions: TemplateFunction[]
-  createdAt: string          // ISO 8601
-  updatedAt: string          // ISO 8601
-}
-```
-
-**Endpoints:**
-- `GET /accounts/:id/templates` → `{ templates: EmailTemplate[] }`
-- `POST /accounts/:id/templates` — body `{ name, subject, body, functions }` → `EmailTemplate` (201)
-- `PUT /accounts/:id/templates/:templateId` — full replace → `EmailTemplate`
-- `DELETE /accounts/:id/templates/:templateId` → 204
-
-### Quarantine response
-
-- `POST /accounts/:id/signals/:signalId/quarantineResponse` — body `{ status: 'active' | 'block_hidden' | 'block_reject' }`
+Backend routes the frontend already calls (or is already coded to call) that don't exist yet, consolidated here so they can be ported to `rhosys/ses-email-adapter`. (Account management, Threads denormalization, Labels, Saved views, Rules, Domains, Team members, Audit log, Email templates, and Quarantine response were all in this list previously — verified against the backend's OpenAPI spec and removed as already implemented.)
 
 ### Billing / Stripe
 
@@ -304,4 +228,4 @@ interface EmailTemplate {
 
 ### Settings & Configuration
 
-- [ ] **Developer section in Settings** — Webhooks and API Keys will need their own tabs. To avoid tab sprawl, consider grouping them under a "Developer" tab with sub-sections, or a collapsible advanced section.
+- [ ] **Developer section in Settings** — Webhooks will need its own tab. Consider a "Developer" tab (or a collapsible advanced section) rather than adding it directly to the top-level tab bar, so it's easy to fold in related tooling later without more tab sprawl.
