@@ -330,6 +330,17 @@ const iframeStyle = {
             >⚠ Possible spam</span
           >
         </div>
+        <div
+          v-if="replyToLabel"
+          class="flex items-center gap-1 pl-4 text-xs text-ctp-peach"
+          title="Sender Requires Alternative Reply To Address"
+        >
+          <svg class="inline h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 5 V10 a3 3 0 0 0 3 3 H18" />
+            <path d="M15 9 l4 4 -4 4" />
+          </svg>
+          <span class="min-w-0 truncate">{{ replyToLabel }}</span>
+        </div>
         <div v-if="isEmailSignal(signal) && signal.data.to.length > 0" class="text-xs">
           <span class="text-ctp-subtext0">To:</span> <span class="text-ctp-text">{{ signal.data.to.map((a) => a.name ?? a.address).join(', ') }}</span>
         </div>
@@ -339,7 +350,6 @@ const iframeStyle = {
         <div v-if="isBcc" class="text-xs font-medium text-ctp-red">
           ⚠ BCC — alias not in To or CC
         </div>
-        <div v-if="replyToLabel" class="text-xs text-ctp-peach" title="Reply-To differs from sender">↩ {{ replyToLabel }}</div>
         <div v-if="envelopeSender" class="flex items-center gap-1 text-xs text-ctp-subtext0" :title="`Envelope: ${envelopeSender}`"><svg class="inline h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> 🛡 Secured by: {{ envelopeSender }}</div>
         <div v-if="attachmentCount > 0" class="text-xs text-ctp-subtext0" :title="`${attachmentCount} attachment${attachmentCount > 1 ? 's' : ''}`">📎 {{ attachmentCount }}</div>
         <div class="text-xs text-ctp-subtext0">{{ sentAt }}</div>
