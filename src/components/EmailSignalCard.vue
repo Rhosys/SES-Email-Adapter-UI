@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Attachment, Signal } from '@/types/server'
 import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
@@ -8,10 +8,10 @@ import { isAdminUser } from '@/stores/admin'
 import { useRulesStore } from '@/stores/rules'
 import { useSignalsStore } from '@/stores/signals'
 import { api } from '@/lib/api'
-import { useGestureHandler } from '@/composables/useGestureHandler'
 import { EMAIL_PREVIEW_MODES, getEmailPreviewMode } from '@/utils/emailPreviewModes'
 import ActionBadge from '@/components/ActionBadge.vue'
 import CopyMenuItem from '@/components/CopyMenuItem.vue'
+import OverflowMenu from '@/components/ui/OverflowMenu.vue'
 
 const props = withDefaults(defineProps<{ signal: Signal; defaultExpanded?: boolean }>(), { defaultExpanded: true })
 const emit = defineEmits<{ undo: []; reply: []; reprocessed: [] }>()
@@ -21,7 +21,6 @@ const accountStore = useAccountStore()
 const rulesStore = useRulesStore()
 const signalsStore = useSignalsStore()
 const expanded = ref(props.defaultExpanded)
-const menuOpen = ref(false)
 const reprocessing = ref(false)
 const reprocessError = ref<string | null>(null)
 const undoPending = ref(false)
@@ -39,7 +38,6 @@ function ruleFor(ruleId: string) {
 }
 
 function showMatchedRules() {
-  menuOpen.value = false
   showMatchedRulesModal.value = true
 }
 
@@ -143,7 +141,6 @@ const originalLoading = ref(false)
 const originalError = ref<string | null>(null)
 
 function viewRawSignal() {
-  menuOpen.value = false
   if (!isEmailSignal(props.signal)) return
   const d = props.signal.data
   const lines: string[] = []
@@ -162,7 +159,6 @@ function viewRawSignal() {
 }
 
 function viewOriginalEmail() {
-  menuOpen.value = false
   showOriginalModal.value = true
   originalError.value = null
 
@@ -204,7 +200,6 @@ const sentAt = computed(() => {
 })
 
 async function undoSend() {
-  menuOpen.value = false
   if (!accountStore.accountId || !props.signal.threadId || undoPending.value) return
   undoPending.value = true
   undoError.value = null
@@ -218,7 +213,6 @@ async function undoSend() {
 }
 
 async function reprocessSignal() {
-  menuOpen.value = false
   if (!accountStore.accountId || !props.signal.threadId || reprocessing.value) return
   reprocessing.value = true
   reprocessError.value = null
@@ -295,57 +289,18 @@ const emailSrcDoc = computed(() => {
   return getEmailPreviewMode(previewModeId.value).wrap(props.signal.data.body)
 })
 
-// --- Gesture / zoom for the email body iframe ---
+// --- Email body iframe ---
 //
-// Touch events that start inside the iframe don't bubble to the parent document,
-// so a transparent overlay div captures all gestures.
-//
-// Supported gestures:
-//   • Pinch open/close  — zoom email content (1× – 4×)
-//   • Double-tap        — zoom to 2.5× centred on tap, or reset to 1×
-//   • Single-finger pan — pan while zoomed (page scroll when at 1×)
-//   • Swipe down        — collapse the email card (unzoomed only)
-
-const gestureOverlayRef = ref<HTMLElement | null>(null)
-
-const {
-  scale: emailScale,
-  translateX: emailTx,
-  translateY: emailTy,
-  isGesturing: emailIsGesturing,
-  reset: resetEmailZoom,
-} = useGestureHandler(gestureOverlayRef, {
-  // onSingleTap intentionally omitted: forwarding clicks to a sandboxed iframe via
-  // pointer-events:none is unreliable on modern browsers because the synthetic click
-  // fires in < 50 ms (before the style change lands). Links inside the email body
-  // work normally with a mouse on desktop; touch link clicks are a known limitation
-  // of the overlay-over-iframe approach.
-
-  onDoubleTap: (cx, cy) => {
-    if (emailScale.value > 1) {
-      resetEmailZoom()
-      return
-    }
-    const el = gestureOverlayRef.value
-    if (!el) return
-    const newScale = 2.5
-    const w = el.offsetWidth
-    const h = el.offsetHeight
-    // Keep the tapped point fixed: translate so cx stays at cx after scaling
-    emailTx.value = Math.max(w * (1 - newScale), Math.min(0, cx - cx * newScale))
-    emailTy.value = Math.max(h * (1 - newScale), Math.min(0, cy - cy * newScale))
-    emailScale.value = newScale
-  },
-
-  onSwipe: (dir) => {
-    if (dir === 'down') expanded.value = false
-  },
-})
-
-// Reset zoom whenever the card is collapsed
-watch(expanded, (v) => { if (!v) resetEmailZoom() })
-
-const iframeStyle = computed(() => ({
+// The iframe is left to the browser's native touch handling: single-finger
+// scrolling, link taps, and text selection all work because nothing sits on
+// top of it. Pinch-to-zoom is the browser's native page zoom (the app viewport
+// permits user scaling), so the email magnifies without any custom gesture
+// layer. An earlier version wrapped the iframe in a transparent overlay to run
+// a custom pinch/double-tap/swipe system, but that overlay swallowed every
+// native touch — the source of the "can't scroll/tap/select" bug — and could
+// not be made to pass single-finger touches through while still catching a
+// pinch (touches starting inside a sandboxed iframe never reach the parent).
+const iframeStyle = {
   // Scales with viewport height (capped at 650px) instead of a fixed floor,
   // so the card doesn't dwarf small mobile viewports; dvh accounts for
   // mobile browser chrome that 100vh ignores.
@@ -353,31 +308,7 @@ const iframeStyle = computed(() => ({
   maxHeight: 'calc(100dvh - 160px)',
   border: 'none',
   display: 'block',
-  transformOrigin: '0 0',
-  transform: `translate(${emailTx.value}px, ${emailTy.value}px) scale(${emailScale.value})`,
-  // Suppress transition during active gestures to avoid input lag
-  transition: emailIsGesturing.value ? 'none' : 'transform 0.25s ease-out',
-  willChange: 'transform',
-}))
-
-// pan-y: let the page scroll normally when at natural scale;
-// none: we own all touch handling when zoomed in
-const overlayTouchAction = computed(() => (emailScale.value > 1 ? 'none' : 'pan-y'))
-
-// The overlay must stay interactive on touch devices at every scale — it's the
-// only way to catch the pinch/double-tap that *initiates* a zoom, since touches
-// starting inside the sandboxed iframe don't bubble to the parent document. On
-// mouse-only (fine pointer) devices it's pointer-events:none instead, so links
-// and text inside the email stay directly clickable/selectable — the gesture
-// system is touch-only and has no mouse-drag equivalent to offer them.
-const overlayPointerEvents =
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(pointer: coarse)').matches
-    ? 'auto'
-    : 'none'
-
-const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toFixed(1)}×`)
+}
 </script>
 
 <template>
@@ -418,84 +349,55 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
       <span v-if="undoError" class="mt-1 shrink-0 text-xs text-ctp-red">{{ undoError }}</span>
 
       <!-- Overflow menu -->
-      <div class="relative shrink-0 self-start">
+      <OverflowMenu
+        class="shrink-0 self-start"
+        label="Signal actions"
+        sheet-title="Signal actions"
+      >
         <button
-          class="flex h-9 w-9 items-center justify-center rounded-lg text-ctp-subtext0 transition-colors hover:bg-ctp-surface1 hover:text-ctp-text"
-          aria-label="Signal actions"
-          aria-haspopup="true"
-          :aria-expanded="menuOpen"
-          @click.stop="menuOpen = !menuOpen"
+          class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
+          role="menuitem"
+          @click="viewRawSignal"
         >
-          <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <circle cx="8" cy="2.5" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="8" cy="13.5" r="1.5" />
-          </svg>
+          Show headers
         </button>
-
-        <div
-          v-if="menuOpen"
-          class="absolute right-0 top-full z-20 min-w-48 rounded-lg border border-ctp-surface1 bg-ctp-mantle py-1.5 shadow-lg"
-          role="menu"
+        <button
+          v-if="isEmailSignal(signal)"
+          class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
+          role="menuitem"
+          @click="viewOriginalEmail"
         >
-          <button
-            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
-            role="menuitem"
-            @click="viewRawSignal"
-          >
-            Show headers
-          </button>
-          <button
-            v-if="isEmailSignal(signal)"
-            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
-            role="menuitem"
-            @click="viewOriginalEmail"
-          >
-            View original email
-          </button>
-          <button
-            v-if="signalMatchedRules.length"
-            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
-            role="menuitem"
-            @click="showMatchedRules"
-          >
-            Show matched rules
-          </button>
-          <CopyMenuItem
-            class="px-4"
-            :value="signal.signalId"
-            label="Signal ID"
-            @click="menuOpen = false"
-          />
-          <CopyMenuItem
-            v-if="threadId"
-            class="px-4"
-            :value="threadId"
-            label="Thread ID"
-            @click="menuOpen = false"
-          />
-          <button
-            v-if="isUserSent"
-            :disabled="undoPending"
-            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0 disabled:opacity-50"
-            role="menuitem"
-            @click="undoSend"
-          >
-            {{ undoPending ? 'Undoing…' : 'Undo send' }}
-          </button>
-          <button
-            v-if="isAdminUser()"
-            :disabled="reprocessing"
-            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text disabled:opacity-50"
-            role="menuitem"
-            @click="reprocessSignal"
-          >
-            {{ reprocessing ? 'Reprocessing…' : '[Admin] Reprocess' }}
-          </button>
-        </div>
-
-        <!-- Click-outside backdrop -->
-        <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -->
-        <div v-if="menuOpen" class="fixed inset-0 z-10" @click="menuOpen = false" />
-      </div>
+          View original email
+        </button>
+        <button
+          v-if="signalMatchedRules.length"
+          class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
+          role="menuitem"
+          @click="showMatchedRules"
+        >
+          Show matched rules
+        </button>
+        <CopyMenuItem class="px-4" :value="signal.signalId" label="Signal ID" />
+        <CopyMenuItem v-if="threadId" class="px-4" :value="threadId" label="Thread ID" />
+        <button
+          v-if="isUserSent"
+          :disabled="undoPending"
+          class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0 disabled:opacity-50"
+          role="menuitem"
+          @click="undoSend"
+        >
+          {{ undoPending ? 'Undoing…' : 'Undo send' }}
+        </button>
+        <button
+          v-if="isAdminUser()"
+          :disabled="reprocessing"
+          class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text disabled:opacity-50"
+          role="menuitem"
+          @click="reprocessSignal"
+        >
+          {{ reprocessing ? 'Reprocessing…' : '[Admin] Reprocess' }}
+        </button>
+      </OverflowMenu>
     </div>
 
     <!-- Email body -->
@@ -520,7 +422,33 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
           Reprocessing failed: {{ reprocessError }}
         </div>
         <div v-else-if="signal.data.body">
-          <div class="relative overflow-y-auto bg-white min-h-[min(650px,60dvh)] max-h-[calc(100dvh-160px)]" data-testid="email-body-container">
+          <!-- Native touch handling: no overlay sits on the iframe, so scroll,
+               link taps, text selection and pinch-to-zoom all work directly. -->
+          <div class="overflow-y-auto bg-white min-h-[min(650px,60dvh)] max-h-[calc(100dvh-160px)]" data-testid="email-body-container">
+            <!--
+              SECURITY — the sandbox below renders UNTRUSTED email HTML. Do not
+              add `allow-scripts` or `allow-same-origin` (enforced by
+              EmailSignalCard.sandbox.test.ts). Why each is dangerous here:
+
+              • allow-scripts — lets the email run arbitrary JS in the user's
+                session. That alone is an XSS; combined with allow-same-origin it
+                also lets the frame delete its own sandbox and fully escape.
+
+              • allow-same-origin — makes this srcdoc frame share the app's
+                origin instead of a unique opaque one. Two consequences:
+                (1) our cookies are on this domain, and a same-origin frame is
+                treated as SAME-SITE, so `SameSite=Lax/Strict` cookies would be
+                attached to any request the email triggers (e.g. `<img src>`,
+                CSS url()) — a credentialed CSRF vector, no JS required, and
+                HttpOnly does not help (the browser still sends the cookie).
+                Today the opaque origin is cross-site, so SameSite blocks this.
+                (2) it grants the frame access to same-origin storage/DOM (only
+                reachable via script, but it removes the second safety net).
+
+              The one feature these would have bought — pinch-to-zoom scoped to
+              just the email — is intentionally NOT worth this exposure. Pinch
+              uses the browser's native page zoom instead. See PR #47 discussion.
+            -->
             <iframe
               :srcdoc="emailSrcDoc"
               sandbox="allow-popups allow-popups-to-escape-sandbox"
@@ -530,40 +458,6 @@ const zoomLabel = computed(() => `${(Math.round(emailScale.value * 10) / 10).toF
               title="Email content"
               @load="fitHeight"
             />
-
-            <!-- Transparent gesture capture overlay. Always mounted — it must be
-                 present at 1× to capture the pinch/double-tap that initiates a
-                 zoom in the first place. touch-action toggles between 'pan-y'
-                 (native scroll, JS still gets pinch) and 'none' (JS owns pan)
-                 depending on scale.
-                 Touch events that start inside a sandboxed iframe don't bubble
-                 to the parent document, so this overlay captures gestures. -->
-            <div
-              ref="gestureOverlayRef"
-              class="absolute inset-0"
-              :style="{ touchAction: overlayTouchAction, pointerEvents: overlayPointerEvents }"
-              :data-h-swipe="emailScale > 1 ? '' : undefined"
-              aria-hidden="true"
-            />
-
-            <!-- Zoom controls — z-index above overlay so they receive clicks directly -->
-            <div
-              v-if="emailScale > 1"
-              class="absolute right-2 top-2 z-20 flex items-center gap-1.5"
-            >
-              <span
-                class="rounded-full bg-ctp-surface0/80 px-2 py-0.5 text-xs text-ctp-subtext1 backdrop-blur-sm"
-                aria-live="polite"
-                aria-label="Current zoom level"
-              >{{ zoomLabel }}</span>
-              <button
-                class="rounded-full bg-ctp-surface0/80 px-2 py-0.5 text-xs text-ctp-text backdrop-blur-sm hover:bg-ctp-surface1/90 active:bg-ctp-surface2"
-                aria-label="Reset zoom to 100%"
-                @click="resetEmailZoom"
-              >
-                Reset
-              </button>
-            </div>
           </div>
 
           <!-- TEMP: mobile-overflow A/B testing harness — remove this block

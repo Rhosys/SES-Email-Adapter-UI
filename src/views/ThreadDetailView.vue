@@ -20,6 +20,7 @@ import PendingSendCard from '@/components/PendingSendCard.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import CopyMenuItem from '@/components/CopyMenuItem.vue'
+import OverflowMenu from '@/components/ui/OverflowMenu.vue'
 import SenderInfoPopup from '@/components/SenderInfoPopup.vue'
 import type { Thread } from '@/types/server'
 
@@ -33,7 +34,6 @@ const { showUndo } = useToast()
 const { hideWithDefer } = useDeferredHide()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
-const overflowOpen = ref(false)
 const showSenderPopup = ref(false)
 const threadData = ref<Thread | null>(null)
 
@@ -295,49 +295,34 @@ async function removeLabel(label: string) {
         </AsyncButton>
 
         <!-- Overflow menu -->
-        <div v-if="thread.status !== 'deleted'" class="relative">
+        <OverflowMenu
+          v-if="thread.status !== 'deleted'"
+          label="More actions"
+          menu-width-class="w-44"
+          sheet-title="Thread actions"
+          trigger-class="flex h-8 w-8 items-center justify-center rounded border border-ctp-surface1 text-ctp-subtext1 hover:border-ctp-overlay0 hover:text-ctp-text"
+        >
+          <CopyMenuItem class="px-3" :value="threadId" label="Thread ID" />
+          <button
+            v-if="senderDomain && thread.recipientAddress"
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0"
+            @click="blockSender()"
+          >
+            <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M4.5 4.5l7 7"/></svg>
+            Block sender
+          </button>
           <button
             type="button"
-            class="flex h-8 w-8 items-center justify-center rounded border border-ctp-surface1 text-ctp-subtext1 hover:border-ctp-overlay0 hover:text-ctp-text"
-            aria-label="More actions"
-            @click="overflowOpen = !overflowOpen"
+            role="menuitem"
+            class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0"
+            @click="deleteThread()"
           >
-            <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-              <circle cx="8" cy="3" r="1.5" />
-              <circle cx="8" cy="8" r="1.5" />
-              <circle cx="8" cy="13" r="1.5" />
-            </svg>
+            <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
+            Delete thread
           </button>
-          <div
-            v-if="overflowOpen"
-            role="menu"
-            tabindex="-1"
-            class="absolute right-0 top-full z-10 mt-1 w-44 rounded-lg border border-ctp-surface0 bg-ctp-base py-1 shadow-lg"
-            @click="overflowOpen = false"
-            @keydown.escape="overflowOpen = false"
-          >
-            <CopyMenuItem class="px-3" :value="threadId" label="Thread ID" />
-            <button
-              v-if="senderDomain && thread.recipientAddress"
-              type="button"
-              role="menuitem"
-              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0"
-              @click="blockSender()"
-            >
-              <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M4.5 4.5l7 7"/></svg>
-              Block sender
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0"
-              @click="deleteThread()"
-            >
-              <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
-              Delete thread
-            </button>
-          </div>
-        </div>
+        </OverflowMenu>
       </div>
     </div>
 
