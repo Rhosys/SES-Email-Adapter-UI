@@ -1,5 +1,13 @@
 # SES Email Adapter UI — Build Plan
 
+> **Priority order:** within a section, and across sections, items are listed top-to-bottom in priority order. Work the first unchecked item before later ones unless told otherwise.
+
+## Next up
+
+- [ ] **Identity store** — `loginClient.getUserIdentity()` is called and stored in a local `ref<Identity | null>` independently in `UserAvatar.vue`, `AppNavbar.vue`, and `SettingsView.vue` (three copies of the same `picture`/`displayName`/`userId`/`email` computeds). Extract into `src/stores/identity.ts`, following the same per-account cached-store pattern as `stats.ts` (see "Adopt cached per-account store pattern everywhere" below).
+
+---
+
 ## Frontend fields requiring backend support
 
 Fields that the old frontend used but the backend doesn't provide. Removed during the API contract reconciliation (spec: `api-contract-reconciliation`).
@@ -79,7 +87,6 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 
 `src/stores/stats.ts` is the reference implementation: a per-account cache keyed off `accountStore.accountId`, a computed that always returns a populated default (never `null`), and a `fetch*()` that only shows a loading state on the first fetch — revisits show the cached value immediately while refreshing in the background. Several places still fetch directly in the component with a local `ref<T | null>(null)`, which means no cache between mounts and `null`-guards sprinkled through templates. Port these to stores following the same shape:
 
-- [ ] **Identity store** — `loginClient.getUserIdentity()` is called and stored in a local `ref<Identity | null>` independently in `UserAvatar.vue`, `AppNavbar.vue`, and `SettingsView.vue` (three copies of the same `picture`/`displayName`/`userId`/`email` computeds). Extract into `src/stores/identity.ts`.
 - [ ] **Billing store** — `BillingView.vue` holds `account`/`billing` as local nullable refs and refetches both (`api.getAccount` + `api.getBilling`) on every mount with no cache; `account` also duplicates data already in `accountStore`. Extract `billing` into a store; drop the redundant `api.getAccount` call in favor of `accountStore.account`.
 - [ ] **Settings sub-resource stores** — `SettingsView.vue` fetches `aliases`, `domains`, `forwarding`, `team`, and `securityDevices` directly into local refs with no caching layer, unlike `labels`/`threads`/`rules` which already have stores. Extract each into its own store (or one `settings` store with sub-state) so switching tabs doesn't always refetch.
 
@@ -106,8 +113,6 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 ### Extensibility & integrations
 
 - [ ] **Webhooks UI in Settings** — outbound webhook subscriptions so users can pipe thread events into Slack, Discord, or Linear without writing custom code. New tab in the Settings view. Requires backend (see Backend TODOs — Webhooks).
-
-- [ ] **API keys management** — list, create (with one-time secret reveal), and revoke keys. New tab in Settings or Profile. Requires backend (see Backend TODOs — API keys).
 
 ---
 
