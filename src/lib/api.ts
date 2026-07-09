@@ -659,7 +659,7 @@ export const api = {
 
   // ─── Health check validation (admin) ─────────────────────────────────────
   validateHealthCheck(): Promise<Result<HealthCheckValidation, ApiError>> {
-    return request<HealthCheckValidation>('/healthcheck/validate', { method: 'POST' })
+    return request<HealthCheckValidation>('/healthcheck')
   },
 
   async getRawEmail(accountId: string, threadId: string, signalId: string): Promise<Result<string, ApiError>> {

@@ -211,8 +211,8 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
     }}
   }
 
-  // POST /healthcheck/validate — admin health check validation
-  if (method === 'POST' && match('/healthcheck/validate', url)) {
+  // GET /healthcheck — admin health check validation
+  if (method === 'GET' && match('/healthcheck', url)) {
     return {
       status: 200,
       body: {
