@@ -795,7 +795,6 @@ export interface HealthCheckItem {
 export interface HealthCheckValidation {
   status: HealthCheckStatus
   checkedDate: string
-  messageId: string
   checkedAt: string
   checks: HealthCheckItem[]
 }

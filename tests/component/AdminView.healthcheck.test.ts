@@ -27,11 +27,9 @@ function mockValidation(overrides: Partial<HealthCheckValidation> = {}): HealthC
   return {
     status: 'fail',
     checkedDate: '2026-07-08',
-    messageId: 'healthcheck-2026-07-08@platform.email.rhosys.cloud',
     checkedAt: '2026-07-09T00:00:00.000Z',
     checks: [
-      { id: 'signal-received', label: 'Healthcheck email received', status: 'pass' },
-      { id: 'thread-assigned', label: 'Thread assigned to signal', status: 'pass' },
+      { id: 'thread-created', label: 'Healthcheck thread created', status: 'pass' },
       { id: 'workflow-classified', label: 'Classified as healthcheck workflow', status: 'pass' },
       { id: 'embedding-indexed', label: 'Embedding indexed for search', status: 'fail', detail: 'No embedding found.' },
     ],
@@ -93,7 +91,7 @@ describe('AdminView — health check validation', () => {
     await flushPromises()
 
     const items = wrapper.findAll('li')
-    const healthItems = items.filter((li) => li.text().includes('Healthcheck email received')
+    const healthItems = items.filter((li) => li.text().includes('Healthcheck thread created')
       || li.text().includes('Embedding indexed for search'))
     expect(healthItems.length).toBeGreaterThanOrEqual(2)
 
