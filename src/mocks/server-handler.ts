@@ -218,11 +218,9 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
       body: {
         status: 'fail',
         checkedDate: '2026-07-08',
-        messageId: 'healthcheck-2026-07-08@platform.email.rhosys.cloud',
         checkedAt: new Date().toISOString(),
         checks: [
-          { id: 'signal-received', label: 'Healthcheck email received', status: 'pass' },
-          { id: 'thread-assigned', label: 'Thread assigned to signal', status: 'pass' },
+          { id: 'thread-created', label: 'Healthcheck thread created', status: 'pass' },
           { id: 'workflow-classified', label: 'Classified as healthcheck workflow', status: 'pass' },
           { id: 'embedding-indexed', label: 'Embedding indexed for search', status: 'fail', detail: 'No embedding found in the search index for this thread.' },
         ],
