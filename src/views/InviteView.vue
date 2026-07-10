@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { loginClient } from '@/lib/auth'
-import logger from '@/lib/logger'
-
-const router = useRouter()
 
 const state = ref<'loading' | 'error'>('loading')
 const errorMessage = ref('')
@@ -38,27 +34,14 @@ onMounted(async () => {
     return
   }
 
-  // Check for existing session (also processes any OAuth callback tokens)
-  let hasSession = false
-  try {
-    hasSession = await loginClient.userSessionExists()
-  } catch (e) {
-    // network error — fall through to authenticate
-    logger.warn({ title: 'Invite: session check failed', error: e })
-  }
+  const basePath = import.meta.env.VITE_BASE_PATH ?? '/'
+  const redirectUrl = `${window.location.origin}${basePath}login`
 
-  if (hasSession) {
-    await router.replace('/')
-    return
-  }
-
-  // Kick off the Authress invite-acceptance login flow
   try {
     await loginClient.authenticate({
       inviteId,
-      redirectUrl: window.location.href,
+      redirectUrl,
     })
-    // authenticate() redirects — code below only runs if it returns without redirecting
   } catch (err: unknown) {
     const status = (err as { status?: number; statusCode?: number })?.status ??
       (err as { status?: number; statusCode?: number })?.statusCode

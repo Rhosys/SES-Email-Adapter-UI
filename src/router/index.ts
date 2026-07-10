@@ -148,8 +148,8 @@ export const router = createRouter({
 
     // Invite accept — unauthenticated so the nav guard doesn't redirect before login
     {
-      path: '/invite',
-      name: 'invite',
+      path: '/registration',
+      name: 'registration',
       component: () => import('@/views/InviteView.vue'),
     },
   ],
@@ -177,7 +177,7 @@ const ROUTE_TITLES: Record<string, string> = {
   onboarding: 'Setup',
   terms: 'Terms of service',
   privacy: 'Privacy policy',
-  invite: 'Accept invitation',
+  registration: 'Accept invitation',
 }
 
 const APP_NAME = 'SES Email Adapter'
