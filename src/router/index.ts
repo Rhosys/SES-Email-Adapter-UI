@@ -152,6 +152,11 @@ export const router = createRouter({
       name: 'invite',
       component: () => import('@/views/InviteView.vue'),
     },
+    {
+      path: '/registration',
+      name: 'registration',
+      component: () => import('@/views/InviteView.vue'),
+    },
   ],
 })
 
@@ -178,6 +183,7 @@ const ROUTE_TITLES: Record<string, string> = {
   terms: 'Terms of service',
   privacy: 'Privacy policy',
   invite: 'Accept invitation',
+  registration: 'Accept invitation',
 }
 
 const APP_NAME = 'SES Email Adapter'
