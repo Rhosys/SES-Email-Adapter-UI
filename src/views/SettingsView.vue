@@ -17,6 +17,7 @@ import FilterModeModal from '@/components/ui/FilterModeModal.vue'
 import OverflowMenu from '@/components/ui/OverflowMenu.vue'
 import SettingsTabBar from '@/components/settings/SettingsTabBar.vue'
 import BillingPanel from '@/components/settings/BillingPanel.vue'
+import DnsSetupDialog from '@/components/settings/DnsSetupDialog.vue'
 import BuildInfo from '@/components/BuildInfo.vue'
 import UserAvatarIcon from '@/components/UserAvatarIcon.vue'
 import { useGestureHandler } from '@/composables/useGestureHandler'
@@ -418,6 +419,7 @@ const domainsLoading = ref(false)
 const newDomain = ref('')
 const addDomainPending = ref(false)
 const recheckPending = ref<Set<string>>(new Set())
+const dnsSetupDomain = ref<(Domain & { records?: DnsRecord[] }) | null>(null)
 const senderPolicyModal = ref<{ open: boolean; aliasAddress: string; senderDomain: string; currentPolicy: SenderPolicy }>({
   open: false, aliasAddress: '', senderDomain: '', currentPolicy: 'allow',
 })
@@ -435,10 +437,32 @@ async function addDomain() {
   addDomainPending.value = true
   const result = await api.addDomain(accountStore.accountId, { domain: newDomain.value.trim() })
   addDomainPending.value = false
-  if (result.isOk()) {
-    domains.value = [...domains.value, result.value]
-    newDomain.value = ''
+  if (result.isErr()) return
+  const added = result.value
+  domains.value = [...domains.value, added]
+  newDomain.value = ''
+  // Fetch DNS records and open setup dialog
+  const detail = await api.recheckDomain(accountStore.accountId, added.domainId)
+  if (detail.isOk()) {
+    const updated = detail.value
+    domains.value = domains.value.map((d) => (d.domainId === added.domainId ? updated : d))
+    dnsSetupDomain.value = updated
+  } else {
+    dnsSetupDomain.value = added
   }
+}
+
+async function openDnsSetup(domain: Domain & { records?: DnsRecord[] }) {
+  if (!accountStore.accountId) return
+  if (!domain.records?.length) {
+    const result = await api.recheckDomain(accountStore.accountId, domain.domainId)
+    if (result.isOk()) {
+      domains.value = domains.value.map((d) => (d.domainId === domain.domainId ? result.value : d))
+      dnsSetupDomain.value = result.value
+      return
+    }
+  }
+  dnsSetupDomain.value = domain
 }
 
 async function recheckDomain(domainId: string) {
@@ -448,6 +472,9 @@ async function recheckDomain(domainId: string) {
   recheckPending.value = new Set([...recheckPending.value].filter((id) => id !== domainId))
   if (result.isOk()) {
     domains.value = domains.value.map((d) => (d.domainId === domainId ? result.value : d))
+    if (dnsSetupDomain.value?.domainId === domainId) {
+      dnsSetupDomain.value = result.value
+    }
   }
 }
 
@@ -483,12 +510,6 @@ async function deleteDomain(domainId: string) {
   }, 8000, {
     onUndo: () => { domains.value = [...domains.value, domainObj] },
   })
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  verified: 'text-ctp-green',
-  pending: 'text-ctp-yellow',
-  failing: 'text-ctp-red',
 }
 
 // ─── Forwarding addresses tab ─────────────────────────────────────────────────
@@ -567,18 +588,6 @@ async function signOut() {
   // Land on the public site root (the marketing/landing page), not the app's
   // deploy base path — a signed-out user has nothing to see inside the app.
   await logout(`${window.location.origin}/`)
-}
-
-// ─── DNS copy-to-clipboard ───────────────────────────────────────────────────
-const copiedDns = ref<Set<string>>(new Set())
-
-function copyDnsValue(key: string, value: string) {
-  void navigator.clipboard.writeText(value).then(() => {
-    copiedDns.value = new Set([...copiedDns.value, key])
-    setTimeout(() => {
-      copiedDns.value = new Set([...copiedDns.value].filter((k) => k !== key))
-    }, 1500)
-  })
 }
 
 async function loadTeam() {
@@ -1718,63 +1727,37 @@ useGestureHandler(settingsContentRef, {
                     </span>
                   </div>
                 </div>
-                <AsyncButton
-                  v-if="!domain.receivingSetupComplete || !domain.senderSetupComplete"
-                  :action="() => recheckDomain(domain.domainId)"
-                  variant="outline"
-                  class="px-3 py-1.5 text-xs text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
-                >
-                  Re-check DNS
-                </AsyncButton>
-                <OverflowMenu
-                  :label="`Actions for ${domain.domain}`"
-                  :sheet-title="domain.domain"
-                  menu-width-class="w-36"
-                  trigger-class="rounded-lg border border-ctp-surface1 px-2 py-1.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
-                >
+                <div class="flex items-center gap-2">
                   <button
                     type="button"
-                    role="menuitem"
-                    class="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-ctp-red hover:bg-ctp-red/10"
-                    @click="deleteDomain(domain.domainId)"
+                    class="rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
+                    @click="openDnsSetup(domain)"
                   >
-                    Delete domain
+                    DNS Setup
                   </button>
-                </OverflowMenu>
-              </div>
-              <!-- DNS records -->
-              <div v-if="domain.records?.length" class="border-t border-ctp-surface0">
-                <div
-                  v-for="(rec, i) in domain.records"
-                  :key="i"
-                  class="border-b border-ctp-surface0/50 px-4 py-2 last:border-0"
-                >
-                  <div class="flex items-start justify-between gap-4">
-                    <div class="min-w-0 flex-1">
-                      <div class="flex items-center gap-2">
-                        <span class="shrink-0 rounded bg-ctp-surface1 px-1.5 py-0.5 font-mono text-xs text-ctp-subtext0">{{ rec.type }}</span>
-                        <span class="truncate font-mono text-xs text-ctp-text">{{ rec.name }}</span>
-                      </div>
-                      <p class="mt-1 break-all font-mono text-xs text-ctp-subtext0">
-                        <span class="text-ctp-subtext1">Expected:</span> {{ rec.value }}
-                      </p>
-                      <p v-if="rec.currentValue" class="mt-0.5 break-all font-mono text-xs text-ctp-subtext0">
-                        <span class="text-ctp-subtext1">Current:</span> {{ rec.currentValue }}
-                      </p>
-                    </div>
-                    <div class="flex shrink-0 items-center gap-2">
-                      <span class="text-xs" :class="STATUS_COLORS[rec.status] ?? 'text-ctp-subtext0'">
-                        {{ rec.status }}
-                      </span>
-                      <button
-                        class="rounded border border-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
-                        :title="`Copy ${rec.type} value`"
-                        @click="copyDnsValue(`${domain.domainId}-${i}`, rec.value)"
-                      >
-                        {{ copiedDns.has(`${domain.domainId}-${i}`) ? '✓' : 'Copy' }}
-                      </button>
-                    </div>
-                  </div>
+                  <AsyncButton
+                    v-if="!domain.receivingSetupComplete || !domain.senderSetupComplete"
+                    :action="() => recheckDomain(domain.domainId)"
+                    variant="outline"
+                    class="px-3 py-1.5 text-xs text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
+                  >
+                    Re-check DNS
+                  </AsyncButton>
+                  <OverflowMenu
+                    :label="`Actions for ${domain.domain}`"
+                    :sheet-title="domain.domain"
+                    menu-width-class="w-36"
+                    trigger-class="rounded-lg border border-ctp-surface1 px-2 py-1.5 text-xs text-ctp-subtext0 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-ctp-red hover:bg-ctp-red/10"
+                      @click="deleteDomain(domain.domainId)"
+                    >
+                      Delete domain
+                    </button>
+                  </OverflowMenu>
                 </div>
               </div>
             </div>
@@ -1936,6 +1919,14 @@ useGestureHandler(settingsContentRef, {
       :modes="SENDER_POLICIES"
       @select="(mode) => { updateSenderPolicy(senderPolicyModal.aliasAddress, senderPolicyModal.senderDomain, mode as SenderPolicy); senderPolicyModal = { ...senderPolicyModal, open: false } }"
       @close="senderPolicyModal = { ...senderPolicyModal, open: false }"
+    />
+
+    <DnsSetupDialog
+      :open="dnsSetupDomain !== null"
+      :domain="dnsSetupDomain"
+      :recheck-pending="dnsSetupDomain ? recheckPending.has(dnsSetupDomain.domainId) : false"
+      @recheck="dnsSetupDomain && recheckDomain(dnsSetupDomain.domainId)"
+      @close="dnsSetupDomain = null"
     />
 
     <!-- Add alias modal -->

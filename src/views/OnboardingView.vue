@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import logger from '@/lib/logger'
 import type { DnsRecord, RetentionDuration } from '@/types/server'
 import CopyInput from '@/components/CopyInput.vue'
+import DnsRecordList from '@/components/DnsRecordList.vue'
 import AppNavbar from '@/components/AppNavbar.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import FireworksDisplay from '@/components/FireworksDisplay.vue'
@@ -276,12 +277,6 @@ async function recheckDns() {
   recheckingDns.value = false
 }
 
-const DNS_STATUS_COLORS: Record<string, string> = {
-  verified: 'text-ctp-green',
-  failing:  'text-ctp-red',
-  pending:  'text-ctp-subtext0',
-}
-
 async function changeDomain() {
   if (!accountStore.accountId || !domainId.value) return
   await api.deleteDomain(accountStore.accountId, domainId.value)
@@ -512,67 +507,25 @@ onUnmounted(() => {
         </form>
 
         <!-- DNS records -->
-        <div v-if="dnsRecords.length" class="mt-10 space-y-3">
-          <p class="text-sm font-medium text-ctp-subtext1">
-            Add these DNS records to your domain provider:
-          </p>
+        <DnsRecordList
+          v-if="dnsRecords.length"
+          :records="dnsRecords"
+          :rechecked="hasRechecked"
+          :recheck-pending="recheckingDns"
+          :show-recheck="false"
+          class="mt-10"
+          @recheck="recheckDns"
+        />
 
-          <div
-            v-for="(rec, i) in dnsRecords"
-            :key="i"
-            class="rounded-lg border border-ctp-surface1 p-3"
+        <!-- Continue button (separate from DnsRecordList since it's onboarding-specific) -->
+        <div v-if="dnsRecords.length" class="flex items-center justify-end pt-2">
+          <button
+            :disabled="!allRecordsVerified"
+            class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+            @click="step = 3"
           >
-            <div class="mb-2 flex items-center justify-between gap-2">
-              <div class="flex items-center gap-2">
-                <span class="rounded bg-ctp-surface1 px-1.5 py-0.5 font-mono text-xs text-ctp-subtext0">
-                  {{ rec.type }}
-                </span>
-                <span class="truncate font-mono text-xs text-ctp-text">{{ rec.name }}</span>
-              </div>
-              <span
-                v-if="hasRechecked"
-                class="shrink-0 text-xs font-medium"
-                :class="DNS_STATUS_COLORS[rec.status] ?? 'text-ctp-subtext0'"
-              >
-                {{ rec.status }}
-              </span>
-            </div>
-            <div class="space-y-1">
-              <p class="text-xs text-ctp-subtext1">Expected:</p>
-              <CopyInput :value="rec.value" mono />
-              <template v-if="hasRechecked && rec.currentValue">
-                <p class="mt-1 text-xs" :class="rec.status === 'failing' ? 'text-ctp-red' : 'text-ctp-subtext1'">
-                  Current{{ rec.status === 'failing' ? ' (invalid)' : '' }}:
-                </p>
-                <p class="break-all font-mono text-xs text-ctp-subtext0">{{ rec.currentValue }}</p>
-              </template>
-            </div>
-          </div>
-
-          <p v-if="hasRechecked" class="text-xs text-ctp-subtext0">
-            DNS changes can take up to 48 hours to propagate globally. Click
-            <strong>Re-check DNS</strong> after adding records to your provider.
-          </p>
-
-          <!-- Bottom action row: re-check left, continue right -->
-          <div class="flex items-center justify-between pt-2">
-            <AsyncButton
-              v-if="!allRecordsVerified"
-              :action="recheckDns"
-              variant="outline"
-              class="px-3 py-1.5 text-xs text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text"
-            >
-              Re-check DNS
-            </AsyncButton>
-            <span v-else></span>
-            <button
-              :disabled="!allRecordsVerified"
-              class="rounded-lg bg-ctp-mauve px-6 py-3 text-sm font-medium text-ctp-base disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
-              @click="step = 3"
-            >
-              Continue to retention →
-            </button>
-          </div>
+            Continue to retention →
+          </button>
         </div>
       </section>
 
