@@ -11,9 +11,58 @@ const TAB_KEY = 'ses:tabAccountId'
 // Last-used account across sessions (localStorage — fallback for fresh tabs)
 const LAST_KEY = 'ses:lastAccountId'
 
+// Cached accounts list, so a returning user can render the shell optimistically
+// before the /accounts revalidation completes. Uses the `ses:v1:` prefix so sign-out's
+// clearAllPersistedCache() wipes it too; the 3-segment key is deliberately shorter than
+// the per-account cache keys, so fetchAccount's stale-account cleanup (which requires a
+// 4th segment) never mistakes it for a revoked account.
+const ACCOUNTS_CACHE_KEY = 'ses:v1:accounts'
+const ACCOUNTS_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
+
+interface AccountsCacheEnvelope {
+  data: Account[]
+  writtenAt: number
+}
+
+function readAccountsCache(): Account[] | undefined {
+  try {
+    const raw = localStorage.getItem(ACCOUNTS_CACHE_KEY)
+    if (!raw) return undefined
+    const envelope = JSON.parse(raw) as AccountsCacheEnvelope
+    if (!envelope.writtenAt || Date.now() - envelope.writtenAt > ACCOUNTS_CACHE_MAX_AGE_MS) {
+      localStorage.removeItem(ACCOUNTS_CACHE_KEY)
+      return undefined
+    }
+    return Array.isArray(envelope.data) ? envelope.data : undefined
+  } catch (e) {
+    logger.warn({ title: 'Failed to read cached accounts list', error: e })
+    return undefined
+  }
+}
+
+function writeAccountsCache(list: Account[]): void {
+  try {
+    localStorage.setItem(ACCOUNTS_CACHE_KEY, JSON.stringify({ data: list, writtenAt: Date.now() }))
+  } catch (e) {
+    logger.warn({ title: 'Failed to cache accounts list', error: e })
+  }
+}
+
+/** Choose the active account from a list using the same tab/last-used preference order. */
+function pickPreferred(list: Account[], fromAccountId?: string): Account | null {
+  const preferred =
+    fromAccountId ?? sessionStorage.getItem(TAB_KEY) ?? localStorage.getItem(LAST_KEY) ?? null
+  return (
+    (preferred ? (list.find((a) => a.accountId === preferred) ?? null) : null) ?? list[0] ?? null
+  )
+}
+
 export const useAccountStore = defineStore('account', () => {
-  const account = ref<Account | null>(null)
-  const accounts = ref<Account[]>([])
+  // Hydrate synchronously from the cached accounts list (if any) so the first paint —
+  // and the router's onboarding guard — can proceed without waiting on the network.
+  const cachedAccounts = readAccountsCache()
+  const account = ref<Account | null>(cachedAccounts ? pickPreferred(cachedAccounts) : null)
+  const accounts = ref<Account[]>(cachedAccounts ?? [])
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -57,15 +106,12 @@ export const useAccountStore = defineStore('account', () => {
       logger.warn({ title: 'Failed to clean up stale account cache', error: e })
     }
 
-    const preferred =
-      fromAccountId ?? sessionStorage.getItem(TAB_KEY) ?? localStorage.getItem(LAST_KEY) ?? null
-
-    account.value =
-      (preferred ? (accounts.value.find((a) => a.accountId === preferred) ?? null) : null) ??
-      accounts.value[0] ??
-      null
+    account.value = pickPreferred(accounts.value, fromAccountId)
 
     if (account.value) sessionStorage.setItem(TAB_KEY, account.value.accountId)
+
+    // Refresh the optimistic-hydration cache with the authoritative list.
+    writeAccountsCache(accounts.value)
   }
 
   /** Fire-and-forget: starts fetchAccount and stores the promise for guards to await. */
@@ -75,8 +121,8 @@ export const useAccountStore = defineStore('account', () => {
 
   /** Await the in-flight fetch (if any). If the fetch hasn't started yet, waits briefly for it to begin. */
   async function waitForFetch() {
-    // The fetch is kicked off by main.ts after waitForUserSession resolves.
-    // In rare cases the guard may reach here before the .then() microtask fires — yield once.
+    // The fetch is kicked off by main.ts at startup (startFetch runs right after mount).
+    // In rare cases the guard may reach here before that line runs — yield once.
     if (!pendingFetch) await Promise.resolve()
     if (pendingFetch) await pendingFetch
   }
@@ -95,6 +141,7 @@ export const useAccountStore = defineStore('account', () => {
     account.value = newAccount
     sessionStorage.setItem(TAB_KEY, newAccount.accountId)
     localStorage.setItem(LAST_KEY, newAccount.accountId)
+    writeAccountsCache(accounts.value)
     return ok(newAccount)
   }
 
