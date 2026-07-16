@@ -299,8 +299,30 @@ Backend routes the frontend already calls (or is already coded to call) that don
     unlabeled second `<nav>`, but we're labeling both anyway for real
     screen-reader users.
 
-- [ ] **3. Mobile Settings header: hide hamburger + show "{tab}" title** —
-  `AppLayout.vue` / `AppNavbar.vue` / `SettingsView.vue`.
+- [x] **3. Mobile Settings header: hide hamburger + show "{tab}" title** —
+  `AppLayout.vue` / `AppNavbar.vue` / `SettingsView.vue`. **DONE.**
+  Decisions: (a) `AppNavbar` gets a `mobileBack?: boolean` prop + `back` emit
+  (props, no slot — it has exactly one call site, so slot indirection bought
+  nothing); when true it renders a "‹ Back" text button in place of the
+  hamburger (`v-else-if`, so the hamburger is truly absent, not just
+  CSS-hidden). (b) Back navigates via `router.back()`, falling back to
+  `router.push('/')` when `window.history.state?.back` is empty (deep-link/no
+  prior in-app history). (c) SettingsView's own mobile "← Back to app" bar
+  (old `SettingsView.vue:792-805`) removed entirely — one bar only. (d) Layout:
+  back button with "Back" text label on the left, "{Tab}" title as separate
+  text in the middle (replacing the mobile search facade only — desktop search
+  is untouched on `/settings`, confirmed by screenshot). Extracted
+  `src/lib/settingsTabs.ts` (`SETTINGS_TABS`, `resolveSettingsTab`,
+  `settingsTabLabel`) as the single source of truth for tab labels/legacy-key
+  mapping, used by both `SettingsView` and `AppLayout`.
+  Verification: ✅ typecheck/eslint clean, ✅ 329/329 unit tests (10 new: 6 for
+  `settingsTabs` helpers, 4 for `AppNavbar`'s back/hamburger swap), ✅ real
+  axe-core WCAG2A/AA audit on mobile `/settings` — 0 violations, ✅ screenshots
+  confirm: mobile shows one bar ("‹ Back" + "Profile"/"Team", updates live with
+  tab switches, hamburger genuinely absent from the DOM); desktop `/settings`
+  fully unchanged (search bar present, back button present-but-CSS-hidden same
+  as hamburger's existing convention); real back-button click exercised via
+  history (`/` → `/settings` → click Back → lands on `/`).
   - 🔎 On mobile Settings there are currently TWO stacked bars: the global
     `AppNavbar` (hamburger + search facade) AND SettingsView's own mobile bar
     ("← Back to app", `SettingsView.vue:794`). Replacing the search with a title

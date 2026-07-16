@@ -17,6 +17,7 @@ import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useRelativeTime } from '@/composables/useRelativeTime'
 import { useSearch } from '@/composables/useSearch'
+import { settingsTabLabel, resolveSettingsTab } from '@/lib/settingsTabs'
 
 useRelativeTime()
 
@@ -24,6 +25,24 @@ const labelsStore = useLabelsStore()
 const viewsStore = useViewsStore()
 const router = useRouter()
 const route = useRoute()
+
+// ── Mobile Settings header: back button + "{Tab}" title replace the
+// hamburger + search facade (Settings owns its own bottom tab bar instead). ──
+const isMobileSettings = computed(() => route.name === 'settings')
+const mobileSettingsTitle = computed(() =>
+  settingsTabLabel(resolveSettingsTab(route.query.tab as string | undefined)),
+)
+
+function handleMobileBack() {
+  // router.back() falls through to whatever the browser was on before the app
+  // if this is the first entry in the SPA's history (e.g. a direct/deep link
+  // to /settings) — fall back to the inbox in that case instead of leaving.
+  if (window.history.state?.back) {
+    router.back()
+  } else {
+    void router.push('/')
+  }
+}
 
 const { coachVisible } = useOnboardingCoach()
 const { init: initShortcuts, onAction, setBlocked } = useKeyboardShortcuts()
@@ -207,9 +226,14 @@ onMounted(async () => {
     <AppSidebar :open="sidebarOpen" />
 
     <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
-      <AppNavbar show-hamburger @toggle-sidebar="sidebarOpen = !sidebarOpen">
+      <AppNavbar
+        show-hamburger
+        :mobile-back="isMobileSettings"
+        @toggle-sidebar="sidebarOpen = !sidebarOpen"
+        @back="handleMobileBack"
+      >
         <template #search>
-          <!-- Desktop: interactive typeahead (sm and up) -->
+          <!-- Desktop: interactive typeahead (sm and up), unchanged on Settings too. -->
           <form v-if="route.path !== '/search'" class="hidden w-full max-w-xl items-center gap-2 sm:flex" @submit.prevent="submitSearch">
           <SearchInputShell>
             <input
@@ -341,9 +365,15 @@ onMounted(async () => {
           </SearchInputShell>
         </form>
 
-          <!-- Mobile: looks exactly like the desktop search box, but taps
-               through to the full /search screen instead of typing inline. -->
-          <SearchInputShell v-if="route.path !== '/search'" class="flex sm:hidden">
+          <!-- Mobile Settings: the current tab's name, replacing search. -->
+          <h1 v-if="isMobileSettings" class="truncate text-base font-semibold text-ctp-text sm:hidden">
+            {{ mobileSettingsTitle }}
+          </h1>
+
+          <!-- Mobile (everywhere else): looks exactly like the desktop search
+               box, but taps through to the full /search screen instead of
+               typing inline. -->
+          <SearchInputShell v-else-if="route.path !== '/search'" class="flex sm:hidden">
             <button
               type="button"
               :class="[SEARCH_FIELD_CLASS, 'flex items-center text-left']"

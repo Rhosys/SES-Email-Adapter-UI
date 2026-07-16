@@ -23,6 +23,7 @@ import { useGestureHandler } from '@/composables/useGestureHandler'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useToast } from '@/composables/useToast'
 import { useIdentity } from '@/composables/useIdentity'
+import { SETTINGS_TABS, resolveSettingsTab, type SettingsTabKey } from '@/lib/settingsTabs'
 import type {
   Domain,
   DnsRecord,
@@ -43,7 +44,7 @@ const userConfigStore = useUserConfigStore()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 const { deferAction } = useToast()
 
-type TabKey = 'profile' | 'emails' | 'email-forwarding' | 'team' | 'billing'
+type TabKey = SettingsTabKey
 const activeTab = ref<TabKey>('profile')
 
 // ─── Profile tab ─────────────────────────────────────────────────────────────
@@ -711,35 +712,11 @@ onMounted(async () => {
     activeTab.value = 'email-forwarding'
   }
   // Hydrate active tab from URL (map legacy tab keys to merged tab)
-  const VALID_TABS: TabKey[] = [
-    'emails',
-    'email-forwarding',
-    'profile',
-    'team',
-    'billing',
-  ]
-  const LEGACY_TAB_MAP: Record<string, TabKey> = {
-    email: 'email-forwarding',
-    forwarding: 'email-forwarding',
-    domains: 'email-forwarding',
-  }
-  const rawTab = route.query.tab as string | undefined
-  const tab = rawTab ? (LEGACY_TAB_MAP[rawTab] ?? rawTab) as TabKey : undefined
-  if (tab && VALID_TABS.includes(tab)) await switchTab(tab)
+  const tab = resolveSettingsTab(route.query.tab as string | undefined)
+  if (tab) await switchTab(tab)
 })
 
-const TABS: { key: TabKey; label: string; mobileLabel?: string; description: string }[] = [
-  { key: 'emails', label: 'Aliases', description: 'Manage email addresses and sender policies' },
-  { key: 'email-forwarding', label: 'Email & Forwarding', mobileLabel: 'Email', description: 'Domains, forwarding targets, and compose behavior' },
-  { key: 'profile', label: 'Profile', description: 'Your identity, security, and linked accounts' },
-  { key: 'team', label: 'Team', description: 'Members, roles, and invitations' },
-  { key: 'billing', label: 'Billing', description: 'Manage your plan and payment details' },
-]
-
-/** Leave Settings, back to the app. */
-function goBack() {
-  void router.push('/')
-}
+const TABS = SETTINGS_TABS
 
 /** Move to the tab `dir` steps away in TABS order (mobile swipe). Clamps at ends. */
 function switchToAdjacentTab(dir: 1 | -1) {
@@ -789,20 +766,8 @@ useGestureHandler(settingsContentRef, {
       </div>
     </div>
 
-    <!-- Top bar (mobile): back to the app. The current section is shown by the
-         bottom tab bar, so no title is needed here. -->
-    <div class="flex shrink-0 items-center border-b border-ctp-surface0 bg-ctp-mantle px-2 py-2 sm:hidden">
-      <button
-        type="button"
-        class="flex items-center gap-1 px-1 py-1 text-sm text-ctp-subtext1 hover:text-ctp-text"
-        @click="goBack"
-      >
-        <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M15 5l-7 7 7 7" />
-        </svg>
-        Back to app
-      </button>
-    </div>
+    <!-- Mobile top bar (back button + "{Tab}" title) now lives in the global
+         AppNavbar (see AppLayout.vue) instead of a second bar here. -->
 
     <!-- Content. Mobile: the scrolling middle of the flex column, and the owner
          of horizontal swipes (data-h-swipe) which move between adjacent tabs.
