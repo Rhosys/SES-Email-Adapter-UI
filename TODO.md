@@ -336,12 +336,33 @@ Backend routes the frontend already calls (or is already coded to call) that don
     `route.query.tab`; share the TABS label map (export it) rather than
     duplicating.
 
-- [ ] **4. Hide keyboard-shortcuts UI on mobile** — SettingsView Profile ▸
-  Configuration "Keyboard shortcuts" section → `hidden sm:block`.
-  - 🔎 The ONLY mobile tap entry point is that section (`SettingsView.vue:906-925`,
-    "Customize" button). The `?` toggle is keyboard-only; the `ShortcutHelpOverlay`
-    component stays mounted for desktop. Wrapping the section removes it on mobile
-    with no other surface to touch.
+- [x] **4. Hide keyboard-shortcuts UI on mobile** — **DONE.** Decisions: (a) hide
+  the WHOLE section (heading + description + button), not just the button.
+  (b) Implemented as a reactive `v-if` (new `src/composables/useIsMobile.ts`,
+  a matchMedia-based `ref<boolean>`, same pattern `OverflowMenu.vue` already
+  used inline — extracted since this is now the second use site) rather than a
+  CSS `hidden sm:block`, so the section's own (pre-existing, redundant)
+  `ShortcutHelpOverlay` instance doesn't even mount on mobile. (c) The global
+  `?` binding wasn't just hidden from Settings — the ENTIRE shortcut system
+  (all bindings: navigate, archive, go-to sequences, everything) is now a
+  no-op below the 640px breakpoint, gated with a single live
+  `window.innerWidth < 640` check at the top of `handleKeydown`
+  (`useKeyboardShortcuts.ts`) — checked fresh per keydown (not cached), so it
+  tracks resize/rotation like `AppLayout`'s existing swipe-gesture check.
+  Rationale: leaving other bindings live-but-undiscoverable (no `?` to look
+  them up, no Settings entry point) on a Bluetooth-keyboard mobile session
+  would be worse than the status quo. (d) Left the pre-existing duplicate
+  `ShortcutHelpOverlay` mount (SettingsView has its own private instance
+  alongside AppLayout's global one) untouched — out of scope for this task,
+  noted here for a future cleanup pass.
+  Verification: ✅ typecheck/eslint clean, ✅ 336/336 unit tests (7 new: 4 for
+  `useIsMobile` incl. matchMedia-unavailable fallback, 3 for
+  `useKeyboardShortcuts`'s mobile gate incl. live re-check on resize).
+  ✅ Screenshots confirm section fully absent on mobile, unchanged on desktop.
+  ✅ Real browser check (direct `KeyboardEvent` dispatch, not synthesized
+  OS-level key presses which proved unreliable for `?`): on mobile, `/`
+  (search focus), `g→i` (go to inbox), and `?` (help overlay) are ALL
+  confirmed no-ops; on desktop, all three still work correctly.
 
 - [ ] **5. Start tour on mobile opens the sidebar first** — `AppLayout.vue` +
   `FeatureTour.vue`.

@@ -23,6 +23,7 @@ import { useGestureHandler } from '@/composables/useGestureHandler'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useToast } from '@/composables/useToast'
 import { useIdentity } from '@/composables/useIdentity'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { SETTINGS_TABS, resolveSettingsTab, type SettingsTabKey } from '@/lib/settingsTabs'
 import type {
   Domain,
@@ -43,6 +44,7 @@ const accountStore = useAccountStore()
 const userConfigStore = useUserConfigStore()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 const { deferAction } = useToast()
+const isMobile = useIsMobile()
 
 type TabKey = SettingsTabKey
 const activeTab = ref<TabKey>('profile')
@@ -868,8 +870,10 @@ useGestureHandler(settingsContentRef, {
             </div>
           </section>
 
-          <!-- Keyboard shortcuts -->
-          <section class="rounded-lg border border-ctp-surface1 p-4">
+          <!-- Keyboard shortcuts — hidden on mobile (no physical keyboard;
+               the global ?-shortcut itself is also disabled below the sm
+               breakpoint, see useKeyboardShortcuts.ts). -->
+          <section v-if="!isMobile" class="rounded-lg border border-ctp-surface1 p-4">
             <div class="flex items-center justify-between gap-4">
               <div>
                 <h2 class="text-sm font-medium text-ctp-text">Keyboard shortcuts</h2>

@@ -38,6 +38,13 @@ function dispatch(action: ShortcutAction) {
 }
 
 function handleKeydown(e: KeyboardEvent) {
+  // No physical keyboard on mobile — the whole shortcut system (not just the
+  // ?-help overlay) is a no-op below the sm breakpoint, so a Bluetooth
+  // keyboard can't trigger undiscoverable actions with no way to look them
+  // up (the Settings entry point to customize/view them is hidden there too).
+  // Checked live (not cached) so it tracks resizes/rotation, matching
+  // AppLayout's swipe-gesture viewport check.
+  if (window.innerWidth < 640) return
   if (capturingShortcut) return
   if (isTypingTarget(e.target)) return
 
