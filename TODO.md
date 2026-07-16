@@ -364,18 +364,46 @@ Backend routes the frontend already calls (or is already coded to call) that don
   (search focus), `g→i` (go to inbox), and `?` (help overlay) are ALL
   confirmed no-ops; on desktop, all three still work correctly.
 
-- [ ] **5. Start tour on mobile opens the sidebar first** — `AppLayout.vue` +
-  `FeatureTour.vue`.
-  - 🔎 Root cause: tour spotlights `data-tour="nav-*"` items that live in the
-    off-canvas sidebar (`-translate-x-full` on mobile) → `updateSpotlight()`
-    measures a hidden element, so no spotlight. Trigger: AppLayout owns
-    `sidebarOpen`; watch `tourActive` (`useFeatureTour`) and set `sidebarOpen=true`
-    on mobile (`innerWidth<640`). The sidebar has a 200ms transform transition →
-    re-measure the spotlight after it finishes (delay/transitionend), not just
-    nextTick.
-  - 🔎 Tooltip: `FeatureTour.vue` positions the card to the RIGHT of the target
-    (`left: rect.right+16`) → off-screen on mobile. Reposition to a
-    bottom/centered card under the spotlight when narrow.
+- [x] **5. Start tour on mobile opens the sidebar first** — **DONE.**
+  Root cause confirmed: tour spotlights `data-tour="nav-*"` items that live in
+  the off-canvas sidebar (`-translate-x-full` on mobile) — `updateSpotlight()`
+  measured the hidden/off-screen element.
+  - ✅ **3 entry points, all fixed** (not just the Settings button):
+    `SettingsView`'s "Start tour" button, `OnboardingCoach.vue`'s tour button
+    (both already inside `AppLayout` when clicked — clean `watch(tourActive)`
+    fix), AND `OnboardingView.vue`'s auto-start-on-completion, which calls
+    `startTour()` on `/onboarding` — a top-level route rendered OUTSIDE
+    `AppLayout`/`FeatureTour` — so `tourActive` is already `true` by the time
+    `FeatureTour` later mounts (after redirecting into the app), and a plain
+    `watch()` never fires for a value that was already set before the watcher
+    existed. Fixed in both places with an explicit "catch-up" `onMounted`
+    check (not `{immediate:true}`, since that fires during `setup()` — too
+    early for `useIsMobile()`'s own `onMounted`, which syncs the real
+    viewport, to have run yet; used registration-order sequencing instead —
+    call `useIsMobile()` before registering the catch-up `onMounted`, so Vue's
+    same-instance `onMounted` ordering guarantees it runs first).
+  - ✅ Sidebar auto-open: `AppLayout.vue` — `watch(tourActive, ...)` +
+    mount-time catch-up call `openSidebarForMobileTour()`, gated on the new
+    `useIsMobile()` composable (reused from item #4).
+  - ✅ Spotlight timing: `FeatureTour.vue` — `waitForSidebarSettle(el)` attaches
+    a one-shot `transitionend` (property `transform`) listener on the target's
+    closest `<aside>`, with a 300ms fallback timeout for the case nothing is
+    actually transitioning (sidebar already open, or desktop). Only invoked
+    when `isMobile.value` — desktop pays zero extra delay, exactly as before.
+  - ✅ Tooltip repositioning: extracted a pure `src/lib/tooltipPosition.ts`
+    (`computeTooltipPosition`) that tries right → left → below → above based
+    on actual measured card size + available viewport space, clamped to never
+    run off-screen; falls back to centered if nothing fits. `FeatureTour.vue`
+    measures the real tooltip element (`tooltipEl` ref) rather than assuming a
+    fixed height.
+  Verification: ✅ typecheck/eslint clean, ✅ 347/347 unit tests (7 new for
+  `computeTooltipPosition` incl. all 4 fallback directions + edge clamping, 4
+  new component tests for `FeatureTour` incl. the already-active-before-mount
+  regression guard). ✅ Real browser (built app, real CSS transitions, real
+  `getBoundingClientRect()`): mobile — sidebar opens, both spotlight AND
+  tooltip land 100% on-screen at step 1 (tooltip re-anchored below since no
+  room to the right on 390px) and step 2; desktop — pixel-identical to before
+  (tooltip right of spotlight, no added delay). Screenshots confirm visually.
 
 - [ ] **6. Calendar/digest "Add new…" → forwarding add modal** — confirmed:
   convert inline add-target form to a reusable modal popup.

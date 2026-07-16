@@ -17,6 +17,8 @@ import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useRelativeTime } from '@/composables/useRelativeTime'
 import { useSearch } from '@/composables/useSearch'
+import { useFeatureTour } from '@/composables/useFeatureTour'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { settingsTabLabel, resolveSettingsTab } from '@/lib/settingsTabs'
 
 useRelativeTime()
@@ -53,6 +55,31 @@ const inputFocused = ref(false)
 const shortcutHelpOpen = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
 const sidebarOpen = ref(false)
+
+// ── Open the sidebar before the feature tour starts, on mobile ────────────────
+// The tour's first spotlight target (nav-inbox) lives in the off-canvas
+// sidebar on mobile — without this its box would land on the translated,
+// off-screen element. isMobile must be called before the onMounted() below so
+// its own onMounted (which syncs the initial matchMedia value) is registered,
+// and therefore runs, first.
+const { tourActive } = useFeatureTour()
+const isMobile = useIsMobile()
+
+function openSidebarForMobileTour() {
+  if (tourActive.value && isMobile.value) sidebarOpen.value = true
+}
+
+watch(tourActive, openSidebarForMobileTour)
+
+onMounted(() => {
+  // Covers startTour() having been called before this component ever
+  // mounted (OnboardingView.vue's completion flow — a top-level route
+  // rendered outside AppLayout) — tourActive is already true here, so the
+  // watch() above never fires for it on its own (it only reacts to changes).
+  // A separate, synchronous onMounted (rather than folding this into the
+  // async one below) so it isn't delayed behind that one's network awaits.
+  openSidebarForMobileTour()
+})
 
 // ── Swipe to open/close sidebar (mobile) ──────────────────────────────────────
 // Swipe-right anywhere opens the nav; swipe-left closes it. A region can claim
