@@ -224,3 +224,180 @@ Backend routes the frontend already calls (or is already coded to call) that don
 ### UI Consistency
 
 - [ ] **Audit and unify UI patterns across all views** — Investigate inconsistencies in empty states, section headers, spacing, button variants, text hierarchy (title/description/help-text), and interactive element styling across all screens. Define a shared pattern for: empty states (title + description + CTA), settings sections (label + help text + control), list rows (structure, hover states, action positioning), confirmation flows, and loading skeletons. Document the canonical pattern per element type so new screens match automatically. The Rules empty state inconsistency (fixed separately) is an example of the problem — there are likely more.
+
+---
+
+## Session 2026-07-14 — Mobile UI + notifications review
+
+> Review pass (mostly mobile / installed PWA). Each item below is being reviewed
+> and de-risked **before** implementation. `❓` marks an open question/unknown to
+> resolve during review; `🔎` marks a review finding. We iterate one item at a
+> time — resolve the unknowns, agree the approach, then implement.
+
+- [~] **1. Inbox/Archived/All bottom icon buttons (mobile)** — make the three
+  status tabs easier to switch between on mobile via a bottom icon bar.
+  **DONE (pending visual sign-off):** renamed `StatusTabs.vue`→`InboxTabBar.vue`
+  (desktop strip `hidden sm:flex` + mobile `fixed bottom-0 sm:hidden` icon bar,
+  tray/archive-box/layers icons, mauve active, green active-count badge on Inbox
+  via props); extracted `src/lib/badge.ts` (`formatBadgeCount`, now shared with
+  `AppSidebar`); `InboxView` passes counts + `pb-24 sm:pb-4` to clear the bar;
+  renamed test → `InboxTabBar.test.ts` (7 tests). ✅ typecheck + eslint clean,
+  ✅ 7/7 tests pass. ⏳ mobile/desktop screenshot capture.
+  - 🔎 Mount: `AppLayout` `#main-content` is `flex-1 overflow-y-auto`; each view
+    renders inside. Simplest: render the mobile bar INSIDE `InboxView` (its
+    `.inbox-view` root), `sm:hidden fixed bottom-0 inset-x-0`, styled like
+    `SettingsTabBar.vue` (icon over tiny label, `pb-[env(safe-area-inset-bottom)]`,
+    active = `text-ctp-mauve`), and add matching bottom padding to the inbox
+    `<main>` so the last row clears it. Keep the desktop top `StatusTabs` strip.
+  - 🔎 Coexist: the bar shows only on `/` (inbox); the mobile sidebar profile row
+    lives inside the off-canvas sidebar, so no overlap.
+  - ✅ **Decided:** extend the existing component but **rename `StatusTabs.vue` →
+    `InboxTabBar.vue`** (it now owns both layouts + is inbox-specific). Update the
+    import in `InboxView.vue`, and rename `tests/component/StatusTabs.test.ts` →
+    `InboxTabBar.test.ts`.
+  - ✅ **Decided:** on mobile the bottom bar REPLACES the top strip (top strip
+    `hidden sm:flex`); tabs are **icon + tiny label**; **active-count badge on the
+    Inbox tab**.
+  - 🔎 Test impact: one component rendering desktop strip + mobile bar = 6
+    `<button>`s → existing `findAll('button')===3` assertion must be scoped
+    per-region; add a badge test.
+  - ❓ Remaining (proceeding with recommended default unless told otherwise):
+    (a) badge data via **props** from InboxView [rec] vs store import — props keep
+    the component Pinia-free/testable; extract `formatBadgeCount` (today private in
+    `AppSidebar.vue:31`) into a shared helper; (b) icons **tray / archive-box /
+    layers** [rec]; (c) active color on mobile bar **mauve** (match
+    `SettingsTabBar`) [rec], desktop keeps its blue underline.
+
+- [ ] **2. Sidebar growth separator (Settings + Admin pinned to bottom)** —
+  `AppSidebar.vue`.
+  - 🔎 Feasible/low-risk: change `<nav class="flex-1 …">` → `flex flex-1 flex-col`;
+    keep Inbox…Labels in the top `.px-2` group; move the Settings + Admin
+    `RouterLink`s into a bottom `<div class="mt-auto px-2">` with a top border as
+    the "growth separator". Views/Labels expandable sections stay in the top
+    group (unaffected); when the list overflows the nav still scrolls and the
+    bottom group sits after content. Mobile profile row is OUTSIDE `<nav>`, so
+    Settings/Admin correctly land above it.
+
+- [ ] **3. Mobile Settings header: hide hamburger + show "{tab}" title** —
+  `AppLayout.vue` / `AppNavbar.vue` / `SettingsView.vue`.
+  - 🔎 On mobile Settings there are currently TWO stacked bars: the global
+    `AppNavbar` (hamburger + search facade) AND SettingsView's own mobile bar
+    ("← Back to app", `SettingsView.vue:794`). Replacing the search with a title
+    without removing one of these leaves two bars. → **Decision:** merge — put
+    the "{tab}" title (and optionally the back affordance) into the global
+    AppNavbar on mobile Settings, and drop SettingsView's separate top bar; the
+    bottom `SettingsTabBar` already shows the section.
+  - 🔎 Route title map exists (`router/index.ts:158 ROUTE_TITLES`) but only has
+    route-level "Settings" — the sub-tab labels live in `SettingsView.TABS`
+    (+ `LEGACY_TAB_MAP`). AppLayout must derive the tab label from
+    `route.query.tab`; share the TABS label map (export it) rather than
+    duplicating.
+
+- [ ] **4. Hide keyboard-shortcuts UI on mobile** — SettingsView Profile ▸
+  Configuration "Keyboard shortcuts" section → `hidden sm:block`.
+  - 🔎 The ONLY mobile tap entry point is that section (`SettingsView.vue:906-925`,
+    "Customize" button). The `?` toggle is keyboard-only; the `ShortcutHelpOverlay`
+    component stays mounted for desktop. Wrapping the section removes it on mobile
+    with no other surface to touch.
+
+- [ ] **5. Start tour on mobile opens the sidebar first** — `AppLayout.vue` +
+  `FeatureTour.vue`.
+  - 🔎 Root cause: tour spotlights `data-tour="nav-*"` items that live in the
+    off-canvas sidebar (`-translate-x-full` on mobile) → `updateSpotlight()`
+    measures a hidden element, so no spotlight. Trigger: AppLayout owns
+    `sidebarOpen`; watch `tourActive` (`useFeatureTour`) and set `sidebarOpen=true`
+    on mobile (`innerWidth<640`). The sidebar has a 200ms transform transition →
+    re-measure the spotlight after it finishes (delay/transitionend), not just
+    nextTick.
+  - 🔎 Tooltip: `FeatureTour.vue` positions the card to the RIGHT of the target
+    (`left: rect.right+16`) → off-screen on mobile. Reposition to a
+    bottom/centered card under the spotlight when narrow.
+
+- [ ] **6. Calendar/digest "Add new…" → forwarding add modal** — confirmed:
+  convert inline add-target form to a reusable modal popup.
+  - 🔎 Inline form today: `SettingsView.vue:1521-1589` — button sets
+    `addTargetDialogOpen`, then type picker (email/webhook) → input →
+    `addForwardingTarget()`. Extract into `AddForwardingTargetModal.vue`
+    (Teleport modal, mirror `ui/FilterModeModal.vue` / `ConfirmDialog.vue`), emit
+    `added(target)`.
+  - 🔎 Selects: calendar (`~L1503`) + digest (`~L973`) both iterate
+    `verifiedForwardingTargets`. Native `<select>` can't host an action row
+    cleanly → add a `＋ Add new…` sentinel `<option value="__add__">`; on `@change`
+    to it, reset the select, `switchTab('email-forwarding')`, open the modal.
+  - 🔎 A newly added EMAIL target is `status:'pending'` until verified, so it won't
+    appear in `verifiedForwardingTargets` yet → can't auto-select it; show the
+    pending/verification state instead. (Webhook targets may be immediately
+    usable — confirm status on add.)
+
+- [ ] **7 & 8. PWA notifications: icon, deep-link, PWA-first click, action
+  buttons; + Android/iOS UX writeup** — must also work on desktop (esp. Linux);
+  stay on vite-plugin-pwa via first-class `injectManifest`.
+  - 🔎 `vite-plugin-pwa@1.3.0` + `@vite-pwa/assets-generator@1.0.2`. `pwaAssets`
+    is independent of `strategies` — it coexists with `injectManifest` and still
+    injects manifest icons + `<head>` links. So we CAN keep auto-generated icons
+    and add a custom `src/sw.ts` that does `precacheAndRoute(self.__WB_MANIFEST)`.
+  - 🔎 `minimal2023Preset` emits `pwa-64x64.png`, `pwa-192x192.png`,
+    `pwa-512x512.png`, `maskable-icon-512x512.png`, `apple-touch-icon-180x180.png`.
+    Use `pwa-192x192.png` for the notification `icon`. It does NOT emit a
+    monochrome `badge` (the grey single-letter glyph the user saw is the OS
+    fallback when `badge` is absent) → **must add a monochrome badge asset**.
+  - 🔎 Web-platform fact: notification `actions` + action/click routing are only
+    deliverable via `ServiceWorkerRegistration.showNotification` + a SW
+    `notificationclick` handler (not `new Notification`). No Vue library removes
+    this; `injectManifest` is the minimal first-class way. `devOptions.enabled:
+    false` means the SW is OFF in `dev:mock` → notifications must be tested via
+    `build` + `preview` (or installed PWA).
+  - 🔎 Realtime path: `useRealtime.ts` (SharedWorker→page) calls
+    `showNotification`; switch its `fireNotification` to the registration path
+    with `data.url = '/threads/<id>'`; page listens for the SW's postMessage and
+    `router.push`es.
+  - ❓ Correct deep-link target for the test notification (Settings ▸ which tab —
+    email-forwarding notifications block?).
+  - 🔎 iOS installed-PWA (16.4+) supports basic push notifications but **no
+    action buttons** → feature-detect and omit `actions` where unsupported.
+
+- [ ] **9. Rules screen — unify rows; toggle for ALL rules; reorder for USER
+  rules; mobile tap→popup (Edit/Delete); desktop Delete→overflow; fix broken
+  display.**
+  - 🔎 **BACKEND CONSTRAINT (decisive):** `rulesApi.ts:117-124` — system rules
+    (`accountId==='SYSTEM'`, id `SR-*`) are IMMUTABLE except `status`; any other
+    change (incl. `priorityOrder`) → HTTP **403 `SYSTEM_RULE_IMMUTABLE`**.
+    System rules also cannot be deleted (`rulesApi.ts:193`). Their order is
+    code-defined (`processor/system-rules.ts`, fixed positions 100…1800). So
+    "reorder arrows on all rules" is **not possible for system rules** without a
+    backend change (would need a per-account priorityOrder override, like the
+    existing status override). → **DECISION: (b)** add backend support to reorder
+    system rules too. Becomes a two-repo change:
+    - **Backend (`SES-Email-Adapter`):** (1) `rulesApi.ts:117-124` — for system
+      rules allow `status` AND `priorityOrder` (still reject other fields);
+      (2) `account-database.ts` — generalize `upsertSystemRuleStatus` →
+      `upsertSystemRuleOverride(accountId, ruleId, { status?, priorityOrder? })`
+      that READS the existing SR- override, merges, and writes the full item with
+      effective status + priorityOrder + correct `gsi1sk`; (3) `listRules` merge
+      (line 632-634) must override BOTH status and priorityOrder from the DDB SR-
+      row, not just status; (4) add/adjust backend rule-API tests; (5) mirror this
+      task into the backend repo's own `TODO.md` (its CLAUDE.md mandates it).
+    - **Frontend:** render ONE unified list of all rules (already sorted by
+      priorityOrder); `moveRule`'s global-index logic becomes correct once the
+      list is unified, so the corruption bug disappears; arrows + toggle on every
+      row. Update `dev:mock` PATCH handler so system-rule reorder works in mock.
+    - ⚠️ Semantics: system rules interleave with user rules by priorityOrder
+      (system 100-1800, user 1801+); reordering now lets a user rule run before a
+      system rule. Confirm processor behavior is acceptable during backend work.
+  - 🔎 Confirmed reorder bug: `moveRule(id, ±1)` (`stores/rules.ts`) walks the
+    FULL sorted `items` list by global index while `RulesView` passes a filtered
+    `userRules` index. Moving the top user rule "up" tries to swap priority with
+    the adjacent **system** rule → that half 403s while the user-rule half
+    succeeds → corrupted/duplicate priorityOrder. Fix: reorder strictly WITHIN
+    the user-rule group using explicit neighbor IDs (reuse `reorderRule(dragId,
+    targetId)` semantics), never crossing into system rules.
+  - 🔎 Toggle IS supported for all rules (system via status-override path, user
+    normally) — safe to add an enable/disable toggle to user rules too.
+  - 🔎 Mock caveat: `dev:mock` PATCH handler does not enforce the 403, so reorder
+    will *appear* to work in mock but fail against prod — verify against a real
+    backend or add the guard to the mock.
+  - ❓ Mobile tap-popup mechanism: reuse `OverflowMenu` bottom sheet vs. a
+    dedicated dialog. (Desktop Delete → `OverflowMenu` ⋮.)
+  - ❓ Pin down what "display wrong everywhere" is once running (candidates: two
+    divergent row layouts, raw ▲▼ text glyphs, badge wrapping, disabled opacity,
+    the reorder error surfacing). Inspect via running app before restyling.

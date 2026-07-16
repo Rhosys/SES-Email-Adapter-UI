@@ -9,6 +9,7 @@ import { useQuarantineStore } from '@/stores/quarantine'
 import { useDraftsStore } from '@/stores/drafts'
 import { isAdminUser } from '@/stores/admin'
 import { useIdentity } from '@/composables/useIdentity'
+import { formatBadgeCount } from '@/lib/badge'
 import UserAvatarIcon from '@/components/UserAvatarIcon.vue'
 
 defineProps<{ open: boolean }>()
@@ -26,12 +27,7 @@ const isAdmin = computed(() => isAdminUser())
 
 // Notification badges — counts are now computed from persisted _byAccount data,
 // so no explicit fetch is needed. The quarantine store hydrates from localStorage
-// and the counts derive reactively.
-
-function formatBadgeCount(count: number, hasMore: boolean) {
-  if (count > 99) return '99+'
-  return hasMore ? `${count}+` : `${count}`
-}
+// and the counts derive reactively. `formatBadgeCount` is shared with InboxTabBar.
 
 // ── User identity for mobile profile row ──────────────────────────────────────
 const identity = useIdentity()
