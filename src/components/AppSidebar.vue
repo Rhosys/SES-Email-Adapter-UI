@@ -90,7 +90,7 @@ const accountSwitcherOpen = ref(false)
       </a>
     </div>
 
-    <nav class="flex-1 overflow-y-auto py-8">
+    <nav aria-label="Primary" class="flex-1 overflow-y-auto py-8">
       <!-- Main nav -->
       <div class="px-2">
         <RouterLink
@@ -255,49 +255,53 @@ const accountSwitcherOpen = ref(false)
             <span class="truncate">{{ label.icon ? `${label.icon} ` : '' }}{{ label.name }}</span>
           </RouterLink>
         </div>
-
-        <RouterLink
-          to="/settings"
-          data-tour="nav-settings"
-          class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
-          :class="
-            isActive('/settings')
-              ? 'bg-ctp-surface0 text-ctp-text font-medium'
-              : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
-          "
-        >
-          <!-- Gear icon -->
-          <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path
-              d="M8 4.754a3.246 3.246 0 100 6.492 3.246 3.246 0 000-6.492zM5.754 8a2.246 2.246 0 114.492 0 2.246 2.246 0 01-4.492 0z"
-            />
-            <path
-              d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 01-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 01-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 01.52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 011.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 011.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 01.52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 01-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 01-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 002.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 001.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 00-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 00-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 00-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 003.06 8.955l-.318-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 004.175 4.6l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 002.692-1.115l.094-.319z"
-            />
-          </svg>
-          Settings
-        </RouterLink>
-
-        <RouterLink
-          v-if="isAdmin"
-          to="/admin"
-          class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
-          :class="
-            isActive('/admin')
-              ? 'bg-ctp-surface0 text-ctp-text font-medium'
-              : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
-          "
-        >
-          <!-- Terminal icon -->
-          <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path d="M0 2a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H2a2 2 0 01-2-2V2zm1.5 0v12a.5.5 0 00.5.5h12a.5.5 0 00.5-.5V2a.5.5 0 00-.5-.5H2a.5.5 0 00-.5.5zM4 10l3-3-3-3 1-1 4 4-4 4-1-1zm4 2h4v1H8v-1z"/>
-          </svg>
-          Admin
-        </RouterLink>
       </div>
+    </nav>
 
+    <!-- Account nav — Settings + Admin. Deliberately OUTSIDE the scrollable
+         primary nav (which has flex-1) so it always sits at the true bottom of
+         the sidebar, the same way the profile row and account switcher below it
+         do, regardless of how long the Views/Labels list above grows. The
+         border-t is the "growth separator." -->
+    <nav aria-label="Account" class="shrink-0 border-t border-ctp-surface0 px-2 py-2">
+      <RouterLink
+        to="/settings"
+        data-tour="nav-settings"
+        class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
+        :class="
+          isActive('/settings')
+            ? 'bg-ctp-surface0 text-ctp-text font-medium'
+            : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
+        "
+      >
+        <!-- Gear icon -->
+        <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path
+            d="M8 4.754a3.246 3.246 0 100 6.492 3.246 3.246 0 000-6.492zM5.754 8a2.246 2.246 0 114.492 0 2.246 2.246 0 01-4.492 0z"
+          />
+          <path
+            d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 01-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 01-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 01.52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 011.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 011.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 01.52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 01-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 01-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 002.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 001.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 00-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 00-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 00-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 003.06 8.955l-.318-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 004.175 4.6l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 002.692-1.115l.094-.319z"
+          />
+        </svg>
+        Settings
+      </RouterLink>
 
-
+      <RouterLink
+        v-if="isAdmin"
+        to="/admin"
+        class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
+        :class="
+          isActive('/admin')
+            ? 'bg-ctp-surface0 text-ctp-text font-medium'
+            : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
+        "
+      >
+        <!-- Terminal icon -->
+        <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M0 2a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H2a2 2 0 01-2-2V2zm1.5 0v12a.5.5 0 00.5.5h12a.5.5 0 00.5-.5V2a.5.5 0 00-.5-.5H2a.5.5 0 00-.5.5zM4 10l3-3-3-3 1-1 4 4-4 4-1-1zm4 2h4v1H8v-1z"/>
+        </svg>
+        Admin
+      </RouterLink>
     </nav>
 
     <!-- Mobile user profile (visible only below sm) -->

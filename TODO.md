@@ -270,13 +270,34 @@ Backend routes the frontend already calls (or is already coded to call) that don
 
 - [ ] **2. Sidebar growth separator (Settings + Admin pinned to bottom)** —
   `AppSidebar.vue`.
-  - 🔎 Feasible/low-risk: change `<nav class="flex-1 …">` → `flex flex-1 flex-col`;
-    keep Inbox…Labels in the top `.px-2` group; move the Settings + Admin
-    `RouterLink`s into a bottom `<div class="mt-auto px-2">` with a top border as
-    the "growth separator". Views/Labels expandable sections stay in the top
-    group (unaffected); when the list overflows the nav still scrolls and the
-    bottom group sits after content. Mobile profile row is OUTSIDE `<nav>`, so
-    Settings/Admin correctly land above it.
+  - ✅ **DECIDED (superseding the mt-auto-inside-nav idea above — that only pins
+    when content is short; doesn't survive a long Views/Labels list):** move
+    Settings + Admin OUT of the scrollable `<nav>` entirely into a new sibling
+    `<nav aria-label="Account">` block, placed after `</nav>` and before the
+    mobile-profile-row / account-switcher divs. Label the existing primary nav
+    `aria-label="Primary"` for symmetry. No `mt-auto` needed anywhere — `<nav
+    class="flex-1 overflow-y-auto">` already consumes all leftover vertical
+    space in the `aside`'s flex column, so any sibling placed after it (exactly
+    like the existing pinned mobile-profile-row / account-switcher blocks today)
+    lands at the true bottom of the sidebar regardless of how long the
+    scrollable content above grows — mirrors the existing precedent instead of
+    inventing a new mechanism.
+  - ✅ Scope: ONLY Settings + Admin move. Rules/Templates/Labels(+label list)
+    stay in the primary nav, below the existing separator at line 194 — no
+    change to that group.
+  - ✅ Always-visible `border-t` at the top of the new block (the "growth
+    separator" — visible whether the gap above it is empty or the list above
+    butts right up against it).
+  - ✅ Add a structural regression test to `tests/component/AppSidebar.test.ts`:
+    assert the Settings/Admin links' nearest `nav` ancestor is NOT the same
+    element as the primary/scrollable nav — locks in "never scrolls away."
+  - 🔎 Verification plan: `tests/e2e/a11y.test.ts` runs real axe-core
+    (wcag2a/wcag2aa) against `/` and `/settings` forcing `browserName:'chromium'`
+    — the one browser actually installed here — so it can be run for real
+    post-implementation, not just asserted. `landmark-unique` is an axe
+    best-practice rule (not wcag2a/aa-tagged), so it wouldn't itself fail on an
+    unlabeled second `<nav>`, but we're labeling both anyway for real
+    screen-reader users.
 
 - [ ] **3. Mobile Settings header: hide hamburger + show "{tab}" title** —
   `AppLayout.vue` / `AppNavbar.vue` / `SettingsView.vue`.
