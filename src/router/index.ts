@@ -50,6 +50,16 @@ export const router = createRouter({
           component: () => import('@/views/QuarantineDetailView.vue'),
         },
         {
+          path: 'spam',
+          name: 'spam',
+          component: () => import('@/views/SpamView.vue'),
+        },
+        {
+          path: 'spam/:id',
+          name: 'spam-detail',
+          component: () => import('@/views/SpamDetailView.vue'),
+        },
+        {
           path: 'drafts',
           name: 'drafts',
           component: () => import('@/views/DraftsView.vue'),
@@ -160,6 +170,8 @@ const ROUTE_TITLES: Record<string, string> = {
   'thread-detail': 'Conversation',
   quarantine: 'Quarantine',
   'quarantine-detail': 'Quarantined email',
+  spam: 'Spam',
+  'spam-detail': 'Blocked email',
   drafts: 'Drafts',
   search: 'Search',
   labels: 'Labels & Views',

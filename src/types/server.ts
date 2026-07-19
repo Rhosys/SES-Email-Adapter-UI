@@ -370,6 +370,9 @@ export type SignalType = Signal['type']
 
 export type QuarantinedSignal = Signal & { status: QuarantineStatus }
 
+export type BlockedStatus = 'block_hidden' | 'block_reject'
+export type BlockedSignal = Signal & { status: BlockedStatus }
+
 // ─── WorkflowData union ───────────────────────────────────────────────────────
 
 export interface AuthData {

@@ -212,11 +212,12 @@ async function undoSend() {
 }
 
 async function reprocessSignal() {
-  if (!accountStore.accountId || !props.signal.threadId || reprocessing.value) return
+  if (!accountStore.accountId || reprocessing.value) return
+  const threadId = props.signal.threadId ?? (props.signal.status === 'block_hidden' || props.signal.status === 'block_reject' ? 'BLOCKED' : 'QUARANTINED')
   reprocessing.value = true
   reprocessError.value = null
 
-  const result = await api.reprocessSignal(accountStore.accountId, props.signal.threadId, props.signal.signalId)
+  const result = await api.reprocessSignal(accountStore.accountId, threadId, props.signal.signalId)
 
   if (result.isErr()) {
     reprocessing.value = false
