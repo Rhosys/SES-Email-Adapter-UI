@@ -48,10 +48,10 @@ async function enableNotifications() {
 
 function fireDemo() {
   setTimeout(() => {
-    notify({
+    void notify({
       title: 'New email from hello@example.com',
       body: "That's how it works — you'll see these for high-priority emails.",
-      onClick: () => { /* demo — no navigation needed */ },
+      // Demo only — no real thread to navigate to, so no url.
     })
   }, 800)
 }

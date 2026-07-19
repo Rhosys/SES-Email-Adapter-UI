@@ -721,24 +721,29 @@ async function saveDigest() {
   }
 }
 
+function showTestNotification() {
+  // Deep-links back to this exact section (PWA-first: clicking it focuses the
+  // installed app instead of opening a browser tab — see src/sw.ts) and
+  // demonstrates action buttons, both explicitly requested test cases.
+  void notify({
+    title: 'Test notification from SES Adapter',
+    body: 'If you see this, notifications are working.',
+    url: '/settings?tab=email-forwarding',
+    actions: [
+      { action: 'open-settings', title: 'Open Settings', url: '/settings?tab=email-forwarding' },
+      { action: 'dismiss', title: 'Dismiss' },
+    ],
+  })
+}
+
 function sendTestNotification() {
   if (!('Notification' in window)) return
   if (Notification.permission === 'granted') {
-    notify({
-      title: 'Test notification from SES Adapter',
-      body: 'If you see this, browser notifications are working.',
-      onClick: () => { void router.push('/') },
-    })
+    showTestNotification()
     return
   }
   void Notification.requestPermission().then((permission) => {
-    if (permission === 'granted') {
-      notify({
-        title: 'Test notification from SES Adapter',
-        body: 'If you see this, browser notifications are working.',
-        onClick: () => { void router.push('/') },
-      })
-    }
+    if (permission === 'granted') showTestNotification()
   })
 }
 

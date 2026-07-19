@@ -450,32 +450,100 @@ Backend routes the frontend already calls (or is already coded to call) that don
   exact expected message visible, select correctly NOT changed. Screenshots
   confirm all states visually.
 
-- [ ] **7 & 8. PWA notifications: icon, deep-link, PWA-first click, action
-  buttons; + Android/iOS UX writeup** — must also work on desktop (esp. Linux);
-  stay on vite-plugin-pwa via first-class `injectManifest`.
-  - 🔎 `vite-plugin-pwa@1.3.0` + `@vite-pwa/assets-generator@1.0.2`. `pwaAssets`
-    is independent of `strategies` — it coexists with `injectManifest` and still
-    injects manifest icons + `<head>` links. So we CAN keep auto-generated icons
-    and add a custom `src/sw.ts` that does `precacheAndRoute(self.__WB_MANIFEST)`.
-  - 🔎 `minimal2023Preset` emits `pwa-64x64.png`, `pwa-192x192.png`,
-    `pwa-512x512.png`, `maskable-icon-512x512.png`, `apple-touch-icon-180x180.png`.
-    Use `pwa-192x192.png` for the notification `icon`. It does NOT emit a
-    monochrome `badge` (the grey single-letter glyph the user saw is the OS
-    fallback when `badge` is absent) → **must add a monochrome badge asset**.
-  - 🔎 Web-platform fact: notification `actions` + action/click routing are only
-    deliverable via `ServiceWorkerRegistration.showNotification` + a SW
-    `notificationclick` handler (not `new Notification`). No Vue library removes
-    this; `injectManifest` is the minimal first-class way. `devOptions.enabled:
-    false` means the SW is OFF in `dev:mock` → notifications must be tested via
-    `build` + `preview` (or installed PWA).
-  - 🔎 Realtime path: `useRealtime.ts` (SharedWorker→page) calls
-    `showNotification`; switch its `fireNotification` to the registration path
-    with `data.url = '/threads/<id>'`; page listens for the SW's postMessage and
-    `router.push`es.
-  - ❓ Correct deep-link target for the test notification (Settings ▸ which tab —
-    email-forwarding notifications block?).
-  - 🔎 iOS installed-PWA (16.4+) supports basic push notifications but **no
-    action buttons** → feature-detect and omit `actions` where unsupported.
+- [x] **7 & 8. PWA notifications: icon, deep-link, PWA-first click, action
+  buttons; + Android/iOS UX writeup** — **DONE.**
+  Decisions: (a) **foreground-only** — notifications stay triggered by the
+  existing SharedWorker realtime connection (an open tab/installed PWA), same
+  architecture as before; true background Web Push (VAPID keys, push
+  subscriptions, a backend send endpoint) is explicitly OUT of scope, a much
+  larger separate feature. (b) Action buttons are **navigation-only** — they
+  deep-link, no business-logic side effects run from the service worker
+  itself (that would need an auth token cached somewhere reachable outside
+  any open page — real infrastructure, not attempted here). (c) The test
+  notification deep-links to `/settings?tab=email-forwarding` (where the
+  "Send test notification" button itself lives), so clicking it proves the
+  full round trip lands you back where you started.
+
+  **Implementation:**
+  - `vite.config.ts` — `strategies: 'injectManifest'`, `srcDir: 'src'`,
+    `filename: 'sw.ts'`; `pwaAssets` (icon generation) is untouched, confirmed
+    independent of `strategies`. Added `workbox-core`/`workbox-precaching`/
+    `workbox-routing` as explicit devDependencies (were only present
+    transitively before — `injectManifest` needs them declared, matching
+    vite-plugin-pwa's own setup docs).
+  - New `src/sw.ts` — precache + `NavigationRoute` SPA fallback (reproducing
+    what `generateSW`'s `navigateFallback`/`cleanupOutdatedCaches` config used
+    to auto-generate, now written by hand since `injectManifest` doesn't
+    configure those for you), plus the new `notificationclick` handler:
+    focuses an already-open app window and `postMessage`s the target path
+    (this — not always opening a new tab — is what makes it "PWA-first");
+    falls back to `clients.openWindow()` (resolved against
+    `self.registration.scope`, so it's correct under any deploy base path)
+    only when no window is open.
+  - `src/lib/notifications.ts` — rewritten. `notify()` now **always** shows via
+    `registration.showNotification()` and never `new Notification()` — a
+    registration-shown notification has no client-side object to attach
+    `.onclick` to, so click routing necessarily moved into the SW's own
+    `notificationclick` listener above; this incidentally also removed the old
+    "Illegal constructor on Chrome Android" `new Notification()` fallback
+    workaround entirely, since there's no constructor path left to fall back
+    from. New contract: `url` (body-click target) and `actions: {action,
+    title, url?}[]` (an action with no `url` just closes on click) replace the
+    old `onClick` callback. Defaults `icon` to `pwa-192x192.png` and `badge`
+    to a **new hand-authored asset**, `public/notification-badge.png` (bold
+    filled envelope glyph, rasterized via `sharp` from a hand-written SVG —
+    `@vite-pwa/assets-generator` has no first-class "badge" asset type, so
+    this couldn't be generated the way the manifest icons are).
+  - `useRealtime.ts` — `fireNotification` now calls `notify()` with
+    `url: '/threads/<id>'` instead of the raw `showNotification` helper (now
+    private/unexported).
+  - `SettingsView.vue` — test notification sends `url:
+    '/settings?tab=email-forwarding'` and two actions (`Open Settings`,
+    `Dismiss`), the two explicit test cases asked for.
+  - `OnboardingCoach.vue` — its demo notification drops `onClick` (no real
+    target — it's illustrative, not a real thread).
+  - `AppLayout.vue` — new `navigator.serviceWorker.addEventListener('message',
+    ...)` listener, routing a `notification-navigate` message to
+    `router.push()` — the client-side half of the SW's focus+postMessage path.
+
+  **Verification:** ✅ typecheck/eslint clean, ✅ 364/364 unit tests (6 new for
+  `notify()`, covering permission/SW-availability gating, default icon/badge,
+  and the actions→actionUrls mapping). ✅ Clean production build confirms
+  `mode: injectManifest`, 60 precache entries, and `dist/sw.js` contains the
+  `notificationclick`/`openWindow`/`actionUrls` code alongside the injected
+  precache manifest — not just one or the other. ✅ Real browser (installed SW,
+  not mocked): `context.serviceWorkers()` confirms exactly one active
+  registration at `/sw.js`; triggering the real "Send test notification" flow
+  and reading it back via `registration.getNotifications()` confirms the
+  actual shown notification has the correct icon/badge paths, both actions,
+  and `data.url`/`data.actionUrls` populated as designed.
+
+  ---
+  **Android/iOS notification UX research** (the explicit "what are all the
+  different UX options" ask):
+
+  | Capability | Android Chrome/Firefox | Desktop Chrome/Edge/Firefox (Win/macOS/**Linux**) | iOS/iPadOS Safari (installed PWA only) |
+  |---|---|---|---|
+  | Requires install? | No — works in a regular browser tab | No | **Yes, hard requirement** — Home Screen–installed PWA only; a regular Safari tab cannot request notification permission at all |
+  | title / body / icon | ✅ | ✅ | ✅ (icon customization more limited — leans on the app icon) |
+  | `badge` (small monochrome status icon) | ✅ | Rendered less prominently (desktop notification centers emphasize the full icon) | Effectively ignored — no status-bar equivalent |
+  | `tag` / `renotify` (collapse duplicates) | ✅ | ✅ | ✅ |
+  | `actions` (buttons) | ✅ up to 2, inline on the notification | ✅ up to 2 on Chrome/Edge/Firefox — **on Linux specifically, rendering depends on the system notification daemon** (GNOME/KDE's render them; a bare `dunst` setup may not without configuration) | ❌ **never** — WebKit omits the `actions` field entirely, unconditionally, regardless of what's specified |
+  | `image` (large banner) | ✅ | ✅ | ❌ |
+  | `vibrate` | ✅ | N/A (no vibration hardware) | ❌ |
+  | `requireInteraction` (stays until dismissed) | ✅ | ✅ | ❌ (iOS notifications always auto-dismiss per system behavior) |
+  | Click → deep-link (`notificationclick`) | ✅ | ✅ | ✅ — single tap still routes correctly even though action buttons don't exist |
+  | Click → focus existing app window ("PWA-first") | ✅ if installed; a plain browser tab notification opens/focuses that tab | ✅ | ✅ (opens/focuses the installed Home Screen app) |
+
+  Degradation: no runtime feature-detection was needed to keep this safe —
+  `NotificationOptions` fields a platform doesn't support (`actions` on iOS,
+  `vibrate` on desktop, etc.) are spec'd to be silently ignored, not rejected,
+  so `notify()` can pass the same options everywhere and each platform just
+  renders what it understands. The one thing this means in practice: don't
+  make an action the *only* way to reach some functionality — iOS users can
+  never see it, so the body-click `url` should always cover the primary
+  action too (already true for the test notification: both an action and the
+  body click go to the same place).
 
 - [ ] **9. Rules screen — unify rows; toggle for ALL rules; reorder for USER
   rules; mobile tap→popup (Edit/Delete); desktop Delete→overflow; fix broken

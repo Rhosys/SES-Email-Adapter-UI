@@ -81,6 +81,20 @@ onMounted(() => {
   openSidebarForMobileTour()
 })
 
+// ── Notification click routing ─────────────────────────────────────────────
+// When a notification is clicked and an app window is already open, src/sw.ts
+// focuses it and posts the target path here, rather than navigating the SW's
+// own (non-existent) location — a service worker has no window to route.
+onMounted(() => {
+  if (!('serviceWorker' in navigator)) return
+  navigator.serviceWorker.addEventListener('message', (event: MessageEvent) => {
+    const data = event.data as { type?: string; url?: string } | undefined
+    if (data?.type === 'notification-navigate' && data.url) {
+      void router.push(data.url)
+    }
+  })
+})
+
 // ── Swipe to open/close sidebar (mobile) ──────────────────────────────────────
 // Swipe-right anywhere opens the nav; swipe-left closes it. A region can claim
 // horizontal swipes for itself via `data-h-swipe` (e.g. the Settings tab strip,
