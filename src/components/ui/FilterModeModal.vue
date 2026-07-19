@@ -15,6 +15,14 @@ const emit = defineEmits<{
 }>()
 
 const dialogRef = ref<HTMLDivElement | null>(null)
+const selectedMode = ref(props.currentMode)
+
+function save() {
+  if (selectedMode.value !== props.currentMode) {
+    emit('select', selectedMode.value)
+  }
+  emit('close')
+}
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
@@ -42,6 +50,7 @@ watch(
   () => props.open,
   async (isOpen) => {
     if (isOpen) {
+      selectedMode.value = props.currentMode
       await nextTick()
       dialogRef.value?.querySelector<HTMLElement>('button')?.focus()
       document.addEventListener('keydown', onKeydown)
@@ -85,22 +94,22 @@ onBeforeUnmount(() => {
             type="button"
             class="flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors"
             :class="
-              currentMode === mode.value
+              selectedMode === mode.value
                 ? 'border-ctp-mauve bg-ctp-mauve/10'
                 : 'border-ctp-surface1 hover:border-ctp-surface2'
             "
-            @click="emit('select', mode.value)"
+            @click="selectedMode = mode.value"
           >
             <span
               class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2"
               :class="
-                currentMode === mode.value
+                selectedMode === mode.value
                   ? 'border-ctp-mauve'
                   : 'border-ctp-surface2'
               "
             >
               <span
-                v-if="currentMode === mode.value"
+                v-if="selectedMode === mode.value"
                 class="h-2 w-2 rounded-full bg-ctp-mauve"
               />
             </span>
@@ -111,12 +120,19 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <div class="mt-5 flex justify-end">
+        <div class="mt-5 flex justify-between">
           <button
-            class="rounded-lg bg-ctp-mauve px-4 py-1.5 text-sm font-medium text-ctp-base hover:opacity-90"
+            class="rounded-lg border border-ctp-surface1 px-4 py-1.5 text-sm font-medium text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text"
             @click="emit('close')"
           >
             Cancel
+          </button>
+          <button
+            class="rounded-lg bg-ctp-mauve px-4 py-1.5 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+            :disabled="selectedMode === currentMode"
+            @click="save"
+          >
+            Save
           </button>
         </div>
       </div>
