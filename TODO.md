@@ -234,9 +234,9 @@ Backend routes the frontend already calls (or is already coded to call) that don
 > resolve during review; `🔎` marks a review finding. We iterate one item at a
 > time — resolve the unknowns, agree the approach, then implement.
 
-- [~] **1. Inbox/Archived/All bottom icon buttons (mobile)** — make the three
+- [x] **1. Inbox/Archived/All bottom icon buttons (mobile)** — make the three
   status tabs easier to switch between on mobile via a bottom icon bar.
-  **DONE (pending visual sign-off):** renamed `StatusTabs.vue`→`InboxTabBar.vue`
+  **DONE.** renamed `StatusTabs.vue`→`InboxTabBar.vue`
   (desktop strip `hidden sm:flex` + mobile `fixed bottom-0 sm:hidden` icon bar,
   tray/archive-box/layers icons, mauve active, green active-count badge on Inbox
   via props); extracted `src/lib/badge.ts` (`formatBadgeCount`, now shared with
@@ -268,8 +268,8 @@ Backend routes the frontend already calls (or is already coded to call) that don
     layers** [rec]; (c) active color on mobile bar **mauve** (match
     `SettingsTabBar`) [rec], desktop keeps its blue underline.
 
-- [ ] **2. Sidebar growth separator (Settings + Admin pinned to bottom)** —
-  `AppSidebar.vue`.
+- [x] **2. Sidebar growth separator (Settings + Admin pinned to bottom)** —
+  `AppSidebar.vue`. **DONE.**
   - ✅ **DECIDED (superseding the mt-auto-inside-nav idea above — that only pins
     when content is short; doesn't survive a long Views/Labels list):** move
     Settings + Admin OUT of the scrollable `<nav>` entirely into a new sibling
@@ -516,7 +516,21 @@ Backend routes the frontend already calls (or is already coded to call) that don
   registration at `/sw.js`; triggering the real "Send test notification" flow
   and reading it back via `registration.getNotifications()` confirms the
   actual shown notification has the correct icon/badge paths, both actions,
-  and `data.url`/`data.actionUrls` populated as designed.
+  and `data.url`/`data.actionUrls` populated as designed. ✅ Real click routing
+  (dispatching an actual `NotificationEvent` against the registered
+  `notificationclick` listener inside the SW's own execution context via
+  Playwright's `Worker.evaluate()`, referencing the real shown `Notification`
+  instance — not a mock): found and fixed a real bug where `await
+  target.focus()` was called before `target.postMessage(...)` with no error
+  handling; `focus()` can throw `InvalidAccessError` (confirmed via synthetic
+  dispatch, which lacks genuine user-activation) and, unhandled, that
+  exception aborted the handler before `postMessage()` ever ran — silently
+  breaking navigation. Fixed by posting the message first and treating
+  `focus()` as best-effort (`.catch(() => {})`). Re-verified post-fix: the
+  handler's `event.waitUntil` promise resolves without rejecting, the page
+  receives the correct `notification-navigate` message, and the notification
+  is closed (0 remaining) — confirmed through the actual production code
+  path, not a reimplementation of it.
 
   ---
   **Android/iOS notification UX research** (the explicit "what are all the
