@@ -405,21 +405,50 @@ Backend routes the frontend already calls (or is already coded to call) that don
   room to the right on 390px) and step 2; desktop — pixel-identical to before
   (tooltip right of spotlight, no added delay). Screenshots confirm visually.
 
-- [ ] **6. Calendar/digest "Add new…" → forwarding add modal** — confirmed:
-  convert inline add-target form to a reusable modal popup.
-  - 🔎 Inline form today: `SettingsView.vue:1521-1589` — button sets
-    `addTargetDialogOpen`, then type picker (email/webhook) → input →
-    `addForwardingTarget()`. Extract into `AddForwardingTargetModal.vue`
-    (Teleport modal, mirror `ui/FilterModeModal.vue` / `ConfirmDialog.vue`), emit
-    `added(target)`.
-  - 🔎 Selects: calendar (`~L1503`) + digest (`~L973`) both iterate
-    `verifiedForwardingTargets`. Native `<select>` can't host an action row
-    cleanly → add a `＋ Add new…` sentinel `<option value="__add__">`; on `@change`
-    to it, reset the select, `switchTab('email-forwarding')`, open the modal.
-  - 🔎 A newly added EMAIL target is `status:'pending'` until verified, so it won't
-    appear in `verifiedForwardingTargets` yet → can't auto-select it; show the
-    pending/verification state instead. (Webhook targets may be immediately
-    usable — confirm status on add.)
+- [x] **6. Calendar/digest "Add new…" → forwarding add modal** — **DONE.**
+  Decisions: (a) auto-select the new target ONLY when verified (webhooks are
+  created verified immediately, per backend `aliasesApi.ts:306-315`); for
+  email targets (stay `pending` until the user clicks the verification link)
+  show a toast instead ("check your inbox, then select it here") and leave
+  the select as it was. (b) The existing "Add Forwarding Target" button on
+  the Email & Forwarding tab was migrated to the SAME new modal too — one
+  flow everywhere, its old inline expanding form deleted entirely, not kept
+  as a second UI. (c) The select stays showing "＋ Add new…" while the modal
+  is open (not reverted immediately), only reverting to the previous value on
+  cancel or once the create resolves — implemented via a computed
+  get/set (`calendarSelectValue`/`digestSelectValue`) wrapping a
+  `*ShowingSentinel` boolean flag, rather than a second mirrored ref, so the
+  sentinel string never leaks into the persisted
+  `calendarForwardingTargetId`/`digestForwardingTargetId` values.
+  New `src/components/settings/AddForwardingTargetModal.vue` — not
+  Teleported (matches `FilterModeModal.vue`/`ConfirmDialog.vue`, the two
+  OTHER modals already used in this same file), takes a `submit` function
+  prop (not an emit) so `AsyncButton` keeps owning its own pending state, per
+  this codebase's existing convention. Selecting "＋ Add new…" from EITHER
+  select calls `switchTab('email-forwarding')` (no-op from the calendar
+  select, real from the digest select which lives on the Profile tab) before
+  opening the modal, so the newly-created row/pending-target context is
+  visible once it closes.
+  - 🔎 **Real bug found and fixed along the way:** the outer backdrop `<div>`
+    had `aria-hidden="true"` (copied from `FilterModeModal.vue`'s existing
+    pattern) wrapping the `role="dialog"` content — per the ARIA spec this
+    hides the ENTIRE subtree, including the dialog, from the accessibility
+    tree and from role-based queries (caught this because Playwright's
+    `getByRole('dialog')` couldn't find an admittedly-visible-on-screen
+    modal). Fixed in the new component by removing `aria-hidden` from the
+    wrapper. **Not fixed** in `FilterModeModal.vue` / `ConfirmDialog.vue`
+    (same bug, pre-existing, out of scope for this task) — flagging here for
+    a future cleanup pass; those two have the identical wrapper markup.
+  Verification: ✅ typecheck/eslint clean, ✅ 358/358 unit tests (18 new: 7 for
+  the modal component incl. Escape/Cancel/reset-on-reopen, 4 for the
+  SettingsView wiring incl. the tab-switch and auto-select-vs-toast branches).
+  ✅ Real browser, full round-trip against routed POST/PATCH stubs: desktop
+  calendar "＋ Add new…" → webhook created → modal closes → select shows the
+  new URL selected, confirmed via a real network assertion that
+  `updateAccount` was called with it; mobile digest "＋ Add new…" → title
+  switches to "Email & Forwarding" → pending email created → toast with the
+  exact expected message visible, select correctly NOT changed. Screenshots
+  confirm all states visually.
 
 - [ ] **7 & 8. PWA notifications: icon, deep-link, PWA-first click, action
   buttons; + Android/iOS UX writeup** — must also work on desktop (esp. Linux);
