@@ -274,7 +274,9 @@ describe('ThreadDetailView — signal count badge', () => {
 
   it('pluralizes and colors the badge as archived when the thread is archived', async () => {
     const thread = makeThread({ status: 'archived' })
-    const wrapper = await mountView(thread, [mockEmailSignal(), mockEmailSignal({ signalId: 'sig_2' })])
+    const base = mockEmailSignal()
+    const sig2 = { ...base, signalId: 'sig_2', data: { ...base.data, body: 'Different body' } } as Signal
+    const wrapper = await mountView(thread, [base, sig2])
 
     const badge = wrapper.findAll('span').find((s) => /^\d+\+? Signals?$/.test(s.text().trim()))
     expect(badge).toBeTruthy()

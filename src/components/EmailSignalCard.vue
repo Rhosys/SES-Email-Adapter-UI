@@ -129,32 +129,40 @@ const subjectLine = computed(() => {
   return props.signal.data.subject
 })
 
-const rawSignalJson = ref('')
-const showRawModal = ref(false)
+const signalObjectJson = ref('')
+const showSignalObjectModal = ref(false)
 const showOriginalModal = ref(false)
 const showMatchedRulesModal = ref(false)
-const rawCopied = ref(false)
+const signalObjectCopied = ref(false)
 const originalCopied = ref(false)
 const originalEmailSource = ref('')
 const originalLoading = ref(false)
 const originalError = ref<string | null>(null)
+const signalObjectLoading = ref(false)
+const signalObjectError = ref<string | null>(null)
 
-function viewRawSignal() {
-  if (!isEmailSignal(props.signal)) return
-  const d = props.signal.data
-  const lines: string[] = []
-  if (d.from) lines.push(`From: ${d.from.name ? `${d.from.name} <${d.from.address}>` : d.from.address}`)
-  if ('to' in d && d.to.length > 0) lines.push(`To: ${d.to.map((a) => a.name ? `${a.name} <${a.address}>` : a.address).join(', ')}`)
-  if ('cc' in d && d.cc.length > 0) lines.push(`CC: ${d.cc.map((a) => a.name ? `${a.name} <${a.address}>` : a.address).join(', ')}`)
-  if (d.subject) lines.push(`Subject: ${d.subject}`)
-  if ('receivedAt' in d) lines.push(`Date: ${d.receivedAt}`)
-  if ('headers' in d && d.headers) {
-    for (const [key, value] of Object.entries(d.headers)) {
-      lines.push(`${key}: ${value}`)
+const hasOriginalEmail = computed(() => {
+  const s = props.signal.status
+  return s !== 'block_hidden' && s !== 'block_reject' && s !== 'report_violation' && s !== 'quarantine_visible' && s !== 'quarantine_hidden'
+})
+
+function viewSignalObject() {
+  if (!accountStore.accountId) return
+  showSignalObjectModal.value = true
+  signalObjectError.value = null
+
+  if (signalObjectJson.value) return
+
+  const threadId = props.signal.threadId ?? (props.signal.status === 'block_hidden' || props.signal.status === 'block_reject' ? 'BLOCKED' : 'QUARANTINED')
+  signalObjectLoading.value = true
+  void api.getSignal(accountStore.accountId, threadId, props.signal.signalId).then((result) => {
+    signalObjectLoading.value = false
+    if (result.isOk()) {
+      signalObjectJson.value = JSON.stringify(result.value, null, 2)
+    } else {
+      signalObjectError.value = result.error.message
     }
-  }
-  rawSignalJson.value = lines.join('\n')
-  showRawModal.value = true
+  })
 }
 
 function viewOriginalEmail() {
@@ -175,10 +183,11 @@ function viewOriginalEmail() {
   })
 }
 
-function copyRawJson() {
-  void navigator.clipboard.writeText(rawSignalJson.value).then(() => {
-    rawCopied.value = true
-    setTimeout(() => { rawCopied.value = false }, 1500)
+function copySignalObject() {
+  if (!signalObjectJson.value) return
+  void navigator.clipboard.writeText(signalObjectJson.value).then(() => {
+    signalObjectCopied.value = true
+    setTimeout(() => { signalObjectCopied.value = false }, 1500)
   })
 }
 
@@ -399,12 +408,12 @@ const iframeStyle = {
         <button
           class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
           role="menuitem"
-          @click="viewRawSignal"
+          @click="viewSignalObject"
         >
-          Show headers
+          Show signal object
         </button>
         <button
-          v-if="isEmailSignal(signal)"
+          v-if="hasOriginalEmail && isEmailSignal(signal)"
           class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
           role="menuitem"
           @click="viewOriginalEmail"
@@ -544,19 +553,25 @@ const iframeStyle = {
 
   </div>
 
-  <!-- Raw signal data modal -->
+  <!-- Signal object modal -->
   <Teleport to="body">
     <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -->
-    <div v-if="showRawModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80" @click.self="showRawModal = false">
+    <div v-if="showSignalObjectModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80" @click.self="showSignalObjectModal = false">
       <div class="relative max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl border border-ctp-surface1 bg-ctp-mantle p-4 shadow-2xl">
         <div class="mb-3 flex items-center justify-between">
-          <h3 class="text-sm font-semibold text-ctp-text">Headers</h3>
+          <h3 class="text-sm font-semibold text-ctp-text">Signal object</h3>
           <div class="flex items-center gap-3">
-            <button class="text-xs text-ctp-subtext0 hover:text-ctp-mauve" @click="copyRawJson">{{ rawCopied ? '✓ Copied' : 'Copy' }}</button>
-            <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="showRawModal = false">Close</button>
+            <button v-if="signalObjectJson" class="text-xs text-ctp-subtext0 hover:text-ctp-mauve" @click="copySignalObject">{{ signalObjectCopied ? '✓ Copied' : 'Copy' }}</button>
+            <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="showSignalObjectModal = false">Close</button>
           </div>
         </div>
-        <pre class="overflow-auto rounded-lg bg-ctp-base p-3 font-mono text-xs text-ctp-text break-all whitespace-pre-wrap">{{ rawSignalJson }}</pre>
+        <div v-if="signalObjectLoading" class="flex items-center justify-center p-8">
+          <span class="text-sm text-ctp-subtext0">Loading…</span>
+        </div>
+        <div v-else-if="signalObjectError" class="p-4">
+          <span class="text-sm text-ctp-red">{{ signalObjectError }}</span>
+        </div>
+        <pre v-else class="overflow-auto rounded-lg bg-ctp-base p-3 font-mono text-xs text-ctp-text break-all whitespace-pre-wrap">{{ signalObjectJson }}</pre>
       </div>
     </div>
   </Teleport>

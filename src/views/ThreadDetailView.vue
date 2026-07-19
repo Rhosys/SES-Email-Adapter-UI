@@ -393,11 +393,11 @@ async function removeLabel(label: string) {
         <div class="mt-2 flex flex-wrap items-center gap-1.5">
           <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ thread.workflow }}</span>
           <span
-            v-if="signalsStore.items.length > 0"
+            v-if="dedupedSignals.length > 0"
             class="rounded-full px-2 py-0.5 text-xs font-medium"
             :class="primaryBadgeClass"
           >
-            {{ signalsStore.items.length }}{{ signalsStore.hasMore ? '+' : '' }} Signal{{ signalsStore.items.length === 1 && !signalsStore.hasMore ? '' : 's' }}
+            {{ dedupedSignals.length }}{{ signalsStore.hasMore ? '+' : '' }} Signal{{ dedupedSignals.length === 1 && !signalsStore.hasMore ? '' : 's' }}
           </span>
           <button
             v-for="label in visibleLabels(thread.labels)"
