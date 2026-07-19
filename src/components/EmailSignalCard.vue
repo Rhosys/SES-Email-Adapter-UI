@@ -394,6 +394,8 @@ const iframeStyle = {
         label="Signal actions"
         sheet-title="Signal actions"
       >
+        <CopyMenuItem class="px-4" :value="signal.signalId" label="Signal ID" />
+        <CopyMenuItem v-if="threadId" class="px-4" :value="threadId" label="Thread ID" />
         <button
           class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
           role="menuitem"
@@ -417,8 +419,6 @@ const iframeStyle = {
         >
           Show matched rules
         </button>
-        <CopyMenuItem class="px-4" :value="signal.signalId" label="Signal ID" />
-        <CopyMenuItem v-if="threadId" class="px-4" :value="threadId" label="Thread ID" />
         <button
           v-if="isUserSent"
           :disabled="undoPending"
