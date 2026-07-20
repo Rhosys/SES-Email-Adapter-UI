@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import logger from '@/lib/logger'
 import { useAccountStore } from '@/stores/account'
 import type { QuarantineSignalListParams } from '@/lib/api'
@@ -187,18 +187,23 @@ export const useSpamStore = defineStore('spam', () => {
     }
   }
 
-  async function deleteSignal(signalId: string): Promise<boolean> {
+  // Returns the ApiError on failure (so callers can special-case e.g. a 404 with
+  // a tailored popup), or null on success. A non-404 failure also surfaces on the
+  // shared error banner; a 404 is left for the caller to explain in context.
+  async function deleteSignal(signalId: string): Promise<ApiError | null> {
     const id = accountStore.accountId
-    if (!id) return false
+    if (!id) return new ApiError(0, 'No account selected')
     actionPending.value = new Set([...actionPending.value, signalId])
     const result = await api.deleteSignal(id, signalId)
     actionPending.value = new Set([...actionPending.value].filter((x) => x !== signalId))
     if (result.isErr()) {
-      error.value = result.error.message
-      return false
+      if (result.error.status !== 404) {
+        error.value = result.error.message
+      }
+      return result.error
     }
     _removeSignal(id, signalId)
-    return true
+    return null
   }
 
   function setFilters(next: Partial<SpamFilters>) {

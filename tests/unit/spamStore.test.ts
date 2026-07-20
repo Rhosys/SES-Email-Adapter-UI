@@ -100,26 +100,40 @@ describe('spamStore', () => {
     expect(store.blockedCount).toBe(3)
 
     vi.mocked(api.deleteSignal).mockResolvedValue(ok(undefined))
-    const removed = await store.deleteSignal('h1')
+    const error = await store.deleteSignal('h1')
 
-    expect(removed).toBe(true)
+    expect(error).toBeNull()
     expect(api.deleteSignal).toHaveBeenCalledWith('acc_1', 'h1')
     expect(store.blockHidden.map((s) => s.signalId)).toEqual(['h2'])
     expect(store.blockedCount).toBe(2)
     expect(store.actionPending.has('h1')).toBe(false)
   })
 
-  it('deleteSignal keeps the signal and surfaces an error when the API fails', async () => {
+  it('deleteSignal keeps the signal and surfaces an error banner when a non-404 failure occurs', async () => {
     mockBothCalls([mockSignal({ signalId: 'h1' })], [])
     const store = useSpamStore()
     await store.fetchSignals(true)
 
     vi.mocked(api.deleteSignal).mockResolvedValue(err(new ApiError(500, 'boom')))
-    const removed = await store.deleteSignal('h1')
+    const error = await store.deleteSignal('h1')
 
-    expect(removed).toBe(false)
+    expect(error?.status).toBe(500)
     expect(store.error).toBe('boom')
     expect(store.blockHidden.map((s) => s.signalId)).toEqual(['h1'])
     expect(store.blockedCount).toBe(1)
+  })
+
+  it('deleteSignal returns the 404 without tripping the shared error banner', async () => {
+    mockBothCalls([mockSignal({ signalId: 'h1' })], [])
+    const store = useSpamStore()
+    await store.fetchSignals(true)
+
+    vi.mocked(api.deleteSignal).mockResolvedValue(err(new ApiError(404, 'not found')))
+    const error = await store.deleteSignal('h1')
+
+    expect(error?.status).toBe(404)
+    // 404 is left for the caller to explain in context — no generic banner.
+    expect(store.error).toBeNull()
+    expect(store.blockHidden.map((s) => s.signalId)).toEqual(['h1'])
   })
 })

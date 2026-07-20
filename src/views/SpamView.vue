@@ -7,6 +7,7 @@ import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import QuarantineFilters from '@/components/QuarantineFilters.vue'
 import QuarantineRow from '@/components/QuarantineRow.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import NoticeDialog from '@/components/ui/NoticeDialog.vue'
 import type { SpamFilters } from '@/stores/spam'
 
 const route = useRoute()
@@ -17,6 +18,11 @@ useRelativeTime()
 
 const loadingHidden = ref(true)
 const loadingReject = ref(true)
+
+// Informational popup shown when the server can't honour a delete (e.g. 404 —
+// the delete endpoint isn't available yet).
+const noticeOpen = ref(false)
+const notice = ref<{ title: string; message: string }>({ title: '', message: '' })
 
 const isEmpty = computed(
   () => !loadingHidden.value && !loadingReject.value && store.blockHidden.length === 0 && store.blockReject.length === 0,
@@ -69,7 +75,18 @@ async function onDelete(signalId: string) {
     confirmVariant: 'danger',
   })
   if (!confirmed) return
-  await store.deleteSignal(signalId)
+
+  const error = await store.deleteSignal(signalId)
+  if (error?.status === 404) {
+    notice.value = {
+      title: 'Couldn’t delete this email',
+      message:
+        'The server couldn’t delete this blocked email. This action may not be available yet, or the email may have already been removed.\n\nBlocked emails are cleared automatically once they pass your account’s retention window — so there’s nothing you need to do to keep the list tidy. To stop similar emails in future, adjust the matching rule or the sender’s policy.',
+    }
+    noticeOpen.value = true
+    // Reconcile in case the signal really was removed on the server.
+    void store.fetchSignals(true)
+  }
 }
 </script>
 
@@ -207,5 +224,13 @@ async function onDelete(signalId: string) {
     :confirm-variant="dialogOptions.confirmVariant"
     @confirm="onConfirm"
     @cancel="onCancel"
+  />
+
+  <NoticeDialog
+    :open="noticeOpen"
+    :title="notice.title"
+    :message="notice.message"
+    tone="warning"
+    @close="noticeOpen = false"
   />
 </template>
