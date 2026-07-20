@@ -54,39 +54,40 @@ const subject = computed(() => inboundData.value?.subject ?? '')
       :aria-label="`Open email from ${fromDisplay || fromAddress}`"
     />
 
-    <div class="pointer-events-none relative z-10 flex items-start gap-3 px-4 py-4 sm:py-3">
-      <!-- Quarantine status badge -->
-      <div class="mt-0.5 shrink-0">
-        <StatusBadge :status="signal.status" />
-        <span
-          v-if="reasonLabel"
-          class="ml-1 inline-block rounded-full bg-ctp-peach/15 px-2 py-0.5 text-xs text-ctp-peach"
-        >
-          {{ reasonLabel }}
-        </span>
-      </div>
-
-      <!-- Content -->
+    <div class="pointer-events-none relative z-10 flex items-center gap-2 px-4 py-3.5 sm:py-3">
+      <!-- Content: sender · subject · (badges + target alias) -->
       <div class="min-w-0 flex-1">
-        <div class="flex items-center justify-between gap-2">
-          <p class="truncate text-[15px] font-medium text-ctp-text sm:text-sm">
+        <!-- Sender + time -->
+        <div class="flex items-baseline justify-between gap-2">
+          <p class="min-w-0 truncate text-[15px] font-medium text-ctp-text sm:text-sm">
             {{ fromDisplay }}
             <span class="font-normal text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span>
           </p>
           <span class="shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
         </div>
 
-        <p class="mt-1 truncate text-sm text-ctp-subtext1 sm:mt-0.5">{{ subject }}</p>
+        <!-- Subject / summary -->
+        <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ subject }}</p>
 
-        <p v-if="toAddress" class="mt-1.5 text-xs text-ctp-subtext0 sm:mt-1">
-          <span class="text-ctp-overlay1">To:</span> <span class="text-ctp-sapphire">{{ toAddress }}</span>
-        </p>
+        <!-- Meta: status + reason badges, then the target alias -->
+        <div class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <StatusBadge :status="signal.status" />
+          <span
+            v-if="reasonLabel"
+            class="shrink-0 rounded-full bg-ctp-peach/15 px-2 py-0.5 text-xs text-ctp-peach"
+          >
+            {{ reasonLabel }}
+          </span>
+          <span v-if="toAddress" class="min-w-0 truncate text-xs text-ctp-subtext0">
+            <span class="text-ctp-overlay1">To:</span> <span class="text-ctp-sapphire">{{ toAddress }}</span>
+          </span>
+        </div>
       </div>
 
       <!-- Overflow menu (blocked/spam rows) -->
       <OverflowMenu
         v-if="deletable"
-        class="pointer-events-auto -my-1 shrink-0"
+        class="pointer-events-auto shrink-0 self-center"
         label="Blocked email actions"
         menu-width-class="min-w-40"
         icon-class="h-5 w-5 sm:h-3.5 sm:w-3.5"
