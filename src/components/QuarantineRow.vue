@@ -54,43 +54,46 @@ const subject = computed(() => inboundData.value?.subject ?? '')
       :aria-label="`Open email from ${fromDisplay || fromAddress}`"
     />
 
-    <div class="pointer-events-none relative z-10 flex items-start gap-3 px-4 py-3">
-      <!-- Quarantine status badge -->
-      <div class="mt-0.5 shrink-0">
-        <StatusBadge :status="signal.status" />
-        <span
-          v-if="reasonLabel"
-          class="ml-1 inline-block rounded-full bg-ctp-peach/15 px-2 py-0.5 text-xs text-ctp-peach"
-        >
-          {{ reasonLabel }}
-        </span>
-      </div>
-
-      <!-- Content -->
-      <div class="min-w-0 flex-1">
-        <div class="flex items-center justify-between gap-2">
-          <p class="truncate text-sm font-medium text-ctp-text">
-            {{ fromDisplay }}
-            <span class="font-normal text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span>
-          </p>
-          <span class="shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
+    <div class="pointer-events-none relative z-10 flex items-center gap-2 px-4 py-3.5 sm:py-3">
+      <!-- Content, top→bottom: subject · sender · alias · badges -->
+      <div class="min-w-0 flex-1 space-y-0.5">
+        <!-- Subject / summary (primary) — wraps up to two lines so it isn't clipped -->
+        <div class="flex items-start justify-between gap-2">
+          <p class="min-w-0 text-[15px] font-medium text-ctp-text line-clamp-2 sm:text-sm">{{ subject }}</p>
+          <span class="mt-0.5 shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
         </div>
 
-        <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ subject }}</p>
+        <!-- Sender -->
+        <p class="truncate text-sm text-ctp-subtext1">
+          {{ fromDisplay }}
+          <span class="text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span>
+        </p>
 
-        <p v-if="toAddress" class="mt-1 text-xs text-ctp-subtext0">
+        <!-- Target alias -->
+        <p v-if="toAddress" class="truncate text-xs text-ctp-subtext0">
           <span class="text-ctp-overlay1">To:</span> <span class="text-ctp-sapphire">{{ toAddress }}</span>
         </p>
+
+        <!-- Badges -->
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1">
+          <StatusBadge :status="signal.status" />
+          <span
+            v-if="reasonLabel"
+            class="shrink-0 rounded-full bg-ctp-peach/15 px-2 py-0.5 text-xs text-ctp-peach"
+          >
+            {{ reasonLabel }}
+          </span>
+        </div>
       </div>
 
       <!-- Overflow menu (blocked/spam rows) -->
       <OverflowMenu
         v-if="deletable"
-        class="pointer-events-auto shrink-0"
+        class="pointer-events-auto shrink-0 self-center"
         label="Blocked email actions"
         menu-width-class="min-w-40"
-        icon-class="h-3.5 w-3.5"
-        trigger-class="flex h-7 w-7 items-center justify-center rounded text-ctp-subtext0 hover:bg-ctp-surface1 hover:text-ctp-text"
+        icon-class="h-5 w-5 sm:h-3.5 sm:w-3.5"
+        trigger-class="flex h-11 w-11 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-ctp-subtext0 hover:bg-ctp-surface1 hover:text-ctp-text"
       >
         <button
           class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-ctp-red hover:bg-ctp-surface0"

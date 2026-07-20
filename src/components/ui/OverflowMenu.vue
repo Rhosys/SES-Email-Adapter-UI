@@ -27,7 +27,7 @@ withDefaults(
     align: 'right',
     menuWidthClass: 'min-w-48',
     triggerClass:
-      'flex h-9 w-9 items-center justify-center rounded-lg text-ctp-subtext0 transition-colors hover:bg-ctp-surface1 hover:text-ctp-text',
+      'flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-lg text-ctp-subtext0 transition-colors hover:bg-ctp-surface1 hover:text-ctp-text',
     iconClass: 'h-4 w-4',
     sheetTitle: '',
   },
