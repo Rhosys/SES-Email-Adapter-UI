@@ -55,31 +55,33 @@ const subject = computed(() => inboundData.value?.subject ?? '')
     />
 
     <div class="pointer-events-none relative z-10 flex items-center gap-2 px-4 py-3.5 sm:py-3">
-      <!-- Content: sender · subject · (badges + target alias) -->
-      <div class="min-w-0 flex-1">
-        <!-- Sender + time -->
-        <div class="flex items-baseline justify-between gap-2">
-          <p class="min-w-0 truncate text-[15px] font-medium text-ctp-text sm:text-sm">
-            {{ fromDisplay }}
-            <span class="font-normal text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span>
-          </p>
-          <span class="shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
+      <!-- Content, top→bottom: subject · sender · alias · badges -->
+      <div class="min-w-0 flex-1 space-y-0.5">
+        <!-- Subject / summary (primary) — wraps up to two lines so it isn't clipped -->
+        <div class="flex items-start justify-between gap-2">
+          <p class="min-w-0 text-[15px] font-medium text-ctp-text line-clamp-2 sm:text-sm">{{ subject }}</p>
+          <span class="mt-0.5 shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
         </div>
 
-        <!-- Subject / summary -->
-        <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ subject }}</p>
+        <!-- Sender -->
+        <p class="truncate text-sm text-ctp-subtext1">
+          {{ fromDisplay }}
+          <span class="text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span>
+        </p>
 
-        <!-- Meta: status + reason badges, then the target alias -->
-        <div class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <!-- Target alias -->
+        <p v-if="toAddress" class="truncate text-xs text-ctp-subtext0">
+          <span class="text-ctp-overlay1">To:</span> <span class="text-ctp-sapphire">{{ toAddress }}</span>
+        </p>
+
+        <!-- Badges -->
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1">
           <StatusBadge :status="signal.status" />
           <span
             v-if="reasonLabel"
             class="shrink-0 rounded-full bg-ctp-peach/15 px-2 py-0.5 text-xs text-ctp-peach"
           >
             {{ reasonLabel }}
-          </span>
-          <span v-if="toAddress" class="min-w-0 truncate text-xs text-ctp-subtext0">
-            <span class="text-ctp-overlay1">To:</span> <span class="text-ctp-sapphire">{{ toAddress }}</span>
           </span>
         </div>
       </div>
