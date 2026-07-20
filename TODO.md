@@ -637,6 +637,10 @@ Backend routes the frontend already calls (or is already coded to call) that don
   Authress-verified signup email as the forwarding target ID), but it only
   ran from the `FirstFollowup` Step Function step, gated behind a 7-day
   `InitialWait` — so new accounts had no default for their first week. Added
-  a `SetupDefaults` state that runs the same idempotent logic immediately at
-  account creation (backend PR #71); `FirstFollowup` still calls it too as a
+  a `SetupDefaults` state running the same idempotent logic within the first
+  hour of account creation (backend PR #71) instead: `InitialWait` is now a
+  1-hour lead-in (so SetupDefaults doesn't race other first-level
+  account-creation work), then `SetupDefaults`, then the original 7-day wait
+  — renamed `FirstFollowupWait` since it's no longer the first state — before
+  `FirstFollowup`, which still calls the same idempotent setup too as a
   safety net for in-flight executions from before this shipped.
