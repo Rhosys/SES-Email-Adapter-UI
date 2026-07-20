@@ -82,6 +82,7 @@ onBeforeUnmount(() => {
 
 <template>
   <Transition name="add-target-modal-fade">
+    <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -- click-outside-to-close is a mouse enhancement; Escape (handled in script) is the keyboard equivalent -->
     <div
       v-if="open"
       class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80 p-4"
