@@ -10,7 +10,7 @@ import logger from '@/lib/logger'
 import { UserConfigurationScreen } from '@authress/login'
 import type { DeviceType, Device, LinkedIdentity } from '@authress/login'
 import { useFeatureTour } from '@/composables/useFeatureTour'
-import ShortcutHelpOverlay from '@/components/ShortcutHelpOverlay.vue'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import FilterModeModal from '@/components/ui/FilterModeModal.vue'
@@ -59,7 +59,9 @@ type ProfileSubTab = 'configuration' | 'security'
 const profileSubTab = ref<ProfileSubTab>('configuration')
 
 const { startTour } = useFeatureTour()
-const shortcutHelpOpen = ref(false)
+// Shared with AppLayout's global "?" binding — one ShortcutHelpOverlay
+// instance for the whole app, mounted in AppLayout; this just opens it.
+const { shortcutHelpOpen } = useKeyboardShortcuts()
 
 // Security data
 const securityProfile = ref<{ linkedIdentities: LinkedIdentity[] } | null>(null)
@@ -973,7 +975,6 @@ useGestureHandler(settingsContentRef, {
                 Customize
               </button>
             </div>
-            <ShortcutHelpOverlay v-model:open="shortcutHelpOpen" />
           </section>
 
           <!-- Email digest -->

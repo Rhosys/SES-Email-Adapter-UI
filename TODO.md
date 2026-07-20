@@ -351,10 +351,15 @@ Backend routes the frontend already calls (or is already coded to call) that don
   tracks resize/rotation like `AppLayout`'s existing swipe-gesture check.
   Rationale: leaving other bindings live-but-undiscoverable (no `?` to look
   them up, no Settings entry point) on a Bluetooth-keyboard mobile session
-  would be worse than the status quo. (d) Left the pre-existing duplicate
-  `ShortcutHelpOverlay` mount (SettingsView has its own private instance
-  alongside AppLayout's global one) untouched — out of scope for this task,
-  noted here for a future cleanup pass.
+  would be worse than the status quo. (d) The pre-existing duplicate
+  `ShortcutHelpOverlay` mount (SettingsView had its own private instance
+  alongside AppLayout's global one, each with its own disconnected open/close
+  state) left noted here as out of scope at the time — **since fixed**:
+  `shortcutHelpOpen` moved into `useKeyboardShortcuts()` as shared module-level
+  state, so there's exactly one `ShortcutHelpOverlay` in the app (mounted in
+  AppLayout); Settings' "Customize" button now just sets the same shared ref
+  instead of owning its own instance. New test asserting the ref is identical
+  across every caller (`tests/unit/useKeyboardShortcuts.test.ts`).
   Verification: ✅ typecheck/eslint clean, ✅ 336/336 unit tests (7 new: 4 for
   `useIsMobile` incl. matchMedia-unavailable fallback, 3 for
   `useKeyboardShortcuts`'s mobile gate incl. live re-check on resize).
@@ -436,9 +441,20 @@ Backend routes the frontend already calls (or is already coded to call) that don
     tree and from role-based queries (caught this because Playwright's
     `getByRole('dialog')` couldn't find an admittedly-visible-on-screen
     modal). Fixed in the new component by removing `aria-hidden` from the
-    wrapper. **Not fixed** in `FilterModeModal.vue` / `ConfirmDialog.vue`
-    (same bug, pre-existing, out of scope for this task) — flagging here for
-    a future cleanup pass; those two have the identical wrapper markup.
+    wrapper. Left unfixed in `FilterModeModal.vue` / `ConfirmDialog.vue` at
+    the time (same bug, identical wrapper markup) — **since fixed**, along
+    with a third occurrence found in `NoticeDialog.vue` while doing so (not
+    originally noted here). All three: removed `aria-hidden="true"` from the
+    backdrop, added an explanatory comment plus the
+    `no-static-element-interactions`/`click-events-have-key-events` eslint
+    suppression the click-outside-to-close pattern needs (Escape, already
+    handled in each component's script, is the keyboard equivalent). New
+    component tests for all three (`ConfirmDialog.test.ts`,
+    `FilterModeModal.test.ts`, `NoticeDialog.test.ts` — none existed before)
+    asserting the backdrop carries no `aria-hidden` plus normal
+    open/close/emit behavior. Verified live in a real browser: Playwright's
+    `getByRole('alertdialog')` now finds RulesView's delete-confirm dialog
+    (previously exactly the class of query this bug broke).
   Verification: ✅ typecheck/eslint clean, ✅ 358/358 unit tests (18 new: 7 for
   the modal component incl. Escape/Cancel/reset-on-reopen, 4 for the
   SettingsView wiring incl. the tab-switch and auto-select-vs-toast branches).
