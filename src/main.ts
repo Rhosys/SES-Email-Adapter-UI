@@ -7,6 +7,8 @@ import './lib/analytics'
 import logger from './lib/logger'
 import { loginClient } from './lib/auth'
 import { useAccountStore } from './stores/account'
+import { useSpamStore } from './stores/spam'
+import { isAdminUser } from './stores/admin'
 import { useUserConfigStore } from './stores/userConfig'
 import { useLogStore } from './stores/logs'
 import { useIdentity } from './composables/useIdentity'
@@ -77,6 +79,16 @@ enableMocking().then(() => {
   // after it. Guards await this same promise (waitForFetch) rather than initiating their own.
   const accountStore = useAccountStore()
   accountStore.startFetch()
+
+  // Once the account is resolved, admins get the blocked-signal counter primed so the
+  // Spam badge in the sidebar reflects reality on first paint — without them having to
+  // open the Spam tab. Non-admins never see the tab, so we skip the fetch entirely.
+  accountStore.waitForFetch().then(() => {
+    if (isAdminUser()) {
+      const spamStore = useSpamStore()
+      void spamStore.fetchSignals(true)
+    }
+  })
 
   // Identity and user-config reads decode the session token, so they still wait for it.
   loginClient.waitForUserSession().then(() => {

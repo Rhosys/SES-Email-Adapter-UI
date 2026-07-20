@@ -6,6 +6,7 @@ import { useViewsStore } from '@/stores/views'
 import { useAccountStore } from '@/stores/account'
 import { useThreadsStore } from '@/stores/threads'
 import { useQuarantineStore } from '@/stores/quarantine'
+import { useSpamStore } from '@/stores/spam'
 import { useDraftsStore } from '@/stores/drafts'
 import { isAdminUser } from '@/stores/admin'
 import { useIdentity } from '@/composables/useIdentity'
@@ -20,6 +21,7 @@ const viewsStore = useViewsStore()
 const accountStore = useAccountStore()
 const threadsStore = useThreadsStore()
 const quarantineStore = useQuarantineStore()
+const spamStore = useSpamStore()
 const draftsStore = useDraftsStore()
 
 const isAdmin = computed(() => isAdminUser())
@@ -159,7 +161,13 @@ const accountSwitcherOpen = ref(false)
           <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path d="M8 0a8 8 0 100 16A8 8 0 008 0zM2 8a6 6 0 019.546-4.838L3.162 11.546A5.97 5.97 0 012 8zm2.454 4.838l8.384-8.384A6 6 0 014.454 12.838z"/>
           </svg>
-          Spam
+          <span class="flex-1">Spam</span>
+          <span
+            v-if="spamStore.blockedCount > 0"
+            class="shrink-0 rounded-full bg-ctp-red px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ctp-base"
+          >
+            {{ formatBadgeCount(spamStore.blockedCount, spamStore.blockedCountHasMore) }}
+          </span>
         </RouterLink>
 
         <RouterLink
