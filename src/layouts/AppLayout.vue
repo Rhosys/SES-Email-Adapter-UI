@@ -47,12 +47,11 @@ function handleMobileBack() {
 }
 
 const { coachVisible } = useOnboardingCoach()
-const { init: initShortcuts, onAction, setBlocked } = useKeyboardShortcuts()
+const { init: initShortcuts, onAction, setBlocked, shortcutHelpOpen } = useKeyboardShortcuts()
 useRealtime()
 
 const { query: searchQuery, results, loading, searched, onPaste: handlePaste } = useSearch({ mode: 'typeahead' })
 const inputFocused = ref(false)
-const shortcutHelpOpen = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
 const sidebarOpen = ref(false)
 

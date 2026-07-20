@@ -1,8 +1,14 @@
+import { ref } from 'vue'
 import { useShortcutsStore } from '@/stores/shortcuts'
 import type { ShortcutAction, KeyBinding } from '@/stores/shortcuts'
 
 // Module-level singleton — one listener, one handler registry, shared across all callers.
 // Pattern mirrors useToast.ts.
+
+// Shared across every caller so there's exactly one ShortcutHelpOverlay
+// instance in the app (mounted once, in AppLayout) regardless of how many
+// places can open it (the global "?" binding, Settings' "Customize" button).
+const shortcutHelpOpen = ref(false)
 
 const handlers = new Map<ShortcutAction, Set<() => void>>()
 let pendingPrefix: string | null = null
@@ -130,5 +136,5 @@ export function useKeyboardShortcuts() {
     blocked = value
   }
 
-  return { init, onAction, offAction, setCapturing, setBlocked }
+  return { init, onAction, offAction, setCapturing, setBlocked, shortcutHelpOpen }
 }

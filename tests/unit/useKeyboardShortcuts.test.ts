@@ -58,3 +58,17 @@ describe('useKeyboardShortcuts — disabled below the mobile breakpoint', () => 
     offAction('shortcut_help', handler)
   })
 })
+
+describe('useKeyboardShortcuts — shared shortcutHelpOpen', () => {
+  it('is the same ref across every caller, so there is one overlay instance for the whole app', () => {
+    const a = useKeyboardShortcuts()
+    const b = useKeyboardShortcuts()
+    expect(a.shortcutHelpOpen).toBe(b.shortcutHelpOpen)
+
+    a.shortcutHelpOpen.value = true
+    expect(b.shortcutHelpOpen.value).toBe(true)
+
+    b.shortcutHelpOpen.value = false
+    expect(a.shortcutHelpOpen.value).toBe(false)
+  })
+})

@@ -80,10 +80,14 @@ onBeforeUnmount(() => {
 
 <template>
   <Transition name="confirm-fade">
+    <!-- No aria-hidden here — it would hide the nested role="alertdialog" from
+         the accessibility tree entirely (aria-hidden on an ancestor hides the
+         whole subtree), breaking screen readers' and getByRole('alertdialog')
+         queries alike even though the dialog is visibly on screen. -->
+    <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -- click-outside-to-close is a mouse enhancement; Escape (handled in script) is the keyboard equivalent -->
     <div
       v-if="open"
       class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80"
-      aria-hidden="true"
       @click.self="emit('cancel')"
     >
       <div
