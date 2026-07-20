@@ -6,12 +6,16 @@ import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
 import StatusBadge from './StatusBadge.vue'
+import OverflowMenu from '@/components/ui/OverflowMenu.vue'
 
 const props = withDefaults(defineProps<{
   signal: QuarantinedSignal | BlockedSignal
   pending: boolean
   routeName?: string
-}>(), { routeName: 'quarantine-detail' })
+  deletable?: boolean
+}>(), { routeName: 'quarantine-detail', deletable: false })
+
+const emit = defineEmits<{ delete: [signalId: string] }>()
 
 const now = inject(NOW_KEY)
 
@@ -37,13 +41,20 @@ const subject = computed(() => inboundData.value?.subject ?? '')
 </script>
 
 <template>
-  <RouterLink
-    :to="{ name: props.routeName, params: { id: signal.signalId } }"
-    class="block border-b border-ctp-surface0 transition-colors hover:bg-ctp-surface0"
+  <div
+    class="relative border-b border-ctp-surface0 transition-colors hover:bg-ctp-surface0"
     :class="{ 'opacity-50': pending, 'bg-ctp-mantle/40': isHidden }"
     role="listitem"
   >
-    <div class="flex items-start gap-3 px-4 py-3">
+    <!-- Stretched link covers the whole row so the card stays clickable while the
+         overflow menu (a real button) lives above it without nesting inside an <a>. -->
+    <RouterLink
+      :to="{ name: props.routeName, params: { id: signal.signalId } }"
+      class="absolute inset-0 z-0"
+      :aria-label="`Open email from ${fromDisplay || fromAddress}`"
+    />
+
+    <div class="pointer-events-none relative z-10 flex items-start gap-3 px-4 py-3">
       <!-- Quarantine status badge -->
       <div class="mt-0.5 shrink-0">
         <StatusBadge :status="signal.status" />
@@ -71,6 +82,27 @@ const subject = computed(() => inboundData.value?.subject ?? '')
           <span class="text-ctp-overlay1">To:</span> <span class="text-ctp-sapphire">{{ toAddress }}</span>
         </p>
       </div>
+
+      <!-- Overflow menu (blocked/spam rows) -->
+      <OverflowMenu
+        v-if="deletable"
+        class="pointer-events-auto shrink-0"
+        label="Blocked email actions"
+        menu-width-class="min-w-40"
+        icon-class="h-3.5 w-3.5"
+        trigger-class="flex h-7 w-7 items-center justify-center rounded text-ctp-subtext0 hover:bg-ctp-surface1 hover:text-ctp-text"
+      >
+        <button
+          class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-ctp-red hover:bg-ctp-surface0"
+          role="menuitem"
+          @click="emit('delete', signal.signalId)"
+        >
+          <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z" />
+          </svg>
+          Delete
+        </button>
+      </OverflowMenu>
     </div>
-  </RouterLink>
+  </div>
 </template>

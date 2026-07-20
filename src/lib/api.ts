@@ -239,6 +239,11 @@ export const api = {
     })
   },
 
+  // Permanently remove an account-scoped signal (e.g. a blocked/spam signal).
+  deleteSignal(accountId: string, signalId: string): Promise<Result<void, ApiError>> {
+    return request<void>(`/accounts/${accountId}/signals/${signalId}`, { method: 'DELETE' })
+  },
+
   // ─── RSVP ────────────────────────────────────────────────────────────────
 
   rsvpSignal(

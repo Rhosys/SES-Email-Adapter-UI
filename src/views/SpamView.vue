@@ -3,13 +3,16 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSpamStore } from '@/stores/spam'
 import { useRelativeTime } from '@/composables/useRelativeTime'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import QuarantineFilters from '@/components/QuarantineFilters.vue'
 import QuarantineRow from '@/components/QuarantineRow.vue'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import type { SpamFilters } from '@/stores/spam'
 
 const route = useRoute()
 const router = useRouter()
 const store = useSpamStore()
+const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 useRelativeTime()
 
 const loadingHidden = ref(true)
@@ -56,6 +59,17 @@ function onUpdateFilters(next: Partial<SpamFilters>) {
 
 async function loadMore() {
   await store.fetchMore()
+}
+
+async function onDelete(signalId: string) {
+  const confirmed = await confirmAction({
+    title: 'Delete blocked email',
+    message: 'Delete this blocked email permanently? This cannot be undone.',
+    confirmLabel: 'Delete',
+    confirmVariant: 'danger',
+  })
+  if (!confirmed) return
+  await store.deleteSignal(signalId)
 }
 </script>
 
@@ -107,8 +121,10 @@ async function loadMore() {
               v-for="signal in store.blockHidden"
               :key="signal.signalId"
               :signal="signal"
-              :pending="false"
+              :pending="store.actionPending.has(signal.signalId)"
               route-name="spam-detail"
+              deletable
+              @delete="onDelete"
             />
           </TransitionGroup>
         </section>
@@ -148,8 +164,10 @@ async function loadMore() {
               v-for="signal in store.blockReject"
               :key="signal.signalId"
               :signal="signal"
-              :pending="false"
+              :pending="store.actionPending.has(signal.signalId)"
               route-name="spam-detail"
+              deletable
+              @delete="onDelete"
             />
           </TransitionGroup>
         </section>
@@ -180,4 +198,14 @@ async function loadMore() {
       </template>
     </main>
   </div>
+
+  <ConfirmDialog
+    :open="dialogOpen"
+    :title="dialogOptions.title"
+    :message="dialogOptions.message"
+    :confirm-label="dialogOptions.confirmLabel"
+    :confirm-variant="dialogOptions.confirmVariant"
+    @confirm="onConfirm"
+    @cancel="onCancel"
+  />
 </template>

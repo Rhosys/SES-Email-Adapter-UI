@@ -28,6 +28,7 @@ export const useSpamStore = defineStore('spam', () => {
   const _cursors = ref<Record<string, { hidden?: string; reject?: string }>>({})
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
+  const actionPending = ref<Set<string>>(new Set())
 
   const filters = ref<SpamFilters>({
     sender: '',
@@ -56,6 +57,22 @@ export const useSpamStore = defineStore('spam', () => {
     if (!accountStore.accountId) return false
     const c = _cursors.value[accountStore.accountId]
     return !!(c?.hidden || c?.reject)
+  })
+
+  // Sidebar notification badge (admin-only) — derived from persisted data. Populated
+  // by the startup fetch chain in main.ts once the account is resolved.
+  const blockedCount = computed(() => {
+    const id = accountStore.accountId
+    if (!id) return 0
+    const d = _byAccount.value[id]
+    return (d?.hidden?.length ?? 0) + (d?.reject?.length ?? 0)
+  })
+
+  const blockedCountHasMore = computed(() => {
+    const id = accountStore.accountId
+    if (!id) return false
+    const c = _cursors.value[id]
+    return c?.hidden !== undefined || c?.reject !== undefined
   })
 
   function buildParams(cursor?: string): QuarantineSignalListParams {
@@ -159,6 +176,31 @@ export const useSpamStore = defineStore('spam', () => {
     }
   }
 
+  function _removeSignal(id: string, signalId: string) {
+    const d = _data(id)
+    _byAccount.value = {
+      ..._byAccount.value,
+      [id]: {
+        hidden: d.hidden.filter((x) => x.signalId !== signalId),
+        reject: d.reject.filter((x) => x.signalId !== signalId),
+      },
+    }
+  }
+
+  async function deleteSignal(signalId: string): Promise<boolean> {
+    const id = accountStore.accountId
+    if (!id) return false
+    actionPending.value = new Set([...actionPending.value, signalId])
+    const result = await api.deleteSignal(id, signalId)
+    actionPending.value = new Set([...actionPending.value].filter((x) => x !== signalId))
+    if (result.isErr()) {
+      error.value = result.error.message
+      return false
+    }
+    _removeSignal(id, signalId)
+    return true
+  }
+
   function setFilters(next: Partial<SpamFilters>) {
     filters.value = { ...filters.value, ...next }
   }
@@ -170,12 +212,16 @@ export const useSpamStore = defineStore('spam', () => {
   return {
     blockHidden,
     blockReject,
+    blockedCount,
+    blockedCountHasMore,
     hasMore,
     loadingMore,
     error,
+    actionPending,
     filters,
     fetchSignals,
     fetchMore,
+    deleteSignal,
     setFilters,
     clearError,
   }
