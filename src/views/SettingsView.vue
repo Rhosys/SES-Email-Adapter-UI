@@ -21,6 +21,7 @@ import DnsSetupDialog from '@/components/settings/DnsSetupDialog.vue'
 import BuildInfo from '@/components/BuildInfo.vue'
 import UserAvatarIcon from '@/components/UserAvatarIcon.vue'
 import ConnectionIcon from '@/components/ConnectionIcon.vue'
+import { connectionLabel } from '@/lib/connections'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useToast } from '@/composables/useToast'
@@ -109,21 +110,11 @@ async function loadSecurityProfile() {
   ])
 }
 
-function providerLabel(connectionId: string): string {
-  const s = connectionId.toLowerCase()
-  if (s.includes('google')) return 'Google'
-  if (s.includes('github')) return 'GitHub'
-  if (s.includes('microsoft') || s.includes('azure')) return 'Microsoft / Azure'
-  if (s.includes('apple')) return 'Apple'
-  if (s.includes('facebook')) return 'Facebook'
-  return connectionId
-}
-
 async function disconnectIdentity(ident: LinkedIdentity) {
   if (!canDisconnect.value) return
   const confirmed = await confirmAction({
     title: 'Disconnect identity',
-    message: `Disconnect ${providerLabel(ident.connection.connectionId)}? You must keep at least one connection.`,
+    message: `Disconnect ${connectionLabel(ident.connection.connectionId)}? You must keep at least one connection.`,
     confirmLabel: 'Disconnect',
     confirmVariant: 'danger',
   })
@@ -1052,7 +1043,7 @@ useGestureHandler(settingsContentRef, {
                   </span>
                   <div>
                     <p class="text-sm font-medium text-ctp-text">
-                      {{ providerLabel(ident.connection.connectionId) }}
+                      {{ connectionLabel(ident.connection.connectionId) }}
                     </p>
                     <p class="font-mono text-xs text-ctp-subtext0">
                       {{ ident.connection.userId }}

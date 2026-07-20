@@ -1,33 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { connectionProvider, connectionLabel } from '@/lib/connections'
 
 const props = defineProps<{ connectionId: string }>()
 
-type Provider = 'google' | 'github' | 'microsoft' | 'apple' | 'facebook' | 'generic'
-
-// Match the provider from the Authress connection id. Connection ids are the
-// ids configured in the Authress management portal; for the providers we
-// support these contain the provider name, so a substring match is enough.
-const provider = computed<Provider>(() => {
-  const s = props.connectionId.toLowerCase()
-  if (s.includes('google')) return 'google'
-  if (s.includes('github')) return 'github'
-  if (s.includes('microsoft') || s.includes('azure')) return 'microsoft'
-  if (s.includes('apple')) return 'apple'
-  if (s.includes('facebook')) return 'facebook'
-  return 'generic'
-})
-
-const label = computed(() => {
-  switch (provider.value) {
-    case 'google': return 'Google'
-    case 'github': return 'GitHub'
-    case 'microsoft': return 'Microsoft / Azure'
-    case 'apple': return 'Apple'
-    case 'facebook': return 'Facebook'
-    default: return props.connectionId
-  }
-})
+const provider = computed(() => connectionProvider(props.connectionId))
+const label = computed(() => connectionLabel(props.connectionId))
 </script>
 
 <template>
