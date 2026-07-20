@@ -85,4 +85,13 @@ describe('EmailSignalCard — email iframe sandbox', () => {
     const iframe = mountCard().find('iframe[title="Email content"]')
     expect(iframe.attributes('sandbox')).toBe('allow-popups allow-popups-to-escape-sandbox')
   })
+
+  it('forces email links to open in a new tab via <base target="_blank">', () => {
+    // Without this, a link click uses the default _self target and tries to
+    // navigate the sandboxed srcdoc frame itself — which blanks/crashes the
+    // email instead of following the link. allow-popups(-to-escape-sandbox)
+    // then lets the new tab open as a normal top-level page.
+    const iframe = mountCard().find('iframe[title="Email content"]')
+    expect(iframe.attributes('srcdoc')).toContain('<base target="_blank">')
+  })
 })

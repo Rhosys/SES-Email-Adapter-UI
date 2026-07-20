@@ -297,7 +297,16 @@ function fitHeight(e: Event) {
 // Emails are rarely valid documents, so all three shapes show up in practice:
 // a real <head>, a bare <html> wrapper, or just a soup of tags with neither.
 function wrapEmailHtml(rawHtml: string): string {
-  const markup = `<meta name="viewport" content="width=device-width, initial-scale=1"><style>
+  // `<base target="_blank">` forces every link in the email to open in a new
+  // browser tab. Without it a click uses the default `_self` target and tries
+  // to navigate the sandboxed srcdoc frame itself — which, with no
+  // allow-same-origin and no allow-top-navigation, fails/blanks the email
+  // instead of following the link. The sandbox already grants
+  // `allow-popups allow-popups-to-escape-sandbox`, so the new tab opens as a
+  // normal top-level page. Placed first so it wins the target lookup even if
+  // the email ships its own <base> (a later base with an href still governs
+  // relative-URL resolution; this one only sets the target).
+  const markup = `<base target="_blank"><meta name="viewport" content="width=device-width, initial-scale=1"><style>
     html, body { overflow-x: hidden !important; }
     * { max-width: 100% !important; box-sizing: border-box !important; }
     img, video, svg { height: auto !important; }
