@@ -54,7 +54,7 @@ const subject = computed(() => inboundData.value?.subject ?? '')
       :aria-label="`Open email from ${fromDisplay || fromAddress}`"
     />
 
-    <div class="pointer-events-none relative z-10 flex items-start gap-3 px-4 py-3">
+    <div class="pointer-events-none relative z-10 flex items-start gap-3 px-4 py-4 sm:py-3">
       <!-- Quarantine status badge -->
       <div class="mt-0.5 shrink-0">
         <StatusBadge :status="signal.status" />
@@ -69,16 +69,16 @@ const subject = computed(() => inboundData.value?.subject ?? '')
       <!-- Content -->
       <div class="min-w-0 flex-1">
         <div class="flex items-center justify-between gap-2">
-          <p class="truncate text-sm font-medium text-ctp-text">
+          <p class="truncate text-[15px] font-medium text-ctp-text sm:text-sm">
             {{ fromDisplay }}
             <span class="font-normal text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span>
           </p>
           <span class="shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
         </div>
 
-        <p class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ subject }}</p>
+        <p class="mt-1 truncate text-sm text-ctp-subtext1 sm:mt-0.5">{{ subject }}</p>
 
-        <p v-if="toAddress" class="mt-1 text-xs text-ctp-subtext0">
+        <p v-if="toAddress" class="mt-1.5 text-xs text-ctp-subtext0 sm:mt-1">
           <span class="text-ctp-overlay1">To:</span> <span class="text-ctp-sapphire">{{ toAddress }}</span>
         </p>
       </div>
@@ -86,11 +86,11 @@ const subject = computed(() => inboundData.value?.subject ?? '')
       <!-- Overflow menu (blocked/spam rows) -->
       <OverflowMenu
         v-if="deletable"
-        class="pointer-events-auto shrink-0"
+        class="pointer-events-auto -my-1 shrink-0"
         label="Blocked email actions"
         menu-width-class="min-w-40"
-        icon-class="h-3.5 w-3.5"
-        trigger-class="flex h-7 w-7 items-center justify-center rounded text-ctp-subtext0 hover:bg-ctp-surface1 hover:text-ctp-text"
+        icon-class="h-5 w-5 sm:h-3.5 sm:w-3.5"
+        trigger-class="flex h-11 w-11 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-ctp-subtext0 hover:bg-ctp-surface1 hover:text-ctp-text"
       >
         <button
           class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-ctp-red hover:bg-ctp-surface0"
