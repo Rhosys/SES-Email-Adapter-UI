@@ -559,48 +559,84 @@ Backend routes the frontend already calls (or is already coded to call) that don
   action too (already true for the test notification: both an action and the
   body click go to the same place).
 
-- [ ] **9. Rules screen — unify rows; toggle for ALL rules; reorder for USER
+- [x] **9. Rules screen — unify rows; toggle for ALL rules; reorder for ALL
   rules; mobile tap→popup (Edit/Delete); desktop Delete→overflow; fix broken
-  display.**
-  - 🔎 **BACKEND CONSTRAINT (decisive):** `rulesApi.ts:117-124` — system rules
-    (`accountId==='SYSTEM'`, id `SR-*`) are IMMUTABLE except `status`; any other
-    change (incl. `priorityOrder`) → HTTP **403 `SYSTEM_RULE_IMMUTABLE`**.
-    System rules also cannot be deleted (`rulesApi.ts:193`). Their order is
-    code-defined (`processor/system-rules.ts`, fixed positions 100…1800). So
-    "reorder arrows on all rules" is **not possible for system rules** without a
-    backend change (would need a per-account priorityOrder override, like the
-    existing status override). → **DECISION: (b)** add backend support to reorder
-    system rules too. Becomes a two-repo change:
-    - **Backend (`SES-Email-Adapter`):** (1) `rulesApi.ts:117-124` — for system
-      rules allow `status` AND `priorityOrder` (still reject other fields);
-      (2) `account-database.ts` — generalize `upsertSystemRuleStatus` →
-      `upsertSystemRuleOverride(accountId, ruleId, { status?, priorityOrder? })`
-      that READS the existing SR- override, merges, and writes the full item with
-      effective status + priorityOrder + correct `gsi1sk`; (3) `listRules` merge
-      (line 632-634) must override BOTH status and priorityOrder from the DDB SR-
-      row, not just status; (4) add/adjust backend rule-API tests; (5) mirror this
-      task into the backend repo's own `TODO.md` (its CLAUDE.md mandates it).
-    - **Frontend:** render ONE unified list of all rules (already sorted by
-      priorityOrder); `moveRule`'s global-index logic becomes correct once the
-      list is unified, so the corruption bug disappears; arrows + toggle on every
-      row. Update `dev:mock` PATCH handler so system-rule reorder works in mock.
-    - ⚠️ Semantics: system rules interleave with user rules by priorityOrder
-      (system 100-1800, user 1801+); reordering now lets a user rule run before a
-      system rule. Confirm processor behavior is acceptable during backend work.
-  - 🔎 Confirmed reorder bug: `moveRule(id, ±1)` (`stores/rules.ts`) walks the
-    FULL sorted `items` list by global index while `RulesView` passes a filtered
-    `userRules` index. Moving the top user rule "up" tries to swap priority with
-    the adjacent **system** rule → that half 403s while the user-rule half
-    succeeds → corrupted/duplicate priorityOrder. Fix: reorder strictly WITHIN
-    the user-rule group using explicit neighbor IDs (reuse `reorderRule(dragId,
-    targetId)` semantics), never crossing into system rules.
-  - 🔎 Toggle IS supported for all rules (system via status-override path, user
-    normally) — safe to add an enable/disable toggle to user rules too.
-  - 🔎 Mock caveat: `dev:mock` PATCH handler does not enforce the 403, so reorder
-    will *appear* to work in mock but fail against prod — verify against a real
-    backend or add the guard to the mock.
-  - ❓ Mobile tap-popup mechanism: reuse `OverflowMenu` bottom sheet vs. a
-    dedicated dialog. (Desktop Delete → `OverflowMenu` ⋮.)
-  - ❓ Pin down what "display wrong everywhere" is once running (candidates: two
-    divergent row layouts, raw ▲▼ text glyphs, badge wrapping, disabled opacity,
-    the reorder error surfacing). Inspect via running app before restyling.
+  display.** **DONE.**
+
+  Decisions: (a) **Full interleave (2-repo change)** — backend now accepts
+  `priorityOrder` overrides for system rules too (not just `status`), so a
+  single unified, priorityOrder-sorted list covers every rule and can be
+  freely reordered; a user rule can now run before a system rule. (b) Mobile
+  trigger is a **visible kebab (⋮) button**, same element on both platforms
+  (not whole-row-tap) — reuses `OverflowMenu` exactly as-is. (c) **Split**
+  desktop layout: desktop keeps the "Edit" text link inline and the kebab is
+  Delete-only; mobile drops the inline Edit link and the kebab's menu carries
+  both Edit and Delete. (d) Confirmed via a live `dev:mock` audit (screenshots
+  at 1280px/390px, several rule states) three additional real bugs beyond the
+  planned row unification, all fixed: user rules had **no enable/disable
+  toggle at all** (only a dimmed "disabled" text badge); `rule-display.ts`'s
+  `summarizeLogic()` **`in`-case bug** — the needle was never run through
+  `varOf()`, so the extremely common `{"var":field} in [literal,...]` shape
+  (8 of 11 system rules, several user rules) rendered as
+  `a,b contains "[object Object]"` instead of a readable summary — invisible
+  until now because system-rule conditions were never shown in the UI before;
+  and the mobile header's "+ New rule" button text-wrapping onto two lines.
+
+  **Backend (`SES-Email-Adapter`, merged via PR #70 into main, then PR #71
+  for a follow-up fix — see below):** `upsertSystemRuleStatus` →
+  `upsertSystemRuleOverride(accountId, ruleId, {status?, priorityOrder?})`,
+  which now **reads the existing override row first** before writing — the
+  old status-only version always wrote from the code-defined `SYSTEM_RULES`
+  baseline, so a status-only update would have silently wiped out a
+  previously-set priorityOrder override (and vice versa). `listRules`'s merge
+  now applies both fields from the override row. `PATCH .../rules/:id` now
+  accepts `priorityOrder` alongside `status` for system rules; any other
+  field still 403s `SYSTEM_RULE_IMMUTABLE`. New
+  `tests/database/account-database-rules.test.ts` (6 tests) + extended
+  `api.spec.ts` PATCH tests (priorityOrder-only, status+priorityOrder
+  together, still rejects other fields/empty body). Full backend suite: 173
+  files, 2426 tests, all passing.
+
+  **Frontend:** `RulesView.vue` rewritten — one `TransitionGroup` over
+  `rulesStore.items` (already priorityOrder-sorted), one row template for
+  every rule: toggle switch + SVG chevron reorder arrows (replacing the raw
+  ▲/▼ text glyphs) + name/status-badge/action-badges + condition summary, all
+  now shown for system rules too. Row actions (`Edit` link + `OverflowMenu`)
+  only render for `!rule.system` (system rule conditions/actions stay
+  immutable). `stores/rules.ts` needed **no changes at all** — `moveRule`/
+  `reorderRule` already operated on the full account-scoped list by rule ID;
+  the "corrupted priorityOrder" bug was entirely a view-layer mismatch
+  (arrows' disabled-state/position-number index came from a *filtered*
+  `userRules` list while the swap itself used the full list), which
+  disappears once the template iterates the same unified list the store
+  already exposes. `rule-display.ts`'s `in` case now branches on which side
+  is the array: `{var} in [literals]` → "field is one of these values"
+  (running the needle through `varOf()`); `literal in {var}` (unchanged) →
+  "field contains this literal". Header wraps `flex-col` on mobile /
+  `sm:flex-row` on desktop so the button never gets squeezed.
+
+  **Verification:** ✅ typecheck/eslint clean, ✅ 375/375 unit/component tests
+  (11 new: 6 for `rule-display`'s `in`-case fix, 5 for `RulesView`'s
+  unification — system+user in one list, toggle on system rules, no Edit/menu
+  on system rows, cross-boundary reorder, mobile Edit-inside-overflow via
+  `DOMWrapper(document.body)` + `attachTo` since the mobile sheet is a
+  `Teleport`). ✅ Real browser (`dev:mock`, not mocked assertions): confirmed
+  live — no `[object Object]` anywhere, no more "SYSTEM RULES"/"YOUR RULES"
+  section split, first (system) row has a working toggle + arrows and no
+  Edit/kebab, a user row's condition summary renders the fixed `in` case
+  correctly, desktop kebab shows "Delete" only, mobile kebab opens a bottom
+  sheet with "Edit"/"Delete"/"Cancel" and highlights its own row, mobile
+  header button no longer wraps (~32px tall, one line).
+
+  **Follow-up (from a live user question, not originally scoped):** while
+  verifying, confirmed the digest/calendar "＋ Add new…" forwarding-target
+  flow from item 6 already covers both the calendar AND digest selects (no
+  gap). Separately investigated "does a new account get a digest forwarding
+  target from its signup email" — yes (`ensureDefaultForwardingTarget`/
+  `setAccountForwardingDefaults` in `onboarding-task-handler.ts`, using the
+  Authress-verified signup email as the forwarding target ID), but it only
+  ran from the `FirstFollowup` Step Function step, gated behind a 7-day
+  `InitialWait` — so new accounts had no default for their first week. Added
+  a `SetupDefaults` state that runs the same idempotent logic immediately at
+  account creation (backend PR #71); `FirstFollowup` still calls it too as a
+  safety net for in-flight executions from before this shipped.

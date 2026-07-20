@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount, RouterLinkStub, flushPromises } from '@vue/test-utils'
+import { mount, RouterLinkStub, flushPromises, DOMWrapper } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { ok, err } from 'neverthrow'
 import RulesView from '@/views/RulesView.vue'
@@ -180,12 +180,16 @@ describe('RulesView', () => {
     expect(api.updateRule).toHaveBeenCalled()
   })
 
-  it('calls deleteRule after confirm', async () => {
+  it('calls deleteRule after confirm (Delete lives behind the row overflow menu)', async () => {
     vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
     vi.mocked(api.deleteRule).mockResolvedValue(ok(undefined))
     const wrapper = mountView()
     await flushPromises()
-    await wrapper.find('button[title="Delete"]').trigger('click')
+    await wrapper.get('button[aria-label="Actions for Block spam"]').trigger('click')
+    await wrapper.vm.$nextTick()
+    const deleteMenuItem = wrapper.findAll('[role="menuitem"]').find((b) => b.text() === 'Delete')
+    expect(deleteMenuItem).toBeDefined()
+    await deleteMenuItem!.trigger('click')
     await flushPromises()
     await wrapper.vm.$nextTick()
     // ConfirmDialog should now be open — find the confirm button by its red/mauve bg class
@@ -200,7 +204,10 @@ describe('RulesView', () => {
     vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
     const wrapper = mountView()
     await flushPromises()
-    await wrapper.find('button[title="Delete"]').trigger('click')
+    await wrapper.get('button[aria-label="Actions for Block spam"]').trigger('click')
+    await wrapper.vm.$nextTick()
+    const deleteMenuItem = wrapper.findAll('[role="menuitem"]').find((b) => b.text() === 'Delete')
+    await deleteMenuItem!.trigger('click')
     await flushPromises()
     // ConfirmDialog should now be open — click the cancel button
     const cancelBtn = wrapper.findAll('button').find((b) => b.text() === 'Cancel')
@@ -219,5 +226,85 @@ describe('RulesView', () => {
     const posSpans = wrapper.findAll('span.text-xs.text-ctp-surface2')
     expect(posSpans[0].text()).toBe('1')
     expect(posSpans[1].text()).toBe('2')
+  })
+
+  it('renders system and user rules in one unified list, in priorityOrder', async () => {
+    vi.mocked(api.listRules).mockResolvedValue(
+      ok([
+        mockRule({ ruleId: 'sys1', name: 'System rule', priorityOrder: 100, system: true }),
+        mockRule({ ruleId: 'usr1', name: 'User rule', priorityOrder: 200 }),
+      ]),
+    )
+    const wrapper = mountView()
+    await flushPromises()
+    const rows = wrapper.findAll('[draggable="true"]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0].text()).toContain('System rule')
+    expect(rows[1].text()).toContain('User rule')
+  })
+
+  it('shows a toggle for system rules too, and toggling calls updateRule with status', async () => {
+    vi.mocked(api.listRules).mockResolvedValue(
+      ok([mockRule({ ruleId: 'sys1', name: 'System rule', priorityOrder: 100, system: true, status: 'enabled' })]),
+    )
+    vi.mocked(api.updateRule).mockResolvedValue(ok(mockRule({ ruleId: 'sys1', system: true, status: 'disabled' })))
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('button[aria-label="Disable System rule"]').trigger('click')
+    expect(api.updateRule).toHaveBeenCalledWith('acc_1', 'sys1', { status: 'disabled' })
+  })
+
+  it('system rules have no Edit link and no overflow menu (immutable except status/priorityOrder)', async () => {
+    vi.mocked(api.listRules).mockResolvedValue(
+      ok([mockRule({ ruleId: 'sys1', name: 'System rule', priorityOrder: 100, system: true })]),
+    )
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('a[href="/rules/sys1"]').exists()).toBe(false)
+    expect(wrapper.find('button[aria-label="Actions for System rule"]').exists()).toBe(false)
+  })
+
+  it('system rules can be reordered via the priority arrows, same as user rules', async () => {
+    vi.mocked(api.listRules).mockResolvedValue(
+      ok([
+        mockRule({ ruleId: 'sys1', name: 'System rule', priorityOrder: 100, system: true }),
+        mockRule({ ruleId: 'usr1', name: 'User rule', priorityOrder: 200 }),
+      ]),
+    )
+    vi.mocked(api.updateRule).mockResolvedValue(ok(mockRule({ ruleId: 'usr1', priorityOrder: 100 })))
+    const wrapper = mountView()
+    await flushPromises()
+    const upButtons = wrapper.findAll('button[aria-label="Move rule up"]')
+    await upButtons[1].trigger('click')
+    expect(api.updateRule).toHaveBeenCalled()
+  })
+
+  describe('mobile (< 640px)', () => {
+    function mockMobileMatchMedia() {
+      const mql = { matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }
+      vi.stubGlobal('matchMedia', vi.fn().mockReturnValue(mql))
+    }
+
+    it('hides the inline Edit link and shows Edit inside the row overflow menu instead', async () => {
+      mockMobileMatchMedia()
+      vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
+      const wrapper = mount(RulesView, {
+        attachTo: document.body,
+        global: { plugins: [pinia], stubs: { RouterLink: RouterLinkStub, TransitionGroup: false } },
+      })
+      await flushPromises()
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('a[href="/rules/rule_1"]:not([role="menuitem"])').exists()).toBe(false)
+
+      await wrapper.get('button[aria-label="Actions for Block spam"]').trigger('click')
+      await wrapper.vm.$nextTick()
+      // The mobile bottom sheet renders via Teleport(to="body") — not reachable
+      // through the component wrapper, hence attachTo + a document.body query.
+      const body = new DOMWrapper(document.body)
+      const menuItems = body.findAll('[role="menuitem"]')
+      expect(menuItems.some((i) => i.text() === 'Edit')).toBe(true)
+      expect(menuItems.some((i) => i.text() === 'Delete')).toBe(true)
+    })
   })
 })
