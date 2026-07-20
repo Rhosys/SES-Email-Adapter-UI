@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useThreadsStore } from '@/stores/threads'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useDeferredHide } from '@/composables/useDeferredHide'
-import StatusTabs from '@/components/StatusTabs.vue'
+import InboxTabBar from '@/components/InboxTabBar.vue'
 import BulkActionBar from '@/components/BulkActionBar.vue'
 import ThreadListShell from '@/components/ThreadListShell.vue'
 import ActiveThreadRow from '@/components/ActiveThreadRow.vue'
@@ -135,12 +135,18 @@ watch(
       <h1 class="text-lg font-semibold">Inbox</h1>
     </header>
 
-    <main class="mx-auto max-w-4xl px-4 py-4">
+    <!-- pb-24 on mobile clears the fixed InboxTabBar bottom bar -->
+    <main class="mx-auto max-w-4xl px-4 pt-4 pb-24 sm:pb-4">
       <StatsWidget />
 
       <InboxError v-if="threadsStore.error" :message="threadsStore.error" />
 
-      <StatusTabs :active-tab="threadsStore.activeTab" @change="handleTabChange" />
+      <InboxTabBar
+        :active-tab="threadsStore.activeTab"
+        :active-count="threadsStore.activeCount"
+        :active-count-has-more="threadsStore.activeCountHasMore"
+        @change="handleTabChange"
+      />
 
       <BulkActionBar
         :count="threadsStore.selectedIds.size"

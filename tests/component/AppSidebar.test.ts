@@ -120,3 +120,31 @@ describe('AppSidebar — draft count badge', () => {
     expect(badge.text()).toBe('2')
   })
 })
+
+describe('AppSidebar — Settings/Admin pinned outside the scrollable nav', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    const accountStore = useAccountStore()
+    accountStore.account = { accountId: 'acc_1', name: 'Test' } as Account
+    vi.mocked(api.listThreads).mockResolvedValue(ok({ threads: [], pagination: { cursor: null } }))
+    vi.mocked(api.listSignals).mockResolvedValue(ok({ signals: [], pagination: { cursor: null } }))
+  })
+
+  // Regression guard for the "growth separator": Settings/Admin must live in a
+  // nav distinct from the scrollable primary nav (aria-label="Primary"), so a
+  // long Views/Labels list can never scroll them out of view. If a future
+  // change moves them back inside the primary nav, this fails.
+  it('renders Settings and Admin in a nav separate from the scrollable primary nav', async () => {
+    const wrapper = await mountSidebar()
+    const navs = wrapper.findAll('nav')
+    const primaryNav = navs.find((n) => n.attributes('aria-label') === 'Primary')
+    const accountNav = navs.find((n) => n.attributes('aria-label') === 'Account')
+    expect(primaryNav).toBeTruthy()
+    expect(accountNav).toBeTruthy()
+
+    const settingsLink = wrapper.get('a[href="/settings"]')
+    expect(accountNav!.element.contains(settingsLink.element)).toBe(true)
+    expect(primaryNav!.element.contains(settingsLink.element)).toBe(false)
+  })
+})

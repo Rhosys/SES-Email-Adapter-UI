@@ -3,16 +3,23 @@ import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useRulesStore } from '@/stores/rules'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
+import { useIsMobile } from '@/composables/useIsMobile'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import OverflowMenu from '@/components/ui/OverflowMenu.vue'
 import ActionBadge from '@/components/ActionBadge.vue'
 import { conditionSummary } from '@/lib/rule-display'
 import type { Rule } from '@/types/server'
 
 const rulesStore = useRulesStore()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
+const isMobile = useIsMobile()
 
-const systemRules = computed(() => rulesStore.items.filter((r) => r.system))
-const userRules = computed(() => rulesStore.items.filter((r) => !r.system))
+// One ordered list, system and user rules interleaved by priorityOrder (the
+// store already sorts this way) — a single row layout for every rule, since
+// the backend now accepts priorityOrder overrides for system rules too, not
+// just status. Edit/Delete are still user-rule-only (system rule conditions
+// and actions are immutable server-side).
+const rules = computed(() => rulesStore.items)
 
 async function deleteRule(rule: Rule) {
   const confirmed = await confirmAction({
@@ -25,7 +32,7 @@ async function deleteRule(rule: Rule) {
   await rulesStore.deleteRule(rule.ruleId)
 }
 
-async function toggleSystemRule(rule: Rule) {
+async function toggleRule(rule: Rule) {
   const newStatus = rule.status === 'enabled' ? 'disabled' : 'enabled'
   await rulesStore.updateRule(rule.ruleId, { status: newStatus })
 }
@@ -74,7 +81,7 @@ onMounted(async () => {
 <template>
   <div>
     <header class="border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
-      <div class="flex items-center justify-between">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 class="hidden text-lg font-semibold sm:block">Rules</h1>
           <p class="mt-0.5 text-xs text-ctp-subtext0">
@@ -83,7 +90,7 @@ onMounted(async () => {
         </div>
         <RouterLink
           to="/rules/new"
-          class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
+          class="inline-block shrink-0 self-start whitespace-nowrap rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
         >
           + New rule
         </RouterLink>
@@ -118,11 +125,8 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Empty (user rules only) -->
-      <div
-        v-else-if="userRules.length === 0 && systemRules.length === 0"
-        class="py-20 text-center"
-      >
+      <!-- Empty -->
+      <div v-else-if="rules.length === 0" class="py-20 text-center">
         <p class="text-base font-medium text-ctp-text">Every email handled on autopilot</p>
         <p class="mx-auto mt-2 max-w-sm text-sm text-ctp-subtext0">
           Rules run the moment a message arrives — label it, archive it, forward it, or block the
@@ -136,73 +140,19 @@ onMounted(async () => {
         </RouterLink>
       </div>
 
-      <template v-else>
-        <!-- System rules section -->
-        <div v-if="systemRules.length > 0" class="mb-6">
-          <h2 class="mb-2 text-xs font-medium uppercase tracking-wide text-ctp-subtext0">System rules</h2>
-          <div class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
-            <div
-              v-for="rule in systemRules"
-              :key="rule.ruleId"
-              class="flex items-center gap-3 px-4 py-3"
-            >
-              <!-- Toggle switch -->
-              <button
-                role="switch"
-                :aria-checked="rule.status === 'enabled'"
-                :aria-label="`${rule.status === 'enabled' ? 'Disable' : 'Enable'} ${rule.name}`"
-                class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
-                :class="rule.status === 'enabled' ? 'bg-ctp-green' : 'bg-ctp-surface1'"
-                @click="toggleSystemRule(rule)"
-              >
-                <span
-                  class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                  :class="rule.status === 'enabled' ? 'translate-x-4' : 'translate-x-0.5'"
-                />
-              </button>
-
-              <!-- Name + actions summary -->
-              <div class="min-w-0 flex-1">
-                <p class="text-sm text-ctp-text" :class="{ 'opacity-50': rule.status === 'disabled' }">{{ rule.name }}</p>
-                <div class="mt-0.5 flex flex-wrap gap-1">
-                  <ActionBadge v-for="action in rule.actions" :key="action.type" :type="action.type" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- User rules header -->
-        <div v-if="userRules.length > 0 || systemRules.length > 0" class="mb-2">
-          <h2 class="text-xs font-medium uppercase tracking-wide text-ctp-subtext0">Your rules</h2>
-        </div>
-
-        <!-- User rules empty -->
-        <div v-if="userRules.length === 0 && systemRules.length > 0" class="py-12 text-center">
-          <p class="text-base font-medium text-ctp-text">No custom rules yet</p>
-          <p class="mx-auto mt-2 max-w-sm text-sm text-ctp-subtext0">
-            System rules are handling the basics. Create a custom rule to automate filtering,
-            labelling, or forwarding based on your own conditions.
-          </p>
-          <RouterLink
-            to="/rules/new"
-            class="mt-4 inline-block rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
-          >
-            Create a rule
-          </RouterLink>
-        </div>
-      </template>
-
-      <!-- Rules list with move animation -->
+      <!-- Rules list with move animation — one row layout for system and user
+           rules alike; every rule can be toggled and reordered, but only user
+           rules can be edited or deleted (system rule conditions/actions are
+           immutable server-side). -->
       <TransitionGroup
-        v-if="userRules.length > 0"
+        v-else
         name="rule-row"
         tag="div"
         class="relative divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
       >
-        <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -- drag is a mouse enhancement; keyboard reorder uses the ▲/▼ buttons -->
+        <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -- drag is a mouse enhancement; keyboard reorder uses the chevron buttons -->
         <div
-          v-for="(rule, idx) in userRules"
+          v-for="(rule, idx) in rules"
           :key="rule.ruleId"
           draggable="true"
           class="flex cursor-grab items-start gap-3 px-4 py-4 transition-colors active:cursor-grabbing"
@@ -216,6 +166,21 @@ onMounted(async () => {
           @drop.prevent="onDrop(rule.ruleId)"
           @dragend="onDragEnd"
         >
+          <!-- Toggle switch -->
+          <button
+            role="switch"
+            :aria-checked="rule.status === 'enabled'"
+            :aria-label="`${rule.status === 'enabled' ? 'Disable' : 'Enable'} ${rule.name}`"
+            class="relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
+            :class="rule.status === 'enabled' ? 'bg-ctp-green' : 'bg-ctp-surface1'"
+            @click="toggleRule(rule)"
+          >
+            <span
+              class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+              :class="rule.status === 'enabled' ? 'translate-x-4' : 'translate-x-0.5'"
+            />
+          </button>
+
           <!-- Priority arrows -->
           <div class="flex shrink-0 flex-col items-center gap-0.5 pt-0.5">
             <button
@@ -224,23 +189,23 @@ onMounted(async () => {
               aria-label="Move rule up"
               @click="moveUp(rule)"
             >
-              ▲
+              <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10l4-4 4 4" /></svg>
             </button>
             <span class="text-xs text-ctp-surface2">{{ idx + 1 }}</span>
             <button
-              :disabled="idx === userRules.length - 1"
+              :disabled="idx === rules.length - 1"
               class="text-ctp-subtext0 hover:text-ctp-text disabled:opacity-20"
               aria-label="Move rule down"
               @click="moveDown(rule)"
             >
-              ▼
+              <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4" /></svg>
             </button>
           </div>
 
           <!-- Rule details -->
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-1.5">
-              <span class="text-sm font-medium text-ctp-text">{{ rule.name }}</span>
+              <span class="text-sm font-medium text-ctp-text" :class="{ 'opacity-50': rule.status === 'disabled' }">{{ rule.name }}</span>
 
               <!-- Status badge -->
               <span
@@ -259,17 +224,40 @@ onMounted(async () => {
             </p>
           </div>
 
-          <!-- Row actions -->
-          <div class="flex shrink-0 items-center gap-2">
+          <!-- Row actions — user rules only; system rules can only be
+               toggled/reordered above. -->
+          <div v-if="!rule.system" class="flex shrink-0 items-center gap-2">
             <RouterLink
+              v-if="!isMobile"
               :to="`/rules/${rule.ruleId}`"
               class="text-xs text-ctp-subtext0 hover:text-ctp-text"
             >
               Edit
             </RouterLink>
-            <button class="text-ctp-subtext0 hover:text-ctp-red" title="Delete" @click="deleteRule(rule)">
-              <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
-            </button>
+            <OverflowMenu
+              :label="`Actions for ${rule.name}`"
+              sheet-title="Rule actions"
+              menu-width-class="min-w-32"
+              icon-class="h-3.5 w-3.5"
+              trigger-class="flex h-7 w-7 items-center justify-center rounded text-ctp-subtext0 hover:bg-ctp-surface1 hover:text-ctp-text"
+            >
+              <RouterLink
+                v-if="isMobile"
+                :to="`/rules/${rule.ruleId}`"
+                role="menuitem"
+                class="block px-3 py-1.5 text-left text-xs text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
+              >
+                Edit
+              </RouterLink>
+              <button
+                type="button"
+                role="menuitem"
+                class="flex w-full items-center px-3 py-1.5 text-left text-xs text-ctp-red hover:bg-ctp-surface0"
+                @click="deleteRule(rule)"
+              >
+                Delete
+              </button>
+            </OverflowMenu>
           </div>
         </div>
       </TransitionGroup>

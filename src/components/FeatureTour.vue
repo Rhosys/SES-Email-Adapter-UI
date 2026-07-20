@@ -3,9 +3,12 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import { useFeatureTour } from '@/composables/useFeatureTour'
+import { useIsMobile } from '@/composables/useIsMobile'
+import { computeTooltipPosition } from '@/lib/tooltipPosition'
 
 const accountStore = useAccountStore()
 const { tourActive, endTour } = useFeatureTour()
+const isMobile = useIsMobile()
 
 interface TourStep {
   target: string
@@ -44,6 +47,8 @@ const currentStep = ref(0)
 const spotlightRect = ref<{ left: number; top: number; width: number; height: number } | null>(
   null,
 )
+const tooltipEl = ref<HTMLElement | null>(null)
+const tooltipPos = ref<{ left: number; top: number } | null>(null)
 
 const step = computed(() => STEPS[currentStep.value])
 const isLast = computed(() => currentStep.value === STEPS.length - 1)
@@ -58,38 +63,90 @@ function updateSpotlight() {
   spotlightRect.value = { left: r.left - 6, top: r.top - 4, width: r.width + 12, height: r.height + 8 }
 }
 
-watch(currentStep, async () => {
+function positionTooltip() {
+  if (!spotlightRect.value) {
+    tooltipPos.value = null
+    return
+  }
+  const cardWidth = tooltipEl.value?.offsetWidth ?? 288
+  const cardHeight = tooltipEl.value?.offsetHeight ?? 200
+  tooltipPos.value = computeTooltipPosition(
+    spotlightRect.value,
+    { width: window.innerWidth, height: window.innerHeight },
+    { width: cardWidth, height: cardHeight },
+  )
+}
+
+/**
+ * Waits for the target's sidebar ancestor (if any) to finish its open/close
+ * CSS transition before the caller measures it. Without this, a mobile tour
+ * that auto-opens the sidebar (see AppLayout.vue) would spotlight the
+ * sidebar's still-animating, off-screen mid-transition position. Resolves
+ * immediately if the target has no sidebar ancestor at all.
+ */
+function waitForSidebarSettle(el: Element): Promise<void> {
+  const aside = el.closest('aside')
+  if (!aside) return Promise.resolve()
+  return new Promise((resolve) => {
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      aside.removeEventListener('transitionend', onEnd)
+      resolve()
+    }
+    const onEnd = (e: Event) => {
+      if (e instanceof TransitionEvent && e.propertyName === 'transform') finish()
+    }
+    aside.addEventListener('transitionend', onEnd)
+    // Safety net in case no transition actually runs (e.g. the sidebar was
+    // already open) — comfortably longer than AppSidebar's 200ms duration.
+    setTimeout(finish, 300)
+  })
+}
+
+/** Waiting for the sidebar only matters on mobile — desktop's sidebar never
+ * transitions (sm:transition-none), so skip the wait entirely there rather
+ * than pay even the transitionend/fallback-timeout round trip. */
+async function activateStep() {
   await nextTick()
+  if (isMobile.value) {
+    const el = document.querySelector(`[data-tour="${step.value.target}"]`)
+    if (el) await waitForSidebarSettle(el)
+  }
   updateSpotlight()
+  positionTooltip()
+}
+
+watch(currentStep, () => {
+  void activateStep()
 })
 
-watch(tourActive, async (v) => {
+watch(tourActive, (v) => {
   if (v) {
     currentStep.value = 0
-    await nextTick()
-    updateSpotlight()
+    void activateStep()
   }
 })
 
 const tooltipStyle = computed(() => {
-  if (!spotlightRect.value) return { left: '280px', top: '50%', transform: 'translateY(-50%)' }
-  const r = spotlightRect.value
-  const top = Math.min(
-    window.innerHeight - 210,
-    Math.max(8, r.top + r.height / 2 - 100),
-  )
-  return {
-    left: `${r.left + r.width + 16}px`,
-    top: `${top}px`,
-  }
+  if (!tooltipPos.value) return { left: '280px', top: '50%', transform: 'translateY(-50%)' }
+  return { left: `${tooltipPos.value.left}px`, top: `${tooltipPos.value.top}px` }
 })
 
 function onResize() {
   updateSpotlight()
+  positionTooltip()
 }
 
 onMounted(() => {
   window.addEventListener('resize', onResize)
+  // Covers startTour() having been called before this component ever
+  // mounted (the onboarding-completion flow, OnboardingView.vue — a
+  // top-level route rendered outside AppLayout/FeatureTour) — tourActive is
+  // already true by the time we get here, so the watch() above never fires
+  // for it on its own (it only reacts to *changes*).
+  if (tourActive.value) void activateStep()
 })
 
 onUnmounted(() => {
@@ -157,6 +214,7 @@ function onKeyDown(e: KeyboardEvent) {
 
       <!-- Tooltip card -->
       <div
+        ref="tooltipEl"
         class="fixed z-10 w-72 rounded-xl border border-ctp-surface1 bg-ctp-mantle p-4 shadow-2xl"
         :style="tooltipStyle"
       >

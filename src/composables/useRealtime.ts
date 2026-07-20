@@ -3,7 +3,7 @@ import { useAccountStore } from '@/stores/account'
 import { useThreadsStore } from '@/stores/threads'
 import { useSignalsStore } from '@/stores/signals'
 import { loginClient } from '@/lib/auth'
-import { showNotification } from '@/lib/notifications'
+import { notify } from '@/lib/notifications'
 import logger from '@/lib/logger'
 import type { ThreadUrgency } from '@/types/server'
 import type { RealtimeEvent, SignalCreatedEvent } from '@/types/realtime'
@@ -24,12 +24,12 @@ function notifTitle(urgency: ThreadUrgency): string {
 
 function fireNotification(event: SignalCreatedEvent) {
   if (typeof window === 'undefined') return
-  if (!('Notification' in window) || Notification.permission !== 'granted') return
   if (!shouldNotify(event.urgency)) return
-  showNotification(notifTitle(event.urgency), {
+  void notify({
+    title: notifTitle(event.urgency),
     body: `From: ${event.from.name ?? event.from.address}\n${event.subject}`,
-    icon: '/favicon.ico',
     tag: event.threadId, // collapses duplicate OS notifications for the same thread
+    url: `/threads/${event.threadId}`,
   })
 }
 

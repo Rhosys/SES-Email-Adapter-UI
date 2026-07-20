@@ -224,3 +224,423 @@ Backend routes the frontend already calls (or is already coded to call) that don
 ### UI Consistency
 
 - [ ] **Audit and unify UI patterns across all views** — Investigate inconsistencies in empty states, section headers, spacing, button variants, text hierarchy (title/description/help-text), and interactive element styling across all screens. Define a shared pattern for: empty states (title + description + CTA), settings sections (label + help text + control), list rows (structure, hover states, action positioning), confirmation flows, and loading skeletons. Document the canonical pattern per element type so new screens match automatically. The Rules empty state inconsistency (fixed separately) is an example of the problem — there are likely more.
+
+---
+
+## Session 2026-07-14 — Mobile UI + notifications review
+
+> Review pass (mostly mobile / installed PWA). Each item below is being reviewed
+> and de-risked **before** implementation. `❓` marks an open question/unknown to
+> resolve during review; `🔎` marks a review finding. We iterate one item at a
+> time — resolve the unknowns, agree the approach, then implement.
+
+- [x] **1. Inbox/Archived/All bottom icon buttons (mobile)** — make the three
+  status tabs easier to switch between on mobile via a bottom icon bar.
+  **DONE.** renamed `StatusTabs.vue`→`InboxTabBar.vue`
+  (desktop strip `hidden sm:flex` + mobile `fixed bottom-0 sm:hidden` icon bar,
+  tray/archive-box/layers icons, mauve active, green active-count badge on Inbox
+  via props); extracted `src/lib/badge.ts` (`formatBadgeCount`, now shared with
+  `AppSidebar`); `InboxView` passes counts + `pb-24 sm:pb-4` to clear the bar;
+  renamed test → `InboxTabBar.test.ts` (7 tests). ✅ typecheck + eslint clean,
+  ✅ 7/7 tests pass. ⏳ mobile/desktop screenshot capture.
+  - 🔎 Mount: `AppLayout` `#main-content` is `flex-1 overflow-y-auto`; each view
+    renders inside. Simplest: render the mobile bar INSIDE `InboxView` (its
+    `.inbox-view` root), `sm:hidden fixed bottom-0 inset-x-0`, styled like
+    `SettingsTabBar.vue` (icon over tiny label, `pb-[env(safe-area-inset-bottom)]`,
+    active = `text-ctp-mauve`), and add matching bottom padding to the inbox
+    `<main>` so the last row clears it. Keep the desktop top `StatusTabs` strip.
+  - 🔎 Coexist: the bar shows only on `/` (inbox); the mobile sidebar profile row
+    lives inside the off-canvas sidebar, so no overlap.
+  - ✅ **Decided:** extend the existing component but **rename `StatusTabs.vue` →
+    `InboxTabBar.vue`** (it now owns both layouts + is inbox-specific). Update the
+    import in `InboxView.vue`, and rename `tests/component/StatusTabs.test.ts` →
+    `InboxTabBar.test.ts`.
+  - ✅ **Decided:** on mobile the bottom bar REPLACES the top strip (top strip
+    `hidden sm:flex`); tabs are **icon + tiny label**; **active-count badge on the
+    Inbox tab**.
+  - 🔎 Test impact: one component rendering desktop strip + mobile bar = 6
+    `<button>`s → existing `findAll('button')===3` assertion must be scoped
+    per-region; add a badge test.
+  - ❓ Remaining (proceeding with recommended default unless told otherwise):
+    (a) badge data via **props** from InboxView [rec] vs store import — props keep
+    the component Pinia-free/testable; extract `formatBadgeCount` (today private in
+    `AppSidebar.vue:31`) into a shared helper; (b) icons **tray / archive-box /
+    layers** [rec]; (c) active color on mobile bar **mauve** (match
+    `SettingsTabBar`) [rec], desktop keeps its blue underline.
+
+- [x] **2. Sidebar growth separator (Settings + Admin pinned to bottom)** —
+  `AppSidebar.vue`. **DONE.**
+  - ✅ **DECIDED (superseding the mt-auto-inside-nav idea above — that only pins
+    when content is short; doesn't survive a long Views/Labels list):** move
+    Settings + Admin OUT of the scrollable `<nav>` entirely into a new sibling
+    `<nav aria-label="Account">` block, placed after `</nav>` and before the
+    mobile-profile-row / account-switcher divs. Label the existing primary nav
+    `aria-label="Primary"` for symmetry. No `mt-auto` needed anywhere — `<nav
+    class="flex-1 overflow-y-auto">` already consumes all leftover vertical
+    space in the `aside`'s flex column, so any sibling placed after it (exactly
+    like the existing pinned mobile-profile-row / account-switcher blocks today)
+    lands at the true bottom of the sidebar regardless of how long the
+    scrollable content above grows — mirrors the existing precedent instead of
+    inventing a new mechanism.
+  - ✅ Scope: ONLY Settings + Admin move. Rules/Templates/Labels(+label list)
+    stay in the primary nav, below the existing separator at line 194 — no
+    change to that group.
+  - ✅ Always-visible `border-t` at the top of the new block (the "growth
+    separator" — visible whether the gap above it is empty or the list above
+    butts right up against it).
+  - ✅ Add a structural regression test to `tests/component/AppSidebar.test.ts`:
+    assert the Settings/Admin links' nearest `nav` ancestor is NOT the same
+    element as the primary/scrollable nav — locks in "never scrolls away."
+  - 🔎 Verification plan: `tests/e2e/a11y.test.ts` runs real axe-core
+    (wcag2a/wcag2aa) against `/` and `/settings` forcing `browserName:'chromium'`
+    — the one browser actually installed here — so it can be run for real
+    post-implementation, not just asserted. `landmark-unique` is an axe
+    best-practice rule (not wcag2a/aa-tagged), so it wouldn't itself fail on an
+    unlabeled second `<nav>`, but we're labeling both anyway for real
+    screen-reader users.
+
+- [x] **3. Mobile Settings header: hide hamburger + show "{tab}" title** —
+  `AppLayout.vue` / `AppNavbar.vue` / `SettingsView.vue`. **DONE.**
+  Decisions: (a) `AppNavbar` gets a `mobileBack?: boolean` prop + `back` emit
+  (props, no slot — it has exactly one call site, so slot indirection bought
+  nothing); when true it renders a "‹ Back" text button in place of the
+  hamburger (`v-else-if`, so the hamburger is truly absent, not just
+  CSS-hidden). (b) Back navigates via `router.back()`, falling back to
+  `router.push('/')` when `window.history.state?.back` is empty (deep-link/no
+  prior in-app history). (c) SettingsView's own mobile "← Back to app" bar
+  (old `SettingsView.vue:792-805`) removed entirely — one bar only. (d) Layout:
+  back button with "Back" text label on the left, "{Tab}" title as separate
+  text in the middle (replacing the mobile search facade only — desktop search
+  is untouched on `/settings`, confirmed by screenshot). Extracted
+  `src/lib/settingsTabs.ts` (`SETTINGS_TABS`, `resolveSettingsTab`,
+  `settingsTabLabel`) as the single source of truth for tab labels/legacy-key
+  mapping, used by both `SettingsView` and `AppLayout`.
+  Verification: ✅ typecheck/eslint clean, ✅ 329/329 unit tests (10 new: 6 for
+  `settingsTabs` helpers, 4 for `AppNavbar`'s back/hamburger swap), ✅ real
+  axe-core WCAG2A/AA audit on mobile `/settings` — 0 violations, ✅ screenshots
+  confirm: mobile shows one bar ("‹ Back" + "Profile"/"Team", updates live with
+  tab switches, hamburger genuinely absent from the DOM); desktop `/settings`
+  fully unchanged (search bar present, back button present-but-CSS-hidden same
+  as hamburger's existing convention); real back-button click exercised via
+  history (`/` → `/settings` → click Back → lands on `/`).
+  - 🔎 On mobile Settings there are currently TWO stacked bars: the global
+    `AppNavbar` (hamburger + search facade) AND SettingsView's own mobile bar
+    ("← Back to app", `SettingsView.vue:794`). Replacing the search with a title
+    without removing one of these leaves two bars. → **Decision:** merge — put
+    the "{tab}" title (and optionally the back affordance) into the global
+    AppNavbar on mobile Settings, and drop SettingsView's separate top bar; the
+    bottom `SettingsTabBar` already shows the section.
+  - 🔎 Route title map exists (`router/index.ts:158 ROUTE_TITLES`) but only has
+    route-level "Settings" — the sub-tab labels live in `SettingsView.TABS`
+    (+ `LEGACY_TAB_MAP`). AppLayout must derive the tab label from
+    `route.query.tab`; share the TABS label map (export it) rather than
+    duplicating.
+
+- [x] **4. Hide keyboard-shortcuts UI on mobile** — **DONE.** Decisions: (a) hide
+  the WHOLE section (heading + description + button), not just the button.
+  (b) Implemented as a reactive `v-if` (new `src/composables/useIsMobile.ts`,
+  a matchMedia-based `ref<boolean>`, same pattern `OverflowMenu.vue` already
+  used inline — extracted since this is now the second use site) rather than a
+  CSS `hidden sm:block`, so the section's own (pre-existing, redundant)
+  `ShortcutHelpOverlay` instance doesn't even mount on mobile. (c) The global
+  `?` binding wasn't just hidden from Settings — the ENTIRE shortcut system
+  (all bindings: navigate, archive, go-to sequences, everything) is now a
+  no-op below the 640px breakpoint, gated with a single live
+  `window.innerWidth < 640` check at the top of `handleKeydown`
+  (`useKeyboardShortcuts.ts`) — checked fresh per keydown (not cached), so it
+  tracks resize/rotation like `AppLayout`'s existing swipe-gesture check.
+  Rationale: leaving other bindings live-but-undiscoverable (no `?` to look
+  them up, no Settings entry point) on a Bluetooth-keyboard mobile session
+  would be worse than the status quo. (d) Left the pre-existing duplicate
+  `ShortcutHelpOverlay` mount (SettingsView has its own private instance
+  alongside AppLayout's global one) untouched — out of scope for this task,
+  noted here for a future cleanup pass.
+  Verification: ✅ typecheck/eslint clean, ✅ 336/336 unit tests (7 new: 4 for
+  `useIsMobile` incl. matchMedia-unavailable fallback, 3 for
+  `useKeyboardShortcuts`'s mobile gate incl. live re-check on resize).
+  ✅ Screenshots confirm section fully absent on mobile, unchanged on desktop.
+  ✅ Real browser check (direct `KeyboardEvent` dispatch, not synthesized
+  OS-level key presses which proved unreliable for `?`): on mobile, `/`
+  (search focus), `g→i` (go to inbox), and `?` (help overlay) are ALL
+  confirmed no-ops; on desktop, all three still work correctly.
+
+- [x] **5. Start tour on mobile opens the sidebar first** — **DONE.**
+  Root cause confirmed: tour spotlights `data-tour="nav-*"` items that live in
+  the off-canvas sidebar (`-translate-x-full` on mobile) — `updateSpotlight()`
+  measured the hidden/off-screen element.
+  - ✅ **3 entry points, all fixed** (not just the Settings button):
+    `SettingsView`'s "Start tour" button, `OnboardingCoach.vue`'s tour button
+    (both already inside `AppLayout` when clicked — clean `watch(tourActive)`
+    fix), AND `OnboardingView.vue`'s auto-start-on-completion, which calls
+    `startTour()` on `/onboarding` — a top-level route rendered OUTSIDE
+    `AppLayout`/`FeatureTour` — so `tourActive` is already `true` by the time
+    `FeatureTour` later mounts (after redirecting into the app), and a plain
+    `watch()` never fires for a value that was already set before the watcher
+    existed. Fixed in both places with an explicit "catch-up" `onMounted`
+    check (not `{immediate:true}`, since that fires during `setup()` — too
+    early for `useIsMobile()`'s own `onMounted`, which syncs the real
+    viewport, to have run yet; used registration-order sequencing instead —
+    call `useIsMobile()` before registering the catch-up `onMounted`, so Vue's
+    same-instance `onMounted` ordering guarantees it runs first).
+  - ✅ Sidebar auto-open: `AppLayout.vue` — `watch(tourActive, ...)` +
+    mount-time catch-up call `openSidebarForMobileTour()`, gated on the new
+    `useIsMobile()` composable (reused from item #4).
+  - ✅ Spotlight timing: `FeatureTour.vue` — `waitForSidebarSettle(el)` attaches
+    a one-shot `transitionend` (property `transform`) listener on the target's
+    closest `<aside>`, with a 300ms fallback timeout for the case nothing is
+    actually transitioning (sidebar already open, or desktop). Only invoked
+    when `isMobile.value` — desktop pays zero extra delay, exactly as before.
+  - ✅ Tooltip repositioning: extracted a pure `src/lib/tooltipPosition.ts`
+    (`computeTooltipPosition`) that tries right → left → below → above based
+    on actual measured card size + available viewport space, clamped to never
+    run off-screen; falls back to centered if nothing fits. `FeatureTour.vue`
+    measures the real tooltip element (`tooltipEl` ref) rather than assuming a
+    fixed height.
+  Verification: ✅ typecheck/eslint clean, ✅ 347/347 unit tests (7 new for
+  `computeTooltipPosition` incl. all 4 fallback directions + edge clamping, 4
+  new component tests for `FeatureTour` incl. the already-active-before-mount
+  regression guard). ✅ Real browser (built app, real CSS transitions, real
+  `getBoundingClientRect()`): mobile — sidebar opens, both spotlight AND
+  tooltip land 100% on-screen at step 1 (tooltip re-anchored below since no
+  room to the right on 390px) and step 2; desktop — pixel-identical to before
+  (tooltip right of spotlight, no added delay). Screenshots confirm visually.
+
+- [x] **6. Calendar/digest "Add new…" → forwarding add modal** — **DONE.**
+  Decisions: (a) auto-select the new target ONLY when verified (webhooks are
+  created verified immediately, per backend `aliasesApi.ts:306-315`); for
+  email targets (stay `pending` until the user clicks the verification link)
+  show a toast instead ("check your inbox, then select it here") and leave
+  the select as it was. (b) The existing "Add Forwarding Target" button on
+  the Email & Forwarding tab was migrated to the SAME new modal too — one
+  flow everywhere, its old inline expanding form deleted entirely, not kept
+  as a second UI. (c) The select stays showing "＋ Add new…" while the modal
+  is open (not reverted immediately), only reverting to the previous value on
+  cancel or once the create resolves — implemented via a computed
+  get/set (`calendarSelectValue`/`digestSelectValue`) wrapping a
+  `*ShowingSentinel` boolean flag, rather than a second mirrored ref, so the
+  sentinel string never leaks into the persisted
+  `calendarForwardingTargetId`/`digestForwardingTargetId` values.
+  New `src/components/settings/AddForwardingTargetModal.vue` — not
+  Teleported (matches `FilterModeModal.vue`/`ConfirmDialog.vue`, the two
+  OTHER modals already used in this same file), takes a `submit` function
+  prop (not an emit) so `AsyncButton` keeps owning its own pending state, per
+  this codebase's existing convention. Selecting "＋ Add new…" from EITHER
+  select calls `switchTab('email-forwarding')` (no-op from the calendar
+  select, real from the digest select which lives on the Profile tab) before
+  opening the modal, so the newly-created row/pending-target context is
+  visible once it closes.
+  - 🔎 **Real bug found and fixed along the way:** the outer backdrop `<div>`
+    had `aria-hidden="true"` (copied from `FilterModeModal.vue`'s existing
+    pattern) wrapping the `role="dialog"` content — per the ARIA spec this
+    hides the ENTIRE subtree, including the dialog, from the accessibility
+    tree and from role-based queries (caught this because Playwright's
+    `getByRole('dialog')` couldn't find an admittedly-visible-on-screen
+    modal). Fixed in the new component by removing `aria-hidden` from the
+    wrapper. **Not fixed** in `FilterModeModal.vue` / `ConfirmDialog.vue`
+    (same bug, pre-existing, out of scope for this task) — flagging here for
+    a future cleanup pass; those two have the identical wrapper markup.
+  Verification: ✅ typecheck/eslint clean, ✅ 358/358 unit tests (18 new: 7 for
+  the modal component incl. Escape/Cancel/reset-on-reopen, 4 for the
+  SettingsView wiring incl. the tab-switch and auto-select-vs-toast branches).
+  ✅ Real browser, full round-trip against routed POST/PATCH stubs: desktop
+  calendar "＋ Add new…" → webhook created → modal closes → select shows the
+  new URL selected, confirmed via a real network assertion that
+  `updateAccount` was called with it; mobile digest "＋ Add new…" → title
+  switches to "Email & Forwarding" → pending email created → toast with the
+  exact expected message visible, select correctly NOT changed. Screenshots
+  confirm all states visually.
+
+- [x] **7 & 8. PWA notifications: icon, deep-link, PWA-first click, action
+  buttons; + Android/iOS UX writeup** — **DONE.**
+  Decisions: (a) **foreground-only** — notifications stay triggered by the
+  existing SharedWorker realtime connection (an open tab/installed PWA), same
+  architecture as before; true background Web Push (VAPID keys, push
+  subscriptions, a backend send endpoint) is explicitly OUT of scope, a much
+  larger separate feature. (b) Action buttons are **navigation-only** — they
+  deep-link, no business-logic side effects run from the service worker
+  itself (that would need an auth token cached somewhere reachable outside
+  any open page — real infrastructure, not attempted here). (c) The test
+  notification deep-links to `/settings?tab=email-forwarding` (where the
+  "Send test notification" button itself lives), so clicking it proves the
+  full round trip lands you back where you started.
+
+  **Implementation:**
+  - `vite.config.ts` — `strategies: 'injectManifest'`, `srcDir: 'src'`,
+    `filename: 'sw.ts'`; `pwaAssets` (icon generation) is untouched, confirmed
+    independent of `strategies`. Added `workbox-core`/`workbox-precaching`/
+    `workbox-routing` as explicit devDependencies (were only present
+    transitively before — `injectManifest` needs them declared, matching
+    vite-plugin-pwa's own setup docs).
+  - New `src/sw.ts` — precache + `NavigationRoute` SPA fallback (reproducing
+    what `generateSW`'s `navigateFallback`/`cleanupOutdatedCaches` config used
+    to auto-generate, now written by hand since `injectManifest` doesn't
+    configure those for you), plus the new `notificationclick` handler:
+    focuses an already-open app window and `postMessage`s the target path
+    (this — not always opening a new tab — is what makes it "PWA-first");
+    falls back to `clients.openWindow()` (resolved against
+    `self.registration.scope`, so it's correct under any deploy base path)
+    only when no window is open.
+  - `src/lib/notifications.ts` — rewritten. `notify()` now **always** shows via
+    `registration.showNotification()` and never `new Notification()` — a
+    registration-shown notification has no client-side object to attach
+    `.onclick` to, so click routing necessarily moved into the SW's own
+    `notificationclick` listener above; this incidentally also removed the old
+    "Illegal constructor on Chrome Android" `new Notification()` fallback
+    workaround entirely, since there's no constructor path left to fall back
+    from. New contract: `url` (body-click target) and `actions: {action,
+    title, url?}[]` (an action with no `url` just closes on click) replace the
+    old `onClick` callback. Defaults `icon` to `pwa-192x192.png` and `badge`
+    to a **new hand-authored asset**, `public/notification-badge.png` (bold
+    filled envelope glyph, rasterized via `sharp` from a hand-written SVG —
+    `@vite-pwa/assets-generator` has no first-class "badge" asset type, so
+    this couldn't be generated the way the manifest icons are).
+  - `useRealtime.ts` — `fireNotification` now calls `notify()` with
+    `url: '/threads/<id>'` instead of the raw `showNotification` helper (now
+    private/unexported).
+  - `SettingsView.vue` — test notification sends `url:
+    '/settings?tab=email-forwarding'` and two actions (`Open Settings`,
+    `Dismiss`), the two explicit test cases asked for.
+  - `OnboardingCoach.vue` — its demo notification drops `onClick` (no real
+    target — it's illustrative, not a real thread).
+  - `AppLayout.vue` — new `navigator.serviceWorker.addEventListener('message',
+    ...)` listener, routing a `notification-navigate` message to
+    `router.push()` — the client-side half of the SW's focus+postMessage path.
+
+  **Verification:** ✅ typecheck/eslint clean, ✅ 364/364 unit tests (6 new for
+  `notify()`, covering permission/SW-availability gating, default icon/badge,
+  and the actions→actionUrls mapping). ✅ Clean production build confirms
+  `mode: injectManifest`, 60 precache entries, and `dist/sw.js` contains the
+  `notificationclick`/`openWindow`/`actionUrls` code alongside the injected
+  precache manifest — not just one or the other. ✅ Real browser (installed SW,
+  not mocked): `context.serviceWorkers()` confirms exactly one active
+  registration at `/sw.js`; triggering the real "Send test notification" flow
+  and reading it back via `registration.getNotifications()` confirms the
+  actual shown notification has the correct icon/badge paths, both actions,
+  and `data.url`/`data.actionUrls` populated as designed. ✅ Real click routing
+  (dispatching an actual `NotificationEvent` against the registered
+  `notificationclick` listener inside the SW's own execution context via
+  Playwright's `Worker.evaluate()`, referencing the real shown `Notification`
+  instance — not a mock): found and fixed a real bug where `await
+  target.focus()` was called before `target.postMessage(...)` with no error
+  handling; `focus()` can throw `InvalidAccessError` (confirmed via synthetic
+  dispatch, which lacks genuine user-activation) and, unhandled, that
+  exception aborted the handler before `postMessage()` ever ran — silently
+  breaking navigation. Fixed by posting the message first and treating
+  `focus()` as best-effort (`.catch(() => {})`). Re-verified post-fix: the
+  handler's `event.waitUntil` promise resolves without rejecting, the page
+  receives the correct `notification-navigate` message, and the notification
+  is closed (0 remaining) — confirmed through the actual production code
+  path, not a reimplementation of it.
+
+  ---
+  **Android/iOS notification UX research** (the explicit "what are all the
+  different UX options" ask):
+
+  | Capability | Android Chrome/Firefox | Desktop Chrome/Edge/Firefox (Win/macOS/**Linux**) | iOS/iPadOS Safari (installed PWA only) |
+  |---|---|---|---|
+  | Requires install? | No — works in a regular browser tab | No | **Yes, hard requirement** — Home Screen–installed PWA only; a regular Safari tab cannot request notification permission at all |
+  | title / body / icon | ✅ | ✅ | ✅ (icon customization more limited — leans on the app icon) |
+  | `badge` (small monochrome status icon) | ✅ | Rendered less prominently (desktop notification centers emphasize the full icon) | Effectively ignored — no status-bar equivalent |
+  | `tag` / `renotify` (collapse duplicates) | ✅ | ✅ | ✅ |
+  | `actions` (buttons) | ✅ up to 2, inline on the notification | ✅ up to 2 on Chrome/Edge/Firefox — **on Linux specifically, rendering depends on the system notification daemon** (GNOME/KDE's render them; a bare `dunst` setup may not without configuration) | ❌ **never** — WebKit omits the `actions` field entirely, unconditionally, regardless of what's specified |
+  | `image` (large banner) | ✅ | ✅ | ❌ |
+  | `vibrate` | ✅ | N/A (no vibration hardware) | ❌ |
+  | `requireInteraction` (stays until dismissed) | ✅ | ✅ | ❌ (iOS notifications always auto-dismiss per system behavior) |
+  | Click → deep-link (`notificationclick`) | ✅ | ✅ | ✅ — single tap still routes correctly even though action buttons don't exist |
+  | Click → focus existing app window ("PWA-first") | ✅ if installed; a plain browser tab notification opens/focuses that tab | ✅ | ✅ (opens/focuses the installed Home Screen app) |
+
+  Degradation: no runtime feature-detection was needed to keep this safe —
+  `NotificationOptions` fields a platform doesn't support (`actions` on iOS,
+  `vibrate` on desktop, etc.) are spec'd to be silently ignored, not rejected,
+  so `notify()` can pass the same options everywhere and each platform just
+  renders what it understands. The one thing this means in practice: don't
+  make an action the *only* way to reach some functionality — iOS users can
+  never see it, so the body-click `url` should always cover the primary
+  action too (already true for the test notification: both an action and the
+  body click go to the same place).
+
+- [x] **9. Rules screen — unify rows; toggle for ALL rules; reorder for ALL
+  rules; mobile tap→popup (Edit/Delete); desktop Delete→overflow; fix broken
+  display.** **DONE.**
+
+  Decisions: (a) **Full interleave (2-repo change)** — backend now accepts
+  `priorityOrder` overrides for system rules too (not just `status`), so a
+  single unified, priorityOrder-sorted list covers every rule and can be
+  freely reordered; a user rule can now run before a system rule. (b) Mobile
+  trigger is a **visible kebab (⋮) button**, same element on both platforms
+  (not whole-row-tap) — reuses `OverflowMenu` exactly as-is. (c) **Split**
+  desktop layout: desktop keeps the "Edit" text link inline and the kebab is
+  Delete-only; mobile drops the inline Edit link and the kebab's menu carries
+  both Edit and Delete. (d) Confirmed via a live `dev:mock` audit (screenshots
+  at 1280px/390px, several rule states) three additional real bugs beyond the
+  planned row unification, all fixed: user rules had **no enable/disable
+  toggle at all** (only a dimmed "disabled" text badge); `rule-display.ts`'s
+  `summarizeLogic()` **`in`-case bug** — the needle was never run through
+  `varOf()`, so the extremely common `{"var":field} in [literal,...]` shape
+  (8 of 11 system rules, several user rules) rendered as
+  `a,b contains "[object Object]"` instead of a readable summary — invisible
+  until now because system-rule conditions were never shown in the UI before;
+  and the mobile header's "+ New rule" button text-wrapping onto two lines.
+
+  **Backend (`SES-Email-Adapter`, merged via PR #70 into main, then PR #71
+  for a follow-up fix — see below):** `upsertSystemRuleStatus` →
+  `upsertSystemRuleOverride(accountId, ruleId, {status?, priorityOrder?})`,
+  which now **reads the existing override row first** before writing — the
+  old status-only version always wrote from the code-defined `SYSTEM_RULES`
+  baseline, so a status-only update would have silently wiped out a
+  previously-set priorityOrder override (and vice versa). `listRules`'s merge
+  now applies both fields from the override row. `PATCH .../rules/:id` now
+  accepts `priorityOrder` alongside `status` for system rules; any other
+  field still 403s `SYSTEM_RULE_IMMUTABLE`. New
+  `tests/database/account-database-rules.test.ts` (6 tests) + extended
+  `api.spec.ts` PATCH tests (priorityOrder-only, status+priorityOrder
+  together, still rejects other fields/empty body). Full backend suite: 173
+  files, 2426 tests, all passing.
+
+  **Frontend:** `RulesView.vue` rewritten — one `TransitionGroup` over
+  `rulesStore.items` (already priorityOrder-sorted), one row template for
+  every rule: toggle switch + SVG chevron reorder arrows (replacing the raw
+  ▲/▼ text glyphs) + name/status-badge/action-badges + condition summary, all
+  now shown for system rules too. Row actions (`Edit` link + `OverflowMenu`)
+  only render for `!rule.system` (system rule conditions/actions stay
+  immutable). `stores/rules.ts` needed **no changes at all** — `moveRule`/
+  `reorderRule` already operated on the full account-scoped list by rule ID;
+  the "corrupted priorityOrder" bug was entirely a view-layer mismatch
+  (arrows' disabled-state/position-number index came from a *filtered*
+  `userRules` list while the swap itself used the full list), which
+  disappears once the template iterates the same unified list the store
+  already exposes. `rule-display.ts`'s `in` case now branches on which side
+  is the array: `{var} in [literals]` → "field is one of these values"
+  (running the needle through `varOf()`); `literal in {var}` (unchanged) →
+  "field contains this literal". Header wraps `flex-col` on mobile /
+  `sm:flex-row` on desktop so the button never gets squeezed.
+
+  **Verification:** ✅ typecheck/eslint clean, ✅ 375/375 unit/component tests
+  (11 new: 6 for `rule-display`'s `in`-case fix, 5 for `RulesView`'s
+  unification — system+user in one list, toggle on system rules, no Edit/menu
+  on system rows, cross-boundary reorder, mobile Edit-inside-overflow via
+  `DOMWrapper(document.body)` + `attachTo` since the mobile sheet is a
+  `Teleport`). ✅ Real browser (`dev:mock`, not mocked assertions): confirmed
+  live — no `[object Object]` anywhere, no more "SYSTEM RULES"/"YOUR RULES"
+  section split, first (system) row has a working toggle + arrows and no
+  Edit/kebab, a user row's condition summary renders the fixed `in` case
+  correctly, desktop kebab shows "Delete" only, mobile kebab opens a bottom
+  sheet with "Edit"/"Delete"/"Cancel" and highlights its own row, mobile
+  header button no longer wraps (~32px tall, one line).
+
+  **Follow-up (from a live user question, not originally scoped):** while
+  verifying, confirmed the digest/calendar "＋ Add new…" forwarding-target
+  flow from item 6 already covers both the calendar AND digest selects (no
+  gap). Separately investigated "does a new account get a digest forwarding
+  target from its signup email" — yes (`ensureDefaultForwardingTarget`/
+  `setAccountForwardingDefaults` in `onboarding-task-handler.ts`, using the
+  Authress-verified signup email as the forwarding target ID), but it only
+  ran from the `FirstFollowup` Step Function step, gated behind a 7-day
+  `InitialWait` — so new accounts had no default for their first week. Added
+  a `SetupDefaults` state running the same idempotent logic within the first
+  hour of account creation (backend PR #71) instead: `InitialWait` is now a
+  1-hour lead-in (so SetupDefaults doesn't race other first-level
+  account-creation work), then `SetupDefaults`, then the original 7-day wait
+  — renamed `FirstFollowupWait` since it's no longer the first state — before
+  `FirstFollowup`, which still calls the same idempotent setup too as a
+  safety net for in-flight executions from before this shipped.

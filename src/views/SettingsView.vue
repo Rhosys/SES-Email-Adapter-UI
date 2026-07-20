@@ -17,6 +17,7 @@ import FilterModeModal from '@/components/ui/FilterModeModal.vue'
 import OverflowMenu from '@/components/ui/OverflowMenu.vue'
 import SettingsTabBar from '@/components/settings/SettingsTabBar.vue'
 import BillingPanel from '@/components/settings/BillingPanel.vue'
+import AddForwardingTargetModal from '@/components/settings/AddForwardingTargetModal.vue'
 import DnsSetupDialog from '@/components/settings/DnsSetupDialog.vue'
 import BuildInfo from '@/components/BuildInfo.vue'
 import UserAvatarIcon from '@/components/UserAvatarIcon.vue'
@@ -24,6 +25,8 @@ import { useGestureHandler } from '@/composables/useGestureHandler'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useToast } from '@/composables/useToast'
 import { useIdentity } from '@/composables/useIdentity'
+import { useIsMobile } from '@/composables/useIsMobile'
+import { SETTINGS_TABS, resolveSettingsTab, type SettingsTabKey } from '@/lib/settingsTabs'
 import type {
   Domain,
   DnsRecord,
@@ -42,9 +45,10 @@ const router = useRouter()
 const accountStore = useAccountStore()
 const userConfigStore = useUserConfigStore()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
-const { deferAction } = useToast()
+const { deferAction, notify: showToast } = useToast()
+const isMobile = useIsMobile()
 
-type TabKey = 'profile' | 'emails' | 'email-forwarding' | 'team' | 'billing'
+type TabKey = SettingsTabKey
 const activeTab = ref<TabKey>('profile')
 
 // ─── Profile tab ─────────────────────────────────────────────────────────────
@@ -207,6 +211,24 @@ async function registerPasskey() {
 const calendarForwardingTargetId = ref('')
 const calendarForwardingPending = ref(false)
 const calendarForwardingSaved = ref(false)
+
+// While true, the <select> displays the "＋ Add new…" sentinel instead of
+// calendarForwardingTargetId (the persisted value) — set while the add-target
+// modal is open from this select, cleared on cancel or once the modal resolves.
+const calendarShowingSentinel = ref(false)
+const calendarSelectValue = computed({
+  get: () => (calendarShowingSentinel.value ? ADD_NEW_SENTINEL : calendarForwardingTargetId.value),
+  set: (val: string) => {
+    if (val === ADD_NEW_SENTINEL) {
+      calendarShowingSentinel.value = true
+      openAddTargetModal('calendar')
+    } else {
+      calendarShowingSentinel.value = false
+      calendarForwardingTargetId.value = val
+      void saveCalendarForwarding()
+    }
+  },
+})
 
 async function saveCalendarForwarding() {
   if (!accountStore.accountId) return
@@ -515,12 +537,62 @@ async function deleteDomain(domainId: string) {
 // ─── Forwarding addresses tab ─────────────────────────────────────────────────
 const forwarding = ref<ForwardingTarget[]>([])
 const forwardingLoading = ref(false)
-const addForwardPending = ref(false)
 const verifySuccess = ref('')
 const verifyError = ref('')
-const addTargetDialogOpen = ref(false)
-const addTargetType = ref<'email' | 'webhook' | null>(null)
-const newForwardTarget = ref('')
+
+// Shared "add forwarding target" popup — opened from the tab's own button and
+// from the "＋ Add new…" option in the calendar/digest selects (see
+// calendarSelectValue / digestSelectValue above). `addTargetOrigin` tracks
+// which of those triggered it, so a successful add knows whether (and which)
+// select to update afterward.
+const ADD_NEW_SENTINEL = '__add_new_forwarding_target__'
+type AddTargetOrigin = 'button' | 'calendar' | 'digest'
+const addTargetOrigin = ref<AddTargetOrigin>('button')
+const showAddTargetModal = ref(false)
+
+async function openAddTargetModal(origin: AddTargetOrigin) {
+  addTargetOrigin.value = origin
+  // The calendar/digest selects live on different tabs (Email & Forwarding,
+  // Profile) — jump to the one with the target list so the newly created row
+  // (and, for a pending email target, where to come back and select it) is
+  // visible once the modal closes. No-op if already there.
+  if (origin !== 'button') await switchTab('email-forwarding')
+  showAddTargetModal.value = true
+}
+
+function closeAddTargetModal() {
+  showAddTargetModal.value = false
+  calendarShowingSentinel.value = false
+  digestShowingSentinel.value = false
+}
+
+async function handleAddForwardingTarget(payload: { type: 'email' | 'webhook'; target: string }) {
+  if (!accountStore.accountId) return
+  const result = await api.createForwardingAddress(accountStore.accountId, payload)
+  if (result.isErr()) return
+  forwarding.value = [...forwarding.value, result.value]
+  showAddTargetModal.value = false
+
+  const origin = addTargetOrigin.value
+  if (origin === 'calendar' || origin === 'digest') {
+    const showingSentinel = origin === 'calendar' ? calendarShowingSentinel : digestShowingSentinel
+    showingSentinel.value = false
+    if (result.value.status === 'verified') {
+      // Webhook targets verify immediately — safe to select right away.
+      if (origin === 'calendar') {
+        calendarForwardingTargetId.value = result.value.target
+        void saveCalendarForwarding()
+      } else {
+        digestForwardingTargetId.value = result.value.target
+        void saveDigest()
+      }
+    } else {
+      // Email targets stay "pending" until the user clicks the verification
+      // link — nothing to select yet.
+      showToast(`${result.value.target} needs to be verified — check your inbox, then select it here.`, 5000)
+    }
+  }
+}
 
 async function loadForwarding() {
   if (!accountStore.accountId) return
@@ -528,22 +600,6 @@ async function loadForwarding() {
   const result = await api.listForwardingAddresses(accountStore.accountId)
   forwardingLoading.value = false
   if (result.isOk()) forwarding.value = result.value
-}
-
-async function addForwardingTarget() {
-  if (!accountStore.accountId || !newForwardTarget.value.trim() || !addTargetType.value) return
-  addForwardPending.value = true
-  const result = await api.createForwardingAddress(accountStore.accountId, {
-    target: newForwardTarget.value.trim(),
-    type: addTargetType.value,
-  })
-  addForwardPending.value = false
-  if (result.isOk()) {
-    forwarding.value = [...forwarding.value, result.value]
-    newForwardTarget.value = ''
-    addTargetType.value = null
-    addTargetDialogOpen.value = false
-  }
 }
 
 async function removeForwarding(target: string) {
@@ -642,6 +698,22 @@ const digestForwardingTargetId = ref('')
 const digestPending = ref(false)
 const digestSaved = ref(false)
 
+// See calendarShowingSentinel above — same pattern, this tab's own select.
+const digestShowingSentinel = ref(false)
+const digestSelectValue = computed({
+  get: () => (digestShowingSentinel.value ? ADD_NEW_SENTINEL : digestForwardingTargetId.value),
+  set: (val: string) => {
+    if (val === ADD_NEW_SENTINEL) {
+      digestShowingSentinel.value = true
+      openAddTargetModal('digest')
+    } else {
+      digestShowingSentinel.value = false
+      digestForwardingTargetId.value = val
+      void saveDigest()
+    }
+  },
+})
+
 async function saveDigest() {
   if (!accountStore.accountId) return
   digestPending.value = true
@@ -658,24 +730,29 @@ async function saveDigest() {
   }
 }
 
+function showTestNotification() {
+  // Deep-links back to this exact section (PWA-first: clicking it focuses the
+  // installed app instead of opening a browser tab — see src/sw.ts) and
+  // demonstrates action buttons, both explicitly requested test cases.
+  void notify({
+    title: 'Test notification from SES Adapter',
+    body: 'If you see this, notifications are working.',
+    url: '/settings?tab=email-forwarding',
+    actions: [
+      { action: 'open-settings', title: 'Open Settings', url: '/settings?tab=email-forwarding' },
+      { action: 'dismiss', title: 'Dismiss' },
+    ],
+  })
+}
+
 function sendTestNotification() {
   if (!('Notification' in window)) return
   if (Notification.permission === 'granted') {
-    notify({
-      title: 'Test notification from SES Adapter',
-      body: 'If you see this, browser notifications are working.',
-      onClick: () => { void router.push('/') },
-    })
+    showTestNotification()
     return
   }
   void Notification.requestPermission().then((permission) => {
-    if (permission === 'granted') {
-      notify({
-        title: 'Test notification from SES Adapter',
-        body: 'If you see this, browser notifications are working.',
-        onClick: () => { void router.push('/') },
-      })
-    }
+    if (permission === 'granted') showTestNotification()
   })
 }
 
@@ -720,35 +797,11 @@ onMounted(async () => {
     activeTab.value = 'email-forwarding'
   }
   // Hydrate active tab from URL (map legacy tab keys to merged tab)
-  const VALID_TABS: TabKey[] = [
-    'emails',
-    'email-forwarding',
-    'profile',
-    'team',
-    'billing',
-  ]
-  const LEGACY_TAB_MAP: Record<string, TabKey> = {
-    email: 'email-forwarding',
-    forwarding: 'email-forwarding',
-    domains: 'email-forwarding',
-  }
-  const rawTab = route.query.tab as string | undefined
-  const tab = rawTab ? (LEGACY_TAB_MAP[rawTab] ?? rawTab) as TabKey : undefined
-  if (tab && VALID_TABS.includes(tab)) await switchTab(tab)
+  const tab = resolveSettingsTab(route.query.tab as string | undefined)
+  if (tab) await switchTab(tab)
 })
 
-const TABS: { key: TabKey; label: string; mobileLabel?: string; description: string }[] = [
-  { key: 'emails', label: 'Aliases', description: 'Manage email addresses and sender policies' },
-  { key: 'email-forwarding', label: 'Email & Forwarding', mobileLabel: 'Email', description: 'Domains, forwarding targets, and compose behavior' },
-  { key: 'profile', label: 'Profile', description: 'Your identity, security, and linked accounts' },
-  { key: 'team', label: 'Team', description: 'Members, roles, and invitations' },
-  { key: 'billing', label: 'Billing', description: 'Manage your plan and payment details' },
-]
-
-/** Leave Settings, back to the app. */
-function goBack() {
-  void router.push('/')
-}
+const TABS = SETTINGS_TABS
 
 /** Move to the tab `dir` steps away in TABS order (mobile swipe). Clamps at ends. */
 function switchToAdjacentTab(dir: 1 | -1) {
@@ -798,20 +851,8 @@ useGestureHandler(settingsContentRef, {
       </div>
     </div>
 
-    <!-- Top bar (mobile): back to the app. The current section is shown by the
-         bottom tab bar, so no title is needed here. -->
-    <div class="flex shrink-0 items-center border-b border-ctp-surface0 bg-ctp-mantle px-2 py-2 sm:hidden">
-      <button
-        type="button"
-        class="flex items-center gap-1 px-1 py-1 text-sm text-ctp-subtext1 hover:text-ctp-text"
-        @click="goBack"
-      >
-        <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M15 5l-7 7 7 7" />
-        </svg>
-        Back to app
-      </button>
-    </div>
+    <!-- Mobile top bar (back button + "{Tab}" title) now lives in the global
+         AppNavbar (see AppLayout.vue) instead of a second bar here. -->
 
     <!-- Content. Mobile: the scrolling middle of the flex column, and the owner
          of horizontal swipes (data-h-swipe) which move between adjacent tabs.
@@ -912,8 +953,10 @@ useGestureHandler(settingsContentRef, {
             </div>
           </section>
 
-          <!-- Keyboard shortcuts -->
-          <section class="rounded-lg border border-ctp-surface1 p-4">
+          <!-- Keyboard shortcuts — hidden on mobile (no physical keyboard;
+               the global ?-shortcut itself is also disabled below the sm
+               breakpoint, see useKeyboardShortcuts.ts). -->
+          <section v-if="!isMobile" class="rounded-lg border border-ctp-surface1 p-4">
             <div class="flex items-center justify-between gap-4">
               <div>
                 <h2 class="text-sm font-medium text-ctp-text">Keyboard shortcuts</h2>
@@ -981,9 +1024,8 @@ useGestureHandler(settingsContentRef, {
                 <label for="digest-target" class="mb-1 block text-xs text-ctp-subtext0">Send to</label>
                 <select
                   id="digest-target"
-                  v-model="digestForwardingTargetId"
+                  v-model="digestSelectValue"
                   class="w-full appearance-none rounded-lg border border-ctp-surface1 bg-ctp-base px-3 py-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
-                  @change="saveDigest()"
                 >
                   <option value="">Select target…</option>
                   <option
@@ -993,6 +1035,7 @@ useGestureHandler(settingsContentRef, {
                   >
                     {{ t.target }}
                   </option>
+                  <option :value="ADD_NEW_SENTINEL">＋ Add new…</option>
                 </select>
               </div>
             </div>
@@ -1511,9 +1554,8 @@ useGestureHandler(settingsContentRef, {
             <div class="flex gap-2">
               <select
                 id="calendar-forwarding"
-                v-model="calendarForwardingTargetId"
+                v-model="calendarSelectValue"
                 class="flex-1 appearance-none rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
-                @change="saveCalendarForwarding()"
               >
                 <option value="">None</option>
                 <option
@@ -1523,6 +1565,7 @@ useGestureHandler(settingsContentRef, {
                 >
                   {{ t.target }}
                 </option>
+                <option :value="ADD_NEW_SENTINEL">＋ Add new…</option>
               </select>
             </div>
           </div>
@@ -1532,69 +1575,10 @@ useGestureHandler(settingsContentRef, {
             <button
               type="button"
               class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
-              @click="addTargetDialogOpen = true"
+              @click="openAddTargetModal('button')"
             >
               Add Forwarding Target
             </button>
-          </div>
-
-          <!-- Add target inline dialog -->
-          <div v-if="addTargetDialogOpen" class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
-            <div class="mb-3 flex items-center justify-between">
-              <span class="text-sm font-medium text-ctp-text">New forwarding target</span>
-              <button
-                type="button"
-                class="text-xs text-ctp-subtext0 hover:text-ctp-text"
-                @click="addTargetDialogOpen = false; addTargetType = null; newForwardTarget = ''"
-              >
-                Cancel
-              </button>
-            </div>
-            <!-- Type selection -->
-            <div v-if="!addTargetType" class="flex gap-2">
-              <button
-                type="button"
-                class="flex-1 rounded-lg border border-ctp-surface1 px-4 py-3 text-sm text-ctp-text transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
-                @click="addTargetType = 'email'"
-              >
-                <svg class="mx-auto mb-1 h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
-                Email
-              </button>
-              <button
-                type="button"
-                class="flex-1 rounded-lg border border-ctp-surface1 px-4 py-3 text-sm text-ctp-text transition-colors hover:border-ctp-mauve hover:text-ctp-mauve"
-                @click="addTargetType = 'webhook'"
-              >
-                <svg class="mx-auto mb-1 h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd"/></svg>
-                Webhook
-              </button>
-            </div>
-            <!-- Input form -->
-            <form v-else class="flex gap-2" @submit.prevent="addForwardingTarget">
-              <input
-                v-model="newForwardTarget"
-                :type="addTargetType === 'email' ? 'email' : 'url'"
-                :aria-label="addTargetType === 'email' ? 'Email address' : 'Webhook URL'"
-                :placeholder="addTargetType === 'email' ? 'forward@example.com' : 'https://hooks.example.com/...'"
-                class="flex-1 rounded-lg border border-ctp-surface1 bg-ctp-base px-3 py-2 text-sm text-ctp-text placeholder:text-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
-                autofocus
-              />
-              <AsyncButton
-                type="submit"
-                :action="addForwardingTarget"
-                :disabled="!newForwardTarget.trim()"
-                class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90"
-              >
-                Add
-              </AsyncButton>
-              <button
-                type="button"
-                class="rounded-lg border border-ctp-surface1 px-3 py-2 text-xs text-ctp-subtext0 hover:text-ctp-text"
-                @click="addTargetType = null; newForwardTarget = ''"
-              >
-                Back
-              </button>
-            </form>
           </div>
 
           <!-- Forwarding targets list -->
@@ -1919,6 +1903,12 @@ useGestureHandler(settingsContentRef, {
       :modes="SENDER_POLICIES"
       @select="(mode) => { updateSenderPolicy(senderPolicyModal.aliasAddress, senderPolicyModal.senderDomain, mode as SenderPolicy); senderPolicyModal = { ...senderPolicyModal, open: false } }"
       @close="senderPolicyModal = { ...senderPolicyModal, open: false }"
+    />
+
+    <AddForwardingTargetModal
+      :open="showAddTargetModal"
+      :submit="handleAddForwardingTarget"
+      @update:open="(open) => open ? (showAddTargetModal = true) : closeAddTargetModal()"
     />
 
     <DnsSetupDialog

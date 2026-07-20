@@ -80,6 +80,14 @@ export function summarizeLogic(node: unknown, depth = 0): string {
   }
   if ('in' in obj) {
     const [n, h] = obj['in'] as unknown[]
+    // JsonLogic's "in" is "needle in haystack" and is used both ways here:
+    // {"var": field} in [literal, literal] (field is one of these values) —
+    // the needle is the var, so it must be resolved with varOf() too, not
+    // just interpolated raw (that was rendering as "[object Object]").
+    if (Array.isArray(h)) {
+      return `${varOf(n)} is one of ${h.map((v) => `"${v}"`).join(', ')}`
+    }
+    // "literal" in {"var": field} (field contains/includes this literal).
     return `${varOf(h)} contains "${n}"`
   }
   if ('!!' in obj) {

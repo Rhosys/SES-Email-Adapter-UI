@@ -98,9 +98,18 @@ export default defineConfig({
       // Emit a same-origin registerSW.js instead of an inline script, so the
       // strict CSP (script-src 'self' 'unsafe-inline') is satisfied cleanly.
       injectRegister: 'script',
+      // A hand-written service worker (src/sw.ts) — precache/update behavior stays
+      // identical to before (via workbox-precaching below), but this is required
+      // to add a notificationclick handler: showing notification actions and
+      // routing their clicks is only possible from a SW's own event listener, not
+      // from the page (`new Notification()` supports neither).
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       // Generate PNG / maskable / apple-touch icons at build time from the source
       // SVG (see pwa-assets.config.ts). Nothing rasterized is committed to git;
       // the icons and their manifest/HTML links are produced during `vite build`.
+      // (Independent of `strategies` — coexists fine with injectManifest.)
       pwaAssets: {
         config: true,
         image: 'public/favicon.svg',
@@ -113,13 +122,11 @@ export default defineConfig({
         background_color: '#1e1e2e',
         theme_color: '#1e1e2e',
       },
-      workbox: {
+      injectManifest: {
         // Precache the built app shell so the installed app loads instantly and
         // is installable. API/auth still require connectivity (the SW scope is the
         // deploy base path, so it never intercepts the /api origin routes).
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
-        navigateFallback: `${basePath}index.html`,
-        cleanupOutdatedCaches: true,
       },
       // Keep the PWA service worker disabled in dev so it never conflicts with the
       // MSW mock worker used by `dev:mock`.

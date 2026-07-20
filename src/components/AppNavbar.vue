@@ -6,8 +6,8 @@ import { logout } from '@/lib/auth'
 import { useIdentity } from '@/composables/useIdentity'
 import UserAvatarIcon from '@/components/UserAvatarIcon.vue'
 
-const emit = defineEmits<{ toggleSidebar: [] }>()
-defineProps<{ showHamburger?: boolean; hideSettings?: boolean }>()
+const emit = defineEmits<{ toggleSidebar: []; back: [] }>()
+defineProps<{ showHamburger?: boolean; hideSettings?: boolean; mobileBack?: boolean }>()
 
 const router = useRouter()
 const route = useRoute()
@@ -101,9 +101,24 @@ function onUserMenuFocusout(e: FocusEvent) {
   <header
     class="flex shrink-0 items-center gap-3 border-b border-ctp-surface0 bg-ctp-mantle px-4 py-4"
   >
+    <!-- Back button (mobile only) — replaces the hamburger on screens, like
+         Settings, that own their own sub-navigation instead of the sidebar. -->
+    <button
+      v-if="mobileBack"
+      type="button"
+      class="flex shrink-0 items-center gap-1 rounded px-1 py-1 text-sm text-ctp-subtext1 hover:text-ctp-text sm:hidden"
+      aria-label="Back"
+      @click="emit('back')"
+    >
+      <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M15 5l-7 7 7 7" />
+      </svg>
+      Back
+    </button>
+
     <!-- Hamburger (mobile only) -->
     <button
-      v-if="showHamburger"
+      v-else-if="showHamburger"
       type="button"
       class="flex h-8 w-8 shrink-0 items-center justify-center rounded text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text sm:hidden"
       aria-label="Toggle menu"

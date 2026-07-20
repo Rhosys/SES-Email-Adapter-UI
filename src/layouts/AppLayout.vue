@@ -17,6 +17,9 @@ import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useRelativeTime } from '@/composables/useRelativeTime'
 import { useSearch } from '@/composables/useSearch'
+import { useFeatureTour } from '@/composables/useFeatureTour'
+import { useIsMobile } from '@/composables/useIsMobile'
+import { settingsTabLabel, resolveSettingsTab } from '@/lib/settingsTabs'
 
 useRelativeTime()
 
@@ -24,6 +27,24 @@ const labelsStore = useLabelsStore()
 const viewsStore = useViewsStore()
 const router = useRouter()
 const route = useRoute()
+
+// ── Mobile Settings header: back button + "{Tab}" title replace the
+// hamburger + search facade (Settings owns its own bottom tab bar instead). ──
+const isMobileSettings = computed(() => route.name === 'settings')
+const mobileSettingsTitle = computed(() =>
+  settingsTabLabel(resolveSettingsTab(route.query.tab as string | undefined)),
+)
+
+function handleMobileBack() {
+  // router.back() falls through to whatever the browser was on before the app
+  // if this is the first entry in the SPA's history (e.g. a direct/deep link
+  // to /settings) — fall back to the inbox in that case instead of leaving.
+  if (window.history.state?.back) {
+    router.back()
+  } else {
+    void router.push('/')
+  }
+}
 
 const { coachVisible } = useOnboardingCoach()
 const { init: initShortcuts, onAction, setBlocked } = useKeyboardShortcuts()
@@ -34,6 +55,45 @@ const inputFocused = ref(false)
 const shortcutHelpOpen = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
 const sidebarOpen = ref(false)
+
+// ── Open the sidebar before the feature tour starts, on mobile ────────────────
+// The tour's first spotlight target (nav-inbox) lives in the off-canvas
+// sidebar on mobile — without this its box would land on the translated,
+// off-screen element. isMobile must be called before the onMounted() below so
+// its own onMounted (which syncs the initial matchMedia value) is registered,
+// and therefore runs, first.
+const { tourActive } = useFeatureTour()
+const isMobile = useIsMobile()
+
+function openSidebarForMobileTour() {
+  if (tourActive.value && isMobile.value) sidebarOpen.value = true
+}
+
+watch(tourActive, openSidebarForMobileTour)
+
+onMounted(() => {
+  // Covers startTour() having been called before this component ever
+  // mounted (OnboardingView.vue's completion flow — a top-level route
+  // rendered outside AppLayout) — tourActive is already true here, so the
+  // watch() above never fires for it on its own (it only reacts to changes).
+  // A separate, synchronous onMounted (rather than folding this into the
+  // async one below) so it isn't delayed behind that one's network awaits.
+  openSidebarForMobileTour()
+})
+
+// ── Notification click routing ─────────────────────────────────────────────
+// When a notification is clicked and an app window is already open, src/sw.ts
+// focuses it and posts the target path here, rather than navigating the SW's
+// own (non-existent) location — a service worker has no window to route.
+onMounted(() => {
+  if (!('serviceWorker' in navigator)) return
+  navigator.serviceWorker.addEventListener('message', (event: MessageEvent) => {
+    const data = event.data as { type?: string; url?: string } | undefined
+    if (data?.type === 'notification-navigate' && data.url) {
+      void router.push(data.url)
+    }
+  })
+})
 
 // ── Swipe to open/close sidebar (mobile) ──────────────────────────────────────
 // Swipe-right anywhere opens the nav; swipe-left closes it. A region can claim
@@ -207,9 +267,14 @@ onMounted(async () => {
     <AppSidebar :open="sidebarOpen" />
 
     <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
-      <AppNavbar show-hamburger @toggle-sidebar="sidebarOpen = !sidebarOpen">
+      <AppNavbar
+        show-hamburger
+        :mobile-back="isMobileSettings"
+        @toggle-sidebar="sidebarOpen = !sidebarOpen"
+        @back="handleMobileBack"
+      >
         <template #search>
-          <!-- Desktop: interactive typeahead (sm and up) -->
+          <!-- Desktop: interactive typeahead (sm and up), unchanged on Settings too. -->
           <form v-if="route.path !== '/search'" class="hidden w-full max-w-xl items-center gap-2 sm:flex" @submit.prevent="submitSearch">
           <SearchInputShell>
             <input
@@ -341,9 +406,15 @@ onMounted(async () => {
           </SearchInputShell>
         </form>
 
-          <!-- Mobile: looks exactly like the desktop search box, but taps
-               through to the full /search screen instead of typing inline. -->
-          <SearchInputShell v-if="route.path !== '/search'" class="flex sm:hidden">
+          <!-- Mobile Settings: the current tab's name, replacing search. -->
+          <h1 v-if="isMobileSettings" class="truncate text-base font-semibold text-ctp-text sm:hidden">
+            {{ mobileSettingsTitle }}
+          </h1>
+
+          <!-- Mobile (everywhere else): looks exactly like the desktop search
+               box, but taps through to the full /search screen instead of
+               typing inline. -->
+          <SearchInputShell v-else-if="route.path !== '/search'" class="flex sm:hidden">
             <button
               type="button"
               :class="[SEARCH_FIELD_CLASS, 'flex items-center text-left']"
