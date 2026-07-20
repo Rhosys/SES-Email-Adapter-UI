@@ -26,6 +26,7 @@ import type {
   Rule,
   Signal,
   QuarantinedSignal,
+  BlockedSignal,
   SignalStatus,
   StatsResponse,
   TeamMember,
@@ -83,6 +84,11 @@ interface SignalListWire {
 
 interface QuarantineSignalListWire {
   signals: QuarantinedSignal[]
+  pagination: Pagination
+}
+
+interface BlockedSignalListWire {
+  signals: BlockedSignal[]
   pagination: Pagination
 }
 
@@ -203,6 +209,21 @@ export const api = {
     if (params.cursor) qs.set('cursor', params.cursor)
     if (params.limit) qs.set('limit', String(params.limit))
     return request<QuarantineSignalListWire>(`/accounts/${accountId}/signals?${qs.toString()}`)
+  },
+
+  listBlockedSignals(
+    accountId: string,
+    status: 'block_hidden' | 'block_reject',
+    params: QuarantineSignalListParams = {},
+  ): Promise<Result<BlockedSignalListWire, ApiError>> {
+    const qs = new URLSearchParams()
+    qs.set('status', status)
+    if (params.sender) qs.set('sender', params.sender)
+    if (params.after) qs.set('after', params.after)
+    if (params.before) qs.set('before', params.before)
+    if (params.cursor) qs.set('cursor', params.cursor)
+    if (params.limit) qs.set('limit', String(params.limit))
+    return request<BlockedSignalListWire>(`/accounts/${accountId}/signals?${qs.toString()}`)
   },
 
 

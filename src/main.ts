@@ -70,13 +70,16 @@ enableMocking().then(() => {
 
   const identity = useIdentity()
 
-  // Gate all post-auth initialization on session readiness.
-  // waitForUserSession blocks until authenticate() or userSessionExists() confirms a session.
-  // Once resolved, start the accounts fetch — guards will await this promise, never initiate their own.
-  loginClient.waitForUserSession().then(() => {
-    const accountStore = useAccountStore()
-    accountStore.startFetch()
+  // Kick off the accounts fetch immediately rather than gating it behind
+  // waitForUserSession(). api.listAccounts() awaits ensureToken() internally, so the request
+  // still can't leave until auth resolves — but starting it now lets the fetch fire the instant
+  // the token is ready, overlapping with the Authress session check instead of running strictly
+  // after it. Guards await this same promise (waitForFetch) rather than initiating their own.
+  const accountStore = useAccountStore()
+  accountStore.startFetch()
 
+  // Identity and user-config reads decode the session token, so they still wait for it.
+  loginClient.waitForUserSession().then(() => {
     identity.load()
     if (identity.userId) {
       const userConfigStore = useUserConfigStore()

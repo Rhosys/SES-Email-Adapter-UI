@@ -142,6 +142,23 @@ const accountSwitcherOpen = ref(false)
         </RouterLink>
 
         <RouterLink
+          v-if="isAdmin"
+          to="/spam"
+          class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
+          :class="
+            isActive('/spam')
+              ? 'bg-ctp-surface0 text-ctp-text font-medium'
+              : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
+          "
+        >
+          <!-- No-entry icon -->
+          <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M8 0a8 8 0 100 16A8 8 0 008 0zM2 8a6 6 0 019.546-4.838L3.162 11.546A5.97 5.97 0 012 8zm2.454 4.838l8.384-8.384A6 6 0 014.454 12.838z"/>
+          </svg>
+          Spam
+        </RouterLink>
+
+        <RouterLink
           to="/drafts"
           data-tour="nav-drafts"
           class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"

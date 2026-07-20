@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
 import { RouterLink } from 'vue-router'
-import type { QuarantinedSignal } from '@/types/server'
+import type { QuarantinedSignal, BlockedSignal } from '@/types/server'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
 import StatusBadge from './StatusBadge.vue'
 
-const props = defineProps<{
-  signal: QuarantinedSignal
+const props = withDefaults(defineProps<{
+  signal: QuarantinedSignal | BlockedSignal
   pending: boolean
-}>()
+  routeName?: string
+}>(), { routeName: 'quarantine-detail' })
 
 const now = inject(NOW_KEY)
 
@@ -37,7 +38,7 @@ const subject = computed(() => inboundData.value?.subject ?? '')
 
 <template>
   <RouterLink
-    :to="{ name: 'quarantine-detail', params: { id: signal.signalId } }"
+    :to="{ name: props.routeName, params: { id: signal.signalId } }"
     class="block border-b border-ctp-surface0 transition-colors hover:bg-ctp-surface0"
     :class="{ 'opacity-50': pending, 'bg-ctp-mantle/40': isHidden }"
     role="listitem"

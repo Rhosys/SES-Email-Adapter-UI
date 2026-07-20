@@ -6,9 +6,9 @@
  * To add a new status, add it to the `Status` type AND both maps below. The `Status` type
  * is the union of valid values, so the compiler rejects any unsupported value at the call site.
  */
-import type { ThreadStatus, QuarantineStatus } from '@/types/server'
+import type { ThreadStatus, QuarantineStatus, BlockedStatus } from '@/types/server'
 
-type Status = ThreadStatus | QuarantineStatus
+type Status = ThreadStatus | QuarantineStatus | BlockedStatus
 
 defineProps<{ status: Status }>()
 
@@ -19,6 +19,8 @@ const styles: Record<Status, string> = {
   report_violation: 'bg-ctp-red/15 text-ctp-red',
   quarantine_visible: 'bg-ctp-peach/15 text-ctp-peach',
   quarantine_hidden: 'bg-ctp-surface1 text-ctp-subtext0',
+  block_hidden: 'bg-ctp-red/10 text-ctp-red',
+  block_reject: 'bg-ctp-red/15 text-ctp-red',
 }
 
 const labels: Record<Status, string> = {
@@ -28,6 +30,8 @@ const labels: Record<Status, string> = {
   report_violation: 'Reported',
   quarantine_visible: 'Quarantined',
   quarantine_hidden: 'Silently held',
+  block_hidden: 'Blocked',
+  block_reject: 'Rejected',
 }
 </script>
 

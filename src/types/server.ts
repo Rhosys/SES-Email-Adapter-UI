@@ -370,6 +370,9 @@ export type SignalType = Signal['type']
 
 export type QuarantinedSignal = Signal & { status: QuarantineStatus }
 
+export type BlockedStatus = 'block_hidden' | 'block_reject'
+export type BlockedSignal = Signal & { status: BlockedStatus }
+
 // ─── WorkflowData union ───────────────────────────────────────────────────────
 
 export interface AuthData {
@@ -433,7 +436,7 @@ export interface PaymentsData {
 
 export interface AlertData {
   workflow: 'alert'
-  alertType: 'suspicious_login' | 'new_device' | 'password_changed' | 'breach_notice' | 'api_key_exposed' | 'account_locked' | 'fraud_alert' | 'ci_failure' | 'deployment_failed' | 'error_spike' | 'domain_expiry' | 'cert_expiry' | 'security_scan' | 'other'
+  alertType: string
   service: string
   severity?: 'info' | 'warning' | 'critical'
   requiresAction: boolean

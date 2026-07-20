@@ -50,6 +50,16 @@ export const router = createRouter({
           component: () => import('@/views/QuarantineDetailView.vue'),
         },
         {
+          path: 'spam',
+          name: 'spam',
+          component: () => import('@/views/SpamView.vue'),
+        },
+        {
+          path: 'spam/:id',
+          name: 'spam-detail',
+          component: () => import('@/views/SpamDetailView.vue'),
+        },
+        {
           path: 'drafts',
           name: 'drafts',
           component: () => import('@/views/DraftsView.vue'),
@@ -160,6 +170,8 @@ const ROUTE_TITLES: Record<string, string> = {
   'thread-detail': 'Conversation',
   quarantine: 'Quarantine',
   'quarantine-detail': 'Quarantined email',
+  spam: 'Spam',
+  'spam-detail': 'Blocked email',
   drafts: 'Drafts',
   search: 'Search',
   labels: 'Labels & Views',
@@ -205,9 +217,14 @@ router.beforeEach(async (to) => {
   // Onboarding manages its own account creation — let it through always
   if (to.name === 'onboarding') return true
 
-  // Wait for the background fetch (started in main.ts after session resolved) if accounts aren't loaded yet
+  // Optimistic hydration: if the accounts store hydrated a cached account that has already
+  // completed onboarding, let the shell render immediately and let the background fetch
+  // (kicked off in main.ts) reconcile. Only block on the network when there's nothing
+  // trustworthy to render yet — no cached account, or one still mid-onboarding — since that
+  // decision drives the onboarding redirect below and must not be made against stale state.
   const accountStore = useAccountStore()
-  if (!accountStore.accounts.length) {
+  const hasOnboardedAccount = accountStore.account?.onboarding?.completed === true
+  if (!hasOnboardedAccount) {
     await accountStore.waitForFetch()
   }
 

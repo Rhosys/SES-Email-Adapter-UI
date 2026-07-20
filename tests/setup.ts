@@ -21,3 +21,20 @@ vi.mock('@/lib/auth', () => ({
     authenticate: vi.fn().mockResolvedValue(undefined),
   },
 }))
+
+vi.mock('@/lib/logger', () => ({
+  default: {
+    critical: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    log: vi.fn(),
+    info: vi.fn(),
+    track: vi.fn(),
+    debug: vi.fn(),
+    setContext: vi.fn(),
+    setRouteGetter: vi.fn(),
+    setHistorySink: vi.fn(),
+    flush: vi.fn(),
+    flushOnUnload: vi.fn(),
+  },
+}))
