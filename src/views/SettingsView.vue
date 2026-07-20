@@ -21,6 +21,8 @@ import AddForwardingTargetModal from '@/components/settings/AddForwardingTargetM
 import DnsSetupDialog from '@/components/settings/DnsSetupDialog.vue'
 import BuildInfo from '@/components/BuildInfo.vue'
 import UserAvatarIcon from '@/components/UserAvatarIcon.vue'
+import ConnectionIcon from '@/components/ConnectionIcon.vue'
+import { connectionLabel } from '@/lib/connections'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useToast } from '@/composables/useToast'
@@ -114,30 +116,11 @@ async function loadSecurityProfile() {
   ])
 }
 
-function providerLabel(connectionId: string): string {
-  const s = connectionId.toLowerCase()
-  if (s.includes('google')) return 'Google'
-  if (s.includes('github')) return 'GitHub'
-  if (s.includes('microsoft') || s.includes('azure')) return 'Microsoft / Azure'
-  if (s.includes('apple')) return 'Apple'
-  if (s.includes('facebook')) return 'Facebook'
-  return connectionId
-}
-
-function providerIcon(connectionId: string): string {
-  const s = connectionId.toLowerCase()
-  if (s.includes('google')) return 'G'
-  if (s.includes('github')) return '⌥'
-  if (s.includes('microsoft') || s.includes('azure')) return 'M'
-  if (s.includes('apple')) return ''
-  return '?'
-}
-
 async function disconnectIdentity(ident: LinkedIdentity) {
   if (!canDisconnect.value) return
   const confirmed = await confirmAction({
     title: 'Disconnect identity',
-    message: `Disconnect ${providerLabel(ident.connection.connectionId)}? You must keep at least one connection.`,
+    message: `Disconnect ${connectionLabel(ident.connection.connectionId)}? You must keep at least one connection.`,
     confirmLabel: 'Disconnect',
     confirmVariant: 'danger',
   })
@@ -156,13 +139,11 @@ async function disconnectIdentity(ident: LinkedIdentity) {
 }
 
 async function linkIdentity() {
-  await loginClient.openUserConfigurationScreen({ startPage: UserConfigurationScreen.Profile })
-  securityProfileLoading.value = true
-  try {
-    securityProfile.value = await loginClient.getUserProfile()
-  } finally {
-    securityProfileLoading.value = false
-  }
+  // Start the Authress "link a new connection" flow. With no connectionId the
+  // user picks their provider on the Authress hosted screen. This is a
+  // full-page redirect back to redirectUrl; on return the component remounts
+  // and loadSecurityProfile() refreshes the linked-identity list.
+  await loginClient.linkIdentity({ redirectUrl: window.location.href })
 }
 
 async function openMfaSetup() {
@@ -1100,13 +1081,13 @@ useGestureHandler(settingsContentRef, {
               >
                 <div class="flex items-center gap-2.5">
                   <span
-                    class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ctp-surface1 text-xs font-medium text-ctp-subtext1"
+                    class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ctp-surface1"
                   >
-                    {{ providerIcon(ident.connection.connectionId) }}
+                    <ConnectionIcon :connection-id="ident.connection.connectionId" />
                   </span>
                   <div>
                     <p class="text-sm font-medium text-ctp-text">
-                      {{ providerLabel(ident.connection.connectionId) }}
+                      {{ connectionLabel(ident.connection.connectionId) }}
                     </p>
                     <p class="font-mono text-xs text-ctp-subtext0">
                       {{ ident.connection.userId }}
@@ -1127,46 +1108,14 @@ useGestureHandler(settingsContentRef, {
             </ul>
           </section>
 
-          <!-- Passkeys -->
+          <!-- Multi-factor authentication -->
           <section class="rounded-lg border border-ctp-surface1 p-4">
-            <div class="mb-3 flex items-start justify-between gap-3">
-              <div>
-                <h2 class="text-sm font-medium text-ctp-text">Passkeys</h2>
-                <p class="mt-0.5 text-xs text-ctp-subtext0">
-                  Sign in without a password using Face ID, Touch ID, or Windows Hello.
-                </p>
-              </div>
-              <button
-                class="shrink-0 rounded bg-ctp-surface1 px-2.5 py-1 text-xs text-ctp-text hover:bg-ctp-surface2"
-                @click="addingPasskey = !addingPasskey"
-              >
-                {{ addingPasskey ? 'Cancel' : '+ Add passkey' }}
-              </button>
-            </div>
+            <h2 class="mb-1 text-sm font-medium text-ctp-text">Multi-factor authentication</h2>
+            <p class="mb-4 text-xs text-ctp-subtext0">
+              Add a second factor to protect your account even if your password is compromised.
+            </p>
 
-            <form
-              v-if="addingPasskey"
-              class="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-ctp-surface1 bg-ctp-base p-3"
-              @submit.prevent="registerPasskey"
-            >
-              <input
-                v-model="newPasskeyName"
-                type="text"
-                aria-label="Passkey device name"
-                placeholder="Device name (e.g. MacBook Touch ID)"
-                class="flex-1 rounded border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
-                autofocus
-              />
-              <AsyncButton
-                type="submit"
-                :action="registerPasskey"
-                :disabled="!newPasskeyName.trim()"
-                class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
-              >
-                Register
-              </AsyncButton>
-            </form>
-
+            <!-- Registered devices -->
             <div
               v-if="securityDeviceError"
               class="mb-3 rounded border border-ctp-red bg-ctp-red/10 px-3 py-2 text-xs text-ctp-red"
@@ -1193,9 +1142,9 @@ useGestureHandler(settingsContentRef, {
               v-else-if="securityDevices.length === 0"
               class="rounded-lg border border-dashed border-ctp-surface1 py-6 text-center"
             >
-              <p class="text-sm text-ctp-subtext1">No passkeys registered</p>
+              <p class="text-sm text-ctp-subtext1">No MFA devices registered</p>
               <p class="mt-1 text-xs text-ctp-subtext0">
-                Add a passkey to sign in faster and more securely.
+                Add one of the methods below to secure your account.
               </p>
             </div>
 
@@ -1228,17 +1177,51 @@ useGestureHandler(settingsContentRef, {
                 </button>
               </li>
             </ul>
-          </section>
 
-          <!-- MFA -->
-          <section class="rounded-lg border border-ctp-surface1 p-4">
-            <h2 class="mb-1 text-sm font-medium text-ctp-text">MFA</h2>
-            <p class="mb-4 text-xs text-ctp-subtext0">
-              Add a second factor to protect your account even if your password is compromised.
-            </p>
+            <!-- Add a method -->
+            <div class="mt-4 space-y-3 border-t border-ctp-surface0 pt-4">
+              <!-- Passkey (inline WebAuthn registration) -->
+              <div class="rounded-lg border border-ctp-surface0 p-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <p class="text-sm font-medium text-ctp-text">Passkey</p>
+                    <p class="mt-0.5 text-xs text-ctp-subtext0">
+                      Sign in without a password using Face ID, Touch ID, or Windows Hello.
+                    </p>
+                  </div>
+                  <button
+                    class="shrink-0 rounded bg-ctp-surface1 px-2.5 py-1 text-xs text-ctp-text hover:bg-ctp-surface2"
+                    @click="addingPasskey = !addingPasskey"
+                  >
+                    {{ addingPasskey ? 'Cancel' : '+ Add passkey' }}
+                  </button>
+                </div>
 
-            <div class="space-y-3">
-              <!-- Physical security keys -->
+                <form
+                  v-if="addingPasskey"
+                  class="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-ctp-surface1 bg-ctp-base p-3"
+                  @submit.prevent="registerPasskey"
+                >
+                  <input
+                    v-model="newPasskeyName"
+                    type="text"
+                    aria-label="Passkey device name"
+                    placeholder="Device name (e.g. MacBook Touch ID)"
+                    class="flex-1 rounded border border-ctp-surface1 bg-ctp-mantle px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+                    autofocus
+                  />
+                  <AsyncButton
+                    type="submit"
+                    :action="registerPasskey"
+                    :disabled="!newPasskeyName.trim()"
+                    class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
+                  >
+                    Register
+                  </AsyncButton>
+                </form>
+              </div>
+
+              <!-- Physical security key -->
               <div class="rounded-lg border border-ctp-surface0 p-3">
                 <div class="flex items-start justify-between gap-3">
                   <div>
