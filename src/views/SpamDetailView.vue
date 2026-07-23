@@ -25,6 +25,7 @@ const signalId = computed(() => route.params.id as string)
 const loading = ref(true)
 const notFound = ref(false)
 const showSenderPopup = ref(false)
+const updating = ref(false)
 
 const signal = computed(() =>
   [...spamStore.blockHidden, ...spamStore.blockReject].find(
@@ -48,13 +49,20 @@ function ruleFor(ruleId: string) {
 }
 
 onMounted(async () => {
-  loading.value = true
-  if (!signal.value) {
+  if (signal.value) {
+    // Signal already cached — show immediately, refresh in background
+    loading.value = false
+    updating.value = true
+    await Promise.all([spamStore.fetchSignals(true), rulesStore.fetchRules()])
+    updating.value = false
+    notFound.value = !signal.value
+  } else {
+    loading.value = true
     await spamStore.fetchSignals(true)
+    await rulesStore.fetchRules()
+    loading.value = false
+    notFound.value = !signal.value
   }
-  await rulesStore.fetchRules()
-  loading.value = false
-  notFound.value = !signal.value
 })
 
 function onSignalReprocessed() {
@@ -137,6 +145,12 @@ async function onDelete() {
       <div class="mb-6">
         <div class="flex items-center gap-2">
           <StatusBadge :status="signal.status" />
+          <span v-if="updating" class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-ctp-blue/15 px-2 py-0.5 text-xs font-medium text-ctp-blue">
+            <svg class="h-3 w-3 animate-spin" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2" stroke-dasharray="28" stroke-dashoffset="8" stroke-linecap="round" />
+            </svg>
+            Updating
+          </span>
           <h1 class="text-lg font-semibold text-ctp-text">{{ inboundData.subject || '(no subject)' }}</h1>
         </div>
         <div class="mt-1 text-sm text-ctp-subtext1">

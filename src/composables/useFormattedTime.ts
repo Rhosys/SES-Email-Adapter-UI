@@ -7,6 +7,6 @@ export function formatRelativeTime(isoString: string, now: number): string {
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}h ago`
   const days = Math.floor(hours / 24)
-  if (days <= 7) return `${days}d ago`
+  if (days === 1) return 'Yesterday'
   return new Date(isoString).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }

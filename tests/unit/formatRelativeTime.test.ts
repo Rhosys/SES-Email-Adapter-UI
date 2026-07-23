@@ -16,8 +16,14 @@ describe('formatRelativeTime', () => {
     expect(formatRelativeTime('2025-01-01T09:00:00Z', BASE)).toBe('3h ago')
   })
 
-  it('returns days ago for 24+ hours', () => {
-    expect(formatRelativeTime('2024-12-30T12:00:00Z', BASE)).toBe('2d ago')
+  it('returns "Yesterday" for 24-48 hours ago', () => {
+    expect(formatRelativeTime('2024-12-31T12:00:00Z', BASE)).toBe('Yesterday')
+  })
+
+  it('returns formatted date for 2+ days ago', () => {
+    const result = formatRelativeTime('2024-12-30T12:00:00Z', BASE)
+    expect(result).toContain('Dec')
+    expect(result).toContain('30')
   })
 
   it('returns "1m ago" for exactly 60 seconds', () => {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, computed, ref, nextTick } from 'vue'
+import { onMounted, onUnmounted, computed, ref, nextTick, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useSignalsStore } from '@/stores/signals'
 import { useThreadsStore } from '@/stores/threads'
@@ -36,6 +36,7 @@ const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel }
 
 const showSenderPopup = ref(false)
 const threadData = ref<Thread | null>(null)
+const updating = ref(false)
 
 const threadId = computed(() => route.params.id as string)
 
@@ -74,15 +75,72 @@ const retentionMessage = computed(() => {
   return `This thread will be deleted in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`
 })
 
+// ── IntersectionObserver for scroll preservation ──────────────────────────────
+const signalListRef = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
+let topVisibleSignalId: string | null = null
+
+function observeSignals() {
+  if (!signalListRef.value || typeof IntersectionObserver === 'undefined') return
+  observer?.disconnect()
+  observer = new IntersectionObserver(
+    (entries) => {
+      let topEntry: IntersectionObserverEntry | null = null
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue
+        if (!topEntry || entry.boundingClientRect.top < topEntry.boundingClientRect.top) {
+          topEntry = entry
+        }
+      }
+      if (topEntry) {
+        topVisibleSignalId = topEntry.target.getAttribute('data-signal-id')
+      }
+    },
+    { root: document.getElementById('main-content'), threshold: 0.1 },
+  )
+  const cards = signalListRef.value.querySelectorAll('[data-signal-id]')
+  cards.forEach((el) => observer!.observe(el))
+}
+
+function scrollToPreserved() {
+  if (!topVisibleSignalId || !signalListRef.value) return
+  const el = signalListRef.value.querySelector(`[data-signal-id="${topVisibleSignalId}"]`)
+  if (el) {
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }
+}
+
+watch(dedupedSignals, async () => {
+  await nextTick()
+  observeSignals()
+}, { flush: 'post' })
+
 onMounted(async () => {
-  signalsStore.reset()
-  // Use threads store for thread metadata — instant if cached, fetches if not
+  // Point the store at this thread so items computed returns cached signals
+  signalsStore.currentThreadId = threadId.value
+
+  // Load thread metadata from store (instant if cached)
   threadData.value = (await threadsStore.getThreadAsync(threadId.value)) ?? null
-  await signalsStore.fetchAll(threadId.value)
+
+  // If we have cached signals, show them and fetch in background
+  const hasCached = signalsStore.items.length > 0
+  if (hasCached) {
+    updating.value = true
+    await nextTick()
+    observeSignals()
+    await signalsStore.fetchAll(threadId.value)
+    updating.value = false
+    await nextTick()
+    scrollToPreserved()
+  } else {
+    await signalsStore.fetchAll(threadId.value)
+    await nextTick()
+    observeSignals()
+  }
 })
 
 onUnmounted(() => {
-  signalsStore.reset()
+  observer?.disconnect()
 })
 
 function onDraftDiscard() {
@@ -366,6 +424,12 @@ async function removeLabel(label: string) {
         <!-- Line 1: Primary badge + Summary (multiline allowed) -->
         <div class="flex items-start gap-2">
           <span class="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" :class="primaryBadgeClass">{{ primaryBadgeLabel }}</span>
+          <span v-if="updating" class="mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-ctp-blue/15 px-2 py-0.5 text-xs font-medium text-ctp-blue">
+            <svg class="h-3 w-3 animate-spin" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2" stroke-dasharray="28" stroke-dashoffset="8" stroke-linecap="round" />
+            </svg>
+            Updating
+          </span>
           <h1 class="text-lg font-semibold text-ctp-text">{{ thread.summary }}</h1>
         </div>
         <!-- Line 2: From / Alias -->
@@ -442,29 +506,31 @@ async function removeLabel(label: string) {
       </div>
 
       <!-- Signal thread — newest first, received + draft signals -->
-      <div v-if="dedupedSignals.length > 0" class="space-y-4">
+      <div v-if="dedupedSignals.length > 0" ref="signalListRef" class="space-y-4">
         <template v-for="(group, index) in dedupedSignals" :key="group.signal.signalId">
-          <DraftSignalCard
-            v-if="group.signal.status === 'draft'"
-            :id="`draft-${group.signal.signalId}`"
-            :signal="group.signal"
-            @discard="onDraftDiscard"
-            @sent="onDraftSent"
-          />
-          <PendingSendCard
-            v-else-if="group.signal.status === 'pending_send'"
-            :signal="group.signal"
-            @cancelled="onDraftDiscard"
-          />
-          <SignalRenderer
-            v-else
-            :signal="group.signal"
-            :linked-signal="group.linkedSignal"
-            :default-expanded="index === 0"
-            @undo="onSignalUndo"
-            @reply="startDraft"
-            @reprocessed="onSignalReprocessed"
-          />
+          <div :data-signal-id="group.signal.signalId">
+            <DraftSignalCard
+              v-if="group.signal.status === 'draft'"
+              :id="`draft-${group.signal.signalId}`"
+              :signal="group.signal"
+              @discard="onDraftDiscard"
+              @sent="onDraftSent"
+            />
+            <PendingSendCard
+              v-else-if="group.signal.status === 'pending_send'"
+              :signal="group.signal"
+              @cancelled="onDraftDiscard"
+            />
+            <SignalRenderer
+              v-else
+              :signal="group.signal"
+              :linked-signal="group.linkedSignal"
+              :default-expanded="index === 0"
+              @undo="onSignalUndo"
+              @reply="startDraft"
+              @reprocessed="onSignalReprocessed"
+            />
+          </div>
         </template>
       </div>
       <div v-else class="py-12 text-center">

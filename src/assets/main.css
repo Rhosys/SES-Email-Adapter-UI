@@ -199,6 +199,24 @@
   }
 }
 
+/* ── Always-visible scrollbar on detail views ── */
+.thread-detail,
+.quarantine-detail {
+  overflow-y: scroll;
+}
+
+/* ── Smooth signal card transitions on data updates ── */
+.signal-enter-active {
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+.signal-enter-from {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+.signal-move {
+  transition: transform 300ms ease;
+}
+
 /* ── List enter/leave/move animations (used by all <TransitionGroup name="list"> wrappers) ── */
 .list-enter-active {
   transition: opacity 250ms ease, transform 250ms ease;
