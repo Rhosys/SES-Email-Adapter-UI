@@ -1,20 +1,25 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
+import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useSpamStore } from '@/stores/spam'
 import { useRulesStore } from '@/stores/rules'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { conditionSummary } from '@/lib/rule-display'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import SignalRenderer from '@/components/SignalRenderer.vue'
 import ActionBadge from '@/components/ActionBadge.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import SenderInfoPopup from '@/components/SenderInfoPopup.vue'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import NoticeDialog from '@/components/ui/NoticeDialog.vue'
 import { useAccountStore } from '@/stores/account'
 
 const route = useRoute()
+const router = useRouter()
 const spamStore = useSpamStore()
 const rulesStore = useRulesStore()
 const accountStore = useAccountStore()
+const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
 const signalId = computed(() => route.params.id as string)
 const loading = ref(true)
@@ -54,6 +59,36 @@ onMounted(async () => {
 
 function onSignalReprocessed() {
   void spamStore.fetchSignals(true)
+}
+
+const noticeOpen = ref(false)
+const notice = ref<{ title: string; message: string }>({ title: '', message: '' })
+const deleting = ref(false)
+
+async function onDelete() {
+  if (!signal.value) return
+  const confirmed = await confirmAction({
+    title: 'Delete blocked email',
+    message: 'Delete this blocked email permanently? This cannot be undone.',
+    confirmLabel: 'Delete',
+    confirmVariant: 'danger',
+  })
+  if (!confirmed) return
+
+  deleting.value = true
+  const error = await spamStore.deleteSignal(signal.value.signalId)
+  deleting.value = false
+  if (error?.status === 404) {
+    notice.value = {
+      title: "Couldn\u2019t delete this email",
+      message:
+        "The server couldn\u2019t delete this blocked email. This action may not be available yet, or the email may have already been removed.\n\nBlocked emails are cleared automatically once they pass your account\u2019s retention window \u2014 so there\u2019s nothing you need to do to keep the list tidy. To stop similar emails in future, adjust the matching rule or the sender\u2019s policy.",
+    }
+    noticeOpen.value = true
+    void spamStore.fetchSignals(true)
+    return
+  }
+  void router.push('/spam')
 }
 </script>
 
@@ -127,6 +162,16 @@ function onSignalReprocessed() {
         <div v-if="inboundData.recipientAddress" class="mt-1 text-sm text-ctp-subtext1">
           <span class="text-ctp-overlay1">Alias:</span> <span class="text-ctp-sapphire">{{ inboundData.recipientAddress }}</span>
         </div>
+        <button
+          :disabled="deleting"
+          class="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-ctp-red/40 bg-ctp-red/10 px-3 py-1.5 text-sm text-ctp-red hover:bg-ctp-red/20 disabled:opacity-50"
+          @click="onDelete"
+        >
+          <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z" />
+          </svg>
+          {{ deleting ? 'Deleting\u2026' : 'Delete' }}
+        </button>
       </div>
 
       <!-- Matched rules -->
@@ -190,4 +235,22 @@ function onSignalReprocessed() {
       <SignalRenderer :signal="signal" @reprocessed="onSignalReprocessed" />
     </template>
   </div>
+
+  <ConfirmDialog
+    :open="dialogOpen"
+    :title="dialogOptions.title"
+    :message="dialogOptions.message"
+    :confirm-label="dialogOptions.confirmLabel"
+    :confirm-variant="dialogOptions.confirmVariant"
+    @confirm="onConfirm"
+    @cancel="onCancel"
+  />
+
+  <NoticeDialog
+    :open="noticeOpen"
+    :title="notice.title"
+    :message="notice.message"
+    tone="warning"
+    @close="noticeOpen = false"
+  />
 </template>

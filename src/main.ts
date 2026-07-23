@@ -8,6 +8,8 @@ import logger from './lib/logger'
 import { loginClient } from './lib/auth'
 import { useAccountStore } from './stores/account'
 import { useSpamStore } from './stores/spam'
+import { useQuarantineStore } from './stores/quarantine'
+import { useThreadsStore } from './stores/threads'
 import { isAdminUser } from './stores/admin'
 import { useUserConfigStore } from './stores/userConfig'
 import { useLogStore } from './stores/logs'
@@ -80,10 +82,15 @@ enableMocking().then(() => {
   const accountStore = useAccountStore()
   accountStore.startFetch()
 
-  // Once the account is resolved, admins get the blocked-signal counter primed so the
-  // Spam badge in the sidebar reflects reality on first paint — without them having to
-  // open the Spam tab. Non-admins never see the tab, so we skip the fetch entirely.
+  // Once the account is resolved, prime all sidebar badge counters so they reflect
+  // reality on first paint — regardless of which page the user navigates to first.
   accountStore.waitForFetch().then(() => {
+    const quarantineStore = useQuarantineStore()
+    void quarantineStore.fetchSignals(true)
+
+    const threadsStore = useThreadsStore()
+    void threadsStore.fetchThreads(true)
+
     if (isAdminUser()) {
       const spamStore = useSpamStore()
       void spamStore.fetchSignals(true)

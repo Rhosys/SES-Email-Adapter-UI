@@ -30,9 +30,9 @@ function mockSignal(overrides: Partial<Signal> & { signalId?: string; status?: s
     type: 'email',
     source: 'system',
     status,
-    createdAt: '2025-01-01T12:00:00Z',
+    createdAt: new Date().toISOString(),
     data: {
-      receivedAt: '2025-01-01T12:00:00Z',
+      receivedAt: new Date().toISOString(),
       summary: 'Test',
       from: { address: 'sender@example.com', name: 'Sender' },
       to: [{ address: 'inbox@example.com' }],

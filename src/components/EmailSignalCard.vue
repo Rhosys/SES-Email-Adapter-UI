@@ -143,7 +143,7 @@ const signalObjectError = ref<string | null>(null)
 
 const hasOriginalEmail = computed(() => {
   const s = props.signal.status
-  return s !== 'block_hidden' && s !== 'block_reject' && s !== 'report_violation' && s !== 'quarantine_visible' && s !== 'quarantine_hidden'
+  return s !== 'report_violation'
 })
 
 function viewSignalObject() {
@@ -171,9 +171,10 @@ function viewOriginalEmail() {
 
   if (originalEmailSource.value) return
 
-  if (!accountStore.accountId || !props.signal.threadId) return
+  if (!accountStore.accountId) return
+  const threadId = props.signal.threadId ?? (props.signal.status === 'block_hidden' || props.signal.status === 'block_reject' ? 'BLOCKED' : 'QUARANTINED')
   originalLoading.value = true
-  void api.getRawEmail(accountStore.accountId, props.signal.threadId, props.signal.signalId).then((result) => {
+  void api.getRawEmail(accountStore.accountId, threadId, props.signal.signalId).then((result) => {
     originalLoading.value = false
     if (result.isOk()) {
       originalEmailSource.value = result.value

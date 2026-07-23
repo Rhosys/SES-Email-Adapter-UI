@@ -3,26 +3,17 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSpamStore } from '@/stores/spam'
 import { useRelativeTime } from '@/composables/useRelativeTime'
-import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import QuarantineFilters from '@/components/QuarantineFilters.vue'
 import QuarantineRow from '@/components/QuarantineRow.vue'
-import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
-import NoticeDialog from '@/components/ui/NoticeDialog.vue'
 import type { SpamFilters } from '@/stores/spam'
 
 const route = useRoute()
 const router = useRouter()
 const store = useSpamStore()
-const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 useRelativeTime()
 
 const loadingHidden = ref(true)
 const loadingReject = ref(true)
-
-// Informational popup shown when the server can't honour a delete (e.g. 404 —
-// the delete endpoint isn't available yet).
-const noticeOpen = ref(false)
-const notice = ref<{ title: string; message: string }>({ title: '', message: '' })
 
 const isEmpty = computed(
   () => !loadingHidden.value && !loadingReject.value && store.blockHidden.length === 0 && store.blockReject.length === 0,
@@ -66,28 +57,6 @@ function onUpdateFilters(next: Partial<SpamFilters>) {
 
 async function loadMore() {
   await store.fetchMore()
-}
-
-async function onDelete(signalId: string) {
-  const confirmed = await confirmAction({
-    title: 'Delete blocked email',
-    message: 'Delete this blocked email permanently? This cannot be undone.',
-    confirmLabel: 'Delete',
-    confirmVariant: 'danger',
-  })
-  if (!confirmed) return
-
-  const error = await store.deleteSignal(signalId)
-  if (error?.status === 404) {
-    notice.value = {
-      title: 'Couldn’t delete this email',
-      message:
-        'The server couldn’t delete this blocked email. This action may not be available yet, or the email may have already been removed.\n\nBlocked emails are cleared automatically once they pass your account’s retention window — so there’s nothing you need to do to keep the list tidy. To stop similar emails in future, adjust the matching rule or the sender’s policy.',
-    }
-    noticeOpen.value = true
-    // Reconcile in case the signal really was removed on the server.
-    void store.fetchSignals(true)
-  }
 }
 </script>
 
@@ -141,8 +110,6 @@ async function onDelete(signalId: string) {
               :signal="signal"
               :pending="store.actionPending.has(signal.signalId)"
               route-name="spam-detail"
-              deletable
-              @delete="onDelete"
             />
           </TransitionGroup>
         </section>
@@ -184,8 +151,6 @@ async function onDelete(signalId: string) {
               :signal="signal"
               :pending="store.actionPending.has(signal.signalId)"
               route-name="spam-detail"
-              deletable
-              @delete="onDelete"
             />
           </TransitionGroup>
         </section>
@@ -216,22 +181,4 @@ async function onDelete(signalId: string) {
       </template>
     </main>
   </div>
-
-  <ConfirmDialog
-    :open="dialogOpen"
-    :title="dialogOptions.title"
-    :message="dialogOptions.message"
-    :confirm-label="dialogOptions.confirmLabel"
-    :confirm-variant="dialogOptions.confirmVariant"
-    @confirm="onConfirm"
-    @cancel="onCancel"
-  />
-
-  <NoticeDialog
-    :open="noticeOpen"
-    :title="notice.title"
-    :message="notice.message"
-    tone="warning"
-    @close="noticeOpen = false"
-  />
 </template>
