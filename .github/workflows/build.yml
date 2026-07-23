@@ -145,24 +145,33 @@ jobs:
         run: |
           set -euo pipefail
 
-          git clone --no-checkout --depth 1 \
-            https://github.com/rhosys/SES-Email-Adapter.git /tmp/ses-backend
-          cd /tmp/ses-backend
-          git sparse-checkout set deploy
-          git checkout
+          mkdir -p /tmp/infra-lookup
+          cat > /tmp/infra-lookup/main.tf << 'EOF'
+          data "terraform_remote_state" "backend" {
+            backend = "s3"
+            config = {
+              bucket = "rhosys-opentofu-${{ secrets.AWS_ACCOUNT_ID }}-eu-central-1"
+              key    = "SES-Email-Adapter/terraform.tfstate"
+              region = "eu-central-1"
+            }
+          }
+          output "site_bucket_name" {
+            value = data.terraform_remote_state.backend.outputs.site_bucket_name
+          }
+          output "landing_bucket_name" {
+            value = data.terraform_remote_state.backend.outputs.landing_bucket_name
+          }
+          output "cloudfront_distribution_id" {
+            value = data.terraform_remote_state.backend.outputs.cloudfront_distribution_id
+          }
+          EOF
 
-          tofu -chdir=deploy init -input=false \
-            -backend-config="bucket=rhosys-opentofu-${{ secrets.AWS_ACCOUNT_ID }}-eu-central-1" \
-            -backend-config="key=SES-Email-Adapter/terraform.tfstate" \
-            -backend-config="region=eu-central-1"
+          tofu -chdir=/tmp/infra-lookup init -input=false
+          tofu -chdir=/tmp/infra-lookup apply -auto-approve -input=false
 
-          echo "=== ALL available OpenTofu outputs ==="
-          tofu -chdir=deploy output -json 2>&1 || echo "(tofu output -json failed)"
-          echo ""
-
-          SITE_BUCKET=$(tofu -chdir=deploy output -raw site_bucket_name)
-          CF_ID=$(tofu -chdir=deploy output -raw cloudfront_distribution_id)
-          LANDING_BUCKET=$(tofu -chdir=deploy output -raw landing_bucket_name)
+          SITE_BUCKET=$(tofu -chdir=/tmp/infra-lookup output -raw site_bucket_name)
+          CF_ID=$(tofu -chdir=/tmp/infra-lookup output -raw cloudfront_distribution_id)
+          LANDING_BUCKET=$(tofu -chdir=/tmp/infra-lookup output -raw landing_bucket_name)
 
           [ -n "$SITE_BUCKET" ] || { echo "::error::site_bucket_name output is empty"; exit 1; }
           [ -n "$CF_ID" ]       || { echo "::error::cloudfront_distribution_id output is empty"; exit 1; }
