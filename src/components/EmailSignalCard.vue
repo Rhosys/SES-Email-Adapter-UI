@@ -250,19 +250,29 @@ async function reprocessSignal() {
   // admin can view — send them back to the inbox.
   if (newSignal.status === 'block_hidden' || newSignal.status === 'block_reject' || newSignal.status === 'report_violation') {
     detachFromOriginThread()
+    reprocessing.value = false
+    emit('reprocessed')
     void router.push('/')
     return
   }
 
-  // No thread means the signal landed in quarantine.
+  // No thread means the signal landed in quarantine — emit so the parent
+  // refetches the updated signal from the store, then navigate only if the
+  // signal ID actually changed (otherwise we're already viewing it).
   if (!newSignal.threadId) {
     detachFromOriginThread()
-    void router.push(`/quarantine/${newSignal.signalId}`)
+    reprocessing.value = false
+    emit('reprocessed')
+    if (newSignal.signalId !== props.signal.signalId) {
+      void router.push(`/quarantine/${newSignal.signalId}`)
+    }
     return
   }
 
   if (newSignal.threadId !== originThreadId) {
     detachFromOriginThread()
+    reprocessing.value = false
+    emit('reprocessed')
     void router.replace(`/threads/${newSignal.threadId}`)
     return
   }
@@ -466,12 +476,12 @@ const iframeStyle = {
           v-if="reprocessing"
           role="status"
           aria-label="Reprocessing email…"
-          class="flex min-h-[min(650px,60dvh)] max-h-[calc(100dvh-160px)] items-center justify-center gap-2 bg-white text-sm text-ctp-subtext0"
+          class="flex min-h-[min(650px,60dvh)] max-h-[calc(100dvh-160px)] flex-col items-center justify-center gap-3 bg-ctp-mantle text-ctp-subtext0"
         >
-          <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg class="h-8 w-8 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 12a9 9 0 1 1-6.219-8.56" stroke-linecap="round" />
           </svg>
-          Reprocessing…
+          <span class="text-base font-medium">Reprocessing…</span>
         </div>
         <div
           v-else-if="reprocessError"
