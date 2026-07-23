@@ -256,16 +256,13 @@ async function reprocessSignal() {
     return
   }
 
-  // No thread means the signal landed in quarantine — emit so the parent
-  // refetches the updated signal from the store, then navigate only if the
-  // signal ID actually changed (otherwise we're already viewing it).
+  // No thread means the signal landed in quarantine. Emit so the parent
+  // refetches — navigation is unnecessary because the signalId never changes
+  // during reprocess, and same-route pushes are no-ops in Vue Router.
   if (!newSignal.threadId) {
     detachFromOriginThread()
     reprocessing.value = false
     emit('reprocessed')
-    if (newSignal.signalId !== props.signal.signalId) {
-      void router.push(`/quarantine/${newSignal.signalId}`)
-    }
     return
   }
 

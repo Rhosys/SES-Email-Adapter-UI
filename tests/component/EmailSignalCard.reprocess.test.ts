@@ -165,18 +165,7 @@ describe('EmailSignalCard — admin reprocess', () => {
     expect(signalsStore.threadSignals('thread_1').map((s) => s.signalId)).toEqual(['sig_2'])
   })
 
-  it('redirects to quarantine when reprocessing leaves the signal with no thread and a new signalId', async () => {
-    vi.mocked(api.reprocessSignal).mockResolvedValue(
-      ok(mockEmailSignal({ signalId: 'sig_new', threadId: undefined, status: 'quarantine_visible' })),
-    )
-
-    const { router } = await mountCard(mockEmailSignal())
-    await flushPromises()
-
-    expect(router.currentRoute.value.fullPath).toBe('/quarantine/sig_new')
-  })
-
-  it('stays on current route when reprocessing leaves the signal with no thread but same signalId', async () => {
+  it('emits reprocessed without navigating when reprocessing leaves the signal with no thread', async () => {
     vi.mocked(api.reprocessSignal).mockResolvedValue(
       ok(mockEmailSignal({ threadId: undefined, status: 'quarantine_visible' })),
     )
