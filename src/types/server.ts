@@ -188,6 +188,11 @@ export interface UnsubscribeInfo {
   url: string
 }
 
+export interface SignalAction {
+  url: string
+  text: string | null
+}
+
 export interface InboundEmailSignalData {
   receivedAt: string
   summary: string
@@ -206,6 +211,7 @@ export interface InboundEmailSignalData {
   spamScore: number
   matchedRules?: MatchedRuleResult[]
   unsubscribe?: UnsubscribeInfo
+  actions?: SignalAction[]
 }
 
 export interface OutboundEmailSignalData {
@@ -381,7 +387,6 @@ export interface AuthData {
   code?: string
   expiresInMinutes?: number
   service: string
-  actionUrl?: string
 }
 
 export interface ConversationData {
@@ -440,7 +445,6 @@ export interface AlertData {
   service: string
   severity?: 'info' | 'warning' | 'critical'
   requiresAction: boolean
-  actionUrl?: string
   ipAddress?: string
   location?: string
   deviceName?: string
@@ -486,7 +490,6 @@ export interface JobData {
   salary?: string
   interviewDate?: string
   applicationStatus?: 'submitted' | 'reviewing' | 'interview' | 'offer' | 'rejected'
-  actionUrl?: string
 }
 
 export interface SupportData {

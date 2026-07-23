@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { AuthData } from '@/types/server'
+import type { AuthData, SignalAction } from '@/types/server'
 import { useCountdown } from '@/composables/useCountdown'
 import { useClipboard } from '@/composables/useClipboard'
 
-const props = defineProps<{ data: AuthData; receivedAt: string }>()
+const props = defineProps<{ data: AuthData; actions: SignalAction[]; receivedAt: string }>()
+
+const action = computed(() => props.actions[0] ?? null)
 
 const authTypeLabel: Record<AuthData['authType'], string> = {
   otp: 'One-time code',
@@ -83,22 +85,22 @@ function copyCode() {
       </button>
     </div>
 
-    <!-- Action URL (when no code) -->
-    <div v-if="data.actionUrl && !data.code" class="mb-3">
+    <!-- Primary CTA (when no code) -->
+    <div v-if="action && !data.code" class="mb-3">
       <a
-        :href="data.actionUrl"
+        :href="action.url"
         target="_blank"
         rel="noopener noreferrer"
         class="inline-block rounded bg-ctp-blue px-4 py-2 text-sm font-medium text-ctp-base transition-opacity hover:opacity-90"
       >
-        {{ actionLabel[data.authType] }}
+        {{ action.text ?? actionLabel[data.authType] }}
       </a>
     </div>
 
-    <!-- Secondary action URL (when code + URL both present) -->
-    <div v-if="data.actionUrl && data.code" class="mb-3">
+    <!-- Secondary link (when code + action both present) -->
+    <div v-if="action && data.code" class="mb-3">
       <a
-        :href="data.actionUrl"
+        :href="action.url"
         target="_blank"
         rel="noopener noreferrer"
         class="text-xs text-ctp-subtext0 hover:text-ctp-text"

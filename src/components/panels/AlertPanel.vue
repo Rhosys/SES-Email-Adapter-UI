@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { AlertData } from '@/types/server'
+import type { AlertData, SignalAction } from '@/types/server'
 
-defineProps<{ data: AlertData }>()
+defineProps<{ data: AlertData; actions: SignalAction[] }>()
 
 const alertTypeLabel: Record<AlertData['alertType'], string> = {
   suspicious_login: 'Suspicious login detected',
@@ -101,15 +101,16 @@ const severityClass = (severity?: AlertData['severity']) => {
     </div>
 
     <!-- Actions -->
-    <div class="flex gap-2">
+    <div v-if="data.requiresAction && actions.length" class="flex gap-2">
       <a
-        v-if="data.actionUrl && data.requiresAction"
-        :href="data.actionUrl"
+        v-for="action in actions"
+        :key="action.url"
+        :href="action.url"
         target="_blank"
         rel="noopener noreferrer"
         class="rounded bg-ctp-red px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
       >
-        Investigate →
+        {{ action.text ?? 'Investigate →' }}
       </a>
     </div>
   </div>

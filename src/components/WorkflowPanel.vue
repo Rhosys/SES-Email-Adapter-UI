@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Signal } from '@/types/server'
+import type { Signal, SignalAction } from '@/types/server'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import AuthPanel from './panels/AuthPanel.vue'
 import ConversationPanel from './panels/ConversationPanel.vue'
@@ -15,26 +15,29 @@ import JobPanel from './panels/JobPanel.vue'
 import SupportPanel from './panels/SupportPanel.vue'
 import TestPanel from './panels/TestPanel.vue'
 
-const props = defineProps<{ signal: Signal }>()
+const props = withDefaults(defineProps<{ signal: Signal; actions?: SignalAction[] }>(), {
+  actions: () => []
+})
 
 const inboundData = isInboundEmailSignal(props.signal) ? props.signal.data : null
 const data = inboundData?.workflowData ?? null
 const receivedAt = inboundData?.receivedAt ?? ''
+const actions = props.actions.length > 0 ? props.actions : (inboundData?.actions ?? [])
 </script>
 
 <template>
   <template v-if="data">
-    <AuthPanel v-if="data.workflow === 'auth'" :data="data" :received-at="receivedAt" />
+    <AuthPanel v-if="data.workflow === 'auth'" :data="data" :actions="actions" :received-at="receivedAt" />
     <ConversationPanel v-else-if="data.workflow === 'conversation'" :data="data" />
     <CrmPanel v-else-if="data.workflow === 'crm'" :data="data" />
     <PackagePanel v-else-if="data.workflow === 'package'" :data="data" />
     <TravelPanel v-else-if="data.workflow === 'travel'" :data="data" />
     <PaymentsPanel v-else-if="data.workflow === 'payments'" :data="data" />
-    <AlertPanel v-else-if="data.workflow === 'alert'" :data="data" />
+    <AlertPanel v-else-if="data.workflow === 'alert'" :data="data" :actions="actions" />
     <ContentPanel v-else-if="data.workflow === 'content'" :data="data" />
     <StatusPanel v-else-if="data.workflow === 'status'" :data="data" />
     <HealthcarePanel v-else-if="data.workflow === 'healthcare'" :data="data" />
-    <JobPanel v-else-if="data.workflow === 'job'" :data="data" />
+    <JobPanel v-else-if="data.workflow === 'job'" :data="data" :actions="actions" />
     <SupportPanel v-else-if="data.workflow === 'support'" :data="data" />
     <TestPanel v-else-if="data.workflow === 'test'" :data="data" />
   </template>

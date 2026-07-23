@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { JobData } from '@/types/server'
+import type { JobData, SignalAction } from '@/types/server'
 
-const props = defineProps<{ data: JobData }>()
+const props = defineProps<{ data: JobData; actions: SignalAction[] }>()
 
 type JobStage = 'submitted' | 'reviewing' | 'interview' | 'offer' | 'rejected'
 const stages: JobStage[] = ['submitted', 'reviewing', 'interview', 'offer', 'rejected']
@@ -99,14 +99,16 @@ const interviewLabel = computed(() => {
       Interview: {{ interviewLabel }}
     </p>
 
-    <div v-if="data.actionUrl" class="mt-3">
+    <div v-if="actions.length" class="mt-3 flex flex-col gap-1">
       <a
-        :href="data.actionUrl"
+        v-for="action in actions"
+        :key="action.url"
+        :href="action.url"
         target="_blank"
         rel="noopener noreferrer"
         class="text-xs text-ctp-blue hover:underline"
       >
-        View application →
+        {{ action.text ?? 'View application →' }}
       </a>
     </div>
   </div>
