@@ -61,11 +61,16 @@ export const useSpamStore = defineStore('spam', () => {
 
   // Sidebar notification badge (admin-only) — derived from persisted data. Populated
   // by the startup fetch chain in main.ts once the account is resolved.
+  // Only counts signals from the last 14 days for relevance.
   const blockedCount = computed(() => {
     const id = accountStore.accountId
     if (!id) return 0
     const d = _byAccount.value[id]
-    return (d?.hidden?.length ?? 0) + (d?.reject?.length ?? 0)
+    if (!d) return 0
+    const fourteenDaysAgo = Date.now() - 14 * 24 * 60 * 60 * 1000
+    const recentHidden = (d.hidden ?? []).filter(s => new Date(s.createdAt).getTime() >= fourteenDaysAgo)
+    const recentReject = (d.reject ?? []).filter(s => new Date(s.createdAt).getTime() >= fourteenDaysAgo)
+    return recentHidden.length + recentReject.length
   })
 
   const blockedCountHasMore = computed(() => {

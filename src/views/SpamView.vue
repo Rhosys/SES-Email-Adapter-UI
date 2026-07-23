@@ -38,9 +38,10 @@ async function doFetch(reset: boolean) {
 
 onMounted(async () => {
   const { sender, after, before } = route.query
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   store.setFilters({
     sender: String(sender || ''),
-    after: String(after || ''),
+    after: String(after || fourteenDaysAgo),
     before: String(before || ''),
   })
   await doFetch(true)

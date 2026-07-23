@@ -11,6 +11,13 @@ const before = ref(props.filters.before)
 
 const hasFilters = ref(false)
 
+// Sync internal refs when props change externally (e.g. programmatic filter defaults)
+watch(() => props.filters, (next) => {
+  if (next.sender !== sender.value) sender.value = next.sender
+  if (next.after !== after.value) after.value = next.after
+  if (next.before !== before.value) before.value = next.before
+})
+
 watch([sender, after, before], () => {
   hasFilters.value = !!(sender.value || after.value || before.value)
   emit('update', {
