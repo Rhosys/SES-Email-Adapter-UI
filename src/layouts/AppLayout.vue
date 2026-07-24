@@ -426,7 +426,7 @@ onMounted(async () => {
         </template>
       </AppNavbar>
 
-      <div id="main-content" class="flex-1 overflow-y-auto">
+      <div id="main-content" class="flex-1 overflow-y-scroll">
         <RouterView />
       </div>
     </div>

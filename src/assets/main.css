@@ -199,11 +199,6 @@
   }
 }
 
-/* ── Always-visible scrollbar on detail views ── */
-.thread-detail,
-.quarantine-detail {
-  overflow-y: scroll;
-}
 
 /* ── Smooth signal card transitions on data updates ── */
 .signal-enter-active {
