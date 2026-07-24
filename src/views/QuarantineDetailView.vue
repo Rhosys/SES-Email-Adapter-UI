@@ -77,6 +77,12 @@ async function reject() {
   if (ok) void router.push('/quarantine')
 }
 
+async function dismiss() {
+  if (!signal.value) return
+  const ok = await quarantineStore.dismiss(signal.value.signalId)
+  if (ok) void router.push('/quarantine')
+}
+
 const showReplyBlockedDialog = ref(false)
 function onReplyAttempt() {
   showReplyBlockedDialog.value = true
@@ -231,6 +237,14 @@ function onSignalReprocessed() {
           class="rounded bg-ctp-green/15 px-3 py-1.5 text-sm font-medium text-ctp-green hover:bg-ctp-green/25"
         >
           Allow Sender
+        </AsyncButton>
+        <AsyncButton
+          :action="dismiss"
+          :disabled="pending"
+          variant="ghost"
+          class="rounded bg-ctp-surface1 px-3 py-1.5 text-sm font-medium text-ctp-subtext1 hover:bg-ctp-surface2 hover:text-ctp-text"
+        >
+          Dismiss
         </AsyncButton>
         <AsyncButton
           :action="reject"

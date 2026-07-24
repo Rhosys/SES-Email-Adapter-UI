@@ -227,6 +227,17 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     return true
   }
 
+  async function dismiss(signalId: string) {
+    const id = accountStore.accountId
+    if (!id) return false
+    actionPending.value = new Set([...actionPending.value, signalId])
+    const result = await api.quarantineResponse(id, signalId, 'dismiss')
+    actionPending.value = new Set([...actionPending.value].filter((x) => x !== signalId))
+    if (result.isErr()) { error.value = result.error.message; return false }
+    _removeSignal(id, signalId)
+    return true
+  }
+
   function setFilters(next: Partial<QuarantineFilters>) {
     filters.value = { ...filters.value, ...next }
   }
@@ -249,6 +260,7 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     fetchMore,
     allow,
     reject,
+    dismiss,
     setFilters,
     clearError,
   }

@@ -231,7 +231,7 @@ export const api = {
   quarantineResponse(
     accountId: string,
     signalId: string,
-    status: 'active' | 'block_hidden' | 'block_reject',
+    status: 'active' | 'block_hidden' | 'block_reject' | 'dismiss',
   ): Promise<Result<{ thread?: { threadId: string }; signal?: Signal } & Record<string, unknown>, ApiError>> {
     return request<{ thread?: { threadId: string }; signal?: Signal } & Record<string, unknown>>(`/accounts/${accountId}/signals/${signalId}/quarantineResponse`, {
       method: 'POST',
