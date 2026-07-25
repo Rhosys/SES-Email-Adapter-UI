@@ -21,7 +21,7 @@ const senderDomain = computed(() => props.senderAddress.split('@')[1] ?? props.s
 
 const senderPolicyOptions: { value: SenderPolicy; label: string }[] = [
   { value: 'allow', label: 'Allow' },
-  { value: 'block_hidden', label: 'Block (hidden)' },
+  { value: 'block_hidden', label: 'Drop' },
   { value: 'block_reject', label: 'Block (reject)' },
   { value: 'report_violation', label: 'Report violation' },
 ]
@@ -30,7 +30,7 @@ const aliasPolicyOptions: { value: UnknownSenderPolicy; label: string }[] = [
   { value: 'allow_all', label: 'Allow all' },
   { value: 'quarantine_visible', label: 'Quarantine (visible)' },
   { value: 'quarantine_hidden', label: 'Quarantine (hidden)' },
-  { value: 'block_hidden', label: 'Block (hidden)' },
+  { value: 'block_hidden', label: 'Drop' },
   { value: 'block_reject', label: 'Block (reject)' },
   { value: 'report_violation', label: 'Report violation' },
 ]

@@ -359,7 +359,7 @@ const FILTER_MODES: { value: UnknownSenderPolicy; label: string; description: st
   { value: 'allow_all', label: 'Allow all', description: 'All senders pass through' },
   { value: 'quarantine_visible', label: 'Quarantine and notify', description: 'Unknown senders held for review, you get notified' },
   { value: 'quarantine_hidden', label: 'Quarantine', description: 'Unknown senders silently held for review' },
-  { value: 'block_hidden', label: 'Block email', description: 'Unknown senders silently discarded' },
+  { value: 'block_hidden', label: 'Drop', description: 'Unknown senders silently discarded' },
   { value: 'block_reject', label: 'Block and deny', description: 'Unknown senders receive a bounce' },
   { value: 'report_violation', label: 'Report Violation', description: 'Report as a policy violation' },
 ]
