@@ -200,6 +200,22 @@ function copyOriginalHtml() {
   })
 }
 
+function downloadOriginalEmail() {
+  if (!originalEmailSource.value) return
+  const blob = new Blob([originalEmailSource.value], { type: 'message/rfc822' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const filename = isEmailSignal(props.signal) && props.signal.data.subject
+    ? props.signal.data.subject.replace(/[^a-zA-Z0-9 _-]/g, '').trim().slice(0, 60) + '.eml'
+    : `${props.signal.signalId}.eml`
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
 const sentAt = computed(() => {
   if (!isInboundEmailSignal(props.signal)) return ''
   return new Date(props.signal.data.receivedAt).toLocaleString(undefined, {
@@ -600,9 +616,38 @@ const iframeStyle = {
       <div class="relative max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-xl border border-ctp-surface1 bg-ctp-mantle shadow-2xl">
         <div class="flex items-center justify-between border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
           <h3 class="text-sm font-semibold text-ctp-text">Original email source</h3>
-          <div class="flex items-center gap-3">
-            <button v-if="originalEmailSource" class="text-xs text-ctp-subtext0 hover:text-ctp-mauve" @click="copyOriginalHtml">{{ originalCopied ? '✓ Copied' : 'Copy source' }}</button>
-            <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="showOriginalModal = false">Close</button>
+          <div class="flex items-center gap-2">
+            <button
+              v-if="originalEmailSource"
+              class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-mauve"
+              title="Copy source to clipboard"
+              @click="copyOriginalHtml"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+              {{ originalCopied ? 'Copied' : 'Copy' }}
+            </button>
+            <button
+              v-if="originalEmailSource"
+              class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-mauve"
+              title="Download as .eml file"
+              @click="downloadOriginalEmail"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Download
+            </button>
+            <button
+              class="rounded-md px-2.5 py-1.5 text-xs text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text"
+              @click="showOriginalModal = false"
+            >
+              Close
+            </button>
           </div>
         </div>
         <div v-if="originalLoading" class="flex items-center justify-center p-8">
