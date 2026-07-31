@@ -15,6 +15,7 @@ const baseThread: Thread = {
   labels: ['urgent'],
   status: 'active',
   summary: 'Hello from the team',
+  sender: { address: 'alice@example.com' },
   lastSignalAt: new Date().toISOString(),
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),

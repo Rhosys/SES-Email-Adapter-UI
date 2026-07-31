@@ -28,6 +28,7 @@ function mockThread(overrides: Partial<Thread> = {}): Thread {
     labels: [],
     status: 'active',
     summary: 'Test thread',
+    sender: { address: 'sender@example.com' },
     lastSignalAt: '2025-01-01T12:00:00Z',
     createdAt: '2025-01-01T10:00:00Z',
     updatedAt: '2025-01-01T12:00:00Z',

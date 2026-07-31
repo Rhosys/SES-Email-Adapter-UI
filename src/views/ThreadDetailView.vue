@@ -44,7 +44,7 @@ const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint
 
 // Sender domain to block, derived from the thread's denormalised sender address
 const senderDomain = computed(() => {
-  const sender = thread.value?.senderAddress
+  const sender = thread.value?.sender?.address
   const at = sender?.lastIndexOf('@') ?? -1
   return at >= 0 ? sender!.slice(at + 1) : null
 })
@@ -176,6 +176,13 @@ async function archive() {
 }
 
 async function unsubscribe() {
+  const confirmed = await confirmAction({
+    title: 'Unsubscribe',
+    message: 'Unsubscribe from this sender and archive the thread?',
+    confirmLabel: 'Unsubscribe',
+    confirmVariant: 'danger',
+  })
+  if (!confirmed) return
   const result = await threadsStore.unsubscribeThread(threadId.value)
   if (result.isErr()) return
   const url = result.value.url
@@ -424,26 +431,20 @@ async function removeLabel(label: string) {
         <!-- Line 1: Primary badge + Summary (multiline allowed) -->
         <div class="flex items-start gap-2">
           <span class="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" :class="primaryBadgeClass">{{ primaryBadgeLabel }}</span>
-          <span v-if="updating" class="mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-ctp-blue/15 px-2 py-0.5 text-xs font-medium text-ctp-blue">
-            <svg class="h-3 w-3 animate-spin" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2" stroke-dasharray="28" stroke-dashoffset="8" stroke-linecap="round" />
-            </svg>
-            Updating
-          </span>
           <h1 class="text-lg font-semibold text-ctp-text">{{ thread.summary }}</h1>
         </div>
         <!-- Line 2: From / Alias -->
         <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-ctp-subtext1">
-          <span v-if="thread.senderAddress" class="relative">
+          <span v-if="thread.sender.address" class="relative">
             <span class="text-ctp-overlay1">From:</span>
             <button
               type="button"
               class="cursor-pointer hover:text-ctp-mauve hover:underline"
               @click="showSenderPopup = !showSenderPopup"
-            >{{ thread.senderAddress }}</button>
+            >{{ thread.sender.address }}</button>
             <div v-if="showSenderPopup && accountStore.accountId" class="absolute left-0 top-full z-20 mt-1">
               <SenderInfoPopup
-                :sender-address="thread.senderAddress"
+                :sender-address="thread.sender.address"
                 :alias-address="thread.recipientAddress!"
                 :account-id="accountStore.accountId"
               />
@@ -476,6 +477,12 @@ async function removeLabel(label: string) {
             />
             {{ labelMeta(label)?.name ?? label }}
           </button>
+          <span v-if="updating" class="inline-flex items-center gap-1.5 rounded-full bg-ctp-blue/15 px-2 py-0.5 text-xs font-medium text-ctp-blue">
+            <svg class="h-3 w-3 animate-spin" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2" stroke-dasharray="28" stroke-dashoffset="8" stroke-linecap="round" />
+            </svg>
+            Updating
+          </span>
         </div>
         <div v-if="thread.status === 'deleted' && thread.deletedAt" class="mt-2 text-xs text-ctp-subtext0">
           Deleted on {{ new Date(thread.deletedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}

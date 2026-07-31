@@ -137,8 +137,8 @@ export interface Thread {
   updatedAt: string
   retentionDuration?: RetentionDuration
   urgency?: ThreadUrgency
-  // Denormalised from latest inbound signal — see TODO.md (Backend routes — Threads)
-  senderAddress?: string
+  // Denormalised from latest inbound signal
+  sender: { address: string; name?: string }
   recipientAddress?: string
   subject?: string
 }

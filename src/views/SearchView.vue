@@ -110,7 +110,7 @@ onMounted(() => {
               </span>
             </div>
             <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-ctp-subtext0">
-              <span v-if="thread.senderAddress">From: {{ thread.senderAddress }}</span>
+              <span v-if="thread.sender.address">From: {{ thread.sender.address }}</span>
               <span v-if="thread.recipientAddress">To: {{ thread.recipientAddress }}</span>
               <span>{{ thread.workflow }}</span>
             </div>
