@@ -90,14 +90,14 @@ function onKeydown(e: KeyboardEvent, index: number) {
       role="tab"
       :aria-selected="activeTab === tab.key"
       :aria-label="tab.description"
-      class="flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2 transition-colors"
+      class="flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2.5 transition-colors"
       :class="activeTab === tab.key ? 'text-ctp-mauve' : 'text-ctp-subtext0 hover:text-ctp-text'"
       @click="emit('change', tab.key)"
     >
       <span class="relative">
         <!-- eslint-disable vue/no-v-html -- static, trusted icon markup (no user input) -->
         <svg
-          class="h-5 w-5 shrink-0"
+          class="h-7 w-7 shrink-0"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -110,12 +110,12 @@ function onKeydown(e: KeyboardEvent, index: number) {
         <!-- eslint-enable vue/no-v-html -->
         <span
           v-if="tab.key === 'active' && (activeCount ?? 0) > 0"
-          class="absolute -right-2.5 -top-1.5 rounded-full bg-ctp-green px-1 py-0.5 text-[9px] font-semibold leading-none text-ctp-base"
+          class="absolute -right-3 -top-2 rounded-full bg-ctp-green px-1.5 py-0.5 text-[11px] font-semibold leading-none text-ctp-base"
         >
           {{ formatBadgeCount(activeCount ?? 0, activeCountHasMore ?? false) }}
         </span>
       </span>
-      <span class="text-[10px] leading-tight">{{ tab.label }}</span>
+      <span class="text-xs leading-tight">{{ tab.label }}</span>
     </button>
   </nav>
 </template>
