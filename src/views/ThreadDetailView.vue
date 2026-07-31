@@ -437,6 +437,7 @@ async function removeLabel(label: string) {
         <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-ctp-subtext1">
           <span v-if="thread.sender.address" class="relative">
             <span class="text-ctp-overlay1">From:</span>
+            <span v-if="thread.sender.name" class="font-medium text-ctp-text">{{ thread.sender.name }}</span>
             <button
               type="button"
               class="cursor-pointer hover:text-ctp-mauve hover:underline"
