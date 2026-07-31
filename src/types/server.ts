@@ -18,6 +18,7 @@ export type Workflow =
   | 'healthcare'
   | 'job'
   | 'support'
+  | 'events'
   | 'test'
 
 export type ThreadStatus = 'active' | 'archived' | 'deleted' | 'report_violation'
@@ -786,6 +787,33 @@ export interface StatsResponse {
   totals: StatsTotals
   daily: StatsDailyBucket[]
   monthly: StatsDailyBucket[]
+}
+
+// ─── Resource ────────────────────────────────────────────────────────────────
+
+export type ResourceStatus = 'active' | 'complete'
+
+export type ResourceWorkflow = 'package' | 'travel' | 'payments' | 'healthcare' | 'job' | 'events'
+
+export interface ResourceAsset {
+  type: 'qr_code' | 'barcode' | 'pkpass'
+  label: string
+  rawValue: string
+  sourceSignalId: string
+  s3Key?: string
+  extractedAt: string
+}
+
+export interface Resource {
+  resourceId: string
+  threadId: string
+  workflow: ResourceWorkflow
+  status: ResourceStatus
+  expectedResolutionDate: string
+  resolvedAt?: string
+  assets: ResourceAsset[]
+  createdAt: string
+  updatedAt: string
 }
 
 // ── Health check validation (admin) ────────────────────────────────────────

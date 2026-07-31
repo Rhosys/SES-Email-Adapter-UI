@@ -22,6 +22,8 @@ import type {
   Label,
   NotificationSettings,
   Pagination,
+  Resource,
+  ResourceStatus,
   RetentionDuration,
   Rule,
   Signal,
@@ -90,6 +92,20 @@ interface QuarantineSignalListWire {
 interface BlockedSignalListWire {
   signals: BlockedSignal[]
   pagination: Pagination
+}
+
+interface ResourceListWire {
+  resources: Resource[]
+  pagination: Pagination
+}
+
+export interface ResourceListParams {
+  workflow?: string
+  status?: ResourceStatus
+  dateFrom?: string
+  dateTo?: string
+  cursor?: string
+  limit?: number
 }
 
 interface AuditListWire {
@@ -624,6 +640,41 @@ export const api = {
 
   getStats(accountId: string): Promise<Result<StatsResponse, ApiError>> {
     return request<StatsResponse>(`/accounts/${accountId}/stats`)
+  },
+
+  // ─── Resources ──────────────────────────────────────────────────────────────
+
+  listResources(accountId: string, params: ResourceListParams = {}): Promise<Result<ResourceListWire, ApiError>> {
+    const qs = new URLSearchParams()
+    if (params.workflow) qs.set('workflow', params.workflow)
+    if (params.status) qs.set('status', params.status)
+    if (params.dateFrom) qs.set('dateFrom', params.dateFrom)
+    if (params.dateTo) qs.set('dateTo', params.dateTo)
+    if (params.cursor) qs.set('cursor', params.cursor)
+    if (params.limit) qs.set('limit', String(params.limit))
+    const query = qs.toString()
+    return request<ResourceListWire>(
+      `/accounts/${accountId}/resources${query ? `?${query}` : ''}`,
+    )
+  },
+
+  getResource(accountId: string, resourceId: string): Promise<Result<Resource, ApiError>> {
+    return request<Resource>(`/accounts/${accountId}/resources/${resourceId}`)
+  },
+
+  patchResource(
+    accountId: string,
+    resourceId: string,
+    body: { status: ResourceStatus },
+  ): Promise<Result<Resource, ApiError>> {
+    return request<Resource>(`/accounts/${accountId}/resources/${resourceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
+  },
+
+  resourceAssetDownloadUrl(accountId: string, resourceId: string, assetIndex: number): string {
+    return `${BASE}/accounts/${accountId}/resources/${resourceId}/assets/${assetIndex}/download`
   },
 
   // ─── Email templates ────────────────────────────────────────────────────────
