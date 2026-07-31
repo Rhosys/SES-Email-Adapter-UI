@@ -36,6 +36,7 @@ import type {
   AliasSender,
   SenderPolicy,
   ForwardingTarget,
+  ExternalMailExchange,
   UnknownSenderPolicy,
   TeamMember,
   UserRole,
@@ -593,6 +594,106 @@ async function removeForwarding(target: string) {
 
 const verifiedForwardingTargets = computed(() => forwarding.value.filter((f) => f.status === 'verified'))
 
+// ─── External Mail Exchanges ──────────────────────────────────────────────────
+const exchanges = ref<ExternalMailExchange[]>([])
+const exchangesLoading = ref(false)
+const emxError = ref('')
+const emxPlatformPickerOpen = ref(false)
+const emxConnecting = ref(false)
+const emxActivationError = ref('')
+const emxDeletePending = ref<string | null>(null)
+
+async function loadExchanges() {
+  if (!accountStore.accountId) return
+  exchangesLoading.value = true
+  const result = await api.listExternalExchanges(accountStore.accountId)
+  exchangesLoading.value = false
+  if (result.isOk()) exchanges.value = result.value
+  else emxError.value = result.error.message
+}
+
+async function connectExchange(platform: 'gmail' | 'outlook') {
+  if (!accountStore.accountId) return
+  emxConnecting.value = true
+  emxActivationError.value = ''
+  emxPlatformPickerOpen.value = false
+
+  // Step 1: Create the exchange record (pending_consent)
+  const createResult = await api.createExternalExchange(accountStore.accountId, {
+    platform,
+    emailAddress: '',
+  })
+  if (createResult.isErr()) {
+    emxActivationError.value = createResult.error.message
+    emxConnecting.value = false
+    return
+  }
+  const emx = createResult.value
+  exchanges.value = [...exchanges.value, emx]
+
+  // Step 2: Authress progressive consent — provider-specific connection
+  const connectionId = platform === 'gmail' ? 'google' : 'microsoft'
+  try {
+    await loginClient.authenticate({ connectionId, redirectUrl: window.location.href })
+  } catch {
+    emxActivationError.value = 'Authorization was cancelled or failed'
+    emxConnecting.value = false
+    return
+  }
+
+  // Step 3: Activate — backend uses the refreshed token to set up the mail watch
+  const activateResult = await api.activateExternalExchange(accountStore.accountId, emx.id)
+  emxConnecting.value = false
+  if (activateResult.isErr()) {
+    emxActivationError.value = activateResult.error.message
+    // Update exchange status in local state
+    exchanges.value = exchanges.value.map((e) =>
+      e.id === emx.id ? { ...e, status: 'activation_failed' as const } : e,
+    )
+    return
+  }
+  exchanges.value = exchanges.value.map((e) => (e.id === emx.id ? activateResult.value : e))
+}
+
+async function retryActivation(emxId: string) {
+  if (!accountStore.accountId) return
+  emxActivationError.value = ''
+  emxConnecting.value = true
+  const result = await api.activateExternalExchange(accountStore.accountId, emxId)
+  emxConnecting.value = false
+  if (result.isErr()) {
+    emxActivationError.value = result.error.message
+    return
+  }
+  exchanges.value = exchanges.value.map((e) => (e.id === emxId ? result.value : e))
+}
+
+async function deleteExchange(emx: ExternalMailExchange) {
+  if (!accountStore.accountId) return
+  const confirmed = await confirmAction({
+    title: 'Disconnect mail exchange',
+    message: `Disconnect ${emx.emailAddress || emx.platform}? New emails from this provider will no longer sync.`,
+    confirmLabel: 'Disconnect',
+    confirmVariant: 'danger',
+  })
+  if (!confirmed) return
+  emxDeletePending.value = emx.id
+  const result = await api.deleteExternalExchange(accountStore.accountId, emx.id)
+  emxDeletePending.value = null
+  if (result.isOk()) exchanges.value = exchanges.value.filter((e) => e.id !== emx.id)
+}
+
+async function resendForwardingVerification(target: ForwardingTarget) {
+  if (!accountStore.accountId) return
+  // Delete and re-create to resend verification email
+  await api.deleteForwardingAddress(accountStore.accountId, target.target)
+  const result = await api.createForwardingAddress(accountStore.accountId, { target: target.target, type: target.type })
+  if (result.isOk()) {
+    forwarding.value = forwarding.value.map((f) => (f.target === target.target ? result.value : f))
+    showToast('Verification email resent', 3000)
+  }
+}
+
 // ─── Team tab ─────────────────────────────────────────────────────────────────
 const team = ref<TeamMember[]>([])
 const teamLoading = ref(false)
@@ -747,6 +848,7 @@ async function switchTab(tab: TabKey) {
   if (tab === 'email-forwarding') {
     if (domains.value.length === 0) await loadDomains()
     if (forwarding.value.length === 0) await loadForwarding()
+    if (exchanges.value.length === 0) await loadExchanges()
   }
   if (tab === 'profile' && forwarding.value.length === 0) await loadForwarding()
   if (tab === 'team' && team.value.length === 0) await loadTeam()
@@ -1520,9 +1622,127 @@ useGestureHandler(settingsContentRef, {
           </div>
         </div>
 
-        <!-- ─ Forwarding ─ -->
+        <!-- ─ Inbound Receiving ─ -->
         <div class="space-y-4 border-t border-ctp-surface0 pt-6">
-          <h2 class="text-sm font-semibold text-ctp-text">Forwarding</h2>
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-ctp-text">Inbound Receiving</h2>
+            <button
+              type="button"
+              class="rounded-lg bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
+              @click="emxPlatformPickerOpen = true"
+            >
+              + Connect
+            </button>
+          </div>
+
+          <!-- Inbound address display -->
+          <div class="rounded-lg border border-ctp-surface1 p-4">
+            <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Forward email to</span>
+            <p v-if="domains.length > 0" class="font-mono text-sm text-ctp-text">
+              inbound@{{ domains[0].domain }}
+            </p>
+            <p v-else class="text-sm text-ctp-subtext0 italic">
+              Add a domain to receive email
+            </p>
+          </div>
+
+          <!-- EMX error -->
+          <div v-if="emxError" class="rounded border border-ctp-red bg-ctp-red/10 px-3 py-2 text-xs text-ctp-red">
+            {{ emxError }}
+          </div>
+
+          <!-- Activation error with retry -->
+          <div v-if="emxActivationError" class="rounded border border-ctp-red bg-ctp-red/10 px-3 py-2 text-xs text-ctp-red">
+            <span>{{ emxActivationError }}</span>
+          </div>
+
+          <!-- EMX list -->
+          <div
+            v-if="exchangesLoading"
+            role="status"
+            aria-label="Loading exchanges…"
+            class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+          >
+            <div v-for="i in 2" :key="i" class="flex items-center gap-3 px-4 py-3">
+              <div class="h-6 w-6 shrink-0 rounded bg-ctp-surface1" />
+              <div class="h-4 flex-1 rounded bg-ctp-surface1" :style="{ maxWidth: `${130 + i * 40}px` }" />
+              <div class="h-5 w-14 shrink-0 rounded-full bg-ctp-surface1" />
+            </div>
+          </div>
+          <div
+            v-else-if="exchanges.length === 0"
+            class="rounded-lg border border-dashed border-ctp-surface1 px-6 py-8 text-center text-sm text-ctp-subtext0"
+          >
+            <p class="font-medium text-ctp-text">No connected exchanges</p>
+            <p class="mx-auto mt-1 max-w-sm">
+              Connect Gmail or Outlook to sync inbound email from existing accounts.
+            </p>
+          </div>
+          <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
+            <div
+              v-for="emx in exchanges"
+              :key="emx.id"
+              class="flex items-center justify-between gap-3 px-4 py-3"
+            >
+              <div class="flex items-center gap-2.5">
+                <!-- Platform icon -->
+                <span v-if="emx.platform === 'gmail'" class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-ctp-red/10 text-xs font-bold text-ctp-red">G</span>
+                <span v-else-if="emx.platform === 'outlook'" class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-ctp-blue/10 text-xs font-bold text-ctp-blue">O</span>
+                <span v-else class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-ctp-surface1 text-xs font-bold text-ctp-subtext0">✉</span>
+                <div>
+                  <p class="text-sm text-ctp-text">{{ emx.emailAddress || emx.platform }}</p>
+                  <p v-if="emx.lastSyncAt" class="text-xs text-ctp-subtext0">
+                    Last sync {{ new Date(emx.lastSyncAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <!-- Status badge -->
+                <span
+                  class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+                  :class="{
+                    'bg-ctp-green/10 text-ctp-green': emx.status === 'active',
+                    'bg-ctp-yellow/10 text-ctp-yellow': emx.status === 'pending_consent',
+                    'bg-ctp-red/10 text-ctp-red': emx.status === 'activation_failed',
+                  }"
+                >
+                  <span
+                    class="inline-block h-1.5 w-1.5 rounded-full"
+                    :class="{
+                      'bg-ctp-green': emx.status === 'active',
+                      'bg-ctp-yellow': emx.status === 'pending_consent',
+                      'bg-ctp-red': emx.status === 'activation_failed',
+                    }"
+                  />
+                  {{ emx.status === 'active' ? 'Active' : emx.status === 'pending_consent' ? 'Pending' : 'Failed' }}
+                </span>
+                <!-- Retry button for failed -->
+                <button
+                  v-if="emx.status === 'activation_failed'"
+                  type="button"
+                  class="rounded border border-ctp-surface1 px-2 py-1 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
+                  :disabled="emxConnecting"
+                  @click="retryActivation(emx.id)"
+                >
+                  Retry
+                </button>
+                <!-- Delete -->
+                <button
+                  class="text-ctp-subtext0 hover:text-ctp-red disabled:opacity-40"
+                  title="Disconnect"
+                  :disabled="emxDeletePending === emx.id"
+                  @click="deleteExchange(emx)"
+                >
+                  <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─ Outbound Forwarding ─ -->
+        <div class="space-y-4 border-t border-ctp-surface0 pt-6">
+          <h2 class="text-sm font-semibold text-ctp-text">Outbound Forwarding</h2>
           <!-- Verification feedback -->
           <div v-if="verifySuccess" class="rounded-lg border border-ctp-green bg-ctp-green/10 px-4 py-3 text-sm text-ctp-green">
             {{ verifySuccess }}
@@ -1608,7 +1828,16 @@ useGestureHandler(settingsContentRef, {
                     Verified on {{ new Date(fwd.verifiedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
                   </p>
                   <p v-else-if="fwd.status === 'disabled'" class="text-xs text-ctp-subtext0">Disabled</p>
-                  <p v-else class="text-xs text-ctp-yellow">Pending verification</p>
+                  <div v-else class="flex items-center gap-2">
+                    <p class="text-xs text-ctp-yellow">Pending verification</p>
+                    <button
+                      type="button"
+                      class="text-xs text-ctp-mauve hover:text-ctp-mauve/80"
+                      @click.stop="resendForwardingVerification(fwd)"
+                    >
+                      Resend
+                    </button>
+                  </div>
                 </div>
               </div>
               <button
@@ -1902,6 +2131,56 @@ useGestureHandler(settingsContentRef, {
       @recheck="dnsSetupDomain && recheckDomain(dnsSetupDomain.domainId)"
       @close="dnsSetupDomain = null"
     />
+
+    <!-- EMX platform picker modal -->
+    <Teleport to="body">
+      <div
+        v-if="emxPlatformPickerOpen"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        aria-hidden="true"
+        @click.self="emxPlatformPickerOpen = false"
+      >
+        <div role="dialog" aria-modal="true" aria-label="Connect email provider" class="w-full max-w-sm rounded-xl border border-ctp-surface1 bg-ctp-base p-6 shadow-xl">
+          <h2 class="mb-2 text-sm font-semibold text-ctp-text">Connect email provider</h2>
+          <p class="mb-4 text-xs text-ctp-subtext0">Choose a provider to sync inbound email from.</p>
+          <div class="space-y-2">
+            <button
+              type="button"
+              class="flex w-full items-center gap-3 rounded-lg border border-ctp-surface1 p-3 text-left transition-colors hover:border-ctp-mauve hover:bg-ctp-mauve/5"
+              :disabled="emxConnecting"
+              @click="connectExchange('gmail')"
+            >
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-red/10 text-sm font-bold text-ctp-red">G</span>
+              <div>
+                <p class="text-sm font-medium text-ctp-text">Gmail</p>
+                <p class="text-xs text-ctp-subtext0">Google Workspace or personal Gmail</p>
+              </div>
+            </button>
+            <button
+              type="button"
+              class="flex w-full items-center gap-3 rounded-lg border border-ctp-surface1 p-3 text-left transition-colors hover:border-ctp-mauve hover:bg-ctp-mauve/5"
+              :disabled="emxConnecting"
+              @click="connectExchange('outlook')"
+            >
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-blue/10 text-sm font-bold text-ctp-blue">O</span>
+              <div>
+                <p class="text-sm font-medium text-ctp-text">Outlook</p>
+                <p class="text-xs text-ctp-subtext0">Microsoft 365 or Outlook.com</p>
+              </div>
+            </button>
+          </div>
+          <div class="mt-4 flex justify-end">
+            <button
+              type="button"
+              class="rounded-lg border border-ctp-surface1 px-4 py-2 text-sm text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
+              @click="emxPlatformPickerOpen = false"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Add alias modal -->
     <Teleport to="body">

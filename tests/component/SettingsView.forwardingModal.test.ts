@@ -16,6 +16,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
       listAccounts: vi.fn(),
       listDomains: vi.fn(),
       listForwardingAddresses: vi.fn(),
+      listExternalExchanges: vi.fn(),
       createForwardingAddress: vi.fn(),
       deleteForwardingAddress: vi.fn(),
       updateAccount: vi.fn(),
@@ -65,6 +66,7 @@ async function mountSettings(query: Record<string, string>, account: Account) {
   vi.mocked(api.listForwardingAddresses).mockResolvedValue(ok([verifiedEmail]))
   vi.mocked(api.listAccounts).mockResolvedValue(ok([account]))
   vi.mocked(api.listDomains).mockResolvedValue(ok([]))
+  vi.mocked(api.listExternalExchanges).mockResolvedValue(ok([]))
 
   const router = makeRouter()
   await router.push({ path: '/settings', query })
