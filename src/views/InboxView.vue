@@ -14,6 +14,7 @@ import InboxError from '@/components/InboxError.vue'
 import InboxEmpty from '@/components/InboxEmpty.vue'
 import InboxZeroCelebration from '@/components/InboxZeroCelebration.vue'
 import StatsWidget from '@/components/StatsWidget.vue'
+import ResourcesBanner from '@/components/ResourcesBanner.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -138,6 +139,7 @@ watch(
     <!-- pb-24 on mobile clears the fixed InboxTabBar bottom bar -->
     <main class="mx-auto max-w-4xl px-4 pt-4 pb-24 sm:pb-4">
       <StatsWidget />
+      <ResourcesBanner />
 
       <InboxError v-if="threadsStore.error" :message="threadsStore.error" />
 

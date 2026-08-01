@@ -131,6 +131,7 @@ jobs:
       - name: Merge target branch into PR
         if: github.event_name == 'pull_request'
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git fetch origin "${{ github.base_ref }}"
           git -c user.email="ci@local" -c user.name="CI" merge --no-edit "origin/${{ github.base_ref }}"
 
