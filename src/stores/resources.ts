@@ -95,12 +95,6 @@ export const useResourcesStore = defineStore('resources', () => {
     return completeResource(resourceId)
   }
 
-  function getAssetDownloadUrl(resourceId: string, assetIndex: number): string {
-    const id = accountStore.accountId
-    if (!id) return ''
-    return api.resourceAssetDownloadUrl(id, resourceId, assetIndex)
-  }
-
   return {
     loading,
     error,
@@ -114,6 +108,5 @@ export const useResourcesStore = defineStore('resources', () => {
     fetchResources,
     completeResource,
     dismissResource,
-    getAssetDownloadUrl,
   }
 })

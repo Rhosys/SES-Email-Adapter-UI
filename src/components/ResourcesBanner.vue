@@ -101,7 +101,6 @@ function handleComplete(resource: Resource) {
                     v-for="(asset, idx) in resource.assets"
                     :key="idx"
                     :asset="asset"
-                    :download-url="resourcesStore.getAssetDownloadUrl(resource.resourceId, idx)"
                   />
                 </div>
               </div>
@@ -157,7 +156,6 @@ function handleComplete(resource: Resource) {
                     v-for="(asset, idx) in resource.assets"
                     :key="idx"
                     :asset="asset"
-                    :download-url="resourcesStore.getAssetDownloadUrl(resource.resourceId, idx)"
                   />
                 </div>
               </div>
@@ -212,7 +210,6 @@ function handleComplete(resource: Resource) {
                     v-for="(asset, idx) in resource.assets"
                     :key="idx"
                     :asset="asset"
-                    :download-url="resourcesStore.getAssetDownloadUrl(resource.resourceId, idx)"
                   />
                 </div>
               </div>

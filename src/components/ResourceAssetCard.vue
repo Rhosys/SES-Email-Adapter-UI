@@ -5,7 +5,6 @@ import type { ResourceAsset } from '@/types/server'
 
 const props = defineProps<{
   asset: ResourceAsset
-  downloadUrl: string
 }>()
 
 function isIos(): boolean {
@@ -19,7 +18,7 @@ function isAndroid(): boolean {
   return /Android/i.test(navigator.userAgent)
 }
 
-const showWalletButton = computed(() => props.asset.type === 'pkpass' && props.asset.s3Key)
+const showWalletButton = computed(() => props.asset.type === 'pkpass' && props.asset.url)
 
 const walletButtonLabel = computed(() => {
   if (isIos()) return 'Add to Apple Wallet'
@@ -35,7 +34,7 @@ function handleWalletClick() {
       label: props.asset.label,
     })
   }
-  window.open(props.downloadUrl, '_blank')
+  window.open(props.asset.url, '_blank')
 }
 
 const assetTypeLabel = computed(() => {

@@ -800,7 +800,7 @@ export interface ResourceAsset {
   label: string
   rawValue: string
   sourceSignalId: string
-  s3Key?: string
+  url?: string
   extractedAt: string
 }
 

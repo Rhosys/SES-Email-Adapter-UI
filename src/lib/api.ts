@@ -673,10 +673,6 @@ export const api = {
     })
   },
 
-  resourceAssetDownloadUrl(accountId: string, resourceId: string, assetIndex: number): string {
-    return `${BASE}/accounts/${accountId}/resources/${resourceId}/assets/${assetIndex}/download`
-  },
-
   // ─── Email templates ────────────────────────────────────────────────────────
 
   async listTemplates(accountId: string): Promise<Result<EmailTemplate[], ApiError>> {
