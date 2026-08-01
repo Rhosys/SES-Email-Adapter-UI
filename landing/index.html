@@ -255,30 +255,68 @@
     .hero-meta span { display: inline-flex; align-items: center; gap: 6px; }
     .hero-meta .tick { color: var(--green); }
 
-    /* The scene — emails fall from sky → scanner → vault */
+    /* ── The scene — emails fall from sky → scanner → vault ────────────────
+       GEOMETRY CONTRACT — read this before changing any number here.
+
+       Only the variables in this block are authoritative. Everything else
+       (rail position, fall distance, verdict timing) is DERIVED from them.
+       Media queries must ONLY override these variables, never the derived
+       values, or the scanner and the cards will desynchronise again.
+
+       Horizontal containment is structural, not tuned: a card's left edge
+       travels over `--lane x (100% - card width)`, so lane 0 is flush with
+       the left wall and lane 1 is flush with the right wall. A card cannot
+       leave the box at any viewport width. There is no translateX(-50%).
+       ────────────────────────────────────────────────────────────────────── */
     .scene {
+      /* Authoritative */
+      --scene-h:    760px;
+      --vault-h:    190px;   /* reserved space; vault may grow upward past it */
+      --vault-lift:  70px;   /* how far the vault is raised into the fall zone */
+      --card-w:     min(286px, 74vw);
+      --card-h:      92px;   /* nominal - all cards share one structure */
+      --card-start: 130px;   /* how far above the scene a card begins */
+      --card-sink:   30px;   /* how far a clean card sinks behind the vault */
+      --rail-h:      60px;
+      --scanner-at:  0.72;   /* MUST equal the % keyframe stops in fall-spam,
+                                verdict-in, spam-skin and spam-shake. Chosen so
+                                the derived rail lands at its original desktop
+                                position (~361px) rather than moving it. */
+      --env-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.6' stroke-linejoin='round'%3E%3Crect x='1.8' y='3.5' width='12.4' height='9' rx='1.4'/%3E%3Cpath d='M2.5 4.4 L8 9 L13.5 4.4'/%3E%3C/svg%3E");
+
+      /* Derived — do not override in media queries */
+      --fall-y: calc(
+        var(--scene-h) - var(--vault-h) - var(--vault-lift)
+        + var(--card-start) + var(--card-sink)
+      );
+      /* Vertical centre of a card at the instant it is judged. */
+      --scanner-y: calc(
+        var(--fall-y) * var(--scanner-at)
+        - var(--card-start) + var(--card-h) / 2
+      );
+
       position: relative;
-      height: 760px;
+      height: var(--scene-h);
       margin: 60px auto -70px;
       max-width: 810px;
     }
     .sky {
-      position: absolute; inset: 0 -160px 220px -160px;
+      position: absolute; inset: 0;
       overflow: visible;
       border-radius: 24px 24px 0 0;
-      mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 100%);
+      mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 100%);
     }
     .scanner-rail {
-      position: absolute; left: -40px; right: -40px;
-      top: 360px;
-      height: 60px;
+      position: absolute; left: 0; right: 0;
+      top: calc(var(--scanner-y) - var(--rail-h) / 2);
+      height: var(--rail-h);
       pointer-events: none;
       z-index: 5;
       transition: filter 220ms ease;
     }
-    .scanner-rail.hit .rail {
-      animation: rail-hit 480ms ease-out;
-    }
+    /* The rail pulses on its own cycle. It deliberately does NOT try to sync
+       to a card: the cards run in parallel on independent delays, so there is
+       no single hit moment to lock onto. This reads as "scanner is live". */
     .scanner-rail .rail {
       position: absolute; left: 0; right: 0; top: 50%;
       height: 1px; transform: translateY(-50%);
@@ -289,19 +327,13 @@
         color-mix(in oklab, var(--mauve) 60%, transparent) 88%,
         transparent 100%);
       box-shadow: 0 0 24px 1px color-mix(in oklab, var(--mauve) 50%, transparent);
+      animation: rail-pulse 3.3s linear infinite;
     }
-    @keyframes rail-hit {
-      0%   { background: linear-gradient(90deg, transparent 0%, var(--mauve) 50%, transparent 100%);
+    @keyframes rail-pulse {
+      0%, 46%, 62%, 100% {
              box-shadow: 0 0 24px 1px color-mix(in oklab, var(--mauve) 50%, transparent); }
-      30%  { background: linear-gradient(90deg, transparent 0%, var(--red) 50%, transparent 100%);
-             box-shadow: 0 0 36px 3px color-mix(in oklab, var(--red) 80%, transparent),
+      52%  { box-shadow: 0 0 36px 3px color-mix(in oklab, var(--red) 80%, transparent),
                          0 0 60px 6px color-mix(in oklab, var(--red) 40%, transparent); }
-      100% { background: linear-gradient(90deg, transparent 0%,
-              color-mix(in oklab, var(--mauve) 60%, transparent) 12%,
-              var(--mauve) 50%,
-              color-mix(in oklab, var(--mauve) 60%, transparent) 88%,
-              transparent 100%);
-             box-shadow: 0 0 24px 1px color-mix(in oklab, var(--mauve) 50%, transparent); }
     }
     .scanner-rail .laser-sweep {
       position: absolute; top: 50%; left: 6%;
@@ -341,25 +373,38 @@
     }
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-    /* Falling email cards */
+    /* ── Falling email cards ───────────────────────────────────────────────
+       Position is travel-based, so overflow is structurally impossible:
+         left = lane * (container - card)
+       lane 0 -> flush left wall, lane 1 -> flush right wall, and every value
+       between is in-bounds by construction. No translateX, which leaves
+       `transform` free for the vertical fall alone - that is what removes
+       the old "freeze the computed transform" hack.
+       ────────────────────────────────────────────────────────────────────── */
     .mailfall {
+      --lane: 0.5;
+      --rot: 0deg;
+      --dur: 7.5s;
+      --delay: 0s;
+
       position: absolute;
-      top: -120px;
-      width: 286px;
+      top: calc(-1 * var(--card-start));
+      left: calc(var(--lane) * (100% - var(--card-w)));
+      width: var(--card-w);
       padding: 12px 14px;
       background: var(--mantle);
       border: 1px solid var(--surface0);
       border-radius: var(--radius);
       box-shadow: 0 10px 40px -8px rgba(0,0,0,0.45);
       font-size: 12px;
-      animation-name: fall;
+      animation-name: fall-clean;
+      animation-duration: var(--dur);
+      animation-delay: var(--delay);
       animation-timing-function: linear;
-      animation-fill-mode: forwards;
+      animation-iteration-count: infinite;
       will-change: transform;
-      --x: 50%;
-      left: var(--x);
-      transform: translateX(-50%);
     }
+    .mailfall.spam { animation-name: fall-spam; }
     .mailfall .row {
       display: flex; justify-content: space-between; align-items: center;
       gap: 8px;
@@ -378,7 +423,15 @@
       color: var(--subtext0);
       flex: none;
     }
-    .mailfall .from .av svg { width: 13px; height: 13px; display: block; }
+    /* Envelope glyph as a mask so it inherits the card's accent colour.
+       Previously injected as inline SVG by the spawner. */
+    .mailfall .from .av::before {
+      content: "";
+      width: 13px; height: 13px;
+      background-color: currentColor;
+      -webkit-mask: var(--env-glyph) center / contain no-repeat;
+              mask: var(--env-glyph) center / contain no-repeat;
+    }
     .mailfall .from .name {
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       max-width: 160px;
@@ -404,79 +457,124 @@
       color: var(--teal);
     }
 
-    /* Verdict overlay */
+    /* ── Verdict overlay ───────────────────────────────────────────────────
+       The badge runs its own animation, but shares --dur and --delay with
+       the parent card. Same duration + same delay = same clock, so the
+       badge cannot appear at a different moment than the card crosses the
+       rail. That is the whole reason this is CSS and not setTimeout.
+       ────────────────────────────────────────────────────────────────────── */
     .mailfall .verdict {
       position: absolute; right: -10px; top: -10px;
-      transform: rotate(8deg) scale(0.4);
       opacity: 0;
-      transition: opacity 220ms ease, transform 220ms ease;
       padding: 4px 9px;
       font-family: var(--font-mono);
       font-size: 10px; letter-spacing: 0.06em;
       border-radius: 6px;
       pointer-events: none;
+      animation-name: verdict-in;
+      animation-duration: var(--dur);
+      animation-delay: var(--delay);
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
     }
-    .mailfall.judged-spam .verdict {
-      opacity: 1; transform: rotate(8deg) scale(1);
+    .mailfall.spam .verdict {
       background: color-mix(in oklab, var(--red) 18%, var(--mantle));
       border: 1px solid var(--red);
       color: var(--red);
+      --verdict-rot: 8deg;
     }
-    .mailfall.judged-spam .verdict::before { content: "✕ BLOCKED"; }
-    .mailfall.judged-clean .verdict {
-      opacity: 1; transform: rotate(-4deg) scale(1);
+    .mailfall.spam .verdict::before { content: "✕ BLOCKED"; }
+    .mailfall.clean .verdict {
       background: color-mix(in oklab, var(--green) 16%, var(--mantle));
       border: 1px solid var(--green);
       color: var(--green);
+      --verdict-rot: -4deg;
     }
-    .mailfall.judged-clean .verdict::before { content: "✓ ARC CREATED"; }
+    .mailfall.clean .verdict::before { content: "✓ EMAIL ACCEPTED"; }
 
-    /* Once judged spam, the card stops dead at the rail — JS locks the
-       transform inline and these animations only touch opacity/filter,
-       so the position is preserved. */
-    .mailfall.judged-spam {
-      animation: spam-destroy 0.85s ease-out forwards !important;
-      border-color: var(--red) !important;
-      box-shadow: 0 0 0 1px color-mix(in oklab, var(--red) 40%, transparent),
-                  0 12px 40px -10px color-mix(in oklab, var(--red) 50%, transparent) !important;
+    /* Spam styling that used to be applied by JS adding .judged-spam is now
+       driven by the same keyframe timeline (see fall-spam / spam-skin). */
+    .mailfall.spam .mf-shake {
+      animation-name: spam-shake;
+      animation-duration: var(--dur);
+      animation-delay: var(--delay);
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
     }
-    .mailfall.judged-spam .mf-shake { animation: spam-shake 0.32s ease-in-out 1; }
-    .mailfall.judged-spam::after {
+    .mailfall.spam::after {
       content: ""; position: absolute; inset: 0;
       border-radius: var(--radius);
+      opacity: 0;
       background:
         repeating-linear-gradient(135deg,
           transparent 0 12px,
           color-mix(in oklab, var(--red) 22%, transparent) 12px 14px);
       pointer-events: none;
+      animation-name: spam-skin;
+      animation-duration: var(--dur);
+      animation-delay: var(--delay);
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
     }
-    .mailfall.judged-spam .subj { text-decoration: line-through; color: var(--overlay1); }
 
-    @keyframes fall {
-      0%   { transform: translate(-50%, 0) rotate(var(--rot, 0deg)); opacity: 0; }
+    /* Clean cards fall the full distance and sink behind the vault. */
+    @keyframes fall-clean {
+      0%   { transform: translateY(0) rotate(var(--rot)); opacity: 0; }
       4%   { opacity: 1; }
-      100% { transform: translate(-50%, 650px) rotate(var(--rot, 0deg)); opacity: 1; }
+      100% { transform: translateY(var(--fall-y)) rotate(var(--rot)); opacity: 1; }
     }
-    @keyframes spam-destroy {
-      0%   { opacity: 1; filter: none; }
-      30%  { opacity: 1; filter: brightness(1.15) saturate(1.2); }
-      75%  { opacity: 0.85; filter: blur(0.5px); }
-      100% { opacity: 0; filter: blur(4px) brightness(0.7); }
+    /* Spam cards stop dead at the rail. The position is restated at every
+       stop after --scanner-at, so the card genuinely stops moving — no
+       inline transform lock required. The 55% stops must match --scanner-at. */
+    @keyframes fall-spam {
+      0%   { transform: translateY(0) rotate(var(--rot)); opacity: 0; filter: none; }
+      4%   { opacity: 1; }
+      72%  { transform: translateY(calc(var(--fall-y) * var(--scanner-at))) rotate(var(--rot));
+             opacity: 1; filter: none; }
+      78%  { transform: translateY(calc(var(--fall-y) * var(--scanner-at))) rotate(var(--rot));
+             opacity: 1; filter: brightness(1.15) saturate(1.2); }
+      88%  { transform: translateY(calc(var(--fall-y) * var(--scanner-at))) rotate(var(--rot));
+             opacity: 0.85; filter: blur(0.5px); }
+      96%, 100% {
+             transform: translateY(calc(var(--fall-y) * var(--scanner-at))) rotate(var(--rot));
+             opacity: 0; filter: blur(4px) brightness(0.7); }
     }
+    @keyframes verdict-in {
+      0%, 71%   { opacity: 0; transform: rotate(var(--verdict-rot, 8deg)) scale(0.4); }
+      76%, 100% { opacity: 1; transform: rotate(var(--verdict-rot, 8deg)) scale(1); }
+    }
+    @keyframes spam-skin {
+      0%, 71%   { opacity: 0; }
+      76%, 100% { opacity: 1; }
+    }
+    /* Shake is expressed against the shared timeline rather than as a
+       0.32s one-shot, so it fires exactly when the card hits the rail. */
     @keyframes spam-shake {
-      0%, 100% { transform: translateX(0) rotate(0deg); }
-      15%      { transform: translateX(-5px) rotate(-1.6deg); }
-      30%      { transform: translateX(5px) rotate(1.6deg); }
-      45%      { transform: translateX(-4px) rotate(-1.2deg); }
-      60%      { transform: translateX(3px) rotate(0.8deg); }
-      80%      { transform: translateX(-1px) rotate(-0.3deg); }
+      0%, 71%   { transform: translateX(0) rotate(0deg); }
+      73%       { transform: translateX(-5px) rotate(-1.6deg); }
+      75%       { transform: translateX(5px) rotate(1.6deg); }
+      77%       { transform: translateX(-4px) rotate(-1.2deg); }
+      79%       { transform: translateX(3px) rotate(0.8deg); }
+      81%       { transform: translateX(-1px) rotate(-0.3deg); }
+      83%, 100% { transform: translateX(0) rotate(0deg); }
     }
 
-    /* Swiss Vault at bottom — lifted up to overlap the falling zone so survivors visibly dive in */
+    /* ── Swiss Vault ────────────────────────────────────────────────────────
+       Spans the scene wall-to-wall. Every flex container below carries
+       min-width: 0 — flex items default to min-width: auto, which makes them
+       refuse to shrink below their content and push the vault wider than its
+       container. That default is why the long "encrypted at rest · Zürich"
+       line used to set a floor on the vault's width.
+       ────────────────────────────────────────────────────────────────────── */
     .vault {
-      position: absolute; left: 50%; bottom: 0;
-      transform: translateX(-50%) translateY(-70px);
-      width: min(96%, 660px);
+      /* Anchored by its TOP, not its bottom. A bottom-anchored box grows
+         upward when its content wraps, which on narrow screens pushed the
+         vault up over the scanner rail. Top-anchoring pins the lid exactly
+         where --fall-y lands the cards and sends any overflow downward,
+         where the next section covers it. */
+      position: absolute; left: 0; right: 0;
+      top: calc(var(--scene-h) - var(--vault-h) - var(--vault-lift));
+      min-height: var(--vault-h);
       background: var(--swiss-white);
       color: #2a2422;
       border-radius: 20px 20px 0 0;
@@ -487,12 +585,14 @@
       z-index: 4;
     }
     .vault-top {
-      display: flex; justify-content: space-between; align-items: flex-end;
+      display: flex; align-items: center; justify-content: center;
       gap: 24px; flex-wrap: wrap;
+      min-width: 0;
       padding-bottom: 16px;
       border-bottom: 1px solid rgba(42,36,34,0.08);
     }
-    .vault-left { display: flex; align-items: center; gap: 14px; }
+    .vault-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .vault-left > div { min-width: 0; }
     .swiss-cross {
       width: 38px; height: 38px;
       background: var(--swiss-red);
@@ -507,7 +607,11 @@
     }
     .swiss-cross::before { left: 50%; top: 24%; width: 20%; height: 52%; transform: translateX(-50%); }
     .swiss-cross::after  { top: 50%; left: 24%; height: 20%; width: 52%; transform: translateY(-50%); }
-    .vault-title { font-weight: 600; font-size: 15px; letter-spacing: -0.005em; }
+    .vault-title {
+      font-weight: 600; font-size: 15px; letter-spacing: -0.005em;
+      min-width: 0;
+    }
+    .vault-addr { color: var(--mauve); }
     .vault-title small {
       display: block; font-weight: 400;
       color: rgba(42,36,34,0.55);
@@ -516,7 +620,8 @@
       margin-top: 2px;
     }
     .vault-stats {
-      display: flex; gap: 22px;
+      display: flex; gap: 22px; flex-wrap: wrap;
+      min-width: 0;
       font-family: var(--font-mono); font-size: 11px;
       color: rgba(42,36,34,0.65);
     }
@@ -529,11 +634,14 @@
     .vault-stack {
       margin-top: 16px;
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      /* min() guards the track floor — a bare minmax(180px, 1fr) overflows
+         any container narrower than 180px. */
+      grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr));
       gap: 8px;
     }
     .vault-item {
       display: flex; align-items: center; gap: 8px;
+      min-width: 0;
       padding: 8px 10px;
       background: rgba(42,36,34,0.04);
       border-radius: 8px;
@@ -1712,7 +1820,45 @@
       margin-top: 40px;
       position: relative;
     }
-    @media (max-width: 900px) { .price-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 900px) { .price-grid { grid-template-columns: 1fr; max-width: 420px; margin-left: auto; margin-right: auto; } }
+
+    /* ── Mobile pricing tabs (≤ 900px) ── */
+    .price-tabs {
+      display: none;
+      justify-content: center;
+      margin-top: 40px;
+      margin-bottom: 18px;
+    }
+    .price-tabs .seg {
+      display: inline-flex;
+      padding: 4px;
+      gap: 4px;
+      background: var(--mantle);
+      border: 1px solid var(--surface0);
+      border-radius: 999px;
+    }
+    .price-tabs button {
+      border: none;
+      background: transparent;
+      color: var(--subtext0);
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 160ms ease;
+      white-space: nowrap;
+    }
+    .price-tabs button.active {
+      background: var(--mauve);
+      color: var(--crust);
+      font-weight: 600;
+    }
+    @media (max-width: 900px) {
+      .price-tabs { display: flex; }
+      .price-grid { margin-top: 0; }
+      .price-grid .tier { display: none; }
+      .price-grid .tier.tab-visible { display: flex; }
+    }
 
     .tier {
       background: var(--mantle);
@@ -2327,6 +2473,22 @@
       .swiss-section { padding: 72px 0; }
     }
 
+    /* ── Scene at tablet width (≤ 800px) ──────────────────────────────────
+       Only the authoritative variables change. The rail position, fall
+       distance and verdict timing re-derive themselves. */
+    @media (max-width: 800px) {
+      .scene {
+        --scene-h: 620px;
+        --vault-h: 200px;
+        --card-w: min(260px, 66vw);
+        margin: 48px auto -60px;
+      }
+      .vault { padding: 20px 20px 26px; }
+      /* Thin the flock so the shorter scene doesn't feel crowded. */
+      .mailfall:nth-of-type(7),
+      .mailfall:nth-of-type(8) { display: none; }
+    }
+
     /* ── Phone (≤ 600px) — hide sign-in & lang switcher ── */
     @media (max-width: 600px) {
       .lang-indicator, .nav-signin { display: none; }
@@ -2345,24 +2507,33 @@
       h2.section-title { font-size: clamp(27px, 7.5vw, 34px); }
       .section-sub { font-size: 15px; }
 
-      /* Hero scene scales down for narrow screens */
+      /* Hero scene scales down for narrow screens — variables only */
       .hero { padding-top: 56px; }
       .hero-inner { padding-top: 36px; }
       .scene {
-        height: 520px;
+        --scene-h: 540px;
+        --vault-h: 230px;
+        --vault-lift: 60px;
+        --card-w: min(220px, 68vw);
+        --card-h: 84px;
         margin: 36px auto -60px;
       }
-      .sky { inset: 0 0 170px 0; }
-      .scanner-rail { top: 250px; left: 0; right: 0; }
       .scanner-rail .badge { font-size: 9px; padding: 5px 9px; }
-      .mailfall { width: 230px; padding: 10px 12px; }
+      .mailfall { padding: 10px 12px; }
       .mailfall .subj { font-size: 11.5px; }
       .mailfall .snip { font-size: 10.5px; }
-      .vault { width: 96%; padding: 18px 16px 22px; transform: translateX(-50%) translateY(-60px); }
+      /* Three cards is enough to read the idea on a phone. */
+      .mailfall:nth-of-type(n + 4) { display: none; }
+      .vault { padding: 18px 16px 22px; }
       .vault-top { gap: 14px; }
       .vault-stats { gap: 16px; }
       .vault-stats b { font-size: 18px; }
       .vault-stack { grid-template-columns: 1fr; }
+      .vault-item:nth-child(n + 3) { display: none; }
+      /* Trim the longest strings so the header cannot wrap and grow the box. */
+      .vault-meta-long { display: none; }
+      .swiss-cross { width: 30px; height: 30px; }
+      .vault-title { font-size: 14px; }
 
       /* Hide secondary explanatory paragraphs (the follow-up <p> in
          Aliases / Calendar / Loops carry an inline margin-top: 14px) */
@@ -2412,11 +2583,46 @@
       .trusted-cell { width: 180px; }
     }
 
-    /* Respect reduced-motion across all the looping animations */
+    /* ── Very narrow phones (≤ 400px) — prevent all horizontal overflow ── */
+    @media (max-width: 400px) {
+      .wrap { padding: 0 12px; }
+      .hero h1 { font-size: clamp(28px, 8vw, 36px); }
+      .hero-meta { gap: 12px; font-size: 11px; }
+      .hero-ctas { flex-direction: column; align-items: stretch; }
+      .hero-ctas .btn { justify-content: center; }
+      .scene { --card-w: min(190px, 72vw); }
+      .biz-card { padding: 18px 14px; gap: 16px; }
+      .biz-left { gap: 12px; }
+      .biz-ic { width: 40px; height: 40px; }
+      .biz-title { font-size: 16px; }
+      .biz-desc { font-size: 13px; }
+      .tier { padding: 18px; }
+      .tier .price .amt { font-size: 32px; }
+      .price-foot { flex-direction: column; gap: 10px; }
+      /* Ensure nothing escapes viewport */
+      .hero, section, .nav { max-width: 100vw; overflow-x: hidden; }
+    }
+
+    /* Respect reduced-motion across all the looping animations.
+       Falling cards freeze mid-scene with their verdict already shown, so the
+       composition still reads without any movement. */
     @media (prefers-reduced-motion: reduce) {
       .wf-marquee-track, .trusted-track,
-      .laser-sweep, .und-pipe-bar::after,
+      .laser-sweep, .und-pipe-bar::after, .scanner-rail .rail,
       .cal-flow .pulse, .runner, .bolt-spark { animation: none !important; }
+
+      .mailfall, .mailfall .verdict, .mailfall .mf-shake, .mailfall::after {
+        animation: none !important;
+      }
+      .mailfall {
+        top: calc(var(--scanner-y) - var(--card-h) / 2);
+        transform: rotate(var(--rot));
+        opacity: 1;
+      }
+      .mailfall .verdict { opacity: 1; transform: rotate(var(--verdict-rot, 8deg)) scale(1); }
+      .mailfall.spam::after { opacity: 1; }
+      /* Only the first three, otherwise the frozen pile overlaps. */
+      .mailfall:nth-of-type(n + 4) { display: none; }
     }
   </style>
 </head>
@@ -2482,9 +2688,110 @@ rest into workflows, and drops only what matters into your protected inbox.</p>
         <span><span class="tick">✓</span> <span data-i18n="meta_nfadp">nFADP &amp; GDPR aligned</span></span>
       </div>
 
-      <!-- The animated scene -->
+      <!-- ── The animated scene ────────────────────────────────────────────
+           Cards are static markup. Each one carries only --lane (0..1),
+           --dur and --delay; every other value is inherited from the
+           geometry contract on .scene. Do NOT add inline width/left/top
+           here — that is what broke this layout previously.
+           ────────────────────────────────────────────────────────────── -->
       <div class="scene" id="scene" aria-hidden="true">
-        <div class="sky" id="sky" style="width: 760px; left: 50%; right: auto; transform: translateX(-50%)"></div>
+        <div class="sky" id="sky">
+          <div class="mailfall spam"  style="--lane: 0.06; --rot: -1.8deg; --dur: 7.5s; --delay: 0s">
+            <div class="mf-shake">
+              <span class="verdict"></span>
+              <div class="row">
+                <div class="from"><div class="av"></div><div class="name">admin@payp4l.support</div></div>
+                <div class="time">now</div>
+              </div>
+              <div class="subj">Your account has been suspended</div>
+              <div class="snip">Verify your identity within 24 hours to avoid…</div>
+            </div>
+          </div>
+
+          <div class="mailfall clean" style="--lane: 0.30; --rot: 1.2deg; --dur: 8.4s; --delay: -1.9s">
+            <div class="mf-shake">
+              <span class="verdict"></span>
+              <div class="row">
+                <div class="from"><div class="av"></div><div class="name">receipts@stripe.com</div></div>
+                <div class="time">now</div>
+              </div>
+              <div class="subj">Receipt for €49.00 — Acme Inc.</div>
+              <div class="snip">Invoice INV-21204 · paid via Visa **4242…</div>
+            </div>
+          </div>
+
+          <div class="mailfall spam"  style="--lane: 0.58; --rot: 2.1deg; --dur: 6.6s; --delay: -3.4s">
+            <div class="mf-shake">
+              <span class="verdict"></span>
+              <div class="row">
+                <div class="from"><div class="av"></div><div class="name">winnings@global-prize</div></div>
+                <div class="time">now</div>
+              </div>
+              <div class="subj">You have WON €1,000,000</div>
+              <div class="snip">Claim your prize before midnight…</div>
+            </div>
+          </div>
+
+          <div class="mailfall clean" style="--lane: 0.86; --rot: -0.9deg; --dur: 9.1s; --delay: -5.2s">
+            <div class="mf-shake">
+              <span class="verdict"></span>
+              <div class="row">
+                <div class="from"><div class="av"></div><div class="name">noreply@github.com</div></div>
+                <div class="time">now</div>
+              </div>
+              <div class="subj">NUM-412 moved to In Review</div>
+              <div class="snip">onboarding-labels · assigned to you…</div>
+            </div>
+          </div>
+
+          <div class="mailfall spam"  style="--lane: 0.44; --rot: -2.4deg; --dur: 7.9s; --delay: -6.1s">
+            <div class="mf-shake">
+              <span class="verdict"></span>
+              <div class="row">
+                <div class="from"><div class="av"></div><div class="name">security@apple-id.help</div></div>
+                <div class="time">now</div>
+              </div>
+              <div class="subj">New sign-in from Lagos, Nigeria</div>
+              <div class="snip">If this was not you, click here…</div>
+            </div>
+          </div>
+
+          <div class="mailfall clean" style="--lane: 0.16; --rot: 1.6deg; --dur: 8.8s; --delay: -7.4s">
+            <div class="mf-shake">
+              <span class="verdict"></span>
+              <div class="row">
+                <div class="from"><div class="av"></div><div class="name">no-reply@lufthansa.com</div></div>
+                <div class="time">now</div>
+              </div>
+              <div class="subj">Boarding pass · LH 423 ZRH → JFK</div>
+              <div class="snip">Seat 14A · boarding 11:20 · gate B32…</div>
+            </div>
+          </div>
+
+          <div class="mailfall spam"  style="--lane: 0.72; --rot: 0.7deg; --dur: 7.1s; --delay: -2.6s">
+            <div class="mf-shake">
+              <span class="verdict"></span>
+              <div class="row">
+                <div class="from"><div class="av"></div><div class="name">ceo-team@yourceo.gmail</div></div>
+                <div class="time">now</div>
+              </div>
+              <div class="subj">Quick favour — buy iTunes cards</div>
+              <div class="snip">I am in a meeting, send me the codes asap…</div>
+            </div>
+          </div>
+
+          <div class="mailfall clean" style="--lane: 0.98; --rot: -1.4deg; --dur: 8.0s; --delay: -4.3s">
+            <div class="mf-shake">
+              <span class="verdict"></span>
+              <div class="row">
+                <div class="from"><div class="av"></div><div class="name">no-reply@apple.com</div></div>
+                <div class="time">now</div>
+              </div>
+              <div class="subj">Sign-in code: 482 911</div>
+              <div class="snip">Use this code to sign in. Expires in 10…</div>
+            </div>
+          </div>
+        </div>
 
         <div class="scanner-rail">
           <div class="rail"></div>
@@ -2492,22 +2799,43 @@ rest into workflows, and drops only what matters into your protected inbox.</p>
           <div class="badge">NUMAEEL · CLASSIFY · v4.2</div>
         </div>
 
-        <div class="vault" style="width: 800px; height: 180px">
+        <div class="vault">
           <div class="vault-top">
             <div class="vault-left">
               <div class="swiss-cross" aria-hidden="true"></div>
               <div>
-                <div class="vault-title">Protected inbox · <span style="color: var(--mauve);"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ccb5a3b98cb5a3b9e2a8a9ba">[email&#160;protected]</a></span>
-                  <small>encrypted at rest · Zürich · region europe-1</small>
+                <div class="vault-title">Protected inbox · <span class="vault-addr">you@you.dev</span>
+                  <small>encrypted at rest<span class="vault-meta-long"> · Zürich · region europe-1</span></small>
                 </div>
               </div>
             </div>
             <div class="vault-stats">
-              <div><b id="vault-count" class="smooth-num" style="--num: 1247;"></b>arcs accepted</div>
+              <div><b id="vault-count" class="smooth-num" style="--num: 1247;"></b>accepted</div>
               <div><b id="block-count" class="smooth-num" style="--num: 3891; color: var(--swiss-red);"></b>blocked &amp; reported</div>
             </div>
           </div>
-          <div class="vault-stack" id="vault-stack"></div>
+          <div class="vault-stack" id="vault-stack">
+            <div class="vault-item">
+              <span class="vi-av">S</span>
+              <span class="vi-subj">Receipt for €49.00 — Acme Inc.</span>
+              <span class="vi-tag">payments</span>
+            </div>
+            <div class="vault-item">
+              <span class="vi-av">L</span>
+              <span class="vi-subj">Boarding pass · LH 423 ZRH → JFK</span>
+              <span class="vi-tag">travel</span>
+            </div>
+            <div class="vault-item">
+              <span class="vi-av">G</span>
+              <span class="vi-subj">NUM-412 moved to In Review</span>
+              <span class="vi-tag">alert</span>
+            </div>
+            <div class="vault-item">
+              <span class="vi-av">A</span>
+              <span class="vi-subj">Sign-in code: 482 911</span>
+              <span class="vi-tag">auth</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -2648,21 +2976,21 @@ rest into workflows, and drops only what matters into your protected inbox.</p>
           <div style="color: var(--overlay1); margin: 18px 0 8px; font-size: 11px;">YOUR ALIASES</div>
           <div class="alias-row">
             <div>
-              <div class="addr"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a7c0ced3cfd2c58a9ecc93d5e7dec8d289c3c2d1">[email&#160;protected]</a></div>
+              <div class="addr">github-9k4r@you.dev</div>
               <div class="site">used at github.com · 142 emails</div>
             </div>
             <span class="badge">CLEAN</span>
           </div>
           <div class="alias-row">
             <div>
-              <div class="addr"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="4d23283a3e21283939283f0d3422386329283b">[email&#160;protected]</a></div>
+              <div class="addr">newsletter@you.dev</div>
               <div class="site">used at substack.com · 88 emails</div>
             </div>
             <span class="badge">CLEAN</span>
           </div>
           <div class="alias-row">
             <div>
-              <div class="addr"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="394d5057405b5043140b4952087940564c175d5c4f">[email&#160;protected]</a></div>
+              <div class="addr">tinybiz-2pk1@you.dev</div>
               <div class="site">used at tinybiz.io · 4 emails — <span style="color: var(--peach);">2 flagged spam</span></div>
             </div>
             <span class="badge warn">LEAKED</span>
@@ -2716,7 +3044,7 @@ rest into workflows, and drops only what matters into your protected inbox.</p>
               <div class="feat-num">B</div>
               <div>
                 <h4>Draft auto-creation from templates</h4>
-                <p>Sandboxed JS template functions resolve against the live signal &mdash; order numbers, sender names, anything on the arc &mdash; at send time.</p>
+                <p>Sandboxed JS template functions resolve against the live signal &mdash; order numbers, sender names, anything on the email &mdash; at send time.</p>
               </div>
             </div>
             <div class="feat" data-rule-idx="2">
@@ -2799,13 +3127,13 @@ rest into workflows, and drops only what matters into your protected inbox.</p>
         <div class="loop-grid">
           <div class="loop-card">
             <div class="lbl">ALIAS</div>
-            <div class="addr"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d3a0a6a3a3bca1a793aabca6fdb7b6a5">[email&#160;protected]</a></div>
+            <div class="addr">support@you.dev</div>
             <div class="tags" style="margin-bottom: 10px;">
               <span class="loop-tag match">label:team</span>
               <span class="loop-tag">label:support</span>
             </div>
             <div style="font-family: var(--font-mono); font-size: 11px; color: var(--subtext1); line-height: 1.5;">
-              Forward to <span style="color: var(--mauve);"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7c08191d113c0513095218190a">[email&#160;protected]</a></span><br>
+              Forward to <span style="color: var(--mauve);">team@you.dev</span><br>
               if <span style="color: var(--red);">label:team</span>
             </div>
           </div>
@@ -2820,13 +3148,13 @@ rest into workflows, and drops only what matters into your protected inbox.</p>
 
           <div class="loop-card">
             <div class="lbl">ALIAS</div>
-            <div class="addr"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="fd89989c90bd849288d399988b">[email&#160;protected]</a></div>
+            <div class="addr">team@you.dev</div>
             <div class="tags" style="margin-bottom: 10px;">
               <span class="loop-tag match">label:team</span>
               <span class="loop-tag">label:billing</span>
             </div>
             <div style="font-family: var(--font-mono); font-size: 11px; color: var(--subtext1); line-height: 1.5;">
-              Forward to <span style="color: var(--mauve);"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="8cfff9fcfce3fef8ccf5e3f9a2e8e9fa">[email&#160;protected]</a></span><br>
+              Forward to <span style="color: var(--mauve);">support@you.dev</span><br>
               if <span style="color: var(--red);">label:team</span>
             </div>
           </div>
@@ -3075,7 +3403,7 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
                 </svg>
               </div>
               <div class="cal-role">External sender</div>
-              <div class="cal-addr"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f09f8297919e99839582b091939d95de939f9d">[email&#160;protected]</a></div>
+              <div class="cal-addr">organiser@acme.com</div>
               <div class="cal-note">drops an ICS invite</div>
             </div>
 
@@ -3087,7 +3415,7 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
                 </svg>
               </div>
               <div class="cal-role">Numaeel proxy</div>
-              <div class="cal-addr"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3350525f565d5752411e4b0a5801734a5c461d575645">[email&#160;protected]</a></div>
+              <div class="cal-addr">calendar-x9k2@you.dev</div>
               <div class="cal-note">verifies DKIM, strips trackers, hides your real address</div>
             </div>
 
@@ -3103,7 +3431,7 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
                 </svg>
               </div>
               <div class="cal-role">Your calendar</div>
-              <div class="cal-addr"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f48d9b81b49399959d98da979b99">[email&#160;protected]</a></div>
+              <div class="cal-addr">you@gmail.com</div>
               <div class="cal-note">stays where it already is</div>
             </div>
 
@@ -3144,13 +3472,13 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
           <p class="section-sub">
             Numaeel is a privacy front-end for the mail you receive — not a replacement for the tools you already trust.
             Google Calendar, Apple Calendar, Outlook 365 — whatever you use, it stays where it is. Same with your
-            existing Google, GitHub, Apple, or Microsoft logins. They don't change.
+            existing Google, GitHub, Apple, Microsoft, Facebook, GitLab, or Authress logins. They don't change.
           </p>
           <p class="section-sub" style="margin-top: 14px;">
             What changes is who sees them. Hand out a Numaeel alias instead of your real calendar address. Invites land
             on Numaeel, get verified, and are forwarded to your real calendar over a clean ICS link. Your accept,
             decline, and free/busy responses route back through the same alias — so the organiser hears from
-            <i><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2d4e4c414843494c5f005514461f6d5442580349485b">[email&#160;protected]</a></i>, never from your private mailbox.
+            <i>calendar-x9k2@you.dev</i>, never from your private mailbox.
           </p>
 
           <ul style="list-style: none; padding: 0; margin: 22px 0 0; display: flex; flex-direction: column; gap: 10px;">
@@ -3187,6 +3515,22 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
             <span class="login-chip">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#F25022" d="M2 2h9v9H2z"/><path fill="#7FBA00" d="M13 2h9v9h-9z"/><path fill="#00A4EF" d="M2 13h9v9H2z"/><path fill="#FFB900" d="M13 13h9v9h-9z"/></svg>
               Microsoft
+            </span>
+            <span class="login-chip">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#1877F2" d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.99 3.66 9.13 8.44 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.78-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99C18.34 21.13 22 16.99 22 12z"/></svg>
+              Facebook
+            </span>
+            <span class="login-chip">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill="#E24329" d="M22.65 14.39 12 22.13 1.35 14.39a.84.84 0 0 1-.3-.94l1.22-3.78 2.44-7.51a.43.43 0 0 1 .82 0l2.44 7.51h8.06l2.44-7.51a.43.43 0 0 1 .82 0l2.44 7.51 1.22 3.78a.84.84 0 0 1-.31.94z"/><path fill="#FC6D26" d="M12 22.13 17.97 10.16h-11.94z"/><path fill="#FCA326" d="M12 22.13 6.03 10.16H1.35l-.3.94z"/><path fill="#FCA326" d="M12 22.13l5.97-11.97h4.68l.3.94z"/><path fill="#E24329" d="m1.05 11.1 1.22-3.78 2.44-7.51a.43.43 0 0 1 .82 0l2.44 7.51H1.05z"/><path fill="#E24329" d="m22.95 11.1-1.22-3.78-2.44-7.51a.43.43 0 0 0-.82 0l-2.44 7.51h6.92z"/></svg>
+              GitLab
+            </span>
+            <span class="login-chip">
+              <svg viewBox="0 0 512 512" aria-hidden="true"><path fill="#FBAF0B" stroke="#1D2F3B" stroke-miterlimit="10" d="M256.09,43.73c-66.27,0-120,53.73-120,120c0,0.01,0,0.03,0,0.04v303.86h38v0h26.09v-0.05c0.38,0.02,0.75,0.06,1.13,0.06c9.94,0,18-8.06,18-18c0-9.94-8.06-18-18-18c-0.38,0-0.75,0.03-1.13,0.06v-0.06h-26.09v-42.89h35.86v-0.07c0.47,0.04,0.94,0.07,1.42,0.07c9.94,0,18-8.06,18-18c0-9.94-8.06-18-18-18c-0.48,0-0.95,0.04-1.42,0.07v-0.07h-35.86v-61h66.97v-38h-66.97v-90v0c0-45.29,36.71-82,82-82s82,36.71,82,82v0v90h-67.03v38h67.03v42h-18.91c-10.49,0-19,8.51-19,19c0,10.49,8.51,19,19,19h18.91h22.27h15.73v-208C376.09,97.45,322.37,43.73,256.09,43.73z M319.18,364.23c-6.35,0-11.5-5.15-11.5-11.5c0-6.35,5.15-11.5,11.5-11.5s11.5,5.15,11.5,11.5C330.68,359.08,325.53,364.23,319.18,364.23z"/></svg>
+              Authress
+            </span>
+            <span class="login-chip">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#EB5424" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 3a2.5 2.5 0 0 1 2.5 2.5c0 1-.6 1.87-1.5 2.24V12h3v2h-3v3h-2v-3H8v-2h3V9.74A2.5 2.5 0 0 1 12 5z"/></svg>
+              OAuth
             </span>
           </div>
         </div>
@@ -3268,6 +3612,15 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
         <h2 class="section-title" style="margin-left: auto; margin-right: auto; max-width: 24ch;">Free forever for one inbox. Open standards for the rest.</h2>
       </div>
 
+      <!-- Mobile tab switcher — hidden on desktop -->
+      <div class="price-tabs" role="tablist" aria-label="Pricing tier">
+        <div class="seg">
+          <button class="active" data-tier-tab="free">Free</button>
+          <button data-tier-tab="pro">Pro</button>
+          <button data-tier-tab="premium">Premium</button>
+        </div>
+      </div>
+
       <div class="price-grid">
         <!-- Lightning bar — sits behind the tier cards, vertically centred.
              SVG arcs are procedurally generated at runtime by JS. -->
@@ -3276,7 +3629,7 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
           <svg class="electric-svg" viewBox="0 0 1200 160" preserveAspectRatio="none" id="electric-svg"></svg>
         </div>
         <!-- FREE -->
-        <div class="tier">
+        <div class="tier tab-visible" data-tier="free">
           <div>
             <h3>Numaeel <span class="accent">Free</span></h3>
             <p class="pitch">Your protected inbox. Multiple domains, unlimited aliases, classification, &amp; quarantine.</p>
@@ -3287,13 +3640,13 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
           </div>
           <ul>
             <li>Three custom domains</li>
-            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b style="color: var(--text); font-weight: 600;">Catch-all email</b> on every domain</li>
-            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b style="color: var(--text); font-weight: 600;">Unlimited aliases</b> + per-site generator</li>
-            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Unlimited labels &amp; views</li>
-            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Workflow classification (14 workflows)</li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span><b style="color: var(--text); font-weight: 600;">Catch-all email</b> on every domain</span></li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span><b style="color: var(--text); font-weight: 600;">Unlimited aliases</b> + per-site generator</span></li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span>Unlimited labels &amp; views</span></li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span>Workflow classification (14 workflows)</span></li>
             <li>Quarantine with allow / block / reject</li>
-            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Browser extension + OTP autofill</li>
-            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b style="color: var(--text); font-weight: 600;">5 GB</b> storage · 6 months retention</li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span>Browser extension + OTP autofill</span></li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span><b style="color: var(--text); font-weight: 600;">5 GB</b> storage · 6 months retention</span></li>
           </ul>
           <div class="cta">
             <a href="/a/" class="btn btn-outline" data-i18n="tier_free_cta">Get started →</a>
@@ -3301,7 +3654,7 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
         </div>
 
         <!-- PRO -->
-        <div class="tier featured">
+        <div class="tier featured" data-tier="pro">
           <div class="tier-tag popular">MOST OBVIOUS</div>
           <div>
             <h3>Numaeel <span class="accent">Pro</span></h3>
@@ -3312,14 +3665,14 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
             <span class="unit">/month · flat</span>
           </div>
           <ul>
-            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Everything in Free, plus &mdash;</li>
-            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b style="color: var(--text); font-weight: 600;">Unlimited domains</b></li>
-            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b style="color: var(--text); font-weight: 600;">JMAP</b> (Apple Mail, Thunderbird, Mimestream)</li>
-            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b style="color: var(--text); font-weight: 600;">GPG-encrypted transport</b> for outbound</li>
-            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Custom JavaScript rules + templates</li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span>Everything in Free, plus &mdash;</span></li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span><b style="color: var(--text); font-weight: 600;">Unlimited domains</b></span></li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span><b style="color: var(--text); font-weight: 600;">JMAP</b> (Apple Mail, Thunderbird, Mimestream)</span></li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span><b style="color: var(--text); font-weight: 600;">GPG-encrypted transport</b> for outbound</span></li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span>Custom JavaScript rules + templates</span></li>
             <li>No-click DPA filing for 35+ jurisdictions</li>
-            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Outbound webhooks (Slack, Linear, Zapier)</li>
-            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b style="color: var(--text); font-weight: 600;">100 GB</b> storage · unlimited retention</li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span>Outbound webhooks (Slack, Linear, Zapier)</span></li>
+            <li><span class="check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span><b style="color: var(--text); font-weight: 600;">100 GB</b> storage · 5 years retention</span></li>
           </ul>
           <div class="cta">
             <a href="/a/" class="btn btn-primary">Upgrade to Pro →</a>
@@ -3327,7 +3680,7 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
         </div>
 
         <!-- PREMIUM -->
-        <div class="tier premium">
+        <div class="tier premium" data-tier="premium">
           <div class="tier-tag premium-tag">CONCIERGE</div>
           <div>
             <h3 class="premium-name">Numaeel <span class="accent">Premium</span></h3>
@@ -3338,12 +3691,12 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
             <span class="unit">/month · flat</span>
           </div>
           <ul>
-            <li><span class="check" style="background: color-mix(in oklab, var(--peach) 22%, transparent); color: var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Everything in Pro, plus &mdash;</li>
-            <li><span class="check" style="background: color-mix(in oklab, var(--peach) 22%, transparent); color: var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b style="color: var(--text); font-weight: 600;">Priority support</b> from a real person</li>
-            <li><span class="check" style="background: color-mix(in oklab, var(--peach) 22%, transparent); color: var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Priority routing on the processing pipeline</li>
-            <li><span class="check" style="background: color-mix(in oklab, var(--peach) 22%, transparent); color: var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> Migration assist from Gmail / Outlook / Fastmail</li>
-            <li><span class="check" style="background: color-mix(in oklab, var(--peach) 22%, transparent); color: var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> White-glove onboarding + rule-design workshop</li>
-            <li><span class="check" style="background: color-mix(in oklab, var(--peach) 22%, transparent); color: var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <b style="color: var(--text); font-weight: 600;">1 TB</b> storage · full audit trail</li>
+            <li><span class="check" style="background: color-mix(in oklab, var(--peach) 22%, transparent); color: var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span>Everything in Pro, plus &mdash;</span></li>
+            <li><span class="check" style="background: color-mix(in oklab, var(--peach) 22%, transparent); color: var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span><b style="color: var(--text); font-weight: 600;">Priority support</b> from a real person</span></li>
+            <li><span class="check" style="background: color-mix(in oklab, var(--peach) 22%, transparent); color: var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span>Priority routing on the processing pipeline</span></li>
+            <li><span class="check" style="background: color-mix(in oklab, var(--peach) 22%, transparent); color: var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span>Migration assist from Gmail / Outlook / Fastmail</span></li>
+            <li><span class="check" style="background: color-mix(in oklab, var(--peach) 22%, transparent); color: var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span>White-glove onboarding + rule-design workshop</span></li>
+            <li><span class="check" style="background: color-mix(in oklab, var(--peach) 22%, transparent); color: var(--peach);"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></span> <span><b style="color: var(--text); font-weight: 600;">1 TB</b> storage · full audit trail</span></li>
           </ul>
           <div class="cta">
             <a href="/a/" class="btn btn-outline" style="border-color: color-mix(in oklab, var(--peach) 50%, transparent); color: var(--peach);">Go Premium →</a>
@@ -3384,7 +3737,7 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
   <section class="cta-banner">
     <div class="wrap">
       <h2>Migrate to a better inbox. Yours.</h2>
-      <p data-i18n="banner_p">Spin up your protected inbox in two minutes. Point a DNS record. Watch your first arc arrive.</p>
+      <p data-i18n="banner_p">Spin up your protected inbox in two minutes. Point a DNS record. Watch your first email arrive.</p>
       <div class="hero-ctas" style="margin-bottom: 0;">
           <a class="btn btn-primary btn-lg" href="/a/" data-i18n="banner_cta_a">Open your inbox</a>
           <a class="btn btn-outline btn-lg" href="/a/" data-i18n="banner_cta_b">Read the docs</a>
@@ -3446,7 +3799,7 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
   </footer>
 
   <!-- ───────────────────────── SCRIPTS ───────────────────────── -->
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+  <script>
   // ============================================================
   // Mobile nav — hamburger toggles the link panel
   // ============================================================
@@ -3560,181 +3913,34 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
     // ============================================================
     // Falling-email scene
     // ============================================================
-    const sky = document.getElementById('sky');
-    const stack = document.getElementById('vault-stack');
-    const vaultCountEl = document.getElementById('vault-count');
-    const blockCountEl = document.getElementById('block-count');
-    if (!sky) return;
-
-    // Catalogue of fake mail
-    const SPAM = [
-      { from: 'admin@payp4l.support',   av: 'P', subj: 'Your account has been suspended', snip: 'Verify your identity within 24 hours to avoid…' },
-      { from: 'winnings@global-prize',  av: 'W', subj: 'You have WON €1,000,000', snip: 'Claim your prize before midnight…' },
-      { from: 'noreply@d-h-l.tracking', av: 'D', subj: 'Re: Delivery failure — action required', snip: 'Pay €1.99 customs fee to release your parcel…' },
-      { from: 'security@apple-id.help', av: 'A', subj: 'New sign-in from Lagos, Nigeria', snip: 'If this was not you, click here…' },
-      { from: 'ceo-team@yourceo.gmail', av: 'C', subj: 'Quick favour — buy iTunes cards', snip: 'I am in a meeting, send me the codes asap…' },
-      { from: 'support@netflix.billing',av: 'N', subj: 'Your subscription is on hold', snip: 'Update your payment method by today…' },
-      { from: 'no-reply@crypto-vault',  av: 'C', subj: 'You have 1 BTC waiting',   snip: 'Withdraw your funds before the wallet expires…' },
-      { from: 'irs@gov-refund.help',    av: 'I', subj: 'Pending tax refund €847.00', snip: 'Confirm your bank details to receive…' },
-    ];
-    const CLEAN = [
-      { from: 'stripe',  av: 'S', subj: 'Receipt for €49.00 — Acme Inc.',  snip: 'Invoice #INV-21204 · paid via Visa **4242' },
-      { from: 'github',  av: 'G', subj: 'PR review requested · rhosys/ses', snip: 'Warren requested your review on #482' },
-      { from: 'lufthansa', av: 'L', subj: 'Boarding pass · LH 423 ZRH → JFK', snip: 'Gate A52 · seat 14F · boards 14:30' },
-      { from: 'amazon',  av: 'A', subj: 'Your order shipped · #114-3927',  snip: 'Estimated delivery: Thursday 21 May' },
-      { from: 'linear',  av: 'L', subj: 'NUM-412 moved to In Review',      snip: 'Loop handling: forwarding-label collision' },
-      { from: 'apple',   av: 'A', subj: 'Sign-in code: 482 911',           snip: 'Use this code to sign in. Expires in 5 minutes.' },
-      { from: 'authress',av: 'A', subj: 'Your seat invite is ready',        snip: 'Click to join the Rhosys team workspace.' },
-      { from: 'calendar',av: 'C', subj: 'Tomorrow · Q3 review with Dora',  snip: '14:00 CEST · 60min · Google Meet' },
-      { from: 'doctor',  av: 'D', subj: 'Appointment confirmed · 24 May',  snip: 'Dr. Kessler · Universitätsspital Zürich' },
-    ];
-
-    const VAULT_TAGS = {
-      stripe: 'payments', github: 'support', lufthansa: 'travel',
-      amazon: 'package', linear: 'support', apple: 'auth',
-      authress: 'auth', calendar: 'scheduling', doctor: 'healthcare'
-    };
-
-    let vaultCount = 0;
-    let blockCount = 0;
-    const MAX_VAULT = 6;
-    let activeFalls = 0;
-    // Fewer cards in flight on phones so the shorter scene doesn't crowd
-    const MAX_ACTIVE = window.matchMedia('(max-width: 560px)').matches ? 3 : 6;
-
     function randBetween(a, b) { return a + Math.random() * (b - a); }
     function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-    const SCANNER_Y = 360;  // px — where the scanner rail sits inside .scene
-    const FALL_END_Y = 650; // matches the fall keyframe
+    // ============================================================
+    // Vault counters — the only part of the scene that still needs JS.
+    // The cards, the scanner verdict and the vault contents are all static
+    // markup driven by CSS keyframes (see the geometry contract on .scene).
+    // Bumping --num animates via the @property transition on .smooth-num.
+    // ============================================================
+    (function () {
+      const vaultCountEl = document.getElementById('vault-count');
+      const blockCountEl = document.getElementById('block-count');
+      if (!vaultCountEl || !blockCountEl) return;
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    // Envelope-icon avatar used on every falling card. Stroke inherits from .av color.
-    const ENV_SVG = `
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
-        <rect x="1.8" y="3.5" width="12.4" height="9" rx="1.4"/>
-        <path d="M2.5 4.4 L8 9 L13.5 4.4"/>
-      </svg>`;
+      let vaultCount = 1247;
+      let blockCount = 3891;
 
-    const rail = document.querySelector('.scanner-rail');
+      setInterval(function () {
+        vaultCount += 1;
+        vaultCountEl.style.setProperty('--num', vaultCount);
+      }, 7600);
 
-    function flashRail() {
-      if (!rail) return;
-      rail.classList.remove('hit');
-      // force reflow so the animation re-runs on rapid hits
-      void rail.offsetWidth;
-      rail.classList.add('hit');
-      setTimeout(() => rail.classList.remove('hit'), 520);
-    }
-
-    function spawnMail() {
-      if (activeFalls >= MAX_ACTIVE) return;
-      const isSpam = Math.random() < 0.55;
-      const data = isSpam ? pick(SPAM) : pick(CLEAN);
-      const dur = randBetween(6, 9);
-      const xPct = randBetween(10, 90);
-      const rot = randBetween(-2.5, 2.5);
-
-      const card = document.createElement('div');
-      card.className = 'mailfall ' + (isSpam ? 'spam' : 'clean');
-      card.style.setProperty('--x', xPct + '%');
-      card.style.setProperty('--rot', rot + 'deg');
-      card.style.animationDuration = dur + 's';
-      card.innerHTML = `
-        <div class="mf-shake">
-          <span class="verdict"></span>
-          <div class="row">
-            <div class="from">
-              <div class="av">${ENV_SVG}</div>
-              <div class="name">${data.from}</div>
-            </div>
-            <div class="time">now</div>
-          </div>
-          <div class="subj">${data.subj}</div>
-          <div class="snip">${data.snip}</div>
-        </div>
-      `;
-      sky.appendChild(card);
-      activeFalls++;
-
-      // Time at which the email reaches scanner Y
-      const scannerTimeMs = (SCANNER_Y / FALL_END_Y) * dur * 1000;
-      const totalTimeMs = dur * 1000;
-
-      // At the scanner, judge it
-      setTimeout(() => {
-        if (!card.isConnected) return;
-        if (isSpam) {
-          // Read the current applied transform — this freezes the card exactly
-          // where it is right now. Then we cancel the fall and apply the destroy
-          // animation, which only touches opacity/filter so the locked transform
-          // is preserved.
-          const ct = getComputedStyle(card).transform;
-          card.style.animation = 'none';
-          card.style.transform = ct;
-          // Force reflow before re-applying animation
-          void card.offsetHeight;
-          card.classList.add('judged-spam');
-          flashRail();
-          blockCount++;
-          blockCountEl.style.setProperty('--num', blockCount);
-          setTimeout(() => {
-            card.remove();
-            activeFalls--;
-          }, 900);
-        } else {
-          card.classList.add('judged-clean');
-        }
-      }, scannerTimeMs);
-
-      // When the clean email lands at the vault, transfer it
-      setTimeout(() => {
-        if (!card.isConnected) return;
-        if (!isSpam) {
-          card.remove();
-          activeFalls--;
-          addToVault(data);
-        }
-      }, totalTimeMs - 200);
-    }
-
-    function addVaultDomItem(data) {
-      const item = document.createElement('div');
-      item.className = 'vault-item';
-      const tag = VAULT_TAGS[data.from] || 'mail';
-      item.innerHTML = `
-        <span class="vi-av">${data.av}</span>
-        <span class="vi-subj">${data.subj}</span>
-        <span class="vi-tag">${tag}</span>
-      `;
-      stack.prepend(item);
-      while (stack.children.length > MAX_VAULT) stack.removeChild(stack.lastChild);
-    }
-
-    function addToVault(data) {
-      vaultCount++;
-      vaultCountEl.style.setProperty('--num', vaultCount);
-      addVaultDomItem(data);
-    }
-
-    // Seed the vault with a couple of items so it doesn't start empty
-    addVaultDomItem({ av: 'S', subj: 'Receipt for €49.00 — Acme Inc.', from: 'stripe' });
-    addVaultDomItem({ av: 'A', subj: 'Your seat invite is ready', from: 'authress' });
-    addVaultDomItem({ av: 'L', subj: 'Boarding pass · LH 423 ZRH → JFK', from: 'lufthansa' });
-    // Counters start in the thousands so the totals feel established —
-    // every block and arc bumps the smooth-num counter with a CSS transition.
-    vaultCount = 1247;
-    blockCount = 3891;
-    vaultCountEl.style.setProperty('--num', vaultCount);
-    blockCountEl.style.setProperty('--num', blockCount);
-
-    // Start the spawner — staggered first wave so it feels alive immediately,
-    // then a steady cadence (emails fall for ~7.5s on average).
-    let t0 = 200;
-    for (let i = 0; i < 3; i++) {
-      setTimeout(spawnMail, t0);
-      t0 += randBetween(900, 1400);
-    }
-    setInterval(spawnMail, 1600);
+      setInterval(function () {
+        blockCount += 1;
+        blockCountEl.style.setProperty('--num', blockCount);
+      }, 3100);
+    })();
 
     // ============================================================
     // Alias typewriter — cycles between vendor slugs
@@ -3947,6 +4153,23 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
     }
     loop();
   })();
+
+  // ============================================================
+  // Pricing tab switcher (mobile only — tabs hidden on desktop)
+  // ============================================================
+  (function () {
+    var tabs = document.querySelectorAll('[data-tier-tab]');
+    var tiers = document.querySelectorAll('.price-grid .tier[data-tier]');
+    if (!tabs.length || !tiers.length) return;
+
+    tabs.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var target = btn.dataset.tierTab;
+        tabs.forEach(function (t) { t.classList.toggle('active', t === btn); });
+        tiers.forEach(function (t) { t.classList.toggle('tab-visible', t.dataset.tier === target); });
+      });
+    });
+  })();
   </script>
   <!-- ───────────────────────── i18n ───────────────────────── -->
   <script>
@@ -4061,12 +4284,4 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
 </body>
 </html>
 
-<style id="__om-edit-overrides">
-#trusted-track >div:nth-child(10) >.trusted-logo { font-size: 40px !important }
-#trusted-track >div:nth-child(12) >.trusted-logo { font-size: 40px !important }
-#trusted-track >div:nth-child(13) >.trusted-logo { font-size: 40px !important }
-#trusted-track >div:nth-child(15) >.trusted-logo { font-size: 40px !important }
-#trusted-track >div:nth-child(16) >.trusted-logo { font-size: 40px !important }
-#trusted-track >div:nth-child(18) >.trusted-logo { font-size: 40px !important }
-#trusted-track >div:nth-child(6) >.trusted-logo { font-size: 40px !important }
-</style>
+

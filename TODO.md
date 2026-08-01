@@ -108,7 +108,7 @@ async function fetchItems() { /* updates _byAccount, no loading flag */ }
 
 - [ ] **Billing view in Settings** — new route `/settings/billing` displaying all available plans, current subscription status, and upgrade/downgrade actions. Calls `GET /accounts/:id/billing` for current state and `POST .../checkout-session` or `.../portal-session` for Stripe flows.
 
-- [ ] **Real Stripe price IDs in `BillingPanel.vue`** — `starterPriceId`/`proPriceId` are placeholders (`price_TODO_starter`, `price_TODO_pro`). Replace with actual Price IDs from the Stripe dashboard (Products → select product → copy Price ID, format `price_1ABC...`) once the account is set up.
+- [ ] **Real Stripe price IDs in `BillingPanel.vue`** — price IDs are placeholders (`price_pro_monthly`, `price_premium_monthly`, `price_team_monthly`, etc.). Replace with actual Price IDs from the Stripe dashboard once the account is set up.
 
 ### Extensibility & integrations
 

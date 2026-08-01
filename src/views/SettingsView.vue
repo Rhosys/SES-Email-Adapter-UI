@@ -13,6 +13,7 @@ import { useFeatureTour } from '@/composables/useFeatureTour'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import NoticeDialog from '@/components/ui/NoticeDialog.vue'
 import FilterModeModal from '@/components/ui/FilterModeModal.vue'
 import OverflowMenu from '@/components/ui/OverflowMenu.vue'
 import SettingsTabBar from '@/components/settings/SettingsTabBar.vue'
@@ -251,7 +252,7 @@ const RETENTION_OPTIONS: RetentionOption[] = [
   { value: 'Infinity', label: 'Forever', minPlan: 'premium' },
 ]
 
-const PLAN_RANK: Record<string, number> = { free: 0, starter: 1, pro: 2, premium: 3 }
+const PLAN_RANK: Record<string, number> = { free: 0, pro: 1, premium: 2, team: 3, company: 4, enterprise: 5 }
 
 const currentPlanRank = computed(() => {
   const plan = accountStore.account?.billingPlan ?? 'free'
@@ -262,17 +263,18 @@ const retentionOptions = computed(() =>
   RETENTION_OPTIONS.map((opt) => ({
     ...opt,
     available: currentPlanRank.value >= (PLAN_RANK[opt.minPlan] ?? 0),
-    badge: opt.minPlan !== 'free' ? opt.minPlan.charAt(0).toUpperCase() + opt.minPlan.slice(1) : null,
   })),
 )
 
 const selectedRetention = ref<RetentionDuration | undefined>(undefined)
 const retentionPending = ref(false)
 const retentionUpgradePrompt = ref(false)
+const retentionUpgradePlan = ref('')
 
 async function updateRetention(value: RetentionDuration) {
   const opt = retentionOptions.value.find((o) => o.value === value)
   if (!opt?.available) {
+    retentionUpgradePlan.value = opt?.minPlan ?? 'pro'
     retentionUpgradePrompt.value = true
     return
   }
@@ -1567,9 +1569,8 @@ useGestureHandler(settingsContentRef, {
                   v-for="opt in retentionOptions"
                   :key="opt.value"
                   :value="opt.value"
-                  :disabled="!opt.available"
                 >
-                  {{ opt.label }}{{ !opt.available ? ` 🔒 ${opt.badge}` : '' }}
+                  {{ opt.label }}{{ !opt.available ? ` 🔒 ${opt.minPlan.charAt(0).toUpperCase() + opt.minPlan.slice(1)}` : '' }}
                 </option>
               </select>
               <svg class="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ctp-subtext0" viewBox="0 0 20 20" fill="currentColor">
@@ -1577,14 +1578,15 @@ useGestureHandler(settingsContentRef, {
               </svg>
             </div>
 
-            <!-- Upgrade prompt -->
-            <div
-              v-if="retentionUpgradePrompt"
-              class="mt-2 rounded border border-ctp-yellow/40 bg-ctp-yellow/10 px-3 py-2 text-xs text-ctp-yellow"
-            >
-              This retention duration requires a higher plan.
-              <router-link to="/billing" class="font-medium underline hover:text-ctp-text">Upgrade</router-link>
-            </div>
+            <!-- Upgrade prompt dialog -->
+            <NoticeDialog
+              :open="retentionUpgradePrompt"
+              title="Plan upgrade needed"
+              :message="`This retention duration requires the ${retentionUpgradePlan.charAt(0).toUpperCase() + retentionUpgradePlan.slice(1)} plan. You can upgrade from the Billing page.`"
+              dismiss-label="Got it"
+              tone="warning"
+              @close="retentionUpgradePrompt = false"
+            />
 
             <p class="mt-3 text-xs text-ctp-subtext0">
               Applies to all conversations that receive new messages. Existing inactive threads keep their current retention.

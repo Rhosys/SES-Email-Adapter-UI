@@ -746,7 +746,7 @@ export interface AuditEvent {
 
 // ─── Billing ──────────────────────────────────────────────────────────────────
 
-export type BillingPlan = 'free' | 'starter' | 'pro'
+export type BillingPlan = 'free' | 'pro' | 'premium' | 'team' | 'company' | 'enterprise'
 export type BillingStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete'
 
 export interface BillingInfo {

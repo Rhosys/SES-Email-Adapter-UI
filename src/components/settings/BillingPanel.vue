@@ -16,6 +16,7 @@ const loading = ref(true)
 const upgrading = ref<string | null>(null)
 const portalLoading = ref(false)
 const showSuccess = ref(route.query.success === 'true')
+const mode = ref<'personal' | 'business'>('personal')
 
 if (showSuccess.value) {
   void router.replace({ query: {} })
@@ -29,53 +30,117 @@ interface PlanDef {
   priceId: string | undefined
   features: string[]
   recommended?: boolean
+  accent?: string
 }
 
-// Placeholder Stripe price IDs — see TODO.md (Billing screen)
-const starterPriceId = 'price_TODO_starter'
-const proPriceId = 'price_TODO_pro'
-
-const PLANS: PlanDef[] = [
+const PERSONAL_PLANS: PlanDef[] = [
   {
     id: 'free',
     name: 'Free',
-    price: '$0',
-    period: '',
+    price: '€0',
+    period: '/forever · one inbox',
     priceId: undefined,
-    features: ['1 domain', '500 signals / month', 'Quarantine & basic filtering', '1 team member'],
-  },
-  {
-    id: 'starter',
-    name: 'Starter',
-    price: '$19',
-    period: '/ month',
-    priceId: starterPriceId,
     features: [
-      '5 domains',
-      '5,000 signals / month',
-      'Rules engine',
-      'Labels & custom views',
-      'Up to 5 team members',
+      'Three custom domains',
+      'Catch-all email on every domain',
+      'Unlimited aliases + per-site generator',
+      'Unlimited labels & views',
+      'Workflow classification (14 workflows)',
+      'Quarantine with allow / block / reject',
+      'Browser extension + OTP autofill',
+      '5 GB storage · 6 months retention',
     ],
-    recommended: true,
   },
   {
     id: 'pro',
     name: 'Pro',
-    price: '$49',
-    period: '/ month',
-    priceId: proPriceId,
+    price: '€2',
+    period: '/month · flat',
+    priceId: 'price_pro_monthly',
     features: [
+      'Everything in Free, plus —',
       'Unlimited domains',
-      'Unlimited signals',
-      'Email templates',
-      'Audit log',
-      'Unlimited team members',
-      'Priority support',
+      'JMAP (Apple Mail, Thunderbird, Mimestream)',
+      'GPG-encrypted transport for outbound',
+      'Custom JavaScript rules + templates',
+      'No-click DPA filing for 35+ jurisdictions',
+      'Outbound webhooks (Slack, Linear, Zapier)',
+      '100 GB storage · 5 years retention',
     ],
+    recommended: true,
+  },
+  {
+    id: 'premium',
+    name: 'Premium',
+    price: '€6',
+    period: '/month · flat',
+    priceId: 'price_premium_monthly',
+    features: [
+      'Everything in Pro, plus —',
+      'Priority support from a real person',
+      'Priority routing on the processing pipeline',
+      'Migration assist from Gmail / Outlook / Fastmail',
+      'White-glove onboarding + rule-design workshop',
+      '1 TB storage · full audit trail',
+    ],
+    accent: 'peach',
   },
 ]
 
+const BUSINESS_PLANS: PlanDef[] = [
+  {
+    id: 'team',
+    name: 'Team',
+    price: '€10',
+    period: '/month · flat',
+    priceId: 'price_team_monthly',
+    features: [
+      'Everything in Personal Pro, org-wide',
+      'Unlimited company domains',
+      'Shared & role-based aliases (support@, billing@)',
+      'Admin console + role-based access',
+      'Google / Microsoft SSO',
+      '100 GB pooled storage',
+      'Unlimited users',
+    ],
+  },
+  {
+    id: 'company',
+    name: 'Company',
+    price: '€100',
+    period: '/month · flat',
+    priceId: 'price_company_monthly',
+    features: [
+      'Everything in Team, plus —',
+      'Unlimited retention + legal hold',
+      'Full audit trail + export',
+      'SAML SSO + SCIM provisioning',
+      'Custom rules per department',
+      '1 TB pooled storage',
+      'Unlimited users',
+    ],
+    recommended: true,
+  },
+  {
+    id: 'enterprise',
+    name: 'Enterprise',
+    price: '€1,000',
+    period: '/month · flat',
+    priceId: 'price_enterprise_monthly',
+    features: [
+      'Everything in Company, plus —',
+      'Dedicated account manager',
+      'SLA with uptime guarantee',
+      'Custom data residency',
+      'On-premise relay option',
+      'Unlimited storage',
+      'Unlimited users',
+    ],
+    accent: 'peach',
+  },
+]
+
+const plans = computed(() => mode.value === 'personal' ? PERSONAL_PLANS : BUSINESS_PLANS)
 const currentPlan = computed<BillingPlan>(() => billing.value?.plan ?? 'free')
 
 onMounted(async () => {
@@ -88,7 +153,6 @@ onMounted(async () => {
   ])
   if (accountResult.isOk()) account.value = accountResult.value
   if (billingResult.isOk()) billing.value = billingResult.value
-  // getBilling silently fails until backend is implemented — defaults to 'free'
 })
 
 async function upgrade(plan: PlanDef) {
@@ -148,15 +212,6 @@ async function openPortal() {
           </div>
         </div>
       </div>
-      <div class="rounded-lg border border-ctp-surface1 p-4">
-        <div class="h-4 w-32 rounded bg-ctp-surface1" />
-        <div class="mt-3 space-y-2">
-          <div v-for="i in 3" :key="i" class="flex justify-between">
-            <div class="h-3 w-28 rounded bg-ctp-surface1" />
-            <div class="h-3 w-16 rounded bg-ctp-surface1" />
-          </div>
-        </div>
-      </div>
     </div>
 
     <template v-else>
@@ -194,12 +249,34 @@ async function openPortal() {
         </div>
       </div>
 
+      <!-- Mode toggle -->
+      <div class="flex justify-center">
+        <div class="inline-flex rounded-full border border-ctp-surface0 bg-ctp-mantle p-1">
+          <button
+            class="rounded-full px-4 py-1.5 text-xs font-medium transition-all"
+            :class="mode === 'personal' ? 'bg-ctp-mauve text-ctp-base' : 'text-ctp-subtext0 hover:text-ctp-text'"
+            @click="mode = 'personal'"
+          >
+            Personal
+          </button>
+          <button
+            class="rounded-full px-4 py-1.5 text-xs font-medium transition-all"
+            :class="mode === 'business' ? 'bg-ctp-blue text-ctp-base' : 'text-ctp-subtext0 hover:text-ctp-text'"
+            @click="mode = 'business'"
+          >
+            Business
+          </button>
+        </div>
+      </div>
+
       <!-- Plan comparison -->
       <div>
-        <h2 class="mb-3 text-sm font-semibold text-ctp-text">Plans</h2>
+        <h2 class="mb-3 text-sm font-semibold text-ctp-text">
+          {{ mode === 'personal' ? 'Personal plans' : 'Business plans' }}
+        </h2>
         <div class="grid gap-3 sm:grid-cols-3">
           <div
-            v-for="plan in PLANS"
+            v-for="plan in plans"
             :key="plan.id"
             class="relative rounded-lg border p-4"
             :class="
@@ -252,13 +329,6 @@ async function openPortal() {
               >
                 Free forever
               </button>
-              <button
-                v-else-if="!plan.priceId"
-                disabled
-                class="w-full rounded-lg border border-ctp-surface1 py-1.5 text-xs text-ctp-subtext0 opacity-50"
-              >
-                Coming soon
-              </button>
               <AsyncButton
                 v-else
                 :action="() => upgrade(plan)"
@@ -273,7 +343,7 @@ async function openPortal() {
 
       <!-- Pricing note -->
       <p class="text-xs text-ctp-subtext0">
-        All prices in USD. Subscriptions renew monthly. Cancel any time from the billing portal.
+        All prices in EUR. Subscriptions renew monthly. Cancel any time from the billing portal.
       </p>
     </template>
   </div>
