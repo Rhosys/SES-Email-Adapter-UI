@@ -31,14 +31,14 @@ const ICONS: Record<string, string> = {
       v-for="tab in tabs"
       :key="tab.key"
       type="button"
-      class="flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2 transition-colors"
+      class="flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2.5 transition-colors"
       :class="active === tab.key ? 'text-ctp-mauve' : 'text-ctp-subtext0 hover:text-ctp-text'"
       :aria-current="active === tab.key ? 'page' : undefined"
       @click="$emit('select', tab.key)"
     >
       <!-- eslint-disable vue/no-v-html -- static, trusted icon markup (no user input) -->
       <svg
-        class="h-5 w-5 shrink-0"
+        class="h-7 w-7 shrink-0"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -49,7 +49,7 @@ const ICONS: Record<string, string> = {
         v-html="ICONS[tab.key] ?? ''"
       />
       <!-- eslint-enable vue/no-v-html -->
-      <span class="w-full truncate text-center text-[10px] leading-tight">{{ tab.mobileLabel ?? tab.label }}</span>
+      <span class="w-full truncate text-center text-xs leading-tight">{{ tab.mobileLabel ?? tab.label }}</span>
     </button>
   </nav>
 </template>
