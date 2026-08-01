@@ -16,7 +16,7 @@ export const mockQuarantinedSignalsVisible: Signal[] = [
       subject: 'CONGRATULATIONS! You have won $5,000,000',
       body: '<div style="font-family:Comic Sans MS,cursive;background:#ff0;padding:24px"><h1 style="color:red;font-size:36px">WINNER</h1><p>Dear Lucky Winner, you have been selected to receive FIVE MILLION DOLLARS. Click below to claim your prize NOW.</p><a href="http://definitely-not-a-scam.xyz/claim">CLAIM NOW</a></div>',
       attachments: [
-        { attachmentId: 'att_spam_1', filename: 'claim-form.exe', mimeType: 'application/x-msdownload', sizeBytes: 2400000 },
+        { filename: 'claim-form.exe', mimeType: 'application/x-msdownload', sizeBytes: 2400000 },
       ],
       headers: { 'Return-Path': 'bounce-xyz@prize-lottery-intl.xyz', 'X-Spam-Flag': 'YES' },
       recipientAddress: 'hello@demo.catchmail.app',
@@ -83,7 +83,7 @@ export const mockQuarantinedSignalsVisible: Signal[] = [
       subject: 'Speaker invitation: DevCon Europe 2026',
       body: '<div style="font-family:sans-serif;padding:24px"><p>Dear Warren,</p><p>We would like to invite you to speak at DevCon Europe 2026 in Berlin. Your work on email intelligence systems caught our attention.</p><p>The conference takes place September 15-17 at Berlin Congress Center.</p><p>Please let us know if you are interested.</p><p>Best,<br/>DevCon Europe Organizing Committee</p></div>',
       attachments: [
-        { attachmentId: 'att_quar_1', filename: 'speaker-brief.pdf', mimeType: 'application/pdf', sizeBytes: 156000 },
+        { filename: 'speaker-brief.pdf', mimeType: 'application/pdf', sizeBytes: 156000 },
       ],
       headers: { 'Return-Path': 'events@devcon-europe.org' },
       recipientAddress: 'hello@demo.catchmail.app',

@@ -162,7 +162,6 @@ export interface EmailAddress {
 }
 
 export interface Attachment {
-  attachmentId: string
   filename: string
   mimeType: string
   sizeBytes: number
