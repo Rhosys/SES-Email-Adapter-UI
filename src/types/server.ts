@@ -687,6 +687,19 @@ export interface AliasSender {
   updatedAt: string
 }
 
+// ─── External Mail Exchange ────────────────────────────────────────────────
+
+export interface ExternalMailExchange {
+  id: string
+  accountId: string
+  platform: "gmail" | "outlook" | "imap" | "jmap"
+  emailAddress: string
+  status: "active" | "activation_failed"
+  lastSyncAt?: string
+  errorReason?: string
+  createdAt: string
+}
+
 // ─── Email Template ───────────────────────────────────────────────────────────
 
 export interface TemplateFunction {

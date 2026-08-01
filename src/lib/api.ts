@@ -565,12 +565,6 @@ export const api = {
     })
   },
 
-  activateExternalExchange(accountId: string, emxId: string): Promise<Result<ExternalMailExchange, ApiError>> {
-    return request<ExternalMailExchange>(`/accounts/${accountId}/external-exchanges/${emxId}/activate`, {
-      method: 'POST',
-    })
-  },
-
   deleteExternalExchange(accountId: string, emxId: string): Promise<Result<void, ApiError>> {
     return request<void>(`/accounts/${accountId}/external-exchanges/${emxId}`, {
       method: 'DELETE',

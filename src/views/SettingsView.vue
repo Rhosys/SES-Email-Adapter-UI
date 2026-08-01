@@ -618,20 +618,7 @@ async function connectExchange(platform: 'gmail' | 'outlook') {
   emxActivationError.value = ''
   emxPlatformPickerOpen.value = false
 
-  // Step 1: Create the exchange record (pending_consent)
-  const createResult = await api.createExternalExchange(accountStore.accountId, {
-    platform,
-    emailAddress: '',
-  })
-  if (createResult.isErr()) {
-    emxActivationError.value = createResult.error.message
-    emxConnecting.value = false
-    return
-  }
-  const emx = createResult.value
-  exchanges.value = [...exchanges.value, emx]
-
-  // Step 2: Authress progressive consent — provider-specific connection
+  // Step 1: Authress progressive consent — provider-specific connection
   const connectionId = platform === 'gmail' ? 'google' : 'microsoft'
   try {
     await loginClient.authenticate({ connectionId, redirectUrl: window.location.href })
@@ -641,31 +628,28 @@ async function connectExchange(platform: 'gmail' | 'outlook') {
     return
   }
 
-  // Step 3: Activate — backend uses the refreshed token to set up the mail watch
-  const activateResult = await api.activateExternalExchange(accountStore.accountId, emx.id)
+  // Step 2: POST create — backend does full activation inline (blocking)
+  const createResult = await api.createExternalExchange(accountStore.accountId, {
+    platform,
+    emailAddress: '', // backend resolves from the token
+  })
   emxConnecting.value = false
-  if (activateResult.isErr()) {
-    emxActivationError.value = activateResult.error.message
-    // Update exchange status in local state
-    exchanges.value = exchanges.value.map((e) =>
-      e.id === emx.id ? { ...e, status: 'activation_failed' as const } : e,
-    )
+  if (createResult.isErr()) {
+    emxActivationError.value = createResult.error.message
     return
   }
-  exchanges.value = exchanges.value.map((e) => (e.id === emx.id ? activateResult.value : e))
+  exchanges.value = [...exchanges.value, createResult.value]
 }
 
-async function retryActivation(emxId: string) {
+async function retryExchange(emx: ExternalMailExchange) {
   if (!accountStore.accountId) return
-  emxActivationError.value = ''
-  emxConnecting.value = true
-  const result = await api.activateExternalExchange(accountStore.accountId, emxId)
-  emxConnecting.value = false
-  if (result.isErr()) {
-    emxActivationError.value = result.error.message
-    return
+  emxDeletePending.value = emx.id
+  const result = await api.deleteExternalExchange(accountStore.accountId, emx.id)
+  emxDeletePending.value = null
+  if (result.isOk()) {
+    exchanges.value = exchanges.value.filter((e) => e.id !== emx.id)
+    await connectExchange(emx.platform as 'gmail' | 'outlook')
   }
-  exchanges.value = exchanges.value.map((e) => (e.id === emxId ? result.value : e))
 }
 
 async function deleteExchange(emx: ExternalMailExchange) {
@@ -1702,7 +1686,6 @@ useGestureHandler(settingsContentRef, {
                   class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
                   :class="{
                     'bg-ctp-green/10 text-ctp-green': emx.status === 'active',
-                    'bg-ctp-yellow/10 text-ctp-yellow': emx.status === 'pending_consent',
                     'bg-ctp-red/10 text-ctp-red': emx.status === 'activation_failed',
                   }"
                 >
@@ -1710,11 +1693,10 @@ useGestureHandler(settingsContentRef, {
                     class="inline-block h-1.5 w-1.5 rounded-full"
                     :class="{
                       'bg-ctp-green': emx.status === 'active',
-                      'bg-ctp-yellow': emx.status === 'pending_consent',
                       'bg-ctp-red': emx.status === 'activation_failed',
                     }"
                   />
-                  {{ emx.status === 'active' ? 'Active' : emx.status === 'pending_consent' ? 'Pending' : 'Failed' }}
+                  {{ emx.status === 'active' ? 'Active' : 'Failed' }}
                 </span>
                 <!-- Retry button for failed -->
                 <button
@@ -1722,7 +1704,7 @@ useGestureHandler(settingsContentRef, {
                   type="button"
                   class="rounded border border-ctp-surface1 px-2 py-1 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
                   :disabled="emxConnecting"
-                  @click="retryActivation(emx.id)"
+                  @click="retryExchange(emx)"
                 >
                   Retry
                 </button>
