@@ -545,7 +545,7 @@ const iframeStyle = {
         <p v-else class="px-4 py-3 text-sm text-ctp-subtext0">(No content)</p>
 
         <div v-if="attachments.length > 0" class="flex flex-wrap gap-2 border-t border-ctp-surface0 px-4 py-3">
-          <template v-for="att in attachments" :key="att.attachmentId">
+          <template v-for="att in attachments" :key="att.url ?? att.filename">
             <button
               v-if="att.url"
               type="button"

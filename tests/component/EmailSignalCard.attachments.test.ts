@@ -74,7 +74,7 @@ describe('EmailSignalCard — attachments', () => {
         data: {
           ...mockEmailSignal().data,
           attachments: [
-            { attachmentId: 'att_1', filename: 'invoice.pdf', mimeType: 'application/pdf', sizeBytes: 20480, url: 'https://cdn.example.com/att_1' },
+            { filename: 'invoice.pdf', mimeType: 'application/pdf', sizeBytes: 20480, url: 'https://cdn.example.com/att_1' },
           ],
         },
       } as Partial<Signal>),
@@ -91,7 +91,7 @@ describe('EmailSignalCard — attachments', () => {
         data: {
           ...mockEmailSignal().data,
           attachments: [
-            { attachmentId: 'att_2', filename: 'photo.png', mimeType: 'image/png', sizeBytes: 512, url: undefined },
+            { filename: 'photo.png', mimeType: 'image/png', sizeBytes: 512, url: undefined },
           ],
         },
       } as Partial<Signal>),
@@ -113,7 +113,7 @@ describe('EmailSignalCard — attachments', () => {
         data: {
           ...mockEmailSignal().data,
           attachments: [
-            { attachmentId: 'att_3', filename: 'photo.png', mimeType: 'image/png', sizeBytes: 2048, url: 'https://cdn.example.com/att_3' },
+            { filename: 'photo.png', mimeType: 'image/png', sizeBytes: 2048, url: 'https://cdn.example.com/att_3' },
           ],
         },
       } as Partial<Signal>),
@@ -136,7 +136,7 @@ describe('EmailSignalCard — attachments', () => {
         data: {
           ...mockEmailSignal().data,
           attachments: [
-            { attachmentId: 'att_4', filename: 'invoice.pdf', mimeType: 'application/pdf', sizeBytes: 20480, url: 'https://cdn.example.com/att_4' },
+            { filename: 'invoice.pdf', mimeType: 'application/pdf', sizeBytes: 20480, url: 'https://cdn.example.com/att_4' },
           ],
         },
       } as Partial<Signal>),
@@ -155,7 +155,7 @@ describe('EmailSignalCard — attachments', () => {
         data: {
           ...mockEmailSignal().data,
           attachments: [
-            { attachmentId: 'att_5', filename: 'report.csv', mimeType: 'text/csv', sizeBytes: 4200, url: 'https://cdn.example.com/att_5' },
+            { filename: 'report.csv', mimeType: 'text/csv', sizeBytes: 4200, url: 'https://cdn.example.com/att_5' },
           ],
         },
       } as Partial<Signal>),
@@ -175,7 +175,7 @@ describe('EmailSignalCard — attachments', () => {
         data: {
           ...mockEmailSignal().data,
           attachments: [
-            { attachmentId: 'att_6', filename: 'photo.png', mimeType: 'image/png', sizeBytes: 2048, url: 'https://cdn.example.com/att_6' },
+            { filename: 'photo.png', mimeType: 'image/png', sizeBytes: 2048, url: 'https://cdn.example.com/att_6' },
           ],
         },
       } as Partial<Signal>),

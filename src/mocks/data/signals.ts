@@ -220,7 +220,7 @@ export const mockSignals: Record<string, Signal[]> = {
         subject: 'Booking confirmation LH1234 — Berlin to Lisbon',
         body: '<div style="font-family:sans-serif;max-width:600px;margin:0 auto"><div style="background:#05164d;padding:20px;text-align:center"><span style="color:#fff;font-size:22px">Lufthansa</span></div><div style="padding:24px"><h2 style="color:#05164d">Booking Confirmed</h2><table style="width:100%;border-collapse:collapse"><tr><td style="padding:12px;border-bottom:1px solid #e5e7eb"><strong>Flight</strong></td><td style="padding:12px;border-bottom:1px solid #e5e7eb">LH1234</td></tr><tr><td style="padding:12px;border-bottom:1px solid #e5e7eb"><strong>Route</strong></td><td style="padding:12px;border-bottom:1px solid #e5e7eb">Berlin (BER) → Lisbon (LIS)</td></tr><tr><td style="padding:12px;border-bottom:1px solid #e5e7eb"><strong>Date</strong></td><td style="padding:12px;border-bottom:1px solid #e5e7eb">July 15, 2026 — 08:45</td></tr><tr><td style="padding:12px;border-bottom:1px solid #e5e7eb"><strong>Passenger</strong></td><td style="padding:12px;border-bottom:1px solid #e5e7eb">Warren Parad</td></tr><tr><td style="padding:12px"><strong>Confirmation</strong></td><td style="padding:12px">XKJF82</td></tr></table></div></div>',
         attachments: [
-          { attachmentId: 'att_1', filename: 'booking-LH1234.pdf', mimeType: 'application/pdf', sizeBytes: 245000 },
+          { filename: 'booking-LH1234.pdf', mimeType: 'application/pdf', sizeBytes: 245000 },
         ],
         headers: { 'Return-Path': 'noreply@lufthansa.com' },
         recipientAddress: 'hello@demo.catchmail.app',
@@ -282,8 +282,8 @@ export const mockSignals: Record<string, Signal[]> = {
         subject: 'Invoice #2026-06-INV-4821 for your Hetzner services',
         body: '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px"><h2 style="color:#d50c2d">Hetzner</h2><p>Dear Customer,</p><p>Please find your invoice for June 2026 attached.</p><table style="width:100%;border-collapse:collapse;margin:20px 0"><tr style="background:#f5f5f5"><th style="padding:10px;text-align:left">Service</th><th style="padding:10px;text-align:right">Amount</th></tr><tr><td style="padding:10px;border-bottom:1px solid #eee">Dedicated Root Server AX41-NVMe</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">39.00 EUR</td></tr><tr><td style="padding:10px;border-bottom:1px solid #eee">Backup Space BX10</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">3.81 EUR</td></tr><tr><td style="padding:10px;border-bottom:1px solid #eee">IPv4 Address</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">4.79 EUR</td></tr><tr style="font-weight:700"><td style="padding:10px">Total (incl. VAT)</td><td style="padding:10px;text-align:right">47.60 EUR</td></tr></table><p style="font-size:13px;color:#666">Payment will be debited from your account ending in 4821.</p></div>',
         attachments: [
-          { attachmentId: 'att_2', filename: 'invoice-2026-06-INV-4821.pdf', mimeType: 'application/pdf', sizeBytes: 89000, url: 'https://cdn.demo.catchmail.app/attachments/att_2' },
-          { attachmentId: 'att_3', filename: 'usage-report-june-2026.csv', mimeType: 'text/csv', sizeBytes: 4200 },
+          { filename: 'invoice-2026-06-INV-4821.pdf', mimeType: 'application/pdf', sizeBytes: 89000, url: 'https://cdn.demo.catchmail.app/attachments/att_2' },
+          { filename: 'usage-report-june-2026.csv', mimeType: 'text/csv', sizeBytes: 4200 },
         ],
         headers: { 'Return-Path': 'billing@hetzner.com' },
         recipientAddress: 'receipts@demo.catchmail.app',
