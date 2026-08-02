@@ -704,7 +704,7 @@ async function deleteExchange(emx: ExternalMailExchange) {
 }
 
 // ─── IMAP/JMAP connection form ────────────────────────────────────────────────
-type EmxDialogView = 'picker' | 'imap-form'
+type EmxDialogView = 'picker' | 'imap-form' | 'jmap-form' | 'jmap-form'
 const emxDialogView = ref<EmxDialogView>('picker')
 const imapFormHost = ref('')
 const imapFormUsername = ref('')
@@ -765,6 +765,114 @@ async function submitImapForm() {
     imapFormSaving.value = false
     if (result.isErr()) {
       imapFormError.value = result.error.message
+      return
+    }
+    exchanges.value = [...exchanges.value, result.value]
+  }
+  closeEmxDialog()
+}
+
+// ─── JMAP connection form ─────────────────────────────────────────────────────
+type JmapStep = 'email' | 'credentials'
+const jmapStep = ref<JmapStep>('email')
+const jmapEmail = ref('')
+const jmapSessionUrl = ref('')
+const jmapSessionDiscovered = ref(false)
+const jmapUsername = ref('')
+const jmapPassword = ref('')
+const jmapDiscovering = ref(false)
+const jmapFormSaving = ref(false)
+const jmapFormError = ref('')
+const jmapEditingEmx = ref<ExternalMailExchange | null>(null)
+
+function openJmapForm(emx?: ExternalMailExchange) {
+  if (emx?.jmapConfig) {
+    jmapEditingEmx.value = emx
+    jmapSessionUrl.value = emx.jmapConfig.sessionUrl
+    jmapSessionDiscovered.value = false
+    jmapUsername.value = emx.jmapConfig.username
+    jmapPassword.value = ''
+    jmapEmail.value = emx.emailAddress || emx.jmapConfig.username
+    jmapStep.value = 'credentials'
+  } else {
+    jmapEditingEmx.value = null
+    jmapEmail.value = ''
+    jmapSessionUrl.value = ''
+    jmapSessionDiscovered.value = false
+    jmapUsername.value = ''
+    jmapPassword.value = ''
+    jmapStep.value = 'email'
+  }
+  jmapFormError.value = ''
+  emxDialogView.value = 'jmap-form'
+  emxPlatformPickerOpen.value = true
+}
+
+async function jmapDiscover() {
+  jmapFormError.value = ''
+  const emailVal = jmapEmail.value.trim()
+  const atIdx = emailVal.indexOf('@')
+  if (atIdx < 1) {
+    jmapFormError.value = 'Enter a valid email address'
+    return
+  }
+  const domain = emailVal.slice(atIdx + 1)
+  jmapDiscovering.value = true
+
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10_000)
+    const resp = await fetch(`https://${domain}/.well-known/jmap`, { signal: controller.signal })
+    clearTimeout(timeout)
+    if (resp.ok) {
+      const json = await resp.json()
+      if (json && typeof json.apiUrl === 'string') {
+        jmapSessionUrl.value = resp.url || `https://${domain}/.well-known/jmap`
+        jmapSessionDiscovered.value = true
+        jmapUsername.value = emailVal
+        jmapStep.value = 'credentials'
+        jmapDiscovering.value = false
+        return
+      }
+    }
+  } catch {
+    // CORS, network error, timeout — all fall through to manual entry
+  }
+
+  jmapDiscovering.value = false
+  jmapSessionDiscovered.value = false
+  jmapUsername.value = emailVal
+  jmapStep.value = 'credentials'
+}
+
+async function submitJmapForm() {
+  if (!accountStore.accountId) return
+  jmapFormSaving.value = true
+  jmapFormError.value = ''
+
+  if (jmapEditingEmx.value) {
+    const body: { jmapConfig: { sessionUrl?: string; username?: string; password?: string } } = { jmapConfig: {} }
+    if (jmapSessionUrl.value !== jmapEditingEmx.value.jmapConfig?.sessionUrl) body.jmapConfig.sessionUrl = jmapSessionUrl.value
+    if (jmapUsername.value !== jmapEditingEmx.value.jmapConfig?.username) body.jmapConfig.username = jmapUsername.value
+    if (jmapPassword.value) body.jmapConfig.password = jmapPassword.value
+
+    const result = await api.patchExternalExchange(accountStore.accountId, jmapEditingEmx.value.id, body)
+    jmapFormSaving.value = false
+    if (result.isErr()) {
+      jmapFormError.value = result.error.message
+      jmapPassword.value = ''
+      return
+    }
+    exchanges.value = exchanges.value.map((e) => e.id === result.value.id ? result.value : e)
+  } else {
+    const result = await api.createExternalExchange(accountStore.accountId, {
+      platform: 'jmap',
+      jmapConfig: { sessionUrl: jmapSessionUrl.value, username: jmapUsername.value, password: jmapPassword.value },
+    })
+    jmapFormSaving.value = false
+    if (result.isErr()) {
+      jmapFormError.value = result.error.message
+      jmapPassword.value = ''
       return
     }
     exchanges.value = [...exchanges.value, result.value]
@@ -2360,13 +2468,13 @@ useGestureHandler(settingsContentRef, {
                 </button>
                 <button
                   type="button"
-                  class="flex w-full items-center gap-3 rounded-lg border border-ctp-surface1 p-3 text-left opacity-50 cursor-not-allowed"
-                  disabled
+                  class="flex w-full items-center gap-3 rounded-lg border border-ctp-surface1 p-3 text-left transition-colors hover:border-ctp-mauve hover:bg-ctp-mauve/5"
+                  @click="emxDialogView = 'jmap-form'"
                 >
                   <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-sapphire/10 text-sm font-bold text-ctp-sapphire">J</span>
                   <div>
                     <p class="text-sm font-medium text-ctp-text">JMAP</p>
-                    <p class="text-xs text-ctp-subtext0">Coming soon — Fastmail, Stalwart, Cyrus</p>
+                    <p class="text-xs text-ctp-subtext0">Fastmail, Stalwart, Cyrus</p>
                   </div>
                 </button>
               </div>
@@ -2469,6 +2577,21 @@ useGestureHandler(settingsContentRef, {
                   {{ imapFormSaving ? 'Connecting…' : imapEditingEmx ? 'Save' : 'Connect' }}
                 </button>
               </div>
+            </div>
+
+            <!-- JMAP form view -->
+            <div v-else-if="emxDialogView === 'jmap-form'" key="jmap-form" class="p-6">
+              <div class="mb-4 flex items-center gap-2">
+                <button
+                  type="button"
+                  class="rounded p-1 text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text"
+                  @click="emxDialogView = 'picker'"
+                >
+                  <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12L6 8l4-4"/></svg>
+                </button>
+                <h2 class="text-sm font-semibold text-ctp-text">Connect via JMAP</h2>
+              </div>
+              <p class="text-xs text-ctp-subtext0">JMAP form — implemented in task 7.1</p>
             </div>
           </Transition>
         </div>
