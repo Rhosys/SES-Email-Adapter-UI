@@ -704,7 +704,7 @@ async function deleteExchange(emx: ExternalMailExchange) {
 }
 
 // ─── IMAP/JMAP connection form ────────────────────────────────────────────────
-type EmxDialogView = 'picker' | 'imap-form' | 'jmap-form' | 'jmap-form'
+type EmxDialogView = 'picker' | 'imap-form' | 'jmap-form'
 const emxDialogView = ref<EmxDialogView>('picker')
 const imapFormHost = ref('')
 const imapFormUsername = ref('')
@@ -2000,6 +2000,16 @@ useGestureHandler(settingsContentRef, {
                 >
                   <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.86 2.57a1.14 1.14 0 012.28 0c.63.29 1.37.08 1.74-.46a1.14 1.14 0 011.97 1.14c-.17.67.2 1.37.82 1.61a1.14 1.14 0 010 2.28c-.63.29-.99.94-.82 1.61a1.14 1.14 0 01-1.97 1.14c-.37-.54-1.11-.75-1.74-.46a1.14 1.14 0 01-2.28 0c-.63-.29-1.37-.08-1.74.46a1.14 1.14 0 01-1.97-1.14c.17-.67-.2-1.37-.82-1.61a1.14 1.14 0 010-2.28c.63-.29.99-.94.82-1.61A1.14 1.14 0 015.12 2.1c.37.54 1.11.75 1.74.46z"/><circle cx="8" cy="8" r="2"/></svg>
                 </button>
+                <!-- JMAP settings cog -->
+                <button
+                  v-if="emx.platform === 'jmap'"
+                  type="button"
+                  class="text-ctp-subtext0 hover:text-ctp-mauve"
+                  title="JMAP settings"
+                  @click="openJmapForm(emx)"
+                >
+                  <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.86 2.57a1.14 1.14 0 012.28 0c.63.29 1.37.08 1.74-.46a1.14 1.14 0 011.97 1.14c-.17.67.2 1.37.82 1.61a1.14 1.14 0 010 2.28c-.63.29-.99.94-.82 1.61a1.14 1.14 0 01-1.97 1.14c-.37-.54-1.11-.75-1.74-.46a1.14 1.14 0 01-2.28 0c-.63-.29-1.37-.08-1.74.46a1.14 1.14 0 01-1.97-1.14c.17-.67-.2-1.37-.82-1.61a1.14 1.14 0 010-2.28c.63-.29.99-.94.82-1.61A1.14 1.14 0 015.12 2.1c.37.54 1.11.75 1.74.46z"/><circle cx="8" cy="8" r="2"/></svg>
+                </button>
                 <!-- Delete -->
                 <button
                   class="text-ctp-subtext0 hover:text-ctp-red disabled:opacity-40"
@@ -2474,7 +2484,7 @@ useGestureHandler(settingsContentRef, {
                   <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-sapphire/10 text-sm font-bold text-ctp-sapphire">J</span>
                   <div>
                     <p class="text-sm font-medium text-ctp-text">JMAP</p>
-                    <p class="text-xs text-ctp-subtext0">Fastmail, Stalwart, Cyrus</p>
+                    <p class="text-xs text-ctp-subtext0">Fastmail, Stalwart, Cyrus — auto-discovery supported</p>
                   </div>
                 </button>
               </div>
@@ -2585,13 +2595,109 @@ useGestureHandler(settingsContentRef, {
                 <button
                   type="button"
                   class="rounded p-1 text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text"
-                  @click="emxDialogView = 'picker'"
+                  @click="jmapStep === 'credentials' && !jmapEditingEmx ? (jmapStep = 'email') : (emxDialogView = 'picker')"
                 >
                   <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12L6 8l4-4"/></svg>
                 </button>
-                <h2 class="text-sm font-semibold text-ctp-text">Connect via JMAP</h2>
+                <h2 class="text-sm font-semibold text-ctp-text">{{ jmapEditingEmx ? 'Edit JMAP connection' : 'Connect via JMAP' }}</h2>
               </div>
-              <p class="text-xs text-ctp-subtext0">JMAP form — implemented in task 7.1</p>
+
+              <!-- Step 1: Email discovery -->
+              <div v-if="jmapStep === 'email'" class="space-y-3">
+                <div>
+                  <label for="jmap-email" class="mb-1 block text-xs font-medium text-ctp-subtext0">Email address</label>
+                  <input
+                    id="jmap-email"
+                    v-model="jmapEmail"
+                    type="email"
+                    placeholder="you@fastmail.com"
+                    class="w-full rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
+                    @keydown.enter.prevent="jmapDiscover"
+                  />
+                  <p class="mt-1 text-xs text-ctp-subtext0">We'll try to auto-discover your JMAP server settings.</p>
+                </div>
+
+                <div v-if="jmapFormError" class="rounded border border-ctp-red bg-ctp-red/10 px-3 py-2 text-xs text-ctp-red">
+                  {{ jmapFormError }}
+                </div>
+
+                <div class="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    class="rounded-lg border border-ctp-surface1 px-4 py-2 text-sm text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
+                    @click="closeEmxDialog"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+                    :disabled="jmapDiscovering || !jmapEmail.trim().includes('@')"
+                    @click="jmapDiscover"
+                  >
+                    {{ jmapDiscovering ? 'Discovering…' : 'Discover' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Step 2: Credentials -->
+              <div v-else class="space-y-3">
+                <div>
+                  <label for="jmap-session-url" class="mb-1 block text-xs font-medium text-ctp-subtext0">Session URL</label>
+                  <input
+                    id="jmap-session-url"
+                    v-model="jmapSessionUrl"
+                    type="url"
+                    placeholder="https://api.fastmail.com/jmap/session"
+                    :readonly="jmapSessionDiscovered"
+                    class="w-full rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
+                    :class="{ 'opacity-60': jmapSessionDiscovered }"
+                  />
+                  <p v-if="jmapSessionDiscovered" class="mt-1 text-xs text-ctp-green">✓ Auto-discovered</p>
+                </div>
+                <div>
+                  <label for="jmap-username" class="mb-1 block text-xs font-medium text-ctp-subtext0">Username</label>
+                  <input
+                    id="jmap-username"
+                    v-model="jmapUsername"
+                    type="text"
+                    placeholder="you@fastmail.com"
+                    class="w-full rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label for="jmap-password" class="mb-1 block text-xs font-medium text-ctp-subtext0">Password</label>
+                  <input
+                    id="jmap-password"
+                    v-model="jmapPassword"
+                    type="password"
+                    :placeholder="jmapEditingEmx ? '(unchanged)' : 'App password or account password'"
+                    class="w-full rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
+                  />
+                </div>
+
+                <div v-if="jmapFormError" class="rounded border border-ctp-red bg-ctp-red/10 px-3 py-2 text-xs text-ctp-red">
+                  {{ jmapFormError }}
+                </div>
+
+                <div class="mt-4 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    class="rounded-lg border border-ctp-surface1 px-4 py-2 text-sm text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
+                    @click="closeEmxDialog"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+                    :disabled="jmapFormSaving || !jmapSessionUrl || !jmapUsername || (!jmapEditingEmx && !jmapPassword)"
+                    @click="submitJmapForm"
+                  >
+                    {{ jmapFormSaving ? 'Connecting…' : jmapEditingEmx ? 'Save' : 'Connect' }}
+                  </button>
+                </div>
+              </div>
             </div>
           </Transition>
         </div>
