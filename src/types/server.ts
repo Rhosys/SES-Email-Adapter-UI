@@ -698,6 +698,11 @@ export interface ExternalMailExchange {
   lastSyncAt?: string
   errorReason?: string
   createdAt: string
+  imapConfig?: {
+    host: string
+    tlsConfig: "TLS" | "DISABLED"
+    username: string
+  }
 }
 
 // ─── Email Template ───────────────────────────────────────────────────────────

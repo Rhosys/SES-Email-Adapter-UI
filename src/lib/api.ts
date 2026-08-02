@@ -573,7 +573,7 @@ export const api = {
 
   createExternalExchange(
     accountId: string,
-    body: { platform: string; emailAddress: string },
+    body: { platform: string; emailAddress?: string; imapConfig?: { host: string; tlsConfig: 'TLS' | 'DISABLED'; username: string; password: string } },
   ): Promise<Result<ExternalMailExchange, ApiError>> {
     return request<ExternalMailExchange>(`/accounts/${accountId}/external-exchanges`, {
       method: 'POST',
@@ -584,6 +584,17 @@ export const api = {
   deleteExternalExchange(accountId: string, emxId: string): Promise<Result<void, ApiError>> {
     return request<void>(`/accounts/${accountId}/external-exchanges/${emxId}`, {
       method: 'DELETE',
+    })
+  },
+
+  patchExternalExchange(
+    accountId: string,
+    emxId: string,
+    body: { imapConfig: { host?: string; tlsConfig?: 'TLS' | 'DISABLED'; username?: string; password?: string } },
+  ): Promise<Result<ExternalMailExchange, ApiError>> {
+    return request<ExternalMailExchange>(`/accounts/${accountId}/external-exchanges/${emxId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
     })
   },
 

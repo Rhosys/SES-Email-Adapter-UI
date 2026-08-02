@@ -20,7 +20,11 @@ const portalLoading = ref(false)
 const showSuccess = ref(route.query.success === 'true')
 const mode = ref<'personal' | 'business'>('personal')
 
-const accentColor = computed(() => mode.value === 'business' ? 'blue' : 'mauve')
+// Tailwind v4 cannot resolve template-literal class names (`bg-ctp-${x}`).
+// Use explicit conditional maps so JIT sees full static class strings.
+const accentBg = computed(() => mode.value === 'business' ? 'bg-ctp-blue' : 'bg-ctp-mauve')
+const accentBgFaint = computed(() => mode.value === 'business' ? 'bg-ctp-blue/5' : 'bg-ctp-mauve/5')
+const accentBorder = computed(() => mode.value === 'business' ? 'border-ctp-blue' : 'border-ctp-mauve')
 
 if (showSuccess.value) {
   void router.replace({ query: {} })
@@ -285,14 +289,14 @@ async function openPortal() {
             class="relative rounded-lg border p-4"
             :class="
               plan.id === currentPlan
-                ? `border-ctp-${accentColor} bg-ctp-${accentColor}/5`
+                ? [accentBorder, accentBgFaint]
                 : 'border-ctp-surface1'
             "
           >
             <div
               v-if="plan.recommended && plan.id !== currentPlan"
               class="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full px-2.5 py-0.5 text-xs font-medium text-ctp-base"
-              :class="`bg-ctp-${accentColor}`"
+              :class="accentBg"
             >
               Most Obvious
             </div>
@@ -340,7 +344,7 @@ async function openPortal() {
                 v-else
                 :action="() => upgrade(plan)"
                 class="w-full rounded-lg py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
-                :class="`bg-ctp-${accentColor}`"
+                :class="accentBg"
               >
                 Upgrade to {{ plan.name }}
               </AsyncButton>
