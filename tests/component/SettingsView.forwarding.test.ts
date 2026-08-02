@@ -45,7 +45,7 @@ function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/settings', component: SettingsView },
+      { path: '/settings/:tab', component: SettingsView },
     ],
   })
 }
@@ -56,7 +56,7 @@ async function mountForwardingTab(forwarding: ForwardingTarget[]) {
   vi.mocked(api.listForwardingAddresses).mockResolvedValue(ok(forwarding))
 
   const router = makeRouter()
-  await router.push('/settings?tab=forwarding')
+  await router.push('/settings/email-forwarding?tab=forwarding')
   await router.isReady()
 
   const wrapper = mount(SettingsView, {

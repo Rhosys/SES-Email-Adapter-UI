@@ -13,20 +13,12 @@ export const SETTINGS_TABS: { key: SettingsTabKey; label: string; mobileLabel?: 
   { key: 'billing', label: 'Billing', description: 'Manage your plan and payment details' },
 ]
 
-/** Older ?tab= values from before tabs were merged, mapped to their current key. */
-export const LEGACY_SETTINGS_TAB_MAP: Record<string, SettingsTabKey> = {
-  email: 'email-forwarding',
-  forwarding: 'email-forwarding',
-  domains: 'email-forwarding',
-}
-
 const SETTINGS_TAB_KEYS: SettingsTabKey[] = SETTINGS_TABS.map((t) => t.key)
 
-/** Resolves a raw `?tab=` query value (possibly legacy) to a known tab, or undefined. */
+/** Resolves a raw tab path segment to a known tab, or undefined. */
 export function resolveSettingsTab(rawTab: string | undefined): SettingsTabKey | undefined {
   if (!rawTab) return undefined
-  const tab = (LEGACY_SETTINGS_TAB_MAP[rawTab] ?? rawTab) as SettingsTabKey
-  return SETTINGS_TAB_KEYS.includes(tab) ? tab : undefined
+  return SETTINGS_TAB_KEYS.includes(rawTab as SettingsTabKey) ? (rawTab as SettingsTabKey) : undefined
 }
 
 /** Label for the given tab key, defaulting to the Profile tab's label. */

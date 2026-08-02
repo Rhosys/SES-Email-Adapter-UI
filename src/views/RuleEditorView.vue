@@ -724,7 +724,7 @@ watch(signalAction, (val) => {
                 </option>
               </select>
               <RouterLink
-                to="/settings?tab=email-forwarding"
+                to="/settings/email-forwarding?tab=forwarding"
                 class="shrink-0 text-xs text-ctp-mauve hover:opacity-80"
                 title="Manage forwarding targets"
               >
@@ -737,7 +737,7 @@ watch(signalAction, (val) => {
                 Uses the calendar invite forwarding target configured in Settings — no per-rule address needed.
               </p>
               <RouterLink
-                to="/settings?tab=email-forwarding"
+                to="/settings/email-forwarding?tab=forwarding"
                 class="shrink-0 text-xs text-ctp-mauve hover:opacity-80"
                 title="Manage calendar forwarding target"
               >

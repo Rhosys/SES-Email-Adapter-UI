@@ -66,6 +66,11 @@ const profileSubTab = ref<ProfileSubTab>('configuration')
 type EmailSubTab = 'email' | 'inbound' | 'forwarding' | 'domains'
 const emailSubTab = ref<EmailSubTab>('email')
 
+function setEmailSubTab(sub: EmailSubTab) {
+  emailSubTab.value = sub
+  void router.replace(`/settings/email-forwarding${sub !== 'email' ? `?tab=${sub}` : ''}`)
+}
+
 const { startTour } = useFeatureTour()
 // Shared with AppLayout's global "?" binding — one ShortcutHelpOverlay
 // instance for the whole app, mounted in AppLayout; this just opens it.
@@ -548,7 +553,7 @@ async function openAddTargetModal(origin: AddTargetOrigin) {
   // visible once the modal closes. No-op if already there.
   if (origin !== 'button') {
     await switchTab('email-forwarding')
-    emailSubTab.value = 'forwarding'
+    setEmailSubTab('forwarding')
   }
   showAddTargetModal.value = true
 }
@@ -674,6 +679,75 @@ async function deleteExchange(emx: ExternalMailExchange) {
   const result = await api.deleteExternalExchange(accountStore.accountId, emx.id)
   emxDeletePending.value = null
   if (result.isOk()) exchanges.value = exchanges.value.filter((e) => e.id !== emx.id)
+}
+
+// ─── IMAP/JMAP connection form ────────────────────────────────────────────────
+type EmxDialogView = 'picker' | 'imap-form'
+const emxDialogView = ref<EmxDialogView>('picker')
+const imapFormHost = ref('')
+const imapFormUsername = ref('')
+const imapFormPassword = ref('')
+const imapFormTls = ref<'TLS' | 'DISABLED'>('TLS')
+const imapFormSaving = ref(false)
+const imapFormError = ref('')
+const imapEditingEmx = ref<ExternalMailExchange | null>(null)
+
+function openImapForm(emx?: ExternalMailExchange) {
+  if (emx?.imapConfig) {
+    imapEditingEmx.value = emx
+    imapFormHost.value = emx.imapConfig.host
+    imapFormUsername.value = emx.imapConfig.username
+    imapFormPassword.value = ''
+    imapFormTls.value = emx.imapConfig.tlsConfig
+  } else {
+    imapEditingEmx.value = null
+    imapFormHost.value = ''
+    imapFormUsername.value = ''
+    imapFormPassword.value = ''
+    imapFormTls.value = 'TLS'
+  }
+  imapFormError.value = ''
+  emxDialogView.value = 'imap-form'
+  emxPlatformPickerOpen.value = true
+}
+
+function closeEmxDialog() {
+  emxPlatformPickerOpen.value = false
+  setTimeout(() => { emxDialogView.value = 'picker' }, 200)
+}
+
+async function submitImapForm() {
+  if (!accountStore.accountId) return
+  imapFormSaving.value = true
+  imapFormError.value = ''
+
+  if (imapEditingEmx.value) {
+    const body: { imapConfig: { host?: string; tlsConfig?: 'TLS' | 'DISABLED'; username?: string; password?: string } } = { imapConfig: {} }
+    if (imapFormHost.value !== imapEditingEmx.value.imapConfig?.host) body.imapConfig.host = imapFormHost.value
+    if (imapFormTls.value !== imapEditingEmx.value.imapConfig?.tlsConfig) body.imapConfig.tlsConfig = imapFormTls.value
+    if (imapFormUsername.value !== imapEditingEmx.value.imapConfig?.username) body.imapConfig.username = imapFormUsername.value
+    if (imapFormPassword.value) body.imapConfig.password = imapFormPassword.value
+
+    const result = await api.patchExternalExchange(accountStore.accountId, imapEditingEmx.value.id, body)
+    imapFormSaving.value = false
+    if (result.isErr()) {
+      imapFormError.value = result.error.message
+      return
+    }
+    exchanges.value = exchanges.value.map((e) => e.id === result.value.id ? result.value : e)
+  } else {
+    const result = await api.createExternalExchange(accountStore.accountId, {
+      platform: 'imap',
+      imapConfig: { host: imapFormHost.value, tlsConfig: imapFormTls.value, username: imapFormUsername.value, password: imapFormPassword.value },
+    })
+    imapFormSaving.value = false
+    if (result.isErr()) {
+      imapFormError.value = result.error.message
+      return
+    }
+    exchanges.value = [...exchanges.value, result.value]
+  }
+  closeEmxDialog()
 }
 
 async function resendForwardingVerification(target: ForwardingTarget) {
@@ -836,7 +910,7 @@ function sendTestNotification() {
 // ─── Tab loading ──────────────────────────────────────────────────────────────
 async function switchTab(tab: TabKey) {
   activeTab.value = tab
-  void router.replace({ query: tab === 'profile' ? {} : { tab } })
+  void router.replace(`/settings/${tab}`)
   if (tab === 'emails' && aliases.value.length === 0) await loadAliases()
   if (tab === 'email-forwarding') {
     if (domains.value.length === 0) await loadDomains()
@@ -873,16 +947,24 @@ onMounted(async () => {
     const { verifyAddress: _va, token: _tk, ...rest } = route.query
     void router.replace({ query: rest })
     activeTab.value = 'email-forwarding'
+    setEmailSubTab('forwarding')
   }
-  // Hydrate active tab from URL (map legacy tab keys to merged tab)
-  const tab = resolveSettingsTab(route.query.tab as string | undefined)
+  // Hydrate active tab from route param (path segment)
+  const tabParam = route.params.tab as string | undefined
+  const tab = resolveSettingsTab(tabParam)
   if (tab) {
     await switchTab(tab)
-    // If the URL specifies a sub-section, activate the matching sub-tab
-    const rawTab = route.query.tab as string | undefined
-    if (rawTab === 'forwarding' || rawTab === 'email-forwarding') emailSubTab.value = 'forwarding'
-    else if (rawTab === 'domains') emailSubTab.value = 'domains'
-    else if (rawTab === 'email') emailSubTab.value = 'email'
+    // If the URL specifies a sub-tab query, activate the matching sub-tab
+    const subTab = route.query.tab as string | undefined
+    if (subTab === 'forwarding') emailSubTab.value = 'forwarding'
+    else if (subTab === 'domains') emailSubTab.value = 'domains'
+    else if (subTab === 'inbound') emailSubTab.value = 'inbound'
+    else if (subTab === 'email') emailSubTab.value = 'email'
+    else if (subTab === 'configuration') profileSubTab.value = 'configuration'
+    else if (subTab === 'security') profileSubTab.value = 'security'
+  } else if (tabParam) {
+    // Unknown tab segment — redirect to profile
+    void router.replace('/settings/profile')
   }
 })
 
@@ -1544,15 +1626,15 @@ useGestureHandler(settingsContentRef, {
             type="button"
             class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
             :class="emailSubTab === 'email' ? 'bg-ctp-mauve/15 text-ctp-mauve' : 'text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text'"
-            @click="emailSubTab = 'email'"
+            @click="setEmailSubTab('email')"
           >
-            Settings
+            Email
           </button>
           <button
             type="button"
             class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
             :class="emailSubTab === 'inbound' ? 'bg-ctp-mauve/15 text-ctp-mauve' : 'text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text'"
-            @click="emailSubTab = 'inbound'"
+            @click="setEmailSubTab('inbound')"
           >
             Inbound
           </button>
@@ -1560,7 +1642,7 @@ useGestureHandler(settingsContentRef, {
             type="button"
             class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
             :class="emailSubTab === 'forwarding' ? 'bg-ctp-mauve/15 text-ctp-mauve' : 'text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text'"
-            @click="emailSubTab = 'forwarding'"
+            @click="setEmailSubTab('forwarding')"
           >
             Forwarding
           </button>
@@ -1568,13 +1650,13 @@ useGestureHandler(settingsContentRef, {
             type="button"
             class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
             :class="emailSubTab === 'domains' ? 'bg-ctp-mauve/15 text-ctp-mauve' : 'text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text'"
-            @click="emailSubTab = 'domains'"
+            @click="setEmailSubTab('domains')"
           >
             Domains
           </button>
         </nav>
 
-        <!-- Settings sub-tab -->
+        <!-- Email sub-tab -->
         <template v-if="emailSubTab === 'email'">
           <section class="rounded-lg border border-ctp-surface1 p-4">
             <div class="space-y-6">
@@ -1664,7 +1746,7 @@ useGestureHandler(settingsContentRef, {
 
         <!-- Inbound sub-tab -->
         <template v-if="emailSubTab === 'inbound'">
-          <section class="rounded-lg border border-ctp-surface1 p-4">
+          <section class="space-y-4 rounded-lg border border-ctp-surface1 p-4">
           <div class="flex items-center justify-between">
             <h2 class="text-sm font-semibold text-ctp-text">Inbound Receiving</h2>
             <button
@@ -1675,6 +1757,10 @@ useGestureHandler(settingsContentRef, {
               + Connect
             </button>
           </div>
+
+          <p class="text-xs text-ctp-subtext0">
+            Pull email into your account from external providers. Connect via OAuth (Gmail, Outlook) for automatic sync, or use IMAP/JMAP credentials for any standard mail server — Fastmail, ProtonMail Bridge, self-hosted, etc.
+          </p>
 
           <!-- Inbound address display -->
           <div class="rounded-lg border border-ctp-surface1 p-4">
@@ -1716,7 +1802,7 @@ useGestureHandler(settingsContentRef, {
           >
             <p class="font-medium text-ctp-text">No connected exchanges</p>
             <p class="mx-auto mt-1 max-w-sm">
-              Connect Gmail or Outlook to sync inbound email from existing accounts.
+              Connect Gmail, Outlook, or any IMAP/JMAP server to sync inbound email from existing accounts.
             </p>
           </div>
           <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
@@ -1729,6 +1815,8 @@ useGestureHandler(settingsContentRef, {
                 <!-- Platform icon -->
                 <span v-if="emx.platform === 'gmail'" class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-ctp-red/10 text-xs font-bold text-ctp-red">G</span>
                 <span v-else-if="emx.platform === 'outlook'" class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-ctp-blue/10 text-xs font-bold text-ctp-blue">O</span>
+                <span v-else-if="emx.platform === 'imap'" class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-ctp-teal/10 text-xs font-bold text-ctp-teal">I</span>
+                <span v-else-if="emx.platform === 'jmap'" class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-ctp-sapphire/10 text-xs font-bold text-ctp-sapphire">J</span>
                 <span v-else class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-ctp-surface1 text-xs font-bold text-ctp-subtext0">✉</span>
                 <div>
                   <p class="text-sm text-ctp-text">{{ emx.emailAddress || emx.platform }}</p>
@@ -1764,6 +1852,16 @@ useGestureHandler(settingsContentRef, {
                   @click="retryExchange(emx)"
                 >
                   Retry
+                </button>
+                <!-- IMAP settings cog -->
+                <button
+                  v-if="emx.platform === 'imap'"
+                  type="button"
+                  class="text-ctp-subtext0 hover:text-ctp-mauve"
+                  title="IMAP settings"
+                  @click="openImapForm(emx)"
+                >
+                  <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.86 2.57a1.14 1.14 0 012.28 0c.63.29 1.37.08 1.74-.46a1.14 1.14 0 011.97 1.14c-.17.67.2 1.37.82 1.61a1.14 1.14 0 010 2.28c-.63.29-.99.94-.82 1.61a1.14 1.14 0 01-1.97 1.14c-.37-.54-1.11-.75-1.74-.46a1.14 1.14 0 01-2.28 0c-.63-.29-1.37-.08-1.74.46a1.14 1.14 0 01-1.97-1.14c.17-.67-.2-1.37-.82-1.61a1.14 1.14 0 010-2.28c.63-.29.99-.94.82-1.61A1.14 1.14 0 015.12 2.1c.37.54 1.11.75 1.74.46z"/><circle cx="8" cy="8" r="2"/></svg>
                 </button>
                 <!-- Delete -->
                 <button
@@ -2187,46 +2285,163 @@ useGestureHandler(settingsContentRef, {
         v-if="emxPlatformPickerOpen"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
         aria-hidden="true"
-        @click.self="emxPlatformPickerOpen = false"
+        @click.self="closeEmxDialog"
       >
-        <div role="dialog" aria-modal="true" aria-label="Connect email provider" class="w-full max-w-sm rounded-xl border border-ctp-surface1 bg-ctp-base p-6 shadow-xl">
-          <h2 class="mb-2 text-sm font-semibold text-ctp-text">Connect email provider</h2>
-          <p class="mb-4 text-xs text-ctp-subtext0">Choose a provider to sync inbound email from.</p>
-          <div class="space-y-2">
-            <button
-              type="button"
-              class="flex w-full items-center gap-3 rounded-lg border border-ctp-surface1 p-3 text-left transition-colors hover:border-ctp-mauve hover:bg-ctp-mauve/5"
-              :disabled="emxConnecting"
-              @click="connectExchange('gmail')"
-            >
-              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-red/10 text-sm font-bold text-ctp-red">G</span>
-              <div>
-                <p class="text-sm font-medium text-ctp-text">Gmail</p>
-                <p class="text-xs text-ctp-subtext0">Google Workspace or personal Gmail</p>
+        <div role="dialog" aria-modal="true" aria-label="Connect email provider" class="w-full max-w-sm overflow-hidden rounded-xl border border-ctp-surface1 bg-ctp-base shadow-xl">
+          <!-- Picker view -->
+          <Transition name="fade" mode="out-in">
+            <div v-if="emxDialogView === 'picker'" key="picker" class="p-6">
+              <h2 class="mb-2 text-sm font-semibold text-ctp-text">Connect email provider</h2>
+              <p class="mb-4 text-xs text-ctp-subtext0">Choose a provider to sync inbound email from.</p>
+              <div class="space-y-2">
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-3 rounded-lg border border-ctp-surface1 p-3 text-left transition-colors hover:border-ctp-mauve hover:bg-ctp-mauve/5"
+                  :disabled="emxConnecting"
+                  @click="connectExchange('gmail')"
+                >
+                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-red/10 text-sm font-bold text-ctp-red">G</span>
+                  <div>
+                    <p class="text-sm font-medium text-ctp-text">Gmail</p>
+                    <p class="text-xs text-ctp-subtext0">Google Workspace or personal Gmail</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-3 rounded-lg border border-ctp-surface1 p-3 text-left transition-colors hover:border-ctp-mauve hover:bg-ctp-mauve/5"
+                  :disabled="emxConnecting"
+                  @click="connectExchange('outlook')"
+                >
+                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-blue/10 text-sm font-bold text-ctp-blue">O</span>
+                  <div>
+                    <p class="text-sm font-medium text-ctp-text">Outlook</p>
+                    <p class="text-xs text-ctp-subtext0">Microsoft 365 or Outlook.com</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-3 rounded-lg border border-ctp-surface1 p-3 text-left transition-colors hover:border-ctp-mauve hover:bg-ctp-mauve/5"
+                  @click="emxDialogView = 'imap-form'"
+                >
+                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-teal/10 text-sm font-bold text-ctp-teal">I</span>
+                  <div>
+                    <p class="text-sm font-medium text-ctp-text">IMAP</p>
+                    <p class="text-xs text-ctp-subtext0">Any mail server — Fastmail, ProtonMail Bridge, self-hosted</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-3 rounded-lg border border-ctp-surface1 p-3 text-left opacity-50 cursor-not-allowed"
+                  disabled
+                >
+                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-sapphire/10 text-sm font-bold text-ctp-sapphire">J</span>
+                  <div>
+                    <p class="text-sm font-medium text-ctp-text">JMAP</p>
+                    <p class="text-xs text-ctp-subtext0">Coming soon — Fastmail, Stalwart, Cyrus</p>
+                  </div>
+                </button>
               </div>
-            </button>
-            <button
-              type="button"
-              class="flex w-full items-center gap-3 rounded-lg border border-ctp-surface1 p-3 text-left transition-colors hover:border-ctp-mauve hover:bg-ctp-mauve/5"
-              :disabled="emxConnecting"
-              @click="connectExchange('outlook')"
-            >
-              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-blue/10 text-sm font-bold text-ctp-blue">O</span>
-              <div>
-                <p class="text-sm font-medium text-ctp-text">Outlook</p>
-                <p class="text-xs text-ctp-subtext0">Microsoft 365 or Outlook.com</p>
+              <div class="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  class="rounded-lg border border-ctp-surface1 px-4 py-2 text-sm text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
+                  @click="closeEmxDialog"
+                >
+                  Cancel
+                </button>
               </div>
-            </button>
-          </div>
-          <div class="mt-4 flex justify-end">
-            <button
-              type="button"
-              class="rounded-lg border border-ctp-surface1 px-4 py-2 text-sm text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
-              @click="emxPlatformPickerOpen = false"
-            >
-              Cancel
-            </button>
-          </div>
+            </div>
+
+            <!-- IMAP form view -->
+            <div v-else-if="emxDialogView === 'imap-form'" key="imap-form" class="p-6">
+              <div class="mb-4 flex items-center gap-2">
+                <button
+                  type="button"
+                  class="rounded p-1 text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text"
+                  @click="emxDialogView = 'picker'"
+                >
+                  <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12L6 8l4-4"/></svg>
+                </button>
+                <h2 class="text-sm font-semibold text-ctp-text">{{ imapEditingEmx ? 'Edit IMAP connection' : 'Connect via IMAP' }}</h2>
+              </div>
+
+              <div class="space-y-3">
+                <div>
+                  <label for="imap-host" class="mb-1 block text-xs font-medium text-ctp-subtext0">Server host</label>
+                  <input
+                    id="imap-host"
+                    v-model="imapFormHost"
+                    type="text"
+                    placeholder="imap.example.com"
+                    class="w-full rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label for="imap-username" class="mb-1 block text-xs font-medium text-ctp-subtext0">Username</label>
+                  <input
+                    id="imap-username"
+                    v-model="imapFormUsername"
+                    type="text"
+                    placeholder="user@example.com"
+                    class="w-full rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label for="imap-password" class="mb-1 block text-xs font-medium text-ctp-subtext0">Password</label>
+                  <input
+                    id="imap-password"
+                    v-model="imapFormPassword"
+                    type="password"
+                    :placeholder="imapEditingEmx ? '(unchanged)' : 'App password or account password'"
+                    class="w-full rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs font-medium text-ctp-subtext0">Encryption</label>
+                  <div class="flex gap-2">
+                    <button
+                      type="button"
+                      class="rounded-full border px-3 py-1 text-xs font-medium transition-colors"
+                      :class="imapFormTls === 'TLS' ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve' : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2'"
+                      @click="imapFormTls = 'TLS'"
+                    >
+                      TLS (port 993)
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded-full border px-3 py-1 text-xs font-medium transition-colors"
+                      :class="imapFormTls === 'DISABLED' ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve' : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2'"
+                      @click="imapFormTls = 'DISABLED'"
+                    >
+                      None (port 143)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="imapFormError" class="mt-3 rounded border border-ctp-red bg-ctp-red/10 px-3 py-2 text-xs text-ctp-red">
+                {{ imapFormError }}
+              </div>
+
+              <div class="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  class="rounded-lg border border-ctp-surface1 px-4 py-2 text-sm text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
+                  @click="closeEmxDialog"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg bg-ctp-mauve px-4 py-2 text-sm font-medium text-ctp-base hover:opacity-90 disabled:opacity-50"
+                  :disabled="imapFormSaving || !imapFormHost || !imapFormUsername || (!imapEditingEmx && !imapFormPassword)"
+                  @click="submitImapForm"
+                >
+                  {{ imapFormSaving ? 'Connecting…' : imapEditingEmx ? 'Save' : 'Connect' }}
+                </button>
+              </div>
+            </div>
+          </Transition>
         </div>
       </div>
     </Teleport>

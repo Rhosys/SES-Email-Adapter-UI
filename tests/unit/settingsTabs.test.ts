@@ -10,12 +10,6 @@ describe('resolveSettingsTab', () => {
     expect(resolveSettingsTab('team')).toBe('team')
   })
 
-  it('maps legacy tab keys to their current key', () => {
-    expect(resolveSettingsTab('email')).toBe('email-forwarding')
-    expect(resolveSettingsTab('forwarding')).toBe('email-forwarding')
-    expect(resolveSettingsTab('domains')).toBe('email-forwarding')
-  })
-
   it('returns undefined for an unknown tab', () => {
     expect(resolveSettingsTab('not-a-real-tab')).toBeUndefined()
   })

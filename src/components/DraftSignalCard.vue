@@ -229,7 +229,7 @@ async function discard() {
           >
             <span class="font-medium">No verified sending domain.</span>
             You need at least one verified domain before you can send replies.
-            <router-link to="/settings" class="underline hover:text-ctp-text">
+            <router-link to="/settings/email-forwarding?tab=domains" class="underline hover:text-ctp-text">
               Add one in Settings → Domains.
             </router-link>
           </div>

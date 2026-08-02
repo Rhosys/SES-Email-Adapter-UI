@@ -56,7 +56,7 @@ function testAccount(overrides: Partial<Account> = {}): Account {
 function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/settings', component: SettingsView }],
+    routes: [{ path: '/settings/:tab', component: SettingsView }],
   })
 }
 
@@ -68,8 +68,11 @@ async function mountSettings(query: Record<string, string>, account: Account) {
   vi.mocked(api.listDomains).mockResolvedValue(ok([]))
   vi.mocked(api.listExternalExchanges).mockResolvedValue(ok([]))
 
+  const tab = query.tab ?? 'profile'
+  const { tab: _, subTab: subTabVal, ...restQuery } = query
+  const subQuery = subTabVal ? { tab: subTabVal, ...restQuery } : restQuery
   const router = makeRouter()
-  await router.push({ path: '/settings', query })
+  await router.push({ path: `/settings/${tab}`, query: subQuery })
   await router.isReady()
 
   const wrapper = mount(SettingsView, { global: { plugins: [pinia, router] } })
@@ -105,7 +108,7 @@ describe('SettingsView — forwarding target add modal', () => {
   })
 
   it('auto-selects a newly added webhook target back into the calendar select (verified immediately)', async () => {
-    const wrapper = await mountSettings({ tab: 'email-forwarding' }, testAccount())
+    const wrapper = await mountSettings({ tab: 'email-forwarding', subTab: 'forwarding' }, testAccount())
     vi.mocked(api.createForwardingAddress).mockResolvedValue(
       ok({ target: 'https://hooks.example.com/new', type: 'webhook', status: 'verified', createdAt: '2025-02-01T00:00:00Z' }),
     )
@@ -129,7 +132,7 @@ describe('SettingsView — forwarding target add modal', () => {
   })
 
   it('does not select a newly added pending email target, and shows a verification toast instead', async () => {
-    const wrapper = await mountSettings({ tab: 'email-forwarding' }, testAccount())
+    const wrapper = await mountSettings({ tab: 'email-forwarding', subTab: 'forwarding' }, testAccount())
     vi.mocked(api.createForwardingAddress).mockResolvedValue(
       ok({ target: 'new@example.com', type: 'email', status: 'pending', createdAt: '2025-02-01T00:00:00Z' }),
     )
@@ -154,7 +157,7 @@ describe('SettingsView — forwarding target add modal', () => {
   })
 
   it('the Email & Forwarding tab\'s own "Add Forwarding Target" button opens the modal without touching any select', async () => {
-    const wrapper = await mountSettings({ tab: 'email-forwarding' }, testAccount())
+    const wrapper = await mountSettings({ tab: 'email-forwarding', subTab: 'forwarding' }, testAccount())
     await wrapper.findAll('button').find((b) => b.text() === 'Add Forwarding Target')!.trigger('click')
     await flushPromises()
     expect(wrapper.find('[role="dialog"]').exists()).toBe(true)

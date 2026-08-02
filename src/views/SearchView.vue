@@ -141,7 +141,7 @@ onMounted(() => {
           <RouterLink
             v-for="alias in results.aliases"
             :key="alias.alias"
-            to="/settings"
+            to="/settings/emails"
             class="flex items-center justify-between px-4 py-3 transition-colors hover:bg-ctp-surface0/50"
           >
             <p class="text-sm text-ctp-text">{{ alias.alias }}</p>

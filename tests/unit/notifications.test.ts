@@ -63,9 +63,9 @@ describe('notify', () => {
     await notify({
       title: 't',
       body: 'b',
-      url: '/settings',
+      url: '/settings/email-forwarding',
       actions: [
-        { action: 'open-settings', title: 'Open Settings', url: '/settings?tab=email-forwarding' },
+        { action: 'open-settings', title: 'Open Settings', url: '/settings/email-forwarding?tab=forwarding' },
         { action: 'dismiss', title: 'Dismiss' },
       ],
     })
@@ -75,7 +75,7 @@ describe('notify', () => {
       { action: 'open-settings', title: 'Open Settings' },
       { action: 'dismiss', title: 'Dismiss' },
     ])
-    expect(options.data.actionUrls).toEqual({ 'open-settings': '/settings?tab=email-forwarding' })
+    expect(options.data.actionUrls).toEqual({ 'open-settings': '/settings/email-forwarding?tab=forwarding' })
   })
 
   it('respects a custom icon/badge/tag when provided', async () => {

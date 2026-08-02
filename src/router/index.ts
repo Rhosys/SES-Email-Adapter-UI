@@ -18,11 +18,6 @@ export const router = createRouter({
       component: () => import('@/views/OnboardingView.vue'),
       meta: { requiresAuth: true },
     },
-    {
-      path: '/profile',
-      redirect: { name: 'settings', query: { tab: 'profile' } },
-    },
-
     // Authenticated routes — all rendered inside AppLayout (sidebar)
     {
       path: '/',
@@ -96,12 +91,12 @@ export const router = createRouter({
         },
         {
           path: 'settings',
-          name: 'settings',
-          component: () => import('@/views/SettingsView.vue'),
+          redirect: '/settings/profile',
         },
         {
-          path: 'settings/notifications',
-          redirect: { name: 'settings', query: { tab: 'profile' } },
+          path: 'settings/:tab',
+          name: 'settings',
+          component: () => import('@/views/SettingsView.vue'),
         },
         {
           path: 'billing',

@@ -32,7 +32,7 @@ const route = useRoute()
 // hamburger + search facade (Settings owns its own bottom tab bar instead). ──
 const isMobileSettings = computed(() => route.name === 'settings')
 const mobileSettingsTitle = computed(() =>
-  settingsTabLabel(resolveSettingsTab(route.query.tab as string | undefined)),
+  settingsTabLabel(resolveSettingsTab(route.params.tab as string | undefined)),
 )
 
 function handleMobileBack() {
@@ -238,8 +238,8 @@ onMounted(async () => {
   onAction('go_quarantine', () => void router.push({ name: 'quarantine' }))
   onAction('go_labels', () => void router.push({ name: 'labels' }))
   onAction('go_rules', () => void router.push({ name: 'rules' }))
-  onAction('go_settings', () => void router.push({ name: 'settings' }))
-  onAction('go_profile', () => void router.push({ name: 'profile' }))
+  onAction('go_settings', () => void router.push('/settings/profile'))
+  onAction('go_profile', () => void router.push('/settings/profile'))
 })
 </script>
 
