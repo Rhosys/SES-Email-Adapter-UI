@@ -628,24 +628,46 @@ async function loadExchanges() {
 
 async function connectExchange(platform: 'gmail' | 'outlook') {
   if (!accountStore.accountId) return
-  emxConnecting.value = true
   emxActivationError.value = ''
   emxPlatformPickerOpen.value = false
 
-  // Step 1: Authress progressive consent — provider-specific connection
+  // Redirect to provider OAuth — page unloads. On return, onMounted picks up completeExchange param.
   const connectionId = platform === 'gmail' ? 'google' : 'microsoft'
+  const basePath = import.meta.env.VITE_BASE_PATH ?? '/'
+  const redirectUrl = `${window.location.origin}${basePath}settings/email-forwarding?tab=inbound&completeExchange=${platform}`
+  await loginClient.authenticate({ connectionId, redirectUrl })
+  // If authenticate doesn't redirect (connection already exists), complete inline
+  await completeExchangeActivation(platform)
+}
+
+async function completeExchangeActivation(platform: 'gmail' | 'outlook') {
+  if (!accountStore.accountId) return
+  emxConnecting.value = true
+  emxActivationError.value = ''
+
+  const connectionId = platform === 'gmail' ? 'google' : 'microsoft'
+  let emailAddress: string
   try {
-    await loginClient.authenticate({ connectionId, redirectUrl: window.location.href })
+    const profile = await loginClient.getUserProfile()
+    const linked = profile?.linkedIdentities?.find(
+      (i) => i.connection.connectionId === connectionId,
+    )
+    emailAddress = linked?.connection.userId ?? ''
   } catch {
-    emxActivationError.value = 'Authorization was cancelled or failed'
+    emxActivationError.value = 'Failed to resolve provider email'
     emxConnecting.value = false
     return
   }
 
-  // Step 2: POST create — backend does full activation inline (blocking)
+  if (!emailAddress) {
+    emxActivationError.value = 'Could not determine email address from provider'
+    emxConnecting.value = false
+    return
+  }
+
   const createResult = await api.createExternalExchange(accountStore.accountId, {
     platform,
-    emailAddress: '', // backend resolves from the token
+    emailAddress,
   })
   emxConnecting.value = false
   if (createResult.isErr()) {
@@ -948,6 +970,13 @@ onMounted(async () => {
     void router.replace({ query: rest })
     activeTab.value = 'email-forwarding'
     setEmailSubTab('forwarding')
+  }
+  // Handle OAuth exchange completion redirect
+  const completeExchange = route.query.completeExchange as string | undefined
+  if (completeExchange && (completeExchange === 'gmail' || completeExchange === 'outlook') && accountStore.accountId) {
+    const { completeExchange: _ce, ...rest } = route.query
+    void router.replace({ query: rest })
+    await completeExchangeActivation(completeExchange)
   }
   // Hydrate active tab from route param (path segment)
   const tabParam = route.params.tab as string | undefined
