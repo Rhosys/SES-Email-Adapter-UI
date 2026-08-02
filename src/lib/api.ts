@@ -573,7 +573,7 @@ export const api = {
 
   createExternalExchange(
     accountId: string,
-    body: { platform: string; emailAddress?: string; imapConfig?: { host: string; tlsConfig: 'TLS' | 'DISABLED'; username: string; password: string } },
+    body: { platform: string; emailAddress?: string; imapConfig?: { host: string; tlsConfig: 'TLS' | 'DISABLED'; username: string; password: string }; jmapConfig?: { sessionUrl: string; username: string; password: string } },
   ): Promise<Result<ExternalMailExchange, ApiError>> {
     return request<ExternalMailExchange>(`/accounts/${accountId}/external-exchanges`, {
       method: 'POST',
@@ -590,7 +590,7 @@ export const api = {
   patchExternalExchange(
     accountId: string,
     emxId: string,
-    body: { imapConfig: { host?: string; tlsConfig?: 'TLS' | 'DISABLED'; username?: string; password?: string } },
+    body: { imapConfig?: { host?: string; tlsConfig?: 'TLS' | 'DISABLED'; username?: string; password?: string }; jmapConfig?: { sessionUrl?: string; username?: string; password?: string } },
   ): Promise<Result<ExternalMailExchange, ApiError>> {
     return request<ExternalMailExchange>(`/accounts/${accountId}/external-exchanges/${emxId}`, {
       method: 'PATCH',

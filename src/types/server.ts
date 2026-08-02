@@ -703,6 +703,10 @@ export interface ExternalMailExchange {
     tlsConfig: "TLS" | "DISABLED"
     username: string
   }
+  jmapConfig?: {
+    sessionUrl: string
+    username: string
+  }
 }
 
 // ─── Email Template ───────────────────────────────────────────────────────────
