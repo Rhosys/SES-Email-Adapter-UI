@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
+import { useCurrency } from '@/lib/currency'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { Account, BillingInfo, BillingPlan } from '@/types/server'
@@ -9,6 +10,7 @@ import AsyncButton from '@/components/ui/AsyncButton.vue'
 const accountStore = useAccountStore()
 const route = useRoute()
 const router = useRouter()
+const { currency, formatPrice } = useCurrency()
 
 const account = ref<Account | null>(null)
 const billing = ref<BillingInfo | null>(null)
@@ -18,6 +20,8 @@ const portalLoading = ref(false)
 const showSuccess = ref(route.query.success === 'true')
 const mode = ref<'personal' | 'business'>('personal')
 
+const accentColor = computed(() => mode.value === 'business' ? 'blue' : 'mauve')
+
 if (showSuccess.value) {
   void router.replace({ query: {} })
 }
@@ -25,7 +29,7 @@ if (showSuccess.value) {
 interface PlanDef {
   id: BillingPlan
   name: string
-  price: string
+  eurBasePrice: number
   period: string
   priceId: string | undefined
   features: string[]
@@ -37,7 +41,7 @@ const PERSONAL_PLANS: PlanDef[] = [
   {
     id: 'free',
     name: 'Free',
-    price: '€0',
+    eurBasePrice: 0,
     period: '/forever · one inbox',
     priceId: undefined,
     features: [
@@ -54,7 +58,7 @@ const PERSONAL_PLANS: PlanDef[] = [
   {
     id: 'pro',
     name: 'Pro',
-    price: '€2',
+    eurBasePrice: 2,
     period: '/month · flat',
     priceId: 'price_pro_monthly',
     features: [
@@ -72,7 +76,7 @@ const PERSONAL_PLANS: PlanDef[] = [
   {
     id: 'premium',
     name: 'Premium',
-    price: '€6',
+    eurBasePrice: 6,
     period: '/month · flat',
     priceId: 'price_premium_monthly',
     features: [
@@ -91,7 +95,7 @@ const BUSINESS_PLANS: PlanDef[] = [
   {
     id: 'team',
     name: 'Team',
-    price: '€10',
+    eurBasePrice: 10,
     period: '/month · flat',
     priceId: 'price_team_monthly',
     features: [
@@ -107,7 +111,7 @@ const BUSINESS_PLANS: PlanDef[] = [
   {
     id: 'company',
     name: 'Company',
-    price: '€100',
+    eurBasePrice: 100,
     period: '/month · flat',
     priceId: 'price_company_monthly',
     features: [
@@ -124,7 +128,7 @@ const BUSINESS_PLANS: PlanDef[] = [
   {
     id: 'enterprise',
     name: 'Enterprise',
-    price: '€1,000',
+    eurBasePrice: 1000,
     period: '/month · flat',
     priceId: 'price_enterprise_monthly',
     features: [
@@ -280,14 +284,17 @@ async function openPortal() {
             :key="plan.id"
             class="relative rounded-lg border p-4"
             :class="
-              plan.id === currentPlan ? 'border-ctp-mauve bg-ctp-mauve/5' : 'border-ctp-surface1'
+              plan.id === currentPlan
+                ? `border-ctp-${accentColor} bg-ctp-${accentColor}/5`
+                : 'border-ctp-surface1'
             "
           >
             <div
               v-if="plan.recommended && plan.id !== currentPlan"
-              class="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-ctp-mauve px-2.5 py-0.5 text-xs font-medium text-ctp-base"
+              class="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full px-2.5 py-0.5 text-xs font-medium text-ctp-base"
+              :class="`bg-ctp-${accentColor}`"
             >
-              Recommended
+              Most Obvious
             </div>
             <div
               v-if="plan.id === currentPlan"
@@ -298,7 +305,7 @@ async function openPortal() {
 
             <p class="text-sm font-semibold text-ctp-text">{{ plan.name }}</p>
             <p class="mt-1 text-lg font-bold text-ctp-text">
-              {{ plan.price }}
+              {{ formatPrice(plan.eurBasePrice) }}
               <span v-if="plan.period" class="text-xs font-normal text-ctp-subtext0">{{
                 plan.period
               }}</span>
@@ -332,7 +339,8 @@ async function openPortal() {
               <AsyncButton
                 v-else
                 :action="() => upgrade(plan)"
-                class="w-full rounded-lg bg-ctp-mauve py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
+                class="w-full rounded-lg py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
+                :class="`bg-ctp-${accentColor}`"
               >
                 Upgrade to {{ plan.name }}
               </AsyncButton>
@@ -343,7 +351,7 @@ async function openPortal() {
 
       <!-- Pricing note -->
       <p class="text-xs text-ctp-subtext0">
-        All prices in EUR. Subscriptions renew monthly. Cancel any time from the billing portal.
+        All prices in {{ currency.code }}. Subscriptions renew monthly. Cancel any time from the billing portal.
       </p>
     </template>
   </div>

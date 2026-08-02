@@ -62,6 +62,10 @@ const identity = useIdentity()
 type ProfileSubTab = 'configuration' | 'security'
 const profileSubTab = ref<ProfileSubTab>('configuration')
 
+// ─── Email & Forwarding sub-tabs ──────────────────────────────────────────────
+type EmailSubTab = 'email' | 'inbound' | 'forwarding' | 'domains'
+const emailSubTab = ref<EmailSubTab>('email')
+
 const { startTour } = useFeatureTour()
 // Shared with AppLayout's global "?" binding — one ShortcutHelpOverlay
 // instance for the whole app, mounted in AppLayout; this just opens it.
@@ -542,7 +546,10 @@ async function openAddTargetModal(origin: AddTargetOrigin) {
   // Profile) — jump to the one with the target list so the newly created row
   // (and, for a pending email target, where to come back and select it) is
   // visible once the modal closes. No-op if already there.
-  if (origin !== 'button') await switchTab('email-forwarding')
+  if (origin !== 'button') {
+    await switchTab('email-forwarding')
+    emailSubTab.value = 'forwarding'
+  }
   showAddTargetModal.value = true
 }
 
@@ -836,7 +843,10 @@ async function switchTab(tab: TabKey) {
     if (forwarding.value.length === 0) await loadForwarding()
     if (exchanges.value.length === 0) await loadExchanges()
   }
-  if (tab === 'profile' && forwarding.value.length === 0) await loadForwarding()
+  if (tab === 'profile') {
+    if (!securityProfile.value) await loadSecurityProfile()
+    if (forwarding.value.length === 0) await loadForwarding()
+  }
   if (tab === 'team' && team.value.length === 0) await loadTeam()
 }
 
@@ -848,14 +858,11 @@ onMounted(async () => {
     digestFrequency.value = accountStore.account.digest?.frequency ?? null
     digestForwardingTargetId.value = accountStore.account.digest?.forwardingTargetId ?? ''
   }
-  // Load security profile data eagerly (for Profile tab)
-  void loadSecurityProfile()
-  // Load forwarding targets eagerly (needed for digest dropdown on Profile tab)
-  void loadForwarding()
   // Handle forwarding address verification from email link
   const verifyAddress = route.query.verifyAddress as string | undefined
   const token = route.query.token as string | undefined
   if (verifyAddress && token && accountStore.accountId) {
+    await loadForwarding()
     const result = await api.verifyForwardingAddress(accountStore.accountId, verifyAddress, token)
     if (result.isOk()) {
       verifySuccess.value = `${verifyAddress} verified successfully`
@@ -869,7 +876,14 @@ onMounted(async () => {
   }
   // Hydrate active tab from URL (map legacy tab keys to merged tab)
   const tab = resolveSettingsTab(route.query.tab as string | undefined)
-  if (tab) await switchTab(tab)
+  if (tab) {
+    await switchTab(tab)
+    // If the URL specifies a sub-section, activate the matching sub-tab
+    const rawTab = route.query.tab as string | undefined
+    if (rawTab === 'forwarding' || rawTab === 'email-forwarding') emailSubTab.value = 'forwarding'
+    else if (rawTab === 'domains') emailSubTab.value = 'domains'
+    else if (rawTab === 'email') emailSubTab.value = 'email'
+  }
 })
 
 const TABS = SETTINGS_TABS
@@ -1523,93 +1537,134 @@ useGestureHandler(settingsContentRef, {
       </section>
 
       <!-- ── Email & Forwarding tab ─────────────────────────────────────── -->
-      <section v-else-if="activeTab === 'email-forwarding'" class="space-y-8">
-        <!-- ─ Email settings ─ -->
-        <div class="space-y-6">
-          <h2 class="text-sm font-semibold text-ctp-text">Email</h2>
+      <section v-else-if="activeTab === 'email-forwarding'" class="space-y-6">
+        <!-- Email & Forwarding sub-tabs -->
+        <nav class="flex gap-2" aria-label="Email & Forwarding sub-tabs">
+          <button
+            type="button"
+            class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
+            :class="emailSubTab === 'email' ? 'bg-ctp-mauve/15 text-ctp-mauve' : 'text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text'"
+            @click="emailSubTab = 'email'"
+          >
+            Settings
+          </button>
+          <button
+            type="button"
+            class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
+            :class="emailSubTab === 'inbound' ? 'bg-ctp-mauve/15 text-ctp-mauve' : 'text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text'"
+            @click="emailSubTab = 'inbound'"
+          >
+            Inbound
+          </button>
+          <button
+            type="button"
+            class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
+            :class="emailSubTab === 'forwarding' ? 'bg-ctp-mauve/15 text-ctp-mauve' : 'text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text'"
+            @click="emailSubTab = 'forwarding'"
+          >
+            Forwarding
+          </button>
+          <button
+            type="button"
+            class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
+            :class="emailSubTab === 'domains' ? 'bg-ctp-mauve/15 text-ctp-mauve' : 'text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text'"
+            @click="emailSubTab = 'domains'"
+          >
+            Domains
+          </button>
+        </nav>
 
-          <!-- After send navigation -->
-          <div>
-            <span class="mb-1 block text-xs font-medium text-ctp-subtext0">After send</span>
-            <p class="mb-2 text-xs text-ctp-subtext0">Where to navigate after sending a reply</p>
-            <div class="flex gap-2">
-              <AsyncButton
-                v-for="option in [{ value: 'return_to_inbox' as const, label: 'Return to inbox' }, { value: 'stay_on_thread' as const, label: 'Stay on thread' }]"
-                :key="option.value"
-                :action="() => userConfigStore.update({ postSendView: option.value })"
-                variant="ghost"
-                :aria-pressed="userConfigStore.postSendView === option.value"
-                class="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs"
-                :class="
-                  userConfigStore.postSendView === option.value
-                    ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
-                    : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
-                "
-              >
-                {{ option.label }}
-              </AsyncButton>
+        <!-- Settings sub-tab -->
+        <template v-if="emailSubTab === 'email'">
+          <section class="rounded-lg border border-ctp-surface1 p-4">
+            <div class="space-y-6">
+              <h2 class="text-sm font-semibold text-ctp-text">Email</h2>
+
+              <!-- After send navigation -->
+              <div>
+                <span class="mb-1 block text-xs font-medium text-ctp-subtext0">After send</span>
+                <p class="mb-2 text-xs text-ctp-subtext0">Where to navigate after sending a reply</p>
+                <div class="flex gap-2">
+                  <AsyncButton
+                    v-for="option in [{ value: 'return_to_inbox' as const, label: 'Return to inbox' }, { value: 'stay_on_thread' as const, label: 'Stay on thread' }]"
+                    :key="option.value"
+                    :action="() => userConfigStore.update({ postSendView: option.value })"
+                    variant="ghost"
+                    :aria-pressed="userConfigStore.postSendView === option.value"
+                    class="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs"
+                    :class="
+                      userConfigStore.postSendView === option.value
+                        ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
+                        : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text'
+                    "
+                  >
+                    {{ option.label }}
+                  </AsyncButton>
+                </div>
+              </div>
+
+              <!-- Data retention -->
+              <div class="border-t border-ctp-surface0 pt-5">
+                <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Data retention</span>
+                <p class="mb-3 text-xs text-ctp-subtext0">How long conversations are kept</p>
+
+                <div class="relative">
+                  <select
+                    :value="selectedRetention"
+                    :disabled="retentionPending"
+                    aria-label="Retention duration"
+                    class="w-full appearance-none rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 pr-8 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none disabled:opacity-50"
+                    @change="updateRetention(($event.target as HTMLSelectElement).value as RetentionDuration)"
+                  >
+                    <option v-if="!selectedRetention" value="" disabled selected>Select duration…</option>
+                    <option
+                      v-for="opt in retentionOptions"
+                      :key="opt.value"
+                      :value="opt.value"
+                    >
+                      {{ opt.label }}{{ !opt.available ? ` 🔒 ${opt.minPlan.charAt(0).toUpperCase() + opt.minPlan.slice(1)}` : '' }}
+                    </option>
+                  </select>
+                  <svg class="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ctp-subtext0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+
+                <!-- Upgrade prompt dialog -->
+                <NoticeDialog
+                  :open="retentionUpgradePrompt"
+                  title="Plan upgrade needed"
+                  :message="`This retention duration requires the ${retentionUpgradePlan.charAt(0).toUpperCase() + retentionUpgradePlan.slice(1)} plan. You can upgrade from the Billing page.`"
+                  dismiss-label="Got it"
+                  tone="warning"
+                  @close="retentionUpgradePrompt = false"
+                />
+
+                <p class="mt-3 text-xs text-ctp-subtext0">
+                  Applies to all conversations that receive new messages. Existing inactive threads keep their current retention.
+                </p>
+              </div>
+
+              <!-- Browser notifications test -->
+              <div class="border-t border-ctp-surface0 pt-5">
+                <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Browser notifications</span>
+                <p class="mb-2 text-xs text-ctp-subtext0">Test that OS notifications are working</p>
+                <div class="mt-3">
+                  <button
+                    class="rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
+                    @click="sendTestNotification"
+                  >
+                    Send test notification
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
+          </section>
+        </template>
 
-          <!-- Data retention -->
-          <div class="border-t border-ctp-surface0 pt-5">
-            <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Data retention</span>
-            <p class="mb-3 text-xs text-ctp-subtext0">How long conversations are kept</p>
-
-            <div class="relative">
-              <select
-                :value="selectedRetention"
-                :disabled="retentionPending"
-                aria-label="Retention duration"
-                class="w-full appearance-none rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 pr-8 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none disabled:opacity-50"
-                @change="updateRetention(($event.target as HTMLSelectElement).value as RetentionDuration)"
-              >
-                <option v-if="!selectedRetention" value="" disabled selected>Select duration…</option>
-                <option
-                  v-for="opt in retentionOptions"
-                  :key="opt.value"
-                  :value="opt.value"
-                >
-                  {{ opt.label }}{{ !opt.available ? ` 🔒 ${opt.minPlan.charAt(0).toUpperCase() + opt.minPlan.slice(1)}` : '' }}
-                </option>
-              </select>
-              <svg class="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ctp-subtext0" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
-              </svg>
-            </div>
-
-            <!-- Upgrade prompt dialog -->
-            <NoticeDialog
-              :open="retentionUpgradePrompt"
-              title="Plan upgrade needed"
-              :message="`This retention duration requires the ${retentionUpgradePlan.charAt(0).toUpperCase() + retentionUpgradePlan.slice(1)} plan. You can upgrade from the Billing page.`"
-              dismiss-label="Got it"
-              tone="warning"
-              @close="retentionUpgradePrompt = false"
-            />
-
-            <p class="mt-3 text-xs text-ctp-subtext0">
-              Applies to all conversations that receive new messages. Existing inactive threads keep their current retention.
-            </p>
-          </div>
-
-          <!-- Browser notifications test -->
-          <div class="border-t border-ctp-surface0 pt-5">
-            <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Browser notifications</span>
-            <p class="mb-2 text-xs text-ctp-subtext0">Test that OS notifications are working</p>
-            <div class="mt-3">
-              <button
-                class="rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-surface2 hover:text-ctp-text"
-                @click="sendTestNotification"
-              >
-                Send test notification
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- ─ Inbound Receiving ─ -->
-        <div class="space-y-4 border-t border-ctp-surface0 pt-6">
+        <!-- Inbound sub-tab -->
+        <template v-if="emailSubTab === 'inbound'">
+          <section class="rounded-lg border border-ctp-surface1 p-4">
           <div class="flex items-center justify-between">
             <h2 class="text-sm font-semibold text-ctp-text">Inbound Receiving</h2>
             <button
@@ -1722,10 +1777,14 @@ useGestureHandler(settingsContentRef, {
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- ─ Outbound Forwarding ─ -->
-        <div class="space-y-4 border-t border-ctp-surface0 pt-6">
+          </section>
+        </template>
+
+        <!-- Forwarding sub-tab -->
+        <template v-if="emailSubTab === 'forwarding'">
+          <section class="rounded-lg border border-ctp-surface1 p-4">
+            <div class="space-y-4">
           <h2 class="text-sm font-semibold text-ctp-text">Outbound Forwarding</h2>
           <!-- Verification feedback -->
           <div v-if="verifySuccess" class="rounded-lg border border-ctp-green bg-ctp-green/10 px-4 py-3 text-sm text-ctp-green">
@@ -1833,10 +1892,14 @@ useGestureHandler(settingsContentRef, {
               </button>
             </div>
           </div>
-        </div>
+            </div>
+          </section>
+        </template>
 
-        <!-- ─ Domains ─ -->
-        <div class="space-y-4 border-t border-ctp-surface0 pt-6">
+        <!-- Domains sub-tab -->
+        <template v-if="emailSubTab === 'domains'">
+          <section class="rounded-lg border border-ctp-surface1 p-4">
+            <div class="space-y-4">
           <h2 class="text-sm font-semibold text-ctp-text">Domains</h2>
 
           <form class="flex gap-2" @submit.prevent="addDomain">
@@ -1943,7 +2006,9 @@ useGestureHandler(settingsContentRef, {
               </div>
             </div>
           </div>
-        </div>
+            </div>
+          </section>
+        </template>
       </section>
 
       <!-- ── Team tab ───────────────────────────────────────────────────── -->

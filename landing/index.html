@@ -3733,6 +3733,37 @@ $ curl <span class="tok-str">https://api.numaeel.cloud/.well-known/jmap</span> \
     </div>
   </section>
 
+  <script>
+  (function() {
+    var region = (navigator.language || 'en').split('-')[1];
+    if (region) { region = region.toUpperCase(); }
+    else { try { region = new Intl.Locale(navigator.language || 'en').maximize().region || ''; } catch(e) { region = ''; } }
+
+    var symbol = '€';
+    var rates = { 0: 0, 2: 2, 6: 6, 10: 10, 100: 100, 1000: 1000 };
+    var code = 'EUR';
+
+    if (['US','CA','AU','NZ','GB'].indexOf(region) !== -1) { symbol = '$'; code = 'USD'; rates = { 0:0, 2:2, 6:7, 10:11, 100:110, 1000:1100 }; }
+    else if (region === 'CH' || region === 'LI') { symbol = 'CHF '; code = 'CHF'; }
+
+    document.querySelectorAll('.amt').forEach(function(el) {
+      var eurMatch = el.textContent.match(/€([\d,]+)/);
+      if (!eurMatch) return;
+      var eurPrice = parseInt(eurMatch[1].replace(',',''));
+      var localPrice = rates[eurPrice] != null ? rates[eurPrice] : eurPrice;
+      el.textContent = symbol + localPrice.toLocaleString();
+    });
+
+    var bizDesc = document.querySelector('.biz-desc');
+    if (bizDesc) {
+      bizDesc.innerHTML = bizDesc.innerHTML.replace(/€10\/mo/, symbol + (rates[10] != null ? rates[10] : 10) + '/mo');
+    }
+
+    var note = document.querySelector('.price-note');
+    if (note) note.textContent = 'Priced in ' + code + ' · Billed monthly or annually';
+  })();
+  </script>
+
   <!-- ───────────────────────── CTA BANNER ───────────────────────── -->
   <section class="cta-banner">
     <div class="wrap">
