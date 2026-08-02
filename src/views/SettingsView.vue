@@ -2426,8 +2426,8 @@ useGestureHandler(settingsContentRef, {
                   />
                 </div>
                 <div>
-                  <label class="mb-1 block text-xs font-medium text-ctp-subtext0">Encryption</label>
-                  <div class="flex gap-2">
+                  <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Encryption</span>
+                  <div class="flex gap-2" role="group" aria-label="Encryption">
                     <button
                       type="button"
                       class="rounded-full border px-3 py-1 text-xs font-medium transition-colors"
