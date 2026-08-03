@@ -567,7 +567,9 @@ function closeAddTargetModal() {
 async function handleAddForwardingTarget(payload: { type: 'email' | 'webhook'; target: string }) {
   if (!accountStore.accountId) return
   const result = await api.createForwardingAddress(accountStore.accountId, payload)
-  if (result.isErr()) return
+  if (result.isErr()) {
+    throw new Error(result.error.message)
+  }
   forwarding.value = [...forwarding.value, result.value]
   showAddTargetModal.value = false
 

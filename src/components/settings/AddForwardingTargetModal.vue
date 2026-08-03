@@ -16,11 +16,13 @@ const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const selectedType = ref<'email' | 'webhook' | null>(null)
 const target = ref('')
+const errorMessage = ref<string | null>(null)
 const dialogRef = ref<HTMLDivElement | null>(null)
 
 function reset() {
   selectedType.value = null
   target.value = ''
+  errorMessage.value = null
 }
 
 function close() {
@@ -30,7 +32,12 @@ function close() {
 
 async function submitForm() {
   if (!selectedType.value || !target.value.trim()) return
-  await props.submit({ type: selectedType.value, target: target.value.trim() })
+  errorMessage.value = null
+  try {
+    await props.submit({ type: selectedType.value, target: target.value.trim() })
+  } catch (e) {
+    errorMessage.value = e instanceof Error ? e.message : "An unexpected error occurred"
+  }
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -136,6 +143,11 @@ onBeforeUnmount(() => {
             class="mb-4 w-full rounded-lg border border-ctp-surface1 bg-ctp-base px-3 py-2.5 text-sm text-ctp-text placeholder:text-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
             autofocus
           />
+
+          <!-- Error feedback -->
+          <p v-if="errorMessage" class="mb-3 rounded-lg border border-ctp-red/30 bg-ctp-red/10 px-3 py-2 text-xs text-ctp-red">
+            {{ errorMessage }}
+          </p>
 
           <!-- Actions -->
           <div class="flex justify-end gap-2">
