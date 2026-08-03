@@ -14,12 +14,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
-const selectedType = ref<'email' | 'webhook'>('email')
+const selectedType = ref<'email' | 'webhook' | null>(null)
 const target = ref('')
 const dialogRef = ref<HTMLDivElement | null>(null)
 
 function reset() {
-  selectedType.value = 'email'
+  selectedType.value = null
   target.value = ''
 }
 
@@ -29,7 +29,7 @@ function close() {
 }
 
 async function submitForm() {
-  if (!target.value.trim()) return
+  if (!selectedType.value || !target.value.trim()) return
   await props.submit({ type: selectedType.value, target: target.value.trim() })
 }
 
@@ -61,7 +61,7 @@ watch(
     if (isOpen) {
       reset()
       await nextTick()
-      dialogRef.value?.querySelector<HTMLInputElement>('input')?.focus()
+      dialogRef.value?.querySelector<HTMLElement>('button')?.focus()
       document.addEventListener('keydown', onKeydown)
     } else {
       document.removeEventListener('keydown', onKeydown)
@@ -126,8 +126,8 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <!-- Input -->
-        <form @submit.prevent="submitForm">
+        <!-- Input (only visible when a type is selected) -->
+        <form v-if="selectedType" @submit.prevent="submitForm">
           <input
             v-model="target"
             :type="selectedType === 'email' ? 'email' : 'url'"
@@ -156,6 +156,17 @@ onBeforeUnmount(() => {
             </AsyncButton>
           </div>
         </form>
+
+        <!-- Actions (when no type selected yet) -->
+        <div v-else class="flex justify-end">
+          <button
+            type="button"
+            class="rounded-lg border border-ctp-surface1 px-4 py-2 text-sm text-ctp-subtext1 transition-colors hover:border-ctp-text hover:text-ctp-text"
+            @click="close"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   </Transition>
