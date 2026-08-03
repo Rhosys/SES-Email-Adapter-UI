@@ -252,6 +252,9 @@ watch(
       <InboxEmpty
         v-else
         :tab="threadsStore.activeTab"
+        :refreshing="refreshing"
+        :last-refreshed-at="lastRefreshedAt"
+        @refresh="handleRefresh"
       />
 
       <div v-if="threadsStore.hasMore" class="mt-4 flex justify-center">
