@@ -695,7 +695,9 @@ export interface ExternalMailExchange {
   platform: "gmail" | "outlook" | "imap" | "jmap"
   emailAddress: string
   status: "active" | "activation_failed"
-  lastSyncAt?: string
+  syncCursor: string | null
+  lastSyncAt: string | null
+  nextSyncTime: string | null
   errorReason?: string
   createdAt: string
   imapConfig?: {

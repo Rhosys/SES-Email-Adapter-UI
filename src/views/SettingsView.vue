@@ -1994,8 +1994,10 @@ useGestureHandler(settingsContentRef, {
                   <p v-if="emx.status === 'activation_failed' && emx.errorReason" class="text-xs text-ctp-red">
                     {{ emx.errorReason }}
                   </p>
-                  <p v-else-if="emx.lastSyncAt" class="text-xs text-ctp-subtext0">
-                    Last sync {{ new Date(emx.lastSyncAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
+                  <p v-else class="text-xs text-ctp-subtext0">
+                    <span v-if="emx.syncCursor">{{ emx.syncCursor }}</span>
+                    <span v-if="emx.syncCursor && emx.lastSyncAt"> · </span>
+                    <span v-if="emx.lastSyncAt">synced {{ new Date(emx.lastSyncAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) }}</span>
                   </p>
                 </div>
               </div>
