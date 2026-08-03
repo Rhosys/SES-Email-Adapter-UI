@@ -1976,10 +1976,10 @@ useGestureHandler(settingsContentRef, {
               <div class="flex items-center gap-2.5">
                 <!-- Platform icon -->
                 <span v-if="emx.platform === 'gmail'" class="flex h-6 w-6 shrink-0 items-center justify-center">
-                  <svg viewBox="0 0 24 24" width="22" height="22"><path fill="#4285F4" d="M22 6v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2Z" opacity=".08"/><path fill="#EA4335" d="M2 6.5V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v.5l-10 6.5L2 6.5Z"/><path fill="#FBBC05" d="M2 6.5V18a2 2 0 0 0 2 2h1V8.2L2 6.5Z"/><path fill="#34A853" d="M22 6.5V18a2 2 0 0 1-2 2h-1V8.2l3-1.7Z"/><path fill="#C5221F" d="M5 20h14V8.2L12 13 5 8.2V20Z" opacity=".08"/><path d="m2 6.5 10 6.5 10-6.5" stroke="#EA4335" stroke-width=".5" fill="none"/></svg>
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="#EA4335"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/></svg>
                 </span>
                 <span v-else-if="emx.platform === 'outlook'" class="flex h-6 w-6 shrink-0 items-center justify-center">
-                  <svg viewBox="0 0 24 24" width="22" height="22"><path fill="#0078D4" d="M22 7.5v9a1.5 1.5 0 0 1-1.5 1.5H14v-12h6.5A1.5 1.5 0 0 1 22 7.5Z"/><path fill="#0364B8" d="M14 6v12H3.5A1.5 1.5 0 0 1 2 16.5v-9A1.5 1.5 0 0 1 3.5 6H14Z"/><path fill="#fff" d="M8 9.5a3 3 0 1 0 0 5 3 3 0 0 0 0-5Zm0 4.2a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4Z" opacity=".9"/><path fill="#28A8EA" d="m22 7.5-4 2.7-4-2.7V6h6.5A1.5 1.5 0 0 1 22 7.5Z"/><path d="m22 7.5-4 2.7-4-2.7" stroke="#fff" stroke-width=".3" fill="none" opacity=".5"/><path fill="#50D9FF" d="M18 10.2 22 7.5v9a1.5 1.5 0 0 1-1.5 1.5H14v-4l4-3.8Z" opacity=".2"/></svg>
+                  <svg viewBox="0 0 512 512" width="20" height="20"><rect width="231" height="270" x="168" y="107" fill="#05a" rx="3%"/><path fill="#136" d="M398 247v23l15-8s0-7-5-9l-10-6zm-230 43v70h77v-70h-77z"/><path fill="#17d" d="M168 150v70h77v-70h-77zm77 70v70h77v-70h-77zm77 70v70h77v-70h-77z"/><path fill="#3ae" d="M245 150v70h77v-70h-77zm77 70v70h77v-70h-77z"/><path fill="#5cf" d="M322 150h77v70h-77z"/><path fill="#19e" d="M413 261 282 336s121 73 124 71c5-3 7-11 7-18V261Z"/><path fill="#2ae" d="M160 266c-4 3-6 7-6 12v117c0 8 6 14 14 14h230c4 0 5 0 8-2"/><rect width="172" height="172" x="70" y="172" fill="#18e" rx="3%"/><path fill="#fff" d="M155 230c14 0 22 11 22 29s-9 28-23 28c-11 0-22-10-22-28 0-15 7-29 23-29Zm-1 75c26 0 44-18 44-47 0-25-16-46-43-46-28 0-44 20-44 48 0 27 20 45 43 45Z"/></svg>
                 </span>
                 <span v-else-if="emx.platform === 'imap'" class="flex h-6 shrink-0 items-center justify-center rounded bg-ctp-teal/10 px-1.5 text-[10px] font-bold tracking-wide text-ctp-teal">IMAP</span>
                 <span v-else-if="emx.platform === 'jmap'" class="flex h-6 shrink-0 items-center justify-center rounded bg-ctp-sapphire/10 px-1.5 text-[10px] font-bold tracking-wide text-ctp-sapphire">JMAP</span>
@@ -2515,7 +2515,7 @@ useGestureHandler(settingsContentRef, {
                   @click="connectExchange('gmail')"
                 >
                   <span class="flex h-8 w-8 shrink-0 items-center justify-center">
-                    <svg viewBox="0 0 24 24" width="26" height="26"><path fill="#4285F4" d="M22 6v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2Z" opacity=".08"/><path fill="#EA4335" d="M2 6.5V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v.5l-10 6.5L2 6.5Z"/><path fill="#FBBC05" d="M2 6.5V18a2 2 0 0 0 2 2h1V8.2L2 6.5Z"/><path fill="#34A853" d="M22 6.5V18a2 2 0 0 1-2 2h-1V8.2l3-1.7Z"/><path fill="#C5221F" d="M5 20h14V8.2L12 13 5 8.2V20Z" opacity=".08"/><path d="m2 6.5 10 6.5 10-6.5" stroke="#EA4335" stroke-width=".5" fill="none"/></svg>
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="#EA4335"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/></svg>
                   </span>
                   <div>
                     <p class="text-sm font-medium text-ctp-text">Gmail</p>
@@ -2529,7 +2529,7 @@ useGestureHandler(settingsContentRef, {
                   @click="connectExchange('outlook')"
                 >
                   <span class="flex h-8 w-8 shrink-0 items-center justify-center">
-                    <svg viewBox="0 0 24 24" width="26" height="26"><path fill="#0078D4" d="M22 7.5v9a1.5 1.5 0 0 1-1.5 1.5H14v-12h6.5A1.5 1.5 0 0 1 22 7.5Z"/><path fill="#0364B8" d="M14 6v12H3.5A1.5 1.5 0 0 1 2 16.5v-9A1.5 1.5 0 0 1 3.5 6H14Z"/><path fill="#fff" d="M8 9.5a3 3 0 1 0 0 5 3 3 0 0 0 0-5Zm0 4.2a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4Z" opacity=".9"/><path fill="#28A8EA" d="m22 7.5-4 2.7-4-2.7V6h6.5A1.5 1.5 0 0 1 22 7.5Z"/><path d="m22 7.5-4 2.7-4-2.7" stroke="#fff" stroke-width=".3" fill="none" opacity=".5"/><path fill="#50D9FF" d="M18 10.2 22 7.5v9a1.5 1.5 0 0 1-1.5 1.5H14v-4l4-3.8Z" opacity=".2"/></svg>
+                    <svg viewBox="0 0 512 512" width="24" height="24"><rect width="231" height="270" x="168" y="107" fill="#05a" rx="3%"/><path fill="#136" d="M398 247v23l15-8s0-7-5-9l-10-6zm-230 43v70h77v-70h-77z"/><path fill="#17d" d="M168 150v70h77v-70h-77zm77 70v70h77v-70h-77zm77 70v70h77v-70h-77z"/><path fill="#3ae" d="M245 150v70h77v-70h-77zm77 70v70h77v-70h-77z"/><path fill="#5cf" d="M322 150h77v70h-77z"/><path fill="#19e" d="M413 261 282 336s121 73 124 71c5-3 7-11 7-18V261Z"/><path fill="#2ae" d="M160 266c-4 3-6 7-6 12v117c0 8 6 14 14 14h230c4 0 5 0 8-2"/><rect width="172" height="172" x="70" y="172" fill="#18e" rx="3%"/><path fill="#fff" d="M155 230c14 0 22 11 22 29s-9 28-23 28c-11 0-22-10-22-28 0-15 7-29 23-29Zm-1 75c26 0 44-18 44-47 0-25-16-46-43-46-28 0-44 20-44 48 0 27 20 45 43 45Z"/></svg>
                   </span>
                   <div>
                     <p class="text-sm font-medium text-ctp-text">Outlook</p>
