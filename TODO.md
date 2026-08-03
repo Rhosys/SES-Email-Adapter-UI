@@ -660,3 +660,17 @@ Backend routes the frontend already calls (or is already coded to call) that don
   — renamed `FirstFollowupWait` since it's no longer the first state — before
   `FirstFollowup`, which still calls the same idempotent setup too as a
   safety net for in-flight executions from before this shipped.
+
+---
+
+## Troubleshooting
+
+### Bitwarden overlay covering the page (`bit-notification-bar`)
+
+The Bitwarden browser extension injects a `<div id="bit-notification-bar">` overlay when it detects a username+password form pair. In our app this triggers on the **IMAP** and **JMAP** connection forms in Settings → Email & Forwarding → Inbound (the `id="imap-username"` / `id="imap-password"` and `id="jmap-username"` / `id="jmap-password"` inputs).
+
+**Root cause:** These inputs lack `autocomplete="off"` — Bitwarden sees them as a login form and offers to save credentials.
+
+**Fix (if reports recur):** Add `autocomplete="off"` and `data-bwignore="true"` to all four inputs in `SettingsView.vue` (lines ~2608–2625 for IMAP, ~2749–2763 for JMAP). Not applied yet because this is a Bitwarden-specific quirk that only affects users who have the "Ask to save logins" notification enabled — most users won't encounter it.
+
+**Workaround for affected users:** Bitwarden extension → Settings → Notifications → uncheck "Ask to add login" and "Ask to update existing login".
