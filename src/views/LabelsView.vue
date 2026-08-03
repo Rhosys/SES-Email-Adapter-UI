@@ -303,20 +303,7 @@ onMounted(async () => {
 
         <!-- Label list -->
         <div
-          v-if="labelsStore.loading"
-          role="status"
-          aria-label="Loading labels…"
-          class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
-        >
-          <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-4 py-3">
-            <div class="h-5 w-5 shrink-0 rounded-full bg-ctp-surface1" />
-            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${35 + (i * 23) % 40}%` }" />
-            <div class="ml-auto h-6 w-14 shrink-0 rounded bg-ctp-surface1" />
-            <div class="h-6 w-14 shrink-0 rounded bg-ctp-surface1" />
-          </div>
-        </div>
-        <div
-          v-else-if="labelsStore.items.length === 0 && !showLabelForm"
+          v-if="labelsStore.items.length === 0 && !showLabelForm && !labelsStore.error"
           class="py-20 text-center"
         >
           <p class="text-base font-medium text-ctp-text">No labels yet</p>

@@ -8,7 +8,6 @@ export const useLabelsStore = defineStore('labels', () => {
   const accountStore = useAccountStore()
 
   const _byAccount = ref<Record<string, Label[]>>({})
-  const loading = ref(false)
   const error = ref<string | null>(null)
 
   const items = computed<Label[]>(() =>
@@ -18,15 +17,8 @@ export const useLabelsStore = defineStore('labels', () => {
   async function fetchLabels() {
     const id = accountStore.accountId
     if (!id) return
-    loading.value = true
     error.value = null
-    const start = Date.now()
     const result = await api.listLabels(id)
-    const elapsed = Date.now() - start
-    if (import.meta.env.MODE !== 'test' && elapsed < 1000) {
-      await new Promise<void>((r) => setTimeout(r, 1000 - elapsed))
-    }
-    loading.value = false
     if (result.isErr()) {
       error.value = result.error.message
       return
@@ -86,7 +78,7 @@ export const useLabelsStore = defineStore('labels', () => {
     error.value = null
   }
 
-  return { items, loading, error, fetchLabels, createLabel, updateLabel, deleteLabel, clearError }
+  return { items, error, fetchLabels, createLabel, updateLabel, deleteLabel, clearError }
 }, {
   persist: {
     accountKeyedRef: '_byAccount',

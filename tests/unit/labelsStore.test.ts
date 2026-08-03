@@ -43,7 +43,6 @@ describe('labelsStore', () => {
     const store = useLabelsStore()
     await store.fetchLabels()
     expect(store.items).toHaveLength(1)
-    expect(store.loading).toBe(false)
     expect(store.error).toBeNull()
   })
 
