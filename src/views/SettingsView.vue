@@ -674,7 +674,13 @@ async function completeExchangeActivation(platform: 'gmail' | 'outlook') {
     emxActivationError.value = createResult.error.message
     return
   }
-  exchanges.value = [...exchanges.value, createResult.value]
+  // Upsert: replace if existing (idempotent re-POST), append if new
+  const existingEmx = exchanges.value.find((e) => e.id === createResult.value.id)
+  if (existingEmx) {
+    exchanges.value = exchanges.value.map((e) => e.id === createResult.value.id ? createResult.value : e)
+  } else {
+    exchanges.value = [...exchanges.value, createResult.value]
+  }
 }
 
 async function retryExchange(emx: ExternalMailExchange) {
@@ -1961,15 +1967,22 @@ useGestureHandler(settingsContentRef, {
             <div
               v-for="emx in exchanges"
               :key="emx.id"
+              role="button"
+              tabindex="0"
               class="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-ctp-surface0/50"
               @click="openExchangeDetail(emx)"
+              @keydown.enter="openExchangeDetail(emx)"
             >
               <div class="flex items-center gap-2.5">
                 <!-- Platform icon -->
-                <span v-if="emx.platform === 'gmail'" class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-ctp-red/10 text-xs font-bold text-ctp-red">G</span>
-                <span v-else-if="emx.platform === 'outlook'" class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-ctp-blue/10 text-xs font-bold text-ctp-blue">O</span>
-                <span v-else-if="emx.platform === 'imap'" class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-ctp-teal/10 text-xs font-bold text-ctp-teal">I</span>
-                <span v-else-if="emx.platform === 'jmap'" class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-ctp-sapphire/10 text-xs font-bold text-ctp-sapphire">J</span>
+                <span v-if="emx.platform === 'gmail'" class="flex h-6 w-6 shrink-0 items-center justify-center">
+                  <svg viewBox="0 0 24 24" width="22" height="22"><path fill="#4285F4" d="M22 6v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2Z" opacity=".08"/><path fill="#EA4335" d="M2 6.5V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v.5l-10 6.5L2 6.5Z"/><path fill="#FBBC05" d="M2 6.5V18a2 2 0 0 0 2 2h1V8.2L2 6.5Z"/><path fill="#34A853" d="M22 6.5V18a2 2 0 0 1-2 2h-1V8.2l3-1.7Z"/><path fill="#C5221F" d="M5 20h14V8.2L12 13 5 8.2V20Z" opacity=".08"/><path d="m2 6.5 10 6.5 10-6.5" stroke="#EA4335" stroke-width=".5" fill="none"/></svg>
+                </span>
+                <span v-else-if="emx.platform === 'outlook'" class="flex h-6 w-6 shrink-0 items-center justify-center">
+                  <svg viewBox="0 0 24 24" width="22" height="22"><path fill="#0078D4" d="M22 7.5v9a1.5 1.5 0 0 1-1.5 1.5H14v-12h6.5A1.5 1.5 0 0 1 22 7.5Z"/><path fill="#0364B8" d="M14 6v12H3.5A1.5 1.5 0 0 1 2 16.5v-9A1.5 1.5 0 0 1 3.5 6H14Z"/><path fill="#fff" d="M8 9.5a3 3 0 1 0 0 5 3 3 0 0 0 0-5Zm0 4.2a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4Z" opacity=".9"/><path fill="#28A8EA" d="m22 7.5-4 2.7-4-2.7V6h6.5A1.5 1.5 0 0 1 22 7.5Z"/><path d="m22 7.5-4 2.7-4-2.7" stroke="#fff" stroke-width=".3" fill="none" opacity=".5"/><path fill="#50D9FF" d="M18 10.2 22 7.5v9a1.5 1.5 0 0 1-1.5 1.5H14v-4l4-3.8Z" opacity=".2"/></svg>
+                </span>
+                <span v-else-if="emx.platform === 'imap'" class="flex h-6 shrink-0 items-center justify-center rounded bg-ctp-teal/10 px-1.5 text-[10px] font-bold tracking-wide text-ctp-teal">IMAP</span>
+                <span v-else-if="emx.platform === 'jmap'" class="flex h-6 shrink-0 items-center justify-center rounded bg-ctp-sapphire/10 px-1.5 text-[10px] font-bold tracking-wide text-ctp-sapphire">JMAP</span>
                 <span v-else class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-ctp-surface1 text-xs font-bold text-ctp-subtext0">✉</span>
                 <div>
                   <p class="text-sm text-ctp-text">{{ emx.emailAddress || emx.platform }}</p>
@@ -2501,7 +2514,9 @@ useGestureHandler(settingsContentRef, {
                   :disabled="emxConnecting"
                   @click="connectExchange('gmail')"
                 >
-                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-red/10 text-sm font-bold text-ctp-red">G</span>
+                  <span class="flex h-8 w-8 shrink-0 items-center justify-center">
+                    <svg viewBox="0 0 24 24" width="26" height="26"><path fill="#4285F4" d="M22 6v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2Z" opacity=".08"/><path fill="#EA4335" d="M2 6.5V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v.5l-10 6.5L2 6.5Z"/><path fill="#FBBC05" d="M2 6.5V18a2 2 0 0 0 2 2h1V8.2L2 6.5Z"/><path fill="#34A853" d="M22 6.5V18a2 2 0 0 1-2 2h-1V8.2l3-1.7Z"/><path fill="#C5221F" d="M5 20h14V8.2L12 13 5 8.2V20Z" opacity=".08"/><path d="m2 6.5 10 6.5 10-6.5" stroke="#EA4335" stroke-width=".5" fill="none"/></svg>
+                  </span>
                   <div>
                     <p class="text-sm font-medium text-ctp-text">Gmail</p>
                     <p class="text-xs text-ctp-subtext0">Google Workspace or personal Gmail</p>
@@ -2513,7 +2528,9 @@ useGestureHandler(settingsContentRef, {
                   :disabled="emxConnecting"
                   @click="connectExchange('outlook')"
                 >
-                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-blue/10 text-sm font-bold text-ctp-blue">O</span>
+                  <span class="flex h-8 w-8 shrink-0 items-center justify-center">
+                    <svg viewBox="0 0 24 24" width="26" height="26"><path fill="#0078D4" d="M22 7.5v9a1.5 1.5 0 0 1-1.5 1.5H14v-12h6.5A1.5 1.5 0 0 1 22 7.5Z"/><path fill="#0364B8" d="M14 6v12H3.5A1.5 1.5 0 0 1 2 16.5v-9A1.5 1.5 0 0 1 3.5 6H14Z"/><path fill="#fff" d="M8 9.5a3 3 0 1 0 0 5 3 3 0 0 0 0-5Zm0 4.2a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4Z" opacity=".9"/><path fill="#28A8EA" d="m22 7.5-4 2.7-4-2.7V6h6.5A1.5 1.5 0 0 1 22 7.5Z"/><path d="m22 7.5-4 2.7-4-2.7" stroke="#fff" stroke-width=".3" fill="none" opacity=".5"/><path fill="#50D9FF" d="M18 10.2 22 7.5v9a1.5 1.5 0 0 1-1.5 1.5H14v-4l4-3.8Z" opacity=".2"/></svg>
+                  </span>
                   <div>
                     <p class="text-sm font-medium text-ctp-text">Outlook</p>
                     <p class="text-xs text-ctp-subtext0">Microsoft 365 or Outlook.com</p>
@@ -2524,7 +2541,7 @@ useGestureHandler(settingsContentRef, {
                   class="flex w-full items-center gap-3 rounded-lg border border-ctp-surface1 p-3 text-left transition-colors hover:border-ctp-mauve hover:bg-ctp-mauve/5"
                   @click="emxDialogView = 'imap-form'"
                 >
-                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-teal/10 text-sm font-bold text-ctp-teal">I</span>
+                  <span class="flex h-8 shrink-0 items-center justify-center rounded bg-ctp-teal/10 px-2 text-xs font-bold tracking-wide text-ctp-teal">IMAP</span>
                   <div>
                     <p class="text-sm font-medium text-ctp-text">IMAP</p>
                     <p class="text-xs text-ctp-subtext0">Any mail server — Fastmail, ProtonMail Bridge, self-hosted</p>
@@ -2535,7 +2552,7 @@ useGestureHandler(settingsContentRef, {
                   class="flex w-full items-center gap-3 rounded-lg border border-ctp-surface1 p-3 text-left transition-colors hover:border-ctp-mauve hover:bg-ctp-mauve/5"
                   @click="emxDialogView = 'jmap-form'"
                 >
-                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-sapphire/10 text-sm font-bold text-ctp-sapphire">J</span>
+                  <span class="flex h-8 shrink-0 items-center justify-center rounded bg-ctp-sapphire/10 px-2 text-xs font-bold tracking-wide text-ctp-sapphire">JMAP</span>
                   <div>
                     <p class="text-sm font-medium text-ctp-text">JMAP</p>
                     <p class="text-xs text-ctp-subtext0">Fastmail, Stalwart, Cyrus — auto-discovery supported</p>
