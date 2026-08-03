@@ -14,76 +14,73 @@ describe('AddForwardingTargetModal', () => {
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
   })
 
-  it('shows the type picker first, then the input form for the chosen type', async () => {
+  it('shows type selector and input in a single panel', () => {
     const { wrapper } = mountModal()
     expect(wrapper.text()).toContain('Email')
     expect(wrapper.text()).toContain('Webhook')
-    expect(wrapper.find('input').exists()).toBe(false)
+    // Input is always visible (single-panel design)
+    expect(wrapper.find('input').exists()).toBe(true)
+    // Defaults to email type
+    expect(wrapper.find('input').attributes('type')).toBe('email')
+  })
 
+  it('switches input type when webhook is selected', async () => {
+    const { wrapper } = mountModal()
     await wrapper.findAll('button').find((b) => b.text() === 'Webhook')!.trigger('click')
     const input = wrapper.find('input')
-    expect(input.exists()).toBe(true)
     expect(input.attributes('type')).toBe('url')
     expect(input.attributes('placeholder')).toContain('hooks.example.com')
   })
 
-  it('"Back" returns to the type picker without closing the modal', async () => {
+  it('clears input when switching types', async () => {
     const { wrapper } = mountModal()
-    await wrapper.findAll('button').find((b) => b.text() === 'Email')!.trigger('click')
-    await wrapper.find('input').setValue('a@example.com')
-    await wrapper.findAll('button').find((b) => b.text() === 'Back')!.trigger('click')
-    expect(wrapper.find('input').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Email')
-    expect(wrapper.text()).toContain('Webhook')
+    await wrapper.find('input').setValue('test@example.com')
+    await wrapper.findAll('button').find((b) => b.text() === 'Webhook')!.trigger('click')
+    expect((wrapper.find('input').element as HTMLInputElement).value).toBe('')
   })
 
   it('submits the trimmed target with its type via the submit prop', async () => {
     const { wrapper, submit } = mountModal()
-    await wrapper.findAll('button').find((b) => b.text() === 'Email')!.trigger('click')
     await wrapper.find('input').setValue('  forward@example.com  ')
     await wrapper.find('form').trigger('submit')
     expect(submit).toHaveBeenCalledWith({ type: 'email', target: 'forward@example.com' })
   })
 
-  it('emits update:open(false) when Cancel is clicked, and resets the form', async () => {
+  it('emits update:open(false) when Cancel is clicked', async () => {
     const { wrapper } = mountModal()
-    await wrapper.findAll('button').find((b) => b.text() === 'Webhook')!.trigger('click')
     await wrapper.find('input').setValue('https://hooks.example.com/x')
     await wrapper.findAll('button').find((b) => b.text() === 'Cancel')!.trigger('click')
     expect(wrapper.emitted('update:open')?.[0]).toEqual([false])
   })
 
   it('emits update:open(false) on Escape', async () => {
-    // The Escape listener is wired inside a watch(() => props.open) that only
-    // attaches on a false→true transition (matching real usage: the modal
-    // always starts closed) — mount closed, then open it, rather than
-    // mounting already-open where the watcher would never fire.
     const submit = vi.fn().mockResolvedValue(undefined)
     const wrapper = mount(AddForwardingTargetModal, {
       props: { open: false, submit },
       attachTo: document.body,
     })
     await wrapper.setProps({ open: true })
-    // The watch() callback is async (awaits its own nextTick before wiring the
-    // Escape listener) — wait for its focus-on-open side effect as a signal
-    // that continuation has actually run, rather than racing it.
-    await vi.waitUntil(() => document.activeElement?.tagName === 'BUTTON')
+    // The watch callback focuses the input on open — wait for that side effect
+    await vi.waitUntil(() => document.activeElement?.tagName === 'INPUT')
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     await wrapper.vm.$nextTick()
     expect(wrapper.emitted('update:open')?.[0]).toEqual([false])
     wrapper.unmount()
   })
 
-  it('resets to the type picker each time it is freshly reopened', async () => {
+  it('resets to email type each time it is freshly reopened', async () => {
     const submit = vi.fn().mockResolvedValue(undefined)
     const wrapper = mount(AddForwardingTargetModal, { props: { open: false, submit } })
     await wrapper.setProps({ open: true })
-    await wrapper.findAll('button').find((b) => b.text() === 'Email')!.trigger('click')
-    expect(wrapper.find('input').exists()).toBe(true)
+    // Switch to webhook and enter a value
+    await wrapper.findAll('button').find((b) => b.text() === 'Webhook')!.trigger('click')
+    await wrapper.find('input').setValue('https://test.com/hook')
 
+    // Close and reopen
     await wrapper.setProps({ open: false })
     await wrapper.setProps({ open: true })
-    expect(wrapper.find('input').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Webhook')
+    // Should reset to email type with empty input
+    expect(wrapper.find('input').attributes('type')).toBe('email')
+    expect((wrapper.find('input').element as HTMLInputElement).value).toBe('')
   })
 })
