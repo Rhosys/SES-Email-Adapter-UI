@@ -690,7 +690,7 @@ export interface AliasSender {
 // ─── External Mail Exchange ────────────────────────────────────────────────
 
 export interface ExternalMailExchange {
-  id: string
+  exchangeId: string
   accountId: string
   platform: "gmail" | "outlook" | "imap" | "jmap"
   emailAddress: string

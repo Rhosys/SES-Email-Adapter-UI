@@ -675,9 +675,9 @@ async function completeExchangeActivation(platform: 'gmail' | 'outlook') {
     return
   }
   // Upsert: replace if existing (idempotent re-POST), append if new
-  const existingEmx = exchanges.value.find((e) => e.id === createResult.value.id)
+  const existingEmx = exchanges.value.find((e) => e.exchangeId === createResult.value.exchangeId)
   if (existingEmx) {
-    exchanges.value = exchanges.value.map((e) => e.id === createResult.value.id ? createResult.value : e)
+    exchanges.value = exchanges.value.map((e) => e.exchangeId === createResult.value.exchangeId ? createResult.value : e)
   } else {
     exchanges.value = [...exchanges.value, createResult.value]
   }
@@ -707,11 +707,11 @@ async function deleteExchange(emx: ExternalMailExchange) {
     confirmVariant: 'danger',
   })
   if (!confirmed) return
-  emxDeletePending.value = emx.id
-  const result = await api.deleteExternalExchange(accountStore.accountId, emx.id)
+  emxDeletePending.value = emx.exchangeId
+  const result = await api.deleteExternalExchange(accountStore.accountId, emx.exchangeId)
   emxDeletePending.value = null
   if (result.isOk()) {
-    exchanges.value = exchanges.value.filter((e) => e.id !== emx.id)
+    exchanges.value = exchanges.value.filter((e) => e.exchangeId !== emx.exchangeId)
     emxDetailExchange.value = null
   }
 }
@@ -771,13 +771,13 @@ async function submitImapForm() {
     if (imapFormUsername.value !== imapEditingEmx.value.imapConfig?.username) body.imapConfig.username = imapFormUsername.value
     if (imapFormPassword.value) body.imapConfig.password = imapFormPassword.value
 
-    const result = await api.patchExternalExchange(accountStore.accountId, imapEditingEmx.value.id, body)
+    const result = await api.patchExternalExchange(accountStore.accountId, imapEditingEmx.value.exchangeId, body)
     imapFormSaving.value = false
     if (result.isErr()) {
       imapFormError.value = result.error.message
       return
     }
-    exchanges.value = exchanges.value.map((e) => e.id === result.value.id ? result.value : e)
+    exchanges.value = exchanges.value.map((e) => e.exchangeId === result.value.exchangeId ? result.value : e)
   } else {
     const result = await api.createExternalExchange(accountStore.accountId, {
       platform: 'imap',
@@ -877,14 +877,14 @@ async function submitJmapForm() {
     if (jmapUsername.value !== jmapEditingEmx.value.jmapConfig?.username) body.jmapConfig.username = jmapUsername.value
     if (jmapPassword.value) body.jmapConfig.password = jmapPassword.value
 
-    const result = await api.patchExternalExchange(accountStore.accountId, jmapEditingEmx.value.id, body)
+    const result = await api.patchExternalExchange(accountStore.accountId, jmapEditingEmx.value.exchangeId, body)
     jmapFormSaving.value = false
     if (result.isErr()) {
       jmapFormError.value = result.error.message
       jmapPassword.value = ''
       return
     }
-    exchanges.value = exchanges.value.map((e) => e.id === result.value.id ? result.value : e)
+    exchanges.value = exchanges.value.map((e) => e.exchangeId === result.value.exchangeId ? result.value : e)
   } else {
     const result = await api.createExternalExchange(accountStore.accountId, {
       platform: 'jmap',
@@ -1966,7 +1966,7 @@ useGestureHandler(settingsContentRef, {
           <div v-else class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
             <div
               v-for="emx in exchanges"
-              :key="emx.id"
+              :key="emx.exchangeId"
               role="button"
               tabindex="0"
               class="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-ctp-surface0/50"
@@ -2483,7 +2483,7 @@ useGestureHandler(settingsContentRef, {
             <button
               type="button"
               class="w-full rounded-lg border border-ctp-red/30 px-3 py-2 text-sm text-ctp-red hover:bg-ctp-red/10"
-              :disabled="emxDeletePending === emxDetailExchange.id"
+              :disabled="emxDeletePending === emxDetailExchange.exchangeId"
               @click="deleteExchange(emxDetailExchange)"
             >
               Disconnect
