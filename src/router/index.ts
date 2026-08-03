@@ -91,7 +91,7 @@ export const router = createRouter({
         },
         {
           path: 'settings',
-          redirect: '/settings/profile',
+          redirect: '/settings/email-forwarding',
         },
         {
           path: 'settings/:tab',

@@ -53,7 +53,7 @@ const { deferAction, notify: showToast } = useToast()
 const isMobile = useIsMobile()
 
 type TabKey = SettingsTabKey
-const activeTab = ref<TabKey>('profile')
+const activeTab = ref<TabKey>('email-forwarding')
 
 // ─── Profile tab ─────────────────────────────────────────────────────────────
 const identity = useIdentity()
@@ -1126,8 +1126,8 @@ onMounted(async () => {
     else if (subTab === 'configuration') profileSubTab.value = 'configuration'
     else if (subTab === 'security') profileSubTab.value = 'security'
   } else if (tabParam) {
-    // Unknown tab segment — redirect to profile
-    void router.replace('/settings/profile')
+    // Unknown tab segment — redirect to first tab
+    void router.replace('/settings/email-forwarding')
   }
 })
 
@@ -1799,7 +1799,7 @@ useGestureHandler(settingsContentRef, {
             :class="emailSubTab === 'inbound' ? 'bg-ctp-mauve/15 text-ctp-mauve' : 'text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text'"
             @click="setEmailSubTab('inbound')"
           >
-            Inbound
+            Syncing
           </button>
           <button
             type="button"
@@ -1815,7 +1815,7 @@ useGestureHandler(settingsContentRef, {
             :class="emailSubTab === 'domains' ? 'bg-ctp-mauve/15 text-ctp-mauve' : 'text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text'"
             @click="setEmailSubTab('domains')"
           >
-            Domains
+            DNS Domains
           </button>
         </nav>
 

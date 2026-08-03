@@ -106,9 +106,9 @@ describe('SettingsView — routing', () => {
       const { wrapper } = await mountAt('/settings/email-forwarding')
       // The sub-tab buttons should be visible
       expect(wrapper.text()).toContain('Email')
-      expect(wrapper.text()).toContain('Inbound')
+      expect(wrapper.text()).toContain('Syncing')
       expect(wrapper.text()).toContain('Forwarding')
-      expect(wrapper.text()).toContain('Domains')
+      expect(wrapper.text()).toContain('DNS Domains')
     })
 
     it('loads the team tab from /settings/team', async () => {
@@ -218,7 +218,7 @@ describe('SettingsView — routing', () => {
     it('clicking domains sub-tab adds ?tab=domains to the URL', async () => {
       const { wrapper, router } = await mountAt('/settings/email-forwarding')
 
-      const domainsBtn = wrapper.findAll('button').find((b) => b.text().trim() === 'Domains')
+      const domainsBtn = wrapper.findAll('button').find((b) => b.text().trim() === 'DNS Domains')
       expect(domainsBtn).toBeDefined()
       await domainsBtn!.trigger('click')
       await flushPromises()
@@ -243,10 +243,10 @@ describe('SettingsView — routing', () => {
   // ─── Unknown tab handling ───────────────────────────────────────────────────
 
   describe('unknown tab handling', () => {
-    it('redirects unknown tab segment to /settings/profile', async () => {
+    it('redirects unknown tab segment to /settings/email-forwarding', async () => {
       const { router } = await mountAt('/settings/nonexistent')
       await flushPromises()
-      expect(router.currentRoute.value.path).toBe('/settings/profile')
+      expect(router.currentRoute.value.path).toBe('/settings/email-forwarding')
     })
   })
 })

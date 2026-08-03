@@ -21,7 +21,7 @@ describe('settingsTabLabel', () => {
     expect(settingsTabLabel('email-forwarding')).toBe('Email & Forwarding')
   })
 
-  it('defaults to the Profile label when no tab is given', () => {
-    expect(settingsTabLabel(undefined)).toBe('Profile')
+  it('defaults to the Email & Forwarding label when no tab is given', () => {
+    expect(settingsTabLabel(undefined)).toBe('Email & Forwarding')
   })
 })
