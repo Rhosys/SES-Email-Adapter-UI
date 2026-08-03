@@ -679,13 +679,17 @@ async function completeExchangeActivation(platform: 'gmail' | 'outlook') {
 
 async function retryExchange(emx: ExternalMailExchange) {
   if (!accountStore.accountId) return
-  emxDeletePending.value = emx.id
-  const result = await api.deleteExternalExchange(accountStore.accountId, emx.id)
-  emxDeletePending.value = null
-  if (result.isOk()) {
-    exchanges.value = exchanges.value.filter((e) => e.id !== emx.id)
-    await connectExchange(emx.platform as 'gmail' | 'outlook')
+  if (emx.platform === 'imap') {
+    openImapForm(emx)
+    return
   }
+  if (emx.platform === 'jmap') {
+    openJmapForm(emx)
+    return
+  }
+  // OAuth (gmail/outlook) — re-run the connect flow without deleting.
+  // The backend POST is idempotent on platform + emailAddress.
+  await connectExchange(emx.platform as 'gmail' | 'outlook')
 }
 
 async function deleteExchange(emx: ExternalMailExchange) {
@@ -700,8 +704,19 @@ async function deleteExchange(emx: ExternalMailExchange) {
   emxDeletePending.value = emx.id
   const result = await api.deleteExternalExchange(accountStore.accountId, emx.id)
   emxDeletePending.value = null
-  if (result.isOk()) exchanges.value = exchanges.value.filter((e) => e.id !== emx.id)
+  if (result.isOk()) {
+    exchanges.value = exchanges.value.filter((e) => e.id !== emx.id)
+    emxDetailExchange.value = null
+  }
 }
+
+function openExchangeDetail(emx: ExternalMailExchange) {
+  if (emx.platform === 'imap') openImapForm(emx)
+  else if (emx.platform === 'jmap') openJmapForm(emx)
+  else emxDetailExchange.value = emx
+}
+
+const emxDetailExchange = ref<ExternalMailExchange | null>(null)
 
 // ─── IMAP/JMAP connection form ────────────────────────────────────────────────
 type EmxDialogView = 'picker' | 'imap-form' | 'jmap-form'
@@ -1946,7 +1961,8 @@ useGestureHandler(settingsContentRef, {
             <div
               v-for="emx in exchanges"
               :key="emx.id"
-              class="flex items-center justify-between gap-3 px-4 py-3"
+              class="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-ctp-surface0/50"
+              @click="openExchangeDetail(emx)"
             >
               <div class="flex items-center gap-2.5">
                 <!-- Platform icon -->
@@ -1957,7 +1973,10 @@ useGestureHandler(settingsContentRef, {
                 <span v-else class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-ctp-surface1 text-xs font-bold text-ctp-subtext0">✉</span>
                 <div>
                   <p class="text-sm text-ctp-text">{{ emx.emailAddress || emx.platform }}</p>
-                  <p v-if="emx.lastSyncAt" class="text-xs text-ctp-subtext0">
+                  <p v-if="emx.status === 'activation_failed' && emx.errorReason" class="text-xs text-ctp-red">
+                    {{ emx.errorReason }}
+                  </p>
+                  <p v-else-if="emx.lastSyncAt" class="text-xs text-ctp-subtext0">
                     Last sync {{ new Date(emx.lastSyncAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}
                   </p>
                 </div>
@@ -1980,45 +1999,8 @@ useGestureHandler(settingsContentRef, {
                   />
                   {{ emx.status === 'active' ? 'Active' : 'Failed' }}
                 </span>
-                <!-- Retry button for failed -->
-                <button
-                  v-if="emx.status === 'activation_failed'"
-                  type="button"
-                  class="rounded border border-ctp-surface1 px-2 py-1 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
-                  :disabled="emxConnecting"
-                  @click="retryExchange(emx)"
-                >
-                  Retry
-                </button>
-                <!-- IMAP settings cog -->
-                <button
-                  v-if="emx.platform === 'imap'"
-                  type="button"
-                  class="text-ctp-subtext0 hover:text-ctp-mauve"
-                  title="IMAP settings"
-                  @click="openImapForm(emx)"
-                >
-                  <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.86 2.57a1.14 1.14 0 012.28 0c.63.29 1.37.08 1.74-.46a1.14 1.14 0 011.97 1.14c-.17.67.2 1.37.82 1.61a1.14 1.14 0 010 2.28c-.63.29-.99.94-.82 1.61a1.14 1.14 0 01-1.97 1.14c-.37-.54-1.11-.75-1.74-.46a1.14 1.14 0 01-2.28 0c-.63-.29-1.37-.08-1.74.46a1.14 1.14 0 01-1.97-1.14c.17-.67-.2-1.37-.82-1.61a1.14 1.14 0 010-2.28c.63-.29.99-.94.82-1.61A1.14 1.14 0 015.12 2.1c.37.54 1.11.75 1.74.46z"/><circle cx="8" cy="8" r="2"/></svg>
-                </button>
-                <!-- JMAP settings cog -->
-                <button
-                  v-if="emx.platform === 'jmap'"
-                  type="button"
-                  class="text-ctp-subtext0 hover:text-ctp-mauve"
-                  title="JMAP settings"
-                  @click="openJmapForm(emx)"
-                >
-                  <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.86 2.57a1.14 1.14 0 012.28 0c.63.29 1.37.08 1.74-.46a1.14 1.14 0 011.97 1.14c-.17.67.2 1.37.82 1.61a1.14 1.14 0 010 2.28c-.63.29-.99.94-.82 1.61a1.14 1.14 0 01-1.97 1.14c-.37-.54-1.11-.75-1.74-.46a1.14 1.14 0 01-2.28 0c-.63-.29-1.37-.08-1.74.46a1.14 1.14 0 01-1.97-1.14c.17-.67-.2-1.37-.82-1.61a1.14 1.14 0 010-2.28c.63-.29.99-.94.82-1.61A1.14 1.14 0 015.12 2.1c.37.54 1.11.75 1.74.46z"/><circle cx="8" cy="8" r="2"/></svg>
-                </button>
-                <!-- Delete -->
-                <button
-                  class="text-ctp-subtext0 hover:text-ctp-red disabled:opacity-40"
-                  title="Disconnect"
-                  :disabled="emxDeletePending === emx.id"
-                  @click="deleteExchange(emx)"
-                >
-                  <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z"/></svg>
-                </button>
+                <!-- Chevron to indicate clickable -->
+                <svg class="h-4 w-4 text-ctp-subtext0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l5 5-5 5"/></svg>
               </div>
             </div>
           </div>
@@ -2426,6 +2408,78 @@ useGestureHandler(settingsContentRef, {
       @close="dnsSetupDomain = null"
     />
 
+    <!-- OAuth exchange detail dialog (Gmail/Outlook) -->
+    <Teleport to="body">
+      <div
+        v-if="emxDetailExchange"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        aria-hidden="true"
+        @click.self="emxDetailExchange = null"
+      >
+        <div role="dialog" aria-modal="true" aria-label="Exchange details" class="w-full max-w-sm overflow-hidden rounded-xl border border-ctp-surface1 bg-ctp-base shadow-xl">
+          <div class="border-b border-ctp-surface0 px-5 py-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <span v-if="emxDetailExchange.platform === 'gmail'" class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-red/10 text-sm font-bold text-ctp-red">G</span>
+                <span v-else class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ctp-blue/10 text-sm font-bold text-ctp-blue">O</span>
+                <div>
+                  <p class="text-sm font-medium text-ctp-text">{{ emxDetailExchange.emailAddress || emxDetailExchange.platform }}</p>
+                  <p class="text-xs text-ctp-subtext0 capitalize">{{ emxDetailExchange.platform }}</p>
+                </div>
+              </div>
+              <button type="button" class="text-ctp-subtext0 hover:text-ctp-text" @click="emxDetailExchange = null">
+                <svg class="h-5 w-5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="space-y-4 px-5 py-4">
+            <!-- Status -->
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-ctp-subtext0">Status</span>
+              <span
+                class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+                :class="{
+                  'bg-ctp-green/10 text-ctp-green': emxDetailExchange.status === 'active',
+                  'bg-ctp-red/10 text-ctp-red': emxDetailExchange.status === 'activation_failed',
+                }"
+              >
+                <span class="inline-block h-1.5 w-1.5 rounded-full" :class="{ 'bg-ctp-green': emxDetailExchange.status === 'active', 'bg-ctp-red': emxDetailExchange.status === 'activation_failed' }" />
+                {{ emxDetailExchange.status === 'active' ? 'Active' : 'Failed' }}
+              </span>
+            </div>
+            <!-- Error reason -->
+            <div v-if="emxDetailExchange.status === 'activation_failed' && emxDetailExchange.errorReason" class="rounded border border-ctp-red/30 bg-ctp-red/5 px-3 py-2 text-xs text-ctp-red">
+              {{ emxDetailExchange.errorReason }}
+            </div>
+            <!-- Last sync -->
+            <div v-if="emxDetailExchange.lastSyncAt" class="flex items-center justify-between">
+              <span class="text-xs text-ctp-subtext0">Last sync</span>
+              <span class="text-xs text-ctp-text">{{ new Date(emxDetailExchange.lastSyncAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) }}</span>
+            </div>
+            <!-- Retry button for failed -->
+            <button
+              v-if="emxDetailExchange.status === 'activation_failed'"
+              type="button"
+              class="w-full rounded-lg border border-ctp-mauve bg-ctp-mauve/10 px-3 py-2 text-sm font-medium text-ctp-mauve hover:bg-ctp-mauve/20"
+              :disabled="emxConnecting"
+              @click="retryExchange(emxDetailExchange); emxDetailExchange = null"
+            >
+              Reconnect
+            </button>
+            <!-- Disconnect -->
+            <button
+              type="button"
+              class="w-full rounded-lg border border-ctp-red/30 px-3 py-2 text-sm text-ctp-red hover:bg-ctp-red/10"
+              :disabled="emxDeletePending === emxDetailExchange.id"
+              @click="deleteExchange(emxDetailExchange)"
+            >
+              Disconnect
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- EMX platform picker modal -->
     <Teleport to="body">
       <div
@@ -2587,6 +2641,15 @@ useGestureHandler(settingsContentRef, {
                   {{ imapFormSaving ? 'Connecting…' : imapEditingEmx ? 'Save' : 'Connect' }}
                 </button>
               </div>
+              <!-- Disconnect (edit mode only) -->
+              <button
+                v-if="imapEditingEmx"
+                type="button"
+                class="mt-4 w-full rounded-lg border border-ctp-red/30 px-3 py-2 text-sm text-ctp-red hover:bg-ctp-red/10"
+                @click="deleteExchange(imapEditingEmx!); closeEmxDialog()"
+              >
+                Disconnect
+              </button>
             </div>
 
             <!-- JMAP form view -->
@@ -2697,6 +2760,15 @@ useGestureHandler(settingsContentRef, {
                     {{ jmapFormSaving ? 'Connecting…' : jmapEditingEmx ? 'Save' : 'Connect' }}
                   </button>
                 </div>
+                <!-- Disconnect (edit mode only) -->
+                <button
+                  v-if="jmapEditingEmx"
+                  type="button"
+                  class="mt-4 w-full rounded-lg border border-ctp-red/30 px-3 py-2 text-sm text-ctp-red hover:bg-ctp-red/10"
+                  @click="deleteExchange(jmapEditingEmx!); closeEmxDialog()"
+                >
+                  Disconnect
+                </button>
               </div>
             </div>
           </Transition>
