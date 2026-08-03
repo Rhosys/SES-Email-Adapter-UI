@@ -1917,7 +1917,7 @@ useGestureHandler(settingsContentRef, {
           </div>
 
           <p class="text-xs text-ctp-subtext0">
-            Pull email into your account from external providers. Connect via OAuth (Gmail, Outlook) for automatic sync, or use IMAP/JMAP credentials for any standard mail server — Fastmail, ProtonMail Bridge, self-hosted, etc.
+            Pull email into your account from external providers. Connect via OAuth (Gmail, Outlook) for automatic sync, or use IMAP/JMAP credentials for any standard mail server — Fastmail, ProtonMail Bridge, self-hosted, etc. Or directly send email to your inbox using the Forward Address below:
           </p>
 
           <!-- Inbound address display -->
