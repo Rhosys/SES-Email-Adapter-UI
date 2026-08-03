@@ -735,12 +735,15 @@ const imapFormSaving = ref(false)
 const imapFormError = ref('')
 const imapEditingEmx = ref<ExternalMailExchange | null>(null)
 
+const PASSWORD_MASK = '••••••••••••••••'
+function isPasswordChanged(value: string): boolean { return !!value && !value.includes('•') }
+
 function openImapForm(emx?: ExternalMailExchange) {
   if (emx?.imapConfig) {
     imapEditingEmx.value = emx
     imapFormHost.value = emx.imapConfig.host
     imapFormUsername.value = emx.imapConfig.username
-    imapFormPassword.value = ''
+    imapFormPassword.value = PASSWORD_MASK
     imapFormTls.value = emx.imapConfig.tlsConfig
   } else {
     imapEditingEmx.value = null
@@ -769,7 +772,7 @@ async function submitImapForm() {
     if (imapFormHost.value !== imapEditingEmx.value.imapConfig?.host) body.imapConfig.host = imapFormHost.value
     if (imapFormTls.value !== imapEditingEmx.value.imapConfig?.tlsConfig) body.imapConfig.tlsConfig = imapFormTls.value
     if (imapFormUsername.value !== imapEditingEmx.value.imapConfig?.username) body.imapConfig.username = imapFormUsername.value
-    if (imapFormPassword.value) body.imapConfig.password = imapFormPassword.value
+    if (isPasswordChanged(imapFormPassword.value)) body.imapConfig.password = imapFormPassword.value
 
     const result = await api.patchExternalExchange(accountStore.accountId, imapEditingEmx.value.exchangeId, body)
     imapFormSaving.value = false
@@ -812,7 +815,7 @@ function openJmapForm(emx?: ExternalMailExchange) {
     jmapSessionUrl.value = emx.jmapConfig.sessionUrl
     jmapSessionDiscovered.value = false
     jmapUsername.value = emx.jmapConfig.username
-    jmapPassword.value = ''
+    jmapPassword.value = PASSWORD_MASK
     jmapEmail.value = emx.emailAddress || emx.jmapConfig.username
     jmapStep.value = 'credentials'
   } else {
@@ -875,7 +878,7 @@ async function submitJmapForm() {
     const body: { jmapConfig: { sessionUrl?: string; username?: string; password?: string } } = { jmapConfig: {} }
     if (jmapSessionUrl.value !== jmapEditingEmx.value.jmapConfig?.sessionUrl) body.jmapConfig.sessionUrl = jmapSessionUrl.value
     if (jmapUsername.value !== jmapEditingEmx.value.jmapConfig?.username) body.jmapConfig.username = jmapUsername.value
-    if (jmapPassword.value) body.jmapConfig.password = jmapPassword.value
+    if (isPasswordChanged(jmapPassword.value)) body.jmapConfig.password = jmapPassword.value
 
     const result = await api.patchExternalExchange(accountStore.accountId, jmapEditingEmx.value.exchangeId, body)
     jmapFormSaving.value = false
@@ -2610,7 +2613,7 @@ useGestureHandler(settingsContentRef, {
                     id="imap-password"
                     v-model="imapFormPassword"
                     type="password"
-                    :placeholder="imapEditingEmx ? '(unchanged)' : 'App password or account password'"
+                    placeholder="App password or account password"
                     class="w-full rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
                   />
                 </div>
@@ -2751,7 +2754,7 @@ useGestureHandler(settingsContentRef, {
                     id="jmap-password"
                     v-model="jmapPassword"
                     type="password"
-                    :placeholder="jmapEditingEmx ? '(unchanged)' : 'App password or account password'"
+                    placeholder="App password or account password"
                     class="w-full rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 text-sm text-ctp-text placeholder-ctp-overlay0 focus:border-ctp-mauve focus:outline-none"
                   />
                 </div>
