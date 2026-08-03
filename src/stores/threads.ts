@@ -165,6 +165,17 @@ export const useThreadsStore = defineStore('threads', () => {
     void fetchThreads(true)
   }
 
+  async function refreshExchanges() {
+    const id = accountStore.accountId
+    if (!id) return
+    const statusParam = activeTab.value === 'all' ? undefined : activeTab.value
+    const result = await api.listThreads(id, { status: statusParam, limit: 50, refresh: new Date().toISOString() })
+    if (result.isErr()) return
+    const page = result.value
+    _byAccount.value = { ..._byAccount.value, [id]: page.threads }
+    _cursors.value = { ..._cursors.value, [id]: page.pagination.cursor ?? undefined }
+  }
+
   function toggleSelect(id: string) {
     if (selectedIds.value.has(id)) {
       selectedIds.value.delete(id)
@@ -345,6 +356,7 @@ export const useThreadsStore = defineStore('threads', () => {
     fetchMoreThreads,
     refreshThread,
     setTab,
+    refreshExchanges,
     toggleSelect,
     selectAll,
     clearSelection,

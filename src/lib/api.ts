@@ -58,6 +58,7 @@ export interface ThreadListParams {
   before?: string
   cursor?: string
   limit?: number
+  refresh?: string
 }
 
 export interface PatchThreadBody {
@@ -176,6 +177,7 @@ export const api = {
     if (params.before) qs.set('before', params.before)
     if (params.cursor) qs.set('cursor', params.cursor)
     if (params.limit) qs.set('limit', String(params.limit))
+    if (params.refresh) qs.set('refresh', params.refresh)
     const query = qs.toString()
     return request<ThreadListWire>(
       `/accounts/${accountId}/threads${query ? `?${query}` : ''}`,
