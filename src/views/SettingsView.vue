@@ -1116,15 +1116,20 @@ onMounted(async () => {
   const tabParam = route.params.tab as string | undefined
   const tab = resolveSettingsTab(tabParam)
   if (tab) {
-    await switchTab(tab)
-    // If the URL specifies a sub-tab query, activate the matching sub-tab
+    // Capture sub-tab from query BEFORE switchTab fires router.replace (which strips query)
     const subTab = route.query.tab as string | undefined
-    if (subTab === 'forwarding') emailSubTab.value = 'forwarding'
-    else if (subTab === 'domains') emailSubTab.value = 'domains'
-    else if (subTab === 'inbound') emailSubTab.value = 'inbound'
-    else if (subTab === 'email') emailSubTab.value = 'email'
+    await switchTab(tab)
+    // Restore the sub-tab using setEmailSubTab (which re-pushes the query to the URL)
+    if (subTab === 'forwarding') setEmailSubTab('forwarding')
+    else if (subTab === 'domains') setEmailSubTab('domains')
+    else if (subTab === 'inbound') setEmailSubTab('inbound')
+    else if (subTab === 'email') setEmailSubTab('email')
     else if (subTab === 'configuration') profileSubTab.value = 'configuration'
     else if (subTab === 'security') profileSubTab.value = 'security'
+    // For profile sub-tabs, push the query back to the URL
+    if (subTab === 'security' || subTab === 'configuration') {
+      void router.replace(`/settings/profile?tab=${subTab}`)
+    }
   } else if (tabParam) {
     // Unknown tab segment — redirect to first tab
     void router.replace('/settings/email-forwarding')
