@@ -31,6 +31,10 @@ const receivedAt = computed(() => inboundData.value?.receivedAt ?? '')
 const resolvedActions = computed(() => props.actions.length > 0 ? props.actions : (inboundData.value?.actions ?? []))
 
 const authData = computed(() => workflow.value === 'auth' && data.value ? narrowWorkflowData('auth', data.value) : null)
+const authVisible = computed(() => {
+  if (!authData.value) return false
+  return !!(authData.value.code || resolvedActions.value.length > 0)
+})
 const conversationData = computed(() => workflow.value === 'conversation' && data.value ? narrowWorkflowData('conversation', data.value) : null)
 const crmData = computed(() => workflow.value === 'crm' && data.value ? narrowWorkflowData('crm', data.value) : null)
 const packageData = computed(() => workflow.value === 'package' && data.value ? narrowWorkflowData('package', data.value) : null)
@@ -46,7 +50,7 @@ const testData = computed(() => workflow.value === 'test' && data.value ? narrow
 </script>
 
 <template>
-  <AuthPanel v-if="authData" :data="authData" :actions="resolvedActions" :received-at="receivedAt" />
+  <AuthPanel v-if="authVisible" :data="authData!" :actions="resolvedActions" :received-at="receivedAt" />
   <ConversationPanel v-else-if="conversationData" :data="conversationData" />
   <CrmPanel v-else-if="crmData" :data="crmData" />
   <PackagePanel v-else-if="packageData" :data="packageData" />
