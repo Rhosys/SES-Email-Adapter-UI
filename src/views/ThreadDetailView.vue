@@ -252,7 +252,7 @@ const primaryBadgeLabel = computed(() => {
   if (!thread.value) return ''
   if (thread.value.status === 'deleted') return 'Deleted'
   const latestSignal = signalsStore.latestSignal
-  if (latestSignal && isInboundEmailSignal(latestSignal) && latestSignal.data.workflowData?.workflow === 'conversation' && latestSignal.data.workflowData.requiresReply) return 'Reply Needed'
+  if (latestSignal && isInboundEmailSignal(latestSignal) && latestSignal.data.workflow === 'conversation' && latestSignal.data.workflowData && 'requiresReply' in latestSignal.data.workflowData && latestSignal.data.workflowData.requiresReply) return 'Reply Needed'
   if (thread.value.status === 'archived') return 'Archived'
   return 'Active'
 })

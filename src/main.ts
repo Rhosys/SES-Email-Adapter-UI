@@ -25,7 +25,7 @@ function printBanner() {
     "%cYou found us! Does this page need fixes or improvements? Open an issue or report it directly to our development team. Everyone can contribute!",
     "",
     "📧 Contact the development team: support@rhosys.ch",
-    "🐛 Create an issue: https://github.com/Rhosys/email-catcher/issues",
+    "🐛 Create an issue: https://github.com/Rhosys/SES-email-adapter/issues",
     "🔒 Report a security concern: security@rhosys.ch",
     "",
     `Build: ${buildInfo.version.buildCommit} | #${buildInfo.version.buildNumber} | ref:${buildInfo.version.buildRef}`,

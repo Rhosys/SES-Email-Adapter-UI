@@ -15,6 +15,7 @@ import InboxEmpty from '@/components/InboxEmpty.vue'
 import InboxZeroCelebration from '@/components/InboxZeroCelebration.vue'
 import StatsWidget from '@/components/StatsWidget.vue'
 import ResourcesBanner from '@/components/ResourcesBanner.vue'
+import InboxHighlight from '@/components/InboxHighlight.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -24,6 +25,7 @@ const { hiddenIds } = useDeferredHide()
 
 const refreshing = ref(false)
 const lastRefreshedAt = ref<string | null>(null)
+const highlightRef = ref<InstanceType<typeof InboxHighlight> | null>(null)
 
 async function handleRefresh() {
   refreshing.value = true
@@ -172,7 +174,8 @@ watch(
 
     <!-- pb-24 on mobile clears the fixed InboxTabBar bottom bar -->
     <main class="mx-auto max-w-4xl px-4 pt-4 pb-24 sm:pb-4">
-      <StatsWidget />
+      <InboxHighlight ref="highlightRef" />
+      <StatsWidget v-if="!highlightRef?.visible" />
       <ResourcesBanner />
 
       <InboxError v-if="threadsStore.error" :message="threadsStore.error" />

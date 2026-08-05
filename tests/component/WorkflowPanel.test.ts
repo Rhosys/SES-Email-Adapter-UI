@@ -4,6 +4,9 @@ import WorkflowPanel from '@/components/WorkflowPanel.vue'
 import type { Signal, AuthData, ConversationData, TestData } from '@/types/server'
 
 function makeSignal(workflowData?: unknown): Signal {
+  const workflow = workflowData && typeof workflowData === 'object' && 'workflow' in workflowData
+    ? (workflowData as { workflow: string }).workflow
+    : 'conversation'
   return {
     signalId: 'sig_1',
     threadId: 'thread_1',
@@ -21,7 +24,7 @@ function makeSignal(workflowData?: unknown): Signal {
       attachments: [],
       headers: {},
       recipientAddress: 'inbox@example.com',
-      workflow: 'conversation',
+      workflow,
       spamScore: 0,
       workflowData,
     },

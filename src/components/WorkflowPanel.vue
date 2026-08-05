@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { Signal, SignalAction } from '@/types/server'
+import { computed } from 'vue'
+import type { Signal, SignalAction, Workflow, WorkflowData } from '@/types/server'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import AuthPanel from './panels/AuthPanel.vue'
 import ConversationPanel from './panels/ConversationPanel.vue'
@@ -15,30 +16,47 @@ import JobPanel from './panels/JobPanel.vue'
 import SupportPanel from './panels/SupportPanel.vue'
 import TestPanel from './panels/TestPanel.vue'
 
+function narrowWorkflowData<W extends Workflow>(_workflow: W, data: WorkflowData): Extract<WorkflowData, { workflow: W }> {
+  return data as Extract<WorkflowData, { workflow: W }>
+}
+
 const props = withDefaults(defineProps<{ signal: Signal; actions?: SignalAction[] }>(), {
   actions: () => []
 })
 
-const inboundData = isInboundEmailSignal(props.signal) ? props.signal.data : null
-const data = inboundData?.workflowData ?? null
-const receivedAt = inboundData?.receivedAt ?? ''
-const actions = props.actions.length > 0 ? props.actions : (inboundData?.actions ?? [])
+const inboundData = computed(() => isInboundEmailSignal(props.signal) ? props.signal.data : null)
+const workflow = computed(() => inboundData.value?.workflow ?? null)
+const data = computed(() => inboundData.value?.workflowData ?? null)
+const receivedAt = computed(() => inboundData.value?.receivedAt ?? '')
+const resolvedActions = computed(() => props.actions.length > 0 ? props.actions : (inboundData.value?.actions ?? []))
+
+const authData = computed(() => workflow.value === 'auth' && data.value ? narrowWorkflowData('auth', data.value) : null)
+const conversationData = computed(() => workflow.value === 'conversation' && data.value ? narrowWorkflowData('conversation', data.value) : null)
+const crmData = computed(() => workflow.value === 'crm' && data.value ? narrowWorkflowData('crm', data.value) : null)
+const packageData = computed(() => workflow.value === 'package' && data.value ? narrowWorkflowData('package', data.value) : null)
+const travelData = computed(() => workflow.value === 'travel' && data.value ? narrowWorkflowData('travel', data.value) : null)
+const paymentsData = computed(() => workflow.value === 'payments' && data.value ? narrowWorkflowData('payments', data.value) : null)
+const alertData = computed(() => workflow.value === 'alert' && data.value ? narrowWorkflowData('alert', data.value) : null)
+const contentData = computed(() => workflow.value === 'content' && data.value ? narrowWorkflowData('content', data.value) : null)
+const statusData = computed(() => workflow.value === 'status' && data.value ? narrowWorkflowData('status', data.value) : null)
+const healthcareData = computed(() => workflow.value === 'healthcare' && data.value ? narrowWorkflowData('healthcare', data.value) : null)
+const jobData = computed(() => workflow.value === 'job' && data.value ? narrowWorkflowData('job', data.value) : null)
+const supportData = computed(() => workflow.value === 'support' && data.value ? narrowWorkflowData('support', data.value) : null)
+const testData = computed(() => workflow.value === 'test' && data.value ? narrowWorkflowData('test', data.value) : null)
 </script>
 
 <template>
-  <template v-if="data">
-    <AuthPanel v-if="data.workflow === 'auth'" :data="data" :actions="actions" :received-at="receivedAt" />
-    <ConversationPanel v-else-if="data.workflow === 'conversation'" :data="data" />
-    <CrmPanel v-else-if="data.workflow === 'crm'" :data="data" />
-    <PackagePanel v-else-if="data.workflow === 'package'" :data="data" />
-    <TravelPanel v-else-if="data.workflow === 'travel'" :data="data" />
-    <PaymentsPanel v-else-if="data.workflow === 'payments'" :data="data" />
-    <AlertPanel v-else-if="data.workflow === 'alert'" :data="data" :actions="actions" />
-    <ContentPanel v-else-if="data.workflow === 'content'" :data="data" />
-    <StatusPanel v-else-if="data.workflow === 'status'" :data="data" />
-    <HealthcarePanel v-else-if="data.workflow === 'healthcare'" :data="data" />
-    <JobPanel v-else-if="data.workflow === 'job'" :data="data" :actions="actions" />
-    <SupportPanel v-else-if="data.workflow === 'support'" :data="data" />
-    <TestPanel v-else-if="data.workflow === 'test'" :data="data" />
-  </template>
+  <AuthPanel v-if="authData" :data="authData" :actions="resolvedActions" :received-at="receivedAt" />
+  <ConversationPanel v-else-if="conversationData" :data="conversationData" />
+  <CrmPanel v-else-if="crmData" :data="crmData" />
+  <PackagePanel v-else-if="packageData" :data="packageData" />
+  <TravelPanel v-else-if="travelData" :data="travelData" />
+  <PaymentsPanel v-else-if="paymentsData" :data="paymentsData" />
+  <AlertPanel v-else-if="alertData" :data="alertData" :actions="resolvedActions" />
+  <ContentPanel v-else-if="contentData" :data="contentData" />
+  <StatusPanel v-else-if="statusData" :data="statusData" />
+  <HealthcarePanel v-else-if="healthcareData" :data="healthcareData" />
+  <JobPanel v-else-if="jobData" :data="jobData" :actions="resolvedActions" />
+  <SupportPanel v-else-if="supportData" :data="supportData" />
+  <TestPanel v-else-if="testData" :data="testData" />
 </template>
