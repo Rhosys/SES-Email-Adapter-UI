@@ -233,7 +233,6 @@ function onSignalReprocessed() {
         <AsyncButton
           :action="allow"
           :disabled="pending"
-          variant="ghost"
           class="rounded bg-ctp-green/15 px-3 py-1.5 text-sm font-medium text-ctp-green hover:bg-ctp-green/25"
         >
           Allow Sender
@@ -241,7 +240,6 @@ function onSignalReprocessed() {
         <AsyncButton
           :action="dismiss"
           :disabled="pending"
-          variant="ghost"
           class="rounded bg-ctp-surface1 px-3 py-1.5 text-sm font-medium text-ctp-subtext1 hover:bg-ctp-surface2 hover:text-ctp-text"
         >
           Dismiss
@@ -249,7 +247,6 @@ function onSignalReprocessed() {
         <AsyncButton
           :action="reject"
           :disabled="pending"
-          variant="ghost"
           class="rounded bg-ctp-red/15 px-3 py-1.5 text-sm font-medium text-ctp-red hover:bg-ctp-red/25"
         >
           Reject Sender

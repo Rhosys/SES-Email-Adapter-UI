@@ -110,7 +110,6 @@ function labelActionWrapper(action: (label: string) => Promise<unknown>) {
         v-if="tab === 'active' || tab === 'all'"
         :action="archiveAction!"
         :disabled="pending"
-        variant="ghost"
         class="flex items-center gap-1.5 rounded bg-ctp-surface0 px-3 py-1.5 text-ctp-text hover:bg-ctp-surface1"
       >
         <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -124,7 +123,6 @@ function labelActionWrapper(action: (label: string) => Promise<unknown>) {
         v-if="tab === 'archived' || tab === 'all'"
         :action="moveToInboxAction!"
         :disabled="pending"
-        variant="ghost"
         class="flex items-center gap-1.5 rounded bg-ctp-surface0 px-3 py-1.5 text-ctp-text hover:bg-ctp-surface1"
       >
         <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -154,7 +152,6 @@ function labelActionWrapper(action: (label: string) => Promise<unknown>) {
           :action="labelActionWrapper(labelAction)"
           :disabled="pending || !labelInput.trim()"
           type="submit"
-          variant="ghost"
           class="rounded bg-ctp-surface0 px-2 py-1.5 text-ctp-subtext0 hover:bg-ctp-surface1"
         >
           Add

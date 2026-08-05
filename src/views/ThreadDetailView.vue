@@ -328,7 +328,6 @@ async function removeLabel(label: string) {
         <AsyncButton
           v-if="hasUnsubscribe && thread.status === 'active'"
           :action="unsubscribe"
-          variant="outline"
           class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-peach hover:text-ctp-peach"
         >
           <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -339,7 +338,6 @@ async function removeLabel(label: string) {
         <AsyncButton
           v-if="thread.status === 'active'"
           :action="archive"
-          variant="outline"
           class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-red hover:text-ctp-red"
         >
           <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -350,7 +348,6 @@ async function removeLabel(label: string) {
         <AsyncButton
           v-if="thread.status === 'archived' || thread.status === 'deleted'"
           :action="moveToInbox"
-          variant="outline"
           class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-green hover:text-ctp-green"
         >
           <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">

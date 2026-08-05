@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { ref, useTemplateRef } from 'vue'
+import { ref, useTemplateRef, useAttrs } from 'vue'
 import { useAsyncAction } from '../../composables/useAsyncAction'
+
+defineOptions({ inheritAttrs: false })
 
 const props = withDefaults(
   defineProps<{
     action: () => Promise<unknown>
-    variant?: 'primary' | 'ghost' | 'danger' | 'outline'
     type?: 'button' | 'submit'
     disabled?: boolean
   }>(),
-  { variant: 'primary', type: 'button', disabled: false },
+  { type: 'button', disabled: false },
 )
 
+const attrs = useAttrs()
 const btnRef = useTemplateRef<HTMLButtonElement>('btn')
 const lockedWidth = ref<string | undefined>()
 
@@ -31,16 +33,11 @@ async function handleClick() {
 <template>
   <button
     ref="btn"
+    v-bind="attrs"
     :type="type"
     :disabled="disabled || state !== 'idle'"
     :style="lockedWidth ? { minWidth: lockedWidth } : undefined"
-    class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
-    :class="{
-      'bg-ctp-mauve text-ctp-base hover:opacity-90': variant === 'primary',
-      'text-ctp-text hover:bg-ctp-surface0': variant === 'ghost',
-      'border border-ctp-red text-ctp-red hover:bg-ctp-red/10': variant === 'danger',
-      'border border-ctp-surface1 text-ctp-subtext1 hover:text-ctp-text': variant === 'outline',
-    }"
+    class="inline-flex items-center justify-center disabled:opacity-50"
     @click="handleClick"
   >
     <!-- Spinner -->

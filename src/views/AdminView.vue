@@ -358,7 +358,6 @@ async function lookup() {
         <AsyncButton
           v-if="!undoExpired"
           :action="cancelPendingSend"
-          variant="outline"
           class="text-xs text-ctp-peach hover:opacity-80"
         >
           Cancel send

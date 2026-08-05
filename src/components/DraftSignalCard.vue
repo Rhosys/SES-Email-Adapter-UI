@@ -337,7 +337,6 @@ async function discard() {
           <AsyncButton
             :action="sendAndArchive"
             :disabled="!canSend"
-            variant="outline"
             class="flex items-center gap-1.5"
           >
             <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -348,7 +347,6 @@ async function discard() {
           <AsyncButton
             :action="sendAndWait"
             :disabled="!canSend"
-            variant="primary"
             class="flex items-center gap-1.5"
           >
             <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -358,7 +356,6 @@ async function discard() {
           </AsyncButton>
           <AsyncButton
             :action="discard"
-            variant="ghost"
             class="ml-auto text-sm text-ctp-subtext0 hover:text-ctp-red"
           >
             Discard draft

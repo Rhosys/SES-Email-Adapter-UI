@@ -72,7 +72,6 @@ const STATUS_COLORS: Record<string, string> = {
       <AsyncButton
         :action="handleRecheck"
         :disabled="recheckPending"
-        variant="outline"
         class="px-3 py-1.5 text-xs text-ctp-subtext0 hover:border-ctp-surface2 hover:text-ctp-text"
       >
         Re-check DNS

@@ -417,5 +417,37 @@
     setView(params.get('view') === 'business' ? 'business' : 'personal');
   })();
   </script>
+
+  <script>
+  (function() {
+    var tzCurrency = {
+      'Europe/Zurich': 'CHF',
+      'America/New_York': 'USD', 'America/Chicago': 'USD', 'America/Denver': 'USD',
+      'America/Los_Angeles': 'USD', 'America/Anchorage': 'USD', 'America/Phoenix': 'USD',
+      'America/Boise': 'USD', 'America/Detroit': 'USD', 'America/Indiana/Indianapolis': 'USD',
+      'America/Toronto': 'USD', 'America/Vancouver': 'USD', 'America/Edmonton': 'USD',
+      'America/Winnipeg': 'USD', 'America/Halifax': 'USD', 'Pacific/Honolulu': 'USD',
+      'Pacific/Auckland': 'USD', 'Australia/Sydney': 'USD', 'Australia/Melbourne': 'USD',
+      'Australia/Brisbane': 'USD', 'Australia/Perth': 'USD', 'Australia/Adelaide': 'USD',
+      'Australia/Hobart': 'USD', 'Europe/London': 'USD'
+    };
+    var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    var code = tzCurrency[tz] || 'EUR';
+
+    var symbol = '€';
+    var rates = { 0: 0, 2: 2, 6: 6, 10: 10, 100: 100, 1000: 1000 };
+
+    if (code === 'USD') { symbol = '$'; rates = { 0:0, 2:2, 6:7, 10:11, 100:110, 1000:1100 }; }
+    else if (code === 'CHF') { symbol = 'CHF '; }
+
+    document.querySelectorAll('.plan-price').forEach(function(el) {
+      var eurMatch = el.textContent.match(/€([\d,]+)/);
+      if (!eurMatch) return;
+      var eurPrice = parseInt(eurMatch[1].replace(',',''));
+      var localPrice = rates[eurPrice] != null ? rates[eurPrice] : eurPrice;
+      el.textContent = el.textContent.replace(/€[\d,]+/, symbol + localPrice.toLocaleString());
+    });
+  })();
+  </script>
 </body>
 </html>

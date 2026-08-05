@@ -8,7 +8,6 @@ defineProps<{ action: () => Promise<unknown> }>()
   <div class="mt-2 flex justify-start">
     <AsyncButton
       :action="action"
-      variant="outline"
       class="rounded-lg border-ctp-surface1 px-4 py-2 text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
     >
       + New reply

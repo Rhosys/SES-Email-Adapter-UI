@@ -1839,7 +1839,6 @@ useGestureHandler(settingsContentRef, {
                     v-for="option in [{ value: 'return_to_inbox' as const, label: 'Return to inbox' }, { value: 'stay_on_thread' as const, label: 'Stay on thread' }]"
                     :key="option.value"
                     :action="() => userConfigStore.update({ postSendView: option.value })"
-                    variant="ghost"
                     :aria-pressed="userConfigStore.postSendView === option.value"
                     class="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs"
                     :class="
@@ -2234,7 +2233,6 @@ useGestureHandler(settingsContentRef, {
                   <AsyncButton
                     v-if="!domain.receivingSetupComplete || !domain.senderSetupComplete"
                     :action="() => recheckDomain(domain.domainId)"
-                    variant="outline"
                     class="px-3 py-1.5 text-xs text-ctp-subtext1 hover:border-ctp-surface2 hover:text-ctp-text"
                   >
                     Re-check DNS

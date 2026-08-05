@@ -67,7 +67,6 @@ async function discard() {
 
     <AsyncButton
       :action="discard"
-      variant="ghost"
       class="shrink-0 text-xs text-ctp-subtext0 hover:text-ctp-red"
     >
       Discard

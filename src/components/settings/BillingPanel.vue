@@ -249,8 +249,7 @@ async function openPortal() {
         <div v-if="currentPlan !== 'free'" class="mt-4 border-t border-ctp-surface1 pt-4">
           <AsyncButton
             :action="openPortal"
-            variant="outline"
-            class="px-4 py-2 text-sm text-ctp-text hover:border-ctp-surface2"
+            class="rounded-md border border-ctp-surface1 px-4 py-2 text-sm text-ctp-text hover:border-ctp-surface2"
           >
             Manage subscription ↗
           </AsyncButton>
@@ -295,7 +294,7 @@ async function openPortal() {
           >
             <div
               v-if="plan.recommended && plan.id !== currentPlan"
-              class="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full px-2.5 py-0.5 text-xs font-medium text-ctp-base"
+              class="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium text-ctp-base"
               :class="accentBg"
             >
               Most Obvious

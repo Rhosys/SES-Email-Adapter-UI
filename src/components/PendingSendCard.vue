@@ -51,7 +51,6 @@ async function cancelSend() {
     <div v-if="cancellable" class="border-t border-ctp-peach/20 px-4 py-2">
       <AsyncButton
         :action="cancelSend"
-        variant="outline"
         class="text-sm text-ctp-peach hover:opacity-80"
       >
         Cancel send

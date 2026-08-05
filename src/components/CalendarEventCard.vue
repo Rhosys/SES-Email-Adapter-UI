@@ -106,21 +106,18 @@ function rsvpAction(response: RsvpResponse) {
       <div class="flex items-center gap-2">
         <AsyncButton
           :action="rsvpAction('accepted')"
-          variant="outline"
           class="border-ctp-green text-ctp-green hover:bg-ctp-green/10"
         >
           Accept
         </AsyncButton>
         <AsyncButton
           :action="rsvpAction('tentative')"
-          variant="outline"
           class="border-ctp-peach text-ctp-peach hover:bg-ctp-peach/10"
         >
           Tentative
         </AsyncButton>
         <AsyncButton
           :action="rsvpAction('declined')"
-          variant="outline"
           class="border-ctp-red text-ctp-red hover:bg-ctp-red/10"
         >
           Decline
