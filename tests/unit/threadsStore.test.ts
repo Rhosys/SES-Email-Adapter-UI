@@ -196,6 +196,80 @@ describe('threadsStore', () => {
     expect(store.activeCount).toBe(1)
   })
 
+  it('keeps the active count when the archived tab is opened', async () => {
+    vi.mocked(api.listThreads)
+      .mockResolvedValueOnce(
+        ok({
+          threads: [mockThread({ threadId: 'thread_1' }), mockThread({ threadId: 'thread_2' })],
+          pagination: { cursor: null },
+        }),
+      )
+      .mockResolvedValue(
+        ok({ threads: [mockThread({ threadId: 'thread_old', status: 'archived' })], pagination: { cursor: null } }),
+      )
+    const store = useThreadsStore()
+    await store.fetchThreads(true)
+    expect(store.activeCount).toBe(2)
+
+    store.setTab('archived')
+    await store.fetchThreads(true)
+
+    expect(store.items.map((a) => a.threadId)).toEqual(['thread_old'])
+    expect(store.activeCount).toBe(2)
+  })
+
+  it('does not carry the archived listing cursor into the active badge suffix', async () => {
+    vi.mocked(api.listThreads)
+      .mockResolvedValueOnce(ok({ threads: [mockThread()], pagination: { cursor: null } }))
+      .mockResolvedValue(
+        ok({ threads: [mockThread({ threadId: 'thread_old', status: 'archived' })], pagination: { cursor: 'cursor_abc' } }),
+      )
+    const store = useThreadsStore()
+    await store.fetchThreads(true)
+    store.setTab('archived')
+    await store.fetchThreads(true)
+
+    // More archived pages exist, but every active thread is already accounted for.
+    expect(store.hasMore).toBe(true)
+    expect(store.activeCountHasMore).toBe(false)
+  })
+
+  it('refreshing on the archived tab leaves cached active threads alone', async () => {
+    vi.mocked(api.listThreads)
+      .mockResolvedValueOnce(ok({ threads: [mockThread()], pagination: { cursor: null } }))
+      .mockResolvedValue(
+        ok({ threads: [mockThread({ threadId: 'thread_old', status: 'archived' })], pagination: { cursor: null } }),
+      )
+    const store = useThreadsStore()
+    await store.fetchThreads(true)
+    store.setTab('archived')
+    await store.fetchThreads(true)
+    await store.refreshExchanges()
+
+    expect(store.activeCount).toBe(1)
+    expect(store.items.map((a) => a.threadId)).toEqual(['thread_old'])
+  })
+
+  it('ensureActiveCount fetches active threads once when the inbox opens on another tab', async () => {
+    vi.mocked(api.listThreads)
+      .mockResolvedValueOnce(
+        ok({ threads: [mockThread({ threadId: 'thread_old', status: 'archived' })], pagination: { cursor: null } }),
+      )
+      .mockResolvedValue(ok({ threads: [mockThread()], pagination: { cursor: null } }))
+    const store = useThreadsStore()
+    store.activeTab = 'archived'
+    await store.fetchThreads(true)
+    expect(store.activeCount).toBe(0)
+
+    await store.ensureActiveCount()
+    expect(store.activeCount).toBe(1)
+    expect(store.items.map((a) => a.threadId)).toEqual(['thread_old'])
+
+    // Already known — no second request.
+    await store.ensureActiveCount()
+    expect(vi.mocked(api.listThreads)).toHaveBeenCalledTimes(2)
+  })
+
   it('unsubscribeThread patches the cached status without a full thread in the response', async () => {
     vi.mocked(api.listThreads).mockResolvedValue(ok({ threads: [mockThread()], pagination: { cursor: null } }))
     vi.mocked(api.unsubscribeThread).mockResolvedValue(ok({ status: 'archived', url: 'https://example.com' }))

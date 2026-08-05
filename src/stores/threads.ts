@@ -13,13 +13,21 @@ export const useThreadsStore = defineStore('threads', () => {
   const accountStore = useAccountStore()
 
   const _byAccount = ref<Record<string, Thread[]>>({})
-  const _cursors = ref<Record<string, string | undefined>>({})
+  // Cursors are keyed by account *and* tab: each tab paginates its own server query,
+  // so a cursor from the archived listing says nothing about how many active threads
+  // are left unfetched (which is what the Inbox badge's "+" suffix reports).
+  // `undefined` means "never fetched"; `null` means "fetched, no further pages".
+  const _cursors = ref<Record<string, string | null | undefined>>({})
   const loading = ref(false)
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
   const activeTab = ref<TabKey>('active')
   const selectedIds = ref(new Set<string>())
   const bulkActionPending = ref(false)
+
+  function _cursorKey(id: string, tab: TabKey) {
+    return `${id}::${tab}`
+  }
 
   // Sidebar notification badge — derived from cached store data so it stays
   // accurate regardless of which tab/filters the inbox view is showing.
@@ -34,7 +42,11 @@ export const useThreadsStore = defineStore('threads', () => {
   const activeCountHasMore = computed(() => {
     const id = accountStore.accountId
     if (!id) return false
-    return _cursors.value[id] !== undefined
+    // Prefer the active listing's own cursor; the 'all' listing also covers active
+    // threads, so fall back to it when the active tab was never opened.
+    const activeCursor = _cursors.value[_cursorKey(id, 'active')]
+    if (activeCursor !== undefined) return activeCursor !== null
+    return typeof _cursors.value[_cursorKey(id, 'all')] === 'string'
   })
 
   // The cached list holds whatever was last fetched/inserted for the account,
@@ -57,7 +69,7 @@ export const useThreadsStore = defineStore('threads', () => {
 
   const nextCursor = computed<string | undefined>(() =>
     accountStore.accountId
-      ? _cursors.value[accountStore.accountId]
+      ? _cursors.value[_cursorKey(accountStore.accountId, activeTab.value)] ?? undefined
       : undefined,
   )
 
@@ -95,6 +107,25 @@ export const useThreadsStore = defineStore('threads', () => {
   }
 
   /**
+   * Fold a fetched page into the account cache.
+   *
+   * One cache backs every tab *and* the Inbox badge counts, so a page fetched for one
+   * tab must not evict threads belonging to another — replacing the whole array on a
+   * tab switch is what zeroed the badge while the Archived tab was open. A reset
+   * therefore replaces only the slice the request actually covers: the fetched status,
+   * or everything when the tab is 'all'. Pagination pages simply merge in.
+   */
+  function _mergePage(id: string, page: Thread[], tab: TabKey, reset: boolean) {
+    const fetchedIds = new Set(page.map((t) => t.threadId))
+    const retained = (_byAccount.value[id] ?? []).filter((t) => {
+      if (fetchedIds.has(t.threadId)) return false
+      if (!reset) return true
+      return tab !== 'all' && t.status !== tab
+    })
+    _writeThreads(id, [...retained, ...page])
+  }
+
+  /**
    * Merge partial fields into a cached thread — used for optimistic updates and for
    * responses that don't carry a full thread object (e.g. the unsubscribe endpoint).
    * No-op when the thread isn't cached.
@@ -110,13 +141,14 @@ export const useThreadsStore = defineStore('threads', () => {
   async function fetchThreads(reset = false) {
     const id = accountStore.accountId
     if (!id) return
+    const tab = activeTab.value
     if (reset) {
-      _cursors.value = { ..._cursors.value, [id]: undefined }
+      _cursors.value = { ..._cursors.value, [_cursorKey(id, tab)]: undefined }
       selectedIds.value.clear()
     }
     loading.value = true
     error.value = null
-    const statusParam = activeTab.value === 'all' ? undefined : activeTab.value
+    const statusParam = tab === 'all' ? undefined : tab
     const result = await api.listThreads(id, { status: statusParam, limit: 50 })
     loading.value = false
     if (result.isErr()) {
@@ -128,19 +160,16 @@ export const useThreadsStore = defineStore('threads', () => {
       return
     }
     const page = result.value
-    const existing = _byAccount.value[id] ?? []
-    _byAccount.value = {
-      ..._byAccount.value,
-      [id]: reset ? page.threads : [...existing, ...page.threads],
-    }
-    _cursors.value = { ..._cursors.value, [id]: page.pagination.cursor ?? undefined }
+    _mergePage(id, page.threads, tab, reset)
+    _cursors.value = { ..._cursors.value, [_cursorKey(id, tab)]: page.pagination.cursor ?? null }
   }
 
   async function fetchMoreThreads() {
     const id = accountStore.accountId
     if (!id || !hasMore.value || loadingMore.value) return
+    const tab = activeTab.value
     loadingMore.value = true
-    const statusParam = activeTab.value === 'all' ? undefined : activeTab.value
+    const statusParam = tab === 'all' ? undefined : tab
     const result = await api.listThreads(id, {
       status: statusParam,
       cursor: nextCursor.value,
@@ -152,12 +181,8 @@ export const useThreadsStore = defineStore('threads', () => {
       return
     }
     const page = result.value
-    const existing = _byAccount.value[id] ?? []
-    _byAccount.value = {
-      ..._byAccount.value,
-      [id]: [...existing, ...page.threads],
-    }
-    _cursors.value = { ..._cursors.value, [id]: page.pagination.cursor ?? undefined }
+    _mergePage(id, page.threads, tab, false)
+    _cursors.value = { ..._cursors.value, [_cursorKey(id, tab)]: page.pagination.cursor ?? null }
   }
 
   function setTab(tab: TabKey) {
@@ -165,15 +190,36 @@ export const useThreadsStore = defineStore('threads', () => {
     void fetchThreads(true)
   }
 
+  /**
+   * Populate the active-thread cache without touching the current tab's listing.
+   * Needed when the inbox opens straight onto Archived (a `?tab=archived` deep link
+   * or reload): nothing would otherwise fetch active threads, and the badge would
+   * report zero rather than the real count.
+   */
+  async function ensureActiveCount() {
+    const id = accountStore.accountId
+    if (!id) return
+    if (_cursors.value[_cursorKey(id, 'active')] !== undefined) return
+    const result = await api.listThreads(id, { status: 'active', limit: 50 })
+    if (result.isErr()) {
+      logger.warn({ title: 'Active thread count fetch failed', error: result.error.message })
+      return
+    }
+    const page = result.value
+    _mergePage(id, page.threads, 'active', true)
+    _cursors.value = { ..._cursors.value, [_cursorKey(id, 'active')]: page.pagination.cursor ?? null }
+  }
+
   async function refreshExchanges() {
     const id = accountStore.accountId
     if (!id) return
-    const statusParam = activeTab.value === 'all' ? undefined : activeTab.value
+    const tab = activeTab.value
+    const statusParam = tab === 'all' ? undefined : tab
     const result = await api.listThreads(id, { status: statusParam, limit: 50, refresh: new Date().toISOString() })
     if (result.isErr()) return
     const page = result.value
-    _byAccount.value = { ..._byAccount.value, [id]: page.threads }
-    _cursors.value = { ..._cursors.value, [id]: page.pagination.cursor ?? undefined }
+    _mergePage(id, page.threads, tab, true)
+    _cursors.value = { ..._cursors.value, [_cursorKey(id, tab)]: page.pagination.cursor ?? null }
   }
 
   function toggleSelect(id: string) {
@@ -354,6 +400,7 @@ export const useThreadsStore = defineStore('threads', () => {
     allSelected,
     fetchThreads,
     fetchMoreThreads,
+    ensureActiveCount,
     refreshThread,
     setTab,
     refreshExchanges,

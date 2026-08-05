@@ -87,6 +87,9 @@ onMounted(async () => {
   const tab = route.query.tab as TabKey | undefined
   if (tab && (VALID_TABS as readonly string[]).includes(tab)) threadsStore.setTab(tab)
   await threadsStore.fetchThreads(true)
+  // Opening straight onto a non-active tab never fetches active threads, so the
+  // Inbox badges would read zero until the user visited the Inbox tab.
+  void threadsStore.ensureActiveCount()
 
   onAction('navigate_next', moveNext)
   onAction('navigate_prev', movePrev)
