@@ -24,7 +24,7 @@ import BuildInfo from '@/components/BuildInfo.vue'
 import UserAvatarIcon from '@/components/UserAvatarIcon.vue'
 import ConnectionIcon from '@/components/ConnectionIcon.vue'
 import { connectionLabel } from '@/lib/connections'
-import { mailboxConnectionProperties } from '@/lib/mailbox-scopes'
+import { mailboxConnectionId, mailboxConnectionProperties } from '@/lib/mailbox-scopes'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useToast } from '@/composables/useToast'
@@ -635,7 +635,7 @@ async function connectExchange(platform: 'gmail' | 'outlook') {
   emxPlatformPickerOpen.value = false
 
   // Redirect to provider OAuth — page unloads. On return, onMounted picks up completeExchange param.
-  const connectionId = platform === 'gmail' ? 'google' : 'microsoft'
+  const connectionId = mailboxConnectionId(platform)
   const basePath = import.meta.env.VITE_BASE_PATH ?? '/'
   const redirectUrl = `${window.location.origin}${basePath}settings/email-forwarding?tab=inbound&completeExchange=${platform}`
 
@@ -660,11 +660,31 @@ async function completeExchangeActivation(platform: 'gmail' | 'outlook') {
   emxConnecting.value = true
   emxActivationError.value = ''
 
+  // Report which identity was just linked. The connection id is ours to know — it is the one
+  // the link flow used — and the provider-side user id identifies which of the user's linked
+  // identities backs this mailbox; the server persists both so no later code has to guess a
+  // connection from the platform. The lookup is best-effort: without it the mailbox still
+  // connects, it just carries no provider-side id.
+  const connectionId = mailboxConnectionId(platform)
+  let connectionUserId: string | undefined
+  try {
+    const profile = await loginClient.getUserProfile()
+    connectionUserId = profile?.linkedIdentities?.find(
+      (i) => i.connection.connectionId === connectionId,
+    )?.connection.userId
+  } catch (e) {
+    logger.warn({ title: 'Could not read back the linked identity for the connected mailbox', error: e })
+  }
+
   // The mailbox address is deliberately not sent: the only mailbox identifier available here
-  // is the linked identity's provider-side user id, which for Google is a numeric subject and
-  // not an email address at all. The backend asks the provider directly using the access
-  // token it already holds, which is the only authoritative source.
-  const createResult = await api.createExternalExchange(accountStore.accountId, { platform })
+  // is that same provider-side user id, which for Google is a numeric subject and not an
+  // email address at all. The backend asks the provider directly using the access token it
+  // already holds, which is the only authoritative source.
+  const createResult = await api.createExternalExchange(accountStore.accountId, {
+    platform,
+    connectionId,
+    ...(connectionUserId ? { connectionUserId } : {}),
+  })
   emxConnecting.value = false
   if (createResult.isErr()) {
     emxActivationError.value = createResult.error.message

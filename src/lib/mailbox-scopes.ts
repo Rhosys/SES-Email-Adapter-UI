@@ -13,6 +13,22 @@
 /** Shape Authress' login client accepts for `connectionProperties`. */
 export type MailboxConnectionProperties = Record<string, string>
 
+/**
+ * The Authress identity-connection backing each mail platform.
+ *
+ * Single source for the link flow and the activation call that reports the linked identity —
+ * the two must agree, or the id recorded against the mailbox is not the one it was linked
+ * with. The backend persists whatever is reported here and never re-derives it.
+ */
+const MAILBOX_CONNECTION_IDS: Record<'gmail' | 'outlook', string> = {
+  gmail: 'google',
+  outlook: 'microsoft',
+}
+
+export function mailboxConnectionId(platform: 'gmail' | 'outlook'): string {
+  return MAILBOX_CONNECTION_IDS[platform]
+}
+
 const GOOGLE_SCOPES = [
   'openid',
   'email',
