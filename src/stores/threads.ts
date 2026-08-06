@@ -7,71 +7,67 @@ import { useAccountStore } from '@/stores/account'
 import { NoCurrentAccountError } from '@/stores/errors'
 import type { Thread, ThreadStatus } from '@/types/server'
 
-type TabKey = 'active' | 'archived' | 'all'
+const PAGE_SIZE = 50
+
+export interface FetchThreadsOptions {
+  /** Listing to load. Omit for every status (the "All" listing). */
+  status?: ThreadStatus
+  /** Cursor from a previous `fetchThreads` call. Omit to (re)load the first page. */
+  cursor?: string
+  /** Ask the server to bypass its cache — the inbox's manual refresh button. */
+  refresh?: boolean
+}
 
 export const useThreadsStore = defineStore('threads', () => {
   const accountStore = useAccountStore()
 
+  // The store's whole job: every thread it has loaded, keyed by account. Which of them
+  // a given screen shows, and how far that screen has paginated, is the screen's business.
   const _byAccount = ref<Record<string, Thread[]>>({})
-  const _cursors = ref<Record<string, string | undefined>>({})
+  // The active listing's next-page cursor, per account. Set means there are active threads
+  // beyond the ones loaded, so the badge reads "50+" rather than a confidently wrong "50".
+  // Startup always loads the first page of active threads, so this is always answered.
+  const _activeCursor = ref<Record<string, string | undefined>>({})
   const loading = ref(false)
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
-  const activeTab = ref<TabKey>('active')
   const selectedIds = ref(new Set<string>())
   const bulkActionPending = ref(false)
 
-  // Sidebar notification badge — derived from cached store data so it stays
-  // accurate regardless of which tab/filters the inbox view is showing.
-  const activeCount = computed(() => {
-    const id = accountStore.accountId
-    if (!id) return 0
-    const cached = _byAccount.value[id]
-    if (!Array.isArray(cached)) return 0
-    return cached.filter((a) => a.status === 'active' && a.lastSignalAt != null).length
-  })
-
-  const activeCountHasMore = computed(() => {
-    const id = accountStore.accountId
-    if (!id) return false
-    return _cursors.value[id] !== undefined
-  })
-
-  // The cached list holds whatever was last fetched/inserted for the account,
-  // which can contain threads of mixed statuses (e.g. an archived thread opened from
-  // a detail link while the inbox shows the active tab). Filtering by the active
-  // tab here keeps list membership reactive to status changes: when a mutation
-  // flips a thread's status in the cache, it automatically enters/leaves the list
-  // shown for the current tab without any manual splicing.
-  const items = computed<Thread[]>(() => {
+  /**
+   * Every loaded thread for the current account. Threads with no signals are dropped —
+   * a null lastSignalAt means there is nothing left to show (e.g. the thread's only
+   * signal was reprocessed onto another thread).
+   */
+  const threads = computed<Thread[]>(() => {
     const id = accountStore.accountId
     if (!id) return []
     const all = _byAccount.value[id]
     if (!Array.isArray(all)) return []
-    // Hide threads with no signals — a null lastSignalAt means the thread has nothing
-    // left to show (e.g. its only signal was reprocessed onto another thread).
-    const withSignals = all.filter((a) => a.lastSignalAt != null)
-    if (activeTab.value === 'all') return withSignals
-    return withSignals.filter((a) => a.status === activeTab.value)
+    return all.filter((a) => a.lastSignalAt != null)
   })
-
-  const nextCursor = computed<string | undefined>(() =>
-    accountStore.accountId
-      ? _cursors.value[accountStore.accountId]
-      : undefined,
-  )
-
-  const hasMore = computed(() => nextCursor.value !== undefined)
-
-  const allSelected = computed(
-    () => items.value.length > 0 && items.value.every((a) => selectedIds.value.has(a.threadId)),
-  )
 
   function byLastSignalDesc(a: Thread, b: Thread) {
     return new Date(b.lastSignalAt ?? 0).getTime() - new Date(a.lastSignalAt ?? 0).getTime()
   }
 
-  const sortedItems = computed<Thread[]>(() => [...items.value].sort(byLastSignalDesc))
+  const sortedThreads = computed<Thread[]>(() => [...threads.value].sort(byLastSignalDesc))
+
+  /** Newest-first threads with the given status — what each inbox tab renders. */
+  function threadsWithStatus(status: ThreadStatus): Thread[] {
+    return sortedThreads.value.filter((a) => a.status === status)
+  }
+
+  const activeThreads = computed<Thread[]>(() => sortedThreads.value.filter((a) => a.status === 'active'))
+
+  // Notification badges are plain derivations of what's loaded. Nothing recomputes or
+  // refetches them: mutations write through the cache below and every badge follows.
+  const activeCount = computed(() => activeThreads.value.length)
+
+  const activeCountHasMore = computed(() => {
+    const id = accountStore.accountId
+    return id ? _activeCursor.value[id] !== undefined : false
+  })
 
   // ─── Cache mutation helpers ───────────────────────────────────────────────
   // All writes funnel through these so the store stays the single source of
@@ -107,73 +103,70 @@ export const useThreadsStore = defineStore('threads', () => {
     _writeThreads(id, existing.map((a) => (a.threadId === threadId ? { ...a, ...partial } : a)))
   }
 
-  async function fetchThreads(reset = false) {
+  /** The cached threads a page doesn't carry a newer copy of. */
+  function _notIn(page: Thread[], cached: Thread[]) {
+    const pageIds = new Set(page.map((t) => t.threadId))
+    return cached.filter((t) => !pageIds.has(t.threadId))
+  }
+
+  /**
+   * Take a page's threads as the current contents of one listing, dropping the threads
+   * that listing held before — this is how threads archived on another device stop
+   * being counted. One cache serves every listing, so it only displaces threads the
+   * request spoke for: reloading `status=archived` says nothing about active threads,
+   * and they stay.
+   */
+  function _replaceListing(id: string, status: ThreadStatus, page: Thread[]) {
+    const otherListings = (_byAccount.value[id] ?? []).filter((t) => t.status !== status)
+    _writeThreads(id, [..._notIn(page, otherListings), ...page])
+  }
+
+  /** Add a page's threads to what's already loaded — the next page of a listing. */
+  function _addThreads(id: string, page: Thread[]) {
+    _writeThreads(id, [..._notIn(page, _byAccount.value[id] ?? []), ...page])
+  }
+
+  /**
+   * Load one page of threads into the cache and return the cursor for the page after it
+   * (undefined when the listing is exhausted). The caller holds that cursor: it is the
+   * one that knows which listing the user is looking at and when they ask for more.
+   */
+  async function fetchThreads(options: FetchThreadsOptions = {}): Promise<string | undefined> {
+    const { status, cursor, refresh } = options
     const id = accountStore.accountId
-    if (!id) return
-    if (reset) {
-      _cursors.value = { ..._cursors.value, [id]: undefined }
-      selectedIds.value.clear()
-    }
-    loading.value = true
+    if (!id) return undefined
+    const isFirstPage = cursor === undefined
+    if (isFirstPage) loading.value = true
+    else loadingMore.value = true
     error.value = null
-    const statusParam = activeTab.value === 'all' ? undefined : activeTab.value
-    const result = await api.listThreads(id, { status: statusParam, limit: 50 })
+    const result = await api.listThreads(id, {
+      status,
+      cursor,
+      limit: PAGE_SIZE,
+      refresh: refresh ? new Date().toISOString() : undefined,
+    })
     loading.value = false
+    loadingMore.value = false
     if (result.isErr()) {
       if ((_byAccount.value[id] ?? []).length > 0) {
         logger.warn({ title: 'Threads fetch failed with cache available', error: result.error.message })
       } else {
         error.value = result.error.message
       }
-      return
+      return undefined
     }
     const page = result.value
-    const existing = _byAccount.value[id] ?? []
-    _byAccount.value = {
-      ..._byAccount.value,
-      [id]: reset ? page.threads : [...existing, ...page.threads],
-    }
-    _cursors.value = { ..._cursors.value, [id]: page.pagination.cursor ?? undefined }
-  }
-
-  async function fetchMoreThreads() {
-    const id = accountStore.accountId
-    if (!id || !hasMore.value || loadingMore.value) return
-    loadingMore.value = true
-    const statusParam = activeTab.value === 'all' ? undefined : activeTab.value
-    const result = await api.listThreads(id, {
-      status: statusParam,
-      cursor: nextCursor.value,
-      limit: 50,
-    })
-    loadingMore.value = false
-    if (result.isErr()) {
-      error.value = result.error.message
-      return
-    }
-    const page = result.value
-    const existing = _byAccount.value[id] ?? []
-    _byAccount.value = {
-      ..._byAccount.value,
-      [id]: [...existing, ...page.threads],
-    }
-    _cursors.value = { ..._cursors.value, [id]: page.pagination.cursor ?? undefined }
-  }
-
-  function setTab(tab: TabKey) {
-    activeTab.value = tab
-    void fetchThreads(true)
-  }
-
-  async function refreshExchanges() {
-    const id = accountStore.accountId
-    if (!id) return
-    const statusParam = activeTab.value === 'all' ? undefined : activeTab.value
-    const result = await api.listThreads(id, { status: statusParam, limit: 50, refresh: new Date().toISOString() })
-    if (result.isErr()) return
-    const page = result.value
-    _byAccount.value = { ..._byAccount.value, [id]: page.threads }
-    _cursors.value = { ..._cursors.value, [id]: page.pagination.cursor ?? undefined }
+    const next = page.pagination.cursor ?? undefined
+    // A status-scoped first page is the whole front of that listing, so it replaces what
+    // the listing held. The unscoped "All" page is a mix that speaks for no listing in
+    // full — treating it as a replacement would drop active threads it happened not to
+    // include, and shrink the badge. It only ever adds. A filtered request (when this
+    // grows sender/search options) is the same case: it returns a subset of a listing,
+    // never the listing, so it must add rather than replace.
+    if (isFirstPage && status !== undefined) _replaceListing(id, status, page.threads)
+    else _addThreads(id, page.threads)
+    if (status === 'active') _activeCursor.value = { ..._activeCursor.value, [id]: next }
+    return next
   }
 
   function toggleSelect(id: string) {
@@ -184,8 +177,8 @@ export const useThreadsStore = defineStore('threads', () => {
     }
   }
 
-  function selectAll() {
-    items.value.forEach((a) => selectedIds.value.add(a.threadId))
+  function selectAll(threadIds: string[]) {
+    threadIds.forEach((id) => selectedIds.value.add(id))
   }
 
   function clearSelection() {
@@ -196,7 +189,7 @@ export const useThreadsStore = defineStore('threads', () => {
     const id = accountStore.accountId
     if (!id) return
     const ids = [...selectedIds.value]
-    // Optimistic: flip status in the cache so the reactive tab filter drops them immediately.
+    // Optimistic: flip status in the cache so the status-filtered lists drop them immediately.
     ids.forEach((threadId) => _patchThreadLocal(threadId, { status }))
     clearSelection()
     bulkActionPending.value = true
@@ -207,8 +200,8 @@ export const useThreadsStore = defineStore('threads', () => {
     const failed = results.filter((r) => r.isErr())
     if (failed.length > 0) {
       error.value = `Failed to ${verb} ${failed.length} thread(s)`
-      // Re-fetch to restore consistent state
-      await fetchThreads(true)
+      // Re-read the threads we just tried to move so the cache stops lying about them.
+      await Promise.all(ids.map((threadId) => refreshThread(threadId)))
     }
   }
 
@@ -231,7 +224,7 @@ export const useThreadsStore = defineStore('threads', () => {
     bulkActionPending.value = true
     const results = await Promise.all(
       ids.map((threadId) => {
-        const thread = items.value.find((a) => a.threadId === threadId)
+        const thread = threads.value.find((a) => a.threadId === threadId)
         const labels = thread ? [...new Set([...thread.labels, label])] : [label]
         return api.patchThread(id, threadId, { labels })
       }),
@@ -291,8 +284,8 @@ export const useThreadsStore = defineStore('threads', () => {
 
   /**
    * Change a thread's status. The PATCH response echoes the full thread, so the
-   * cache is updated from the response; the reactive tab filter then moves the
-   * thread between lists automatically.
+   * cache is updated from the response; every status-filtered list and badge
+   * follows from that one write.
    */
   async function setStatus(
     threadId: string,
@@ -339,24 +332,19 @@ export const useThreadsStore = defineStore('threads', () => {
   }
 
   return {
-    items,
-    sortedItems,
-    nextCursor,
+    threads,
+    sortedThreads,
+    activeThreads,
+    threadsWithStatus,
     activeCount,
     activeCountHasMore,
     loading,
     loadingMore,
     error,
-    activeTab,
     selectedIds,
     bulkActionPending,
-    hasMore,
-    allSelected,
     fetchThreads,
-    fetchMoreThreads,
     refreshThread,
-    setTab,
-    refreshExchanges,
     toggleSelect,
     selectAll,
     clearSelection,

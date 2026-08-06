@@ -88,8 +88,11 @@ enableMocking().then(() => {
     const quarantineStore = useQuarantineStore()
     void quarantineStore.fetchSignals(true)
 
+    // Always the active listing, whichever page the user lands on: the sidebar badge
+    // counts loaded active threads, and it renders everywhere. Archived and "All" stay
+    // unfetched until their tab is selected.
     const threadsStore = useThreadsStore()
-    void threadsStore.fetchThreads(true)
+    void threadsStore.fetchThreads({ status: 'active' })
 
     if (isAdminUser()) {
       const spamStore = useSpamStore()

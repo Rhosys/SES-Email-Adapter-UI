@@ -30,7 +30,7 @@ onUnmounted(() => clearInterval(countdownTimer))
 // Most recent active thread with a signal in the last 15 minutes
 const highlightThread = computed(() => {
   const currentTime = Date.now()
-  return threadsStore.sortedItems.find((t) =>
+  return threadsStore.sortedThreads.find((t) =>
     t.status === 'active' && t.lastSignalAt && currentTime - new Date(t.lastSignalAt).getTime() < RECENCY_WINDOW_MS,
   ) ?? null
 })

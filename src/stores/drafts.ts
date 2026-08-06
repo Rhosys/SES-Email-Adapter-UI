@@ -26,7 +26,7 @@ export const useDraftsStore = defineStore('drafts', () => {
 
   const activeThreadIds = computed(() => {
     const ids = new Set<string>()
-    for (const thread of threadsStore.items) {
+    for (const thread of threadsStore.threads) {
       if (thread.status === 'active') ids.add(thread.threadId)
     }
     return ids
@@ -45,9 +45,8 @@ export const useDraftsStore = defineStore('drafts', () => {
     if (!id) return
     loading.value = true
     // Always fetch fresh threads to get current lastSignalAt
-    await threadsStore.fetchThreads(true)
-    const topThreads = threadsStore.sortedItems
-      .filter((a) => a.status === 'active')
+    await threadsStore.fetchThreads({ status: 'active' })
+    const topThreads = threadsStore.activeThreads
       .slice(0, TOP_THREAD_LIMIT)
       .map((a) => ({ threadId: a.threadId, lastSignalAt: a.lastSignalAt ?? a.createdAt }))
     await signalsStore.fetchForThreads(topThreads)

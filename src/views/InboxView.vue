@@ -16,6 +16,8 @@ import InboxZeroCelebration from '@/components/InboxZeroCelebration.vue'
 import StatsWidget from '@/components/StatsWidget.vue'
 import ResourcesBanner from '@/components/ResourcesBanner.vue'
 import InboxHighlight from '@/components/InboxHighlight.vue'
+import type { FetchThreadsOptions } from '@/stores/threads'
+import type { ThreadStatus } from '@/types/server'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,20 +29,69 @@ const refreshing = ref(false)
 const lastRefreshedAt = ref<string | null>(null)
 const highlightRef = ref<InstanceType<typeof InboxHighlight> | null>(null)
 
-async function handleRefresh() {
-  refreshing.value = true
-  await threadsStore.refreshExchanges()
-  lastRefreshedAt.value = new Date().toLocaleTimeString()
-  refreshing.value = false
-}
-
 const VALID_TABS = ['active', 'archived', 'all'] as const
 type TabKey = (typeof VALID_TABS)[number]
 
-// Filter out threads that are optimistically hidden (deferred delete/block pending)
-const visibleItems = computed(() =>
-  threadsStore.sortedItems.filter((t) => !hiddenIds.value.has(t.threadId)),
+const activeTab = ref<TabKey>('active')
+
+/** Undefined asks the server for every status — the "All" tab. */
+function statusFor(tab: TabKey): ThreadStatus | undefined {
+  return tab === 'all' ? undefined : tab
+}
+
+/** The query a tab reads. Filters, when the inbox grows them, belong here too. */
+function queryFor(tab: TabKey): FetchThreadsOptions {
+  return { status: statusFor(tab) }
+}
+
+/**
+ * A cursor is a position within one query's results and means nothing to a different
+ * query, so cursors are held per query rather than per tab. Today the tab is the whole
+ * query, giving one cursor per tab; anything added to `queryFor` — filters, a search
+ * term — changes the identity too, so a changed query can never continue paging through
+ * the old one's results. A page landing late updates the query that asked for it and no
+ * other. Set means that query has more pages.
+ */
+const cursors = ref<Record<string, string | undefined>>({})
+
+function cursorKey(query: FetchThreadsOptions) {
+  return JSON.stringify(query)
+}
+
+const hasMore = computed(() => cursors.value[cursorKey(queryFor(activeTab.value))] !== undefined)
+
+const tabThreads = computed(() =>
+  activeTab.value === 'all'
+    ? threadsStore.sortedThreads
+    : threadsStore.threadsWithStatus(activeTab.value),
 )
+
+// Filter out threads that are optimistically hidden (deferred delete/block pending)
+const visibleItems = computed(() => tabThreads.value.filter((t) => !hiddenIds.value.has(t.threadId)))
+
+const allSelected = computed(
+  () => visibleItems.value.length > 0 && visibleItems.value.every((t) => threadsStore.selectedIds.has(t.threadId)),
+)
+
+/**
+ * Read a tab's listing from the beginning. Selecting a tab always starts a fresh query
+ * — the cursor it held is dropped first, so a stale one can never be sent — and the
+ * cursor that query returns takes its place.
+ */
+async function loadTab(tab: TabKey, refresh = false) {
+  const query = queryFor(tab)
+  const key = cursorKey(query)
+  cursors.value = { ...cursors.value, [key]: undefined }
+  const cursor = await threadsStore.fetchThreads({ ...query, refresh })
+  cursors.value = { ...cursors.value, [key]: cursor }
+}
+
+async function handleRefresh() {
+  refreshing.value = true
+  await loadTab(activeTab.value, true)
+  lastRefreshedAt.value = new Date().toLocaleTimeString()
+  refreshing.value = false
+}
 
 // Keyboard-navigable cursor through the thread list
 const focusedThreadId = ref<string | null>(null)
@@ -85,8 +136,8 @@ function selectFocused() {
 
 onMounted(async () => {
   const tab = route.query.tab as TabKey | undefined
-  if (tab && (VALID_TABS as readonly string[]).includes(tab)) threadsStore.setTab(tab)
-  await threadsStore.fetchThreads(true)
+  if (tab && (VALID_TABS as readonly string[]).includes(tab)) activeTab.value = tab
+  await loadTab(activeTab.value)
 
   onAction('navigate_next', moveNext)
   onAction('navigate_prev', movePrev)
@@ -104,12 +155,19 @@ onUnmounted(() => {
 })
 
 function handleTabChange(tab: TabKey) {
-  threadsStore.setTab(tab)
+  activeTab.value = tab
+  threadsStore.clearSelection()
+  void loadTab(tab)
   void router.replace({ query: tab === 'active' ? {} : { tab } })
 }
 
-function handleLoadMore() {
-  void threadsStore.fetchMoreThreads()
+async function handleLoadMore() {
+  const query = queryFor(activeTab.value)
+  const key = cursorKey(query)
+  const cursor = cursors.value[key]
+  if (cursor === undefined || threadsStore.loadingMore) return
+  const next = await threadsStore.fetchThreads({ ...query, cursor })
+  cursors.value = { ...cursors.value, [key]: next }
 }
 
 async function handleBulkArchive() {
@@ -129,7 +187,7 @@ const showCelebration = ref(false)
 let prevActiveCount = -1
 
 watch(
-  [() => threadsStore.loading, () => visibleItems.value.length, () => threadsStore.activeTab],
+  [() => threadsStore.loading, () => visibleItems.value.length, () => activeTab.value],
   ([loading, count, tab]) => {
     if (loading) return
     if (tab === 'active') {
@@ -181,7 +239,7 @@ watch(
       <InboxError v-if="threadsStore.error" :message="threadsStore.error" />
 
       <InboxTabBar
-        :active-tab="threadsStore.activeTab"
+        :active-tab="activeTab"
         :active-count="threadsStore.activeCount"
         :active-count-has-more="threadsStore.activeCountHasMore"
         @change="handleTabChange"
@@ -190,12 +248,12 @@ watch(
       <BulkActionBar
         :count="threadsStore.selectedIds.size"
         :pending="threadsStore.bulkActionPending"
-        :all-selected="threadsStore.allSelected"
-        :tab="threadsStore.activeTab"
+        :all-selected="allSelected"
+        :tab="activeTab"
         :archive-action="handleBulkArchive"
         :move-to-inbox-action="handleBulkMoveToInbox"
         :label-action="handleBulkLabel"
-        @select-all="threadsStore.selectAll()"
+        @select-all="threadsStore.selectAll(visibleItems.map((t) => t.threadId))"
         @clear-selection="threadsStore.clearSelection()"
         @clear="threadsStore.clearSelection()"
       />
@@ -203,7 +261,7 @@ watch(
       <ThreadListShell
         v-if="visibleItems.length > 0"
       >
-        <template v-if="threadsStore.activeTab === 'active'">
+        <template v-if="activeTab === 'active'">
           <ActiveThreadRow
             v-for="thread in visibleItems"
             :key="thread.threadId"
@@ -213,7 +271,7 @@ watch(
             @toggle-select="threadsStore.toggleSelect"
           />
         </template>
-        <template v-else-if="threadsStore.activeTab === 'archived'">
+        <template v-else-if="activeTab === 'archived'">
           <ArchivedThreadRow
             v-for="thread in visibleItems"
             :key="thread.threadId"
@@ -254,13 +312,13 @@ watch(
 
       <InboxEmpty
         v-else
-        :tab="threadsStore.activeTab"
+        :tab="activeTab"
         :refreshing="refreshing"
         :last-refreshed-at="lastRefreshedAt"
         @refresh="handleRefresh"
       />
 
-      <div v-if="threadsStore.hasMore" class="mt-4 flex justify-center">
+      <div v-if="hasMore" class="mt-4 flex justify-center">
         <button
           :disabled="threadsStore.loadingMore"
           class="rounded bg-ctp-surface0 px-4 py-2 text-sm text-ctp-text hover:bg-ctp-surface1 disabled:opacity-50"
