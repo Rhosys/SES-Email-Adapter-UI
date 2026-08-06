@@ -78,6 +78,10 @@ function archivedTab(page: Page) {
   return page.getByRole('tab', { name: /completed or manually archived/ }).filter({ visible: true })
 }
 
+function inboxTab(page: Page) {
+  return page.getByRole('tab', { name: /waiting for processing or reply/ }).filter({ visible: true })
+}
+
 test.describe('inbox notification badges', () => {
   test('keep counting active threads after switching to the Archived tab', async ({ page }) => {
     await stubAccounts(page)
@@ -99,6 +103,26 @@ test.describe('inbox notification badges', () => {
     await gotoAuthed(page, '/?tab=archived')
 
     await expect(page.getByText('archived thread arch_1')).toBeVisible()
+    await expectBothBadges(page, '3')
+  })
+
+  test('keep each tab on its own pagination when switching back and forth', async ({ page }) => {
+    await stubAccounts(page)
+    const requested = await stubThreads(page)
+    await gotoAuthed(page, '/')
+
+    await archivedTab(page).click()
+    await expect(page.getByText('archived thread arch_1')).toBeVisible()
+
+    await inboxTab(page).click()
+    await expect(page.getByText('active thread act_1')).toBeVisible()
+
+    await archivedTab(page).click()
+    await expect(page.getByText('archived thread arch_1')).toBeVisible()
+
+    // Returning to a tab resumes it: its pages are already loaded and its cursor still
+    // points past them, so it does not restart from the first page.
+    expect(requested.filter((status) => status === 'archived')).toHaveLength(1)
     await expectBothBadges(page, '3')
   })
 

@@ -31,12 +31,22 @@ const highlightRef = ref<InstanceType<typeof InboxHighlight> | null>(null)
 const VALID_TABS = ['active', 'archived', 'all'] as const
 type TabKey = (typeof VALID_TABS)[number]
 
-// The selected tab and how far it has paginated are this screen's state. The store
-// keeps threads; only the tab knows which listing the user is reading and where it
-// stopped, so the cursor lives here and resets whenever the tab changes.
+// Each tab paginates its own listing, so each keeps its own cursor for as long as this
+// screen is mounted: leaving Archived and coming back resumes where it stopped instead
+// of discarding the pages it already loaded. `cursor` set means more pages remain.
+interface TabPagination {
+  loaded: boolean
+  cursor?: string
+}
+
 const activeTab = ref<TabKey>('active')
-const nextCursor = ref<string | undefined>()
-const hasMore = computed(() => nextCursor.value !== undefined)
+const pagination = ref<Record<TabKey, TabPagination>>({
+  active: { loaded: false },
+  archived: { loaded: false },
+  all: { loaded: false },
+})
+
+const hasMore = computed(() => pagination.value[activeTab.value].cursor !== undefined)
 
 /** Undefined asks the server for every status — the "All" tab. */
 function statusFor(tab: TabKey): ThreadStatus | undefined {
@@ -56,18 +66,22 @@ const allSelected = computed(
   () => visibleItems.value.length > 0 && visibleItems.value.every((t) => threadsStore.selectedIds.has(t.threadId)),
 )
 
-/** (Re)load the selected tab from its first page. */
-async function loadTab(refresh = false) {
-  const tab = activeTab.value
-  nextCursor.value = undefined
+/**
+ * Load a tab's first page, restarting its pagination. A tab that has already been
+ * loaded is left alone unless this is an explicit refresh — reloading it would drop
+ * the later pages it has on screen while its cursor points past them.
+ */
+async function loadTab(tab: TabKey, refresh = false) {
+  if (pagination.value[tab].loaded && !refresh) return
+  pagination.value[tab] = { loaded: true }
   const cursor = await threadsStore.fetchThreads({ status: statusFor(tab), refresh })
-  // Ignore a page that landed after the user moved on to another tab.
-  if (activeTab.value === tab) nextCursor.value = cursor
+  // A load that failed outright leaves nothing on screen; let re-selecting the tab retry.
+  pagination.value[tab] = { loaded: threadsStore.error === null, cursor }
 }
 
 async function handleRefresh() {
   refreshing.value = true
-  await loadTab(true)
+  await loadTab(activeTab.value, true)
   lastRefreshedAt.value = new Date().toLocaleTimeString()
   refreshing.value = false
 }
@@ -116,7 +130,7 @@ function selectFocused() {
 onMounted(async () => {
   const tab = route.query.tab as TabKey | undefined
   if (tab && (VALID_TABS as readonly string[]).includes(tab)) activeTab.value = tab
-  await loadTab()
+  await loadTab(activeTab.value)
 
   onAction('navigate_next', moveNext)
   onAction('navigate_prev', movePrev)
@@ -136,16 +150,16 @@ onUnmounted(() => {
 function handleTabChange(tab: TabKey) {
   activeTab.value = tab
   threadsStore.clearSelection()
-  void loadTab()
+  void loadTab(tab)
   void router.replace({ query: tab === 'active' ? {} : { tab } })
 }
 
 async function handleLoadMore() {
-  if (threadsStore.loadingMore) return
-  nextCursor.value = await threadsStore.fetchThreads({
-    status: statusFor(activeTab.value),
-    cursor: nextCursor.value,
-  })
+  const tab = activeTab.value
+  const { cursor } = pagination.value[tab]
+  if (cursor === undefined || threadsStore.loadingMore) return
+  const next = await threadsStore.fetchThreads({ status: statusFor(tab), cursor })
+  pagination.value[tab] = { loaded: true, cursor: next }
 }
 
 async function handleBulkArchive() {
