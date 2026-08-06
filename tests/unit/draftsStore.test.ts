@@ -98,7 +98,7 @@ describe('draftsStore', () => {
         pagination: { cursor: null },
       }),
     )
-    await threadsStore.fetchThreads(true)
+    await threadsStore.fetchThreads()
 
     vi.mocked(api.listSignals).mockImplementation(async (_account, threadId) =>
       ok({

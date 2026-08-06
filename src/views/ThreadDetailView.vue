@@ -49,9 +49,9 @@ const senderDomain = computed(() => {
   return at >= 0 ? sender!.slice(at + 1) : null
 })
 
-// Look up thread from threadsStore items first, fall back to locally fetched data
+// Look up the thread in the threads store first, fall back to locally fetched data
 const thread = computed(() => {
-  const fromStore = threadsStore.items.find((a) => a.threadId === threadId.value)
+  const fromStore = threadsStore.threads.find((a) => a.threadId === threadId.value)
   return fromStore ?? threadData.value
 })
 

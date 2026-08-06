@@ -103,7 +103,7 @@ describe('stale cache resilience — stores survive outdated localStorage shapes
 
     // activeCount iterates _byAccount[id] with filter — must not crash
     expect(threadsStore.activeCount).toBe(0)
-    expect(threadsStore.items).toEqual([])
+    expect(threadsStore.threads).toEqual([])
   })
 
   it('quarantine store handles cache missing visible/hidden keys', () => {
