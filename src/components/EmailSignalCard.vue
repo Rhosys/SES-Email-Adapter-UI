@@ -313,48 +313,7 @@ function fitHeight(e: Event) {
 }
 
 // Wrap the raw email HTML so wide content reflows to the viewport instead of
-// overflowing horizontally on mobile. The iframe sandbox has no
-// allow-same-origin, so the parent page cannot reach into the email document
-// with CSS — the only lever is the srcdoc string itself, so the fix is a
-// <style>/<meta viewport> block injected ahead of the email markup.
-//
-// Emails are rarely valid documents, so all three shapes show up in practice:
-// a real <head>, a bare <html> wrapper, or just a soup of tags with neither.
-function wrapEmailHtml(rawHtml: string): string {
-  // `<base target="_blank">` forces every link in the email to open in a new
-  // browser tab. Without it a click uses the default `_self` target and tries
-  // to navigate the sandboxed srcdoc frame itself — which, with no
-  // allow-same-origin and no allow-top-navigation, fails/blanks the email
-  // instead of following the link. The sandbox already grants
-  // `allow-popups allow-popups-to-escape-sandbox`, so the new tab opens as a
-  // normal top-level page. Placed first so it wins the target lookup even if
-  // the email ships its own <base> (a later base with an href still governs
-  // relative-URL resolution; this one only sets the target).
-  const markup = `<base target="_blank"><meta name="viewport" content="width=device-width, initial-scale=1"><style>
-    html, body { overflow-x: hidden !important; }
-    * { max-width: 100% !important; box-sizing: border-box !important; }
-    img, video, svg { height: auto !important; }
-    table { width: auto !important; }
-    body, p, span, div, td, th, a, li {
-      word-wrap: break-word !important;
-      overflow-wrap: break-word !important;
-      word-break: break-word !important;
-    }
-    pre { white-space: pre-wrap !important; }
-  </style>`
-
-  const headMatch = /<head[^>]*>/i.exec(rawHtml)
-  if (headMatch) {
-    const idx = headMatch.index + headMatch[0].length
-    return rawHtml.slice(0, idx) + markup + rawHtml.slice(idx)
-  }
-  const htmlMatch = /<html[^>]*>/i.exec(rawHtml)
-  if (htmlMatch) {
-    const idx = htmlMatch.index + htmlMatch[0].length
-    return rawHtml.slice(0, idx) + `<head>${markup}</head>` + rawHtml.slice(idx)
-  }
-  return `<!doctype html><html><head>${markup}</head><body>${rawHtml}</body></html>`
-}
+import { wrapEmailHtml } from '@/lib/emailHtml'
 
 const emailSrcDoc = computed(() => {
   if (!isEmailSignal(props.signal) || !props.signal.data.body) return ''
