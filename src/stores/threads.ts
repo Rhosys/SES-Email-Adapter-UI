@@ -160,7 +160,9 @@ export const useThreadsStore = defineStore('threads', () => {
     // A status-scoped first page is the whole front of that listing, so it replaces what
     // the listing held. The unscoped "All" page is a mix that speaks for no listing in
     // full — treating it as a replacement would drop active threads it happened not to
-    // include, and shrink the badge. It only ever adds.
+    // include, and shrink the badge. It only ever adds. A filtered request (when this
+    // grows sender/search options) is the same case: it returns a subset of a listing,
+    // never the listing, so it must add rather than replace.
     if (isFirstPage && status !== undefined) _replaceListing(id, status, page.threads)
     else _addThreads(id, page.threads)
     if (status === 'active') _activeCursor.value = { ..._activeCursor.value, [id]: next }

@@ -16,6 +16,7 @@ import InboxZeroCelebration from '@/components/InboxZeroCelebration.vue'
 import StatsWidget from '@/components/StatsWidget.vue'
 import ResourcesBanner from '@/components/ResourcesBanner.vue'
 import InboxHighlight from '@/components/InboxHighlight.vue'
+import type { FetchThreadsOptions } from '@/stores/threads'
 import type { ThreadStatus } from '@/types/server'
 
 const route = useRoute()
@@ -31,27 +32,33 @@ const highlightRef = ref<InstanceType<typeof InboxHighlight> | null>(null)
 const VALID_TABS = ['active', 'archived', 'all'] as const
 type TabKey = (typeof VALID_TABS)[number]
 
-// Each tab paginates its own listing, so each keeps its own cursor for as long as this
-// screen is mounted: leaving Archived and coming back resumes where it stopped instead
-// of discarding the pages it already loaded. `cursor` set means more pages remain.
-interface TabPagination {
-  loaded: boolean
-  cursor?: string
-}
-
 const activeTab = ref<TabKey>('active')
-const pagination = ref<Record<TabKey, TabPagination>>({
-  active: { loaded: false },
-  archived: { loaded: false },
-  all: { loaded: false },
-})
-
-const hasMore = computed(() => pagination.value[activeTab.value].cursor !== undefined)
 
 /** Undefined asks the server for every status — the "All" tab. */
 function statusFor(tab: TabKey): ThreadStatus | undefined {
   return tab === 'all' ? undefined : tab
 }
+
+/** The query a tab reads. Filters, when the inbox grows them, belong here too. */
+function queryFor(tab: TabKey): FetchThreadsOptions {
+  return { status: statusFor(tab) }
+}
+
+/**
+ * A cursor is a position within one query's results and means nothing to a different
+ * query, so cursors are held per query rather than per tab. Today the tab is the whole
+ * query, giving one cursor per tab; anything added to `queryFor` — filters, a search
+ * term — changes the identity too, so a changed query can never continue paging through
+ * the old one's results. A page landing late updates the query that asked for it and no
+ * other. Set means that query has more pages.
+ */
+const cursors = ref<Record<string, string | undefined>>({})
+
+function cursorKey(query: FetchThreadsOptions) {
+  return JSON.stringify(query)
+}
+
+const hasMore = computed(() => cursors.value[cursorKey(queryFor(activeTab.value))] !== undefined)
 
 const tabThreads = computed(() =>
   activeTab.value === 'all'
@@ -67,16 +74,16 @@ const allSelected = computed(
 )
 
 /**
- * Load a tab's first page, restarting its pagination. A tab that has already been
- * loaded is left alone unless this is an explicit refresh — reloading it would drop
- * the later pages it has on screen while its cursor points past them.
+ * Read a tab's listing from the beginning. Selecting a tab always starts a fresh query
+ * — the cursor it held is dropped first, so a stale one can never be sent — and the
+ * cursor that query returns takes its place.
  */
 async function loadTab(tab: TabKey, refresh = false) {
-  if (pagination.value[tab].loaded && !refresh) return
-  pagination.value[tab] = { loaded: true }
-  const cursor = await threadsStore.fetchThreads({ status: statusFor(tab), refresh })
-  // A load that failed outright leaves nothing on screen; let re-selecting the tab retry.
-  pagination.value[tab] = { loaded: threadsStore.error === null, cursor }
+  const query = queryFor(tab)
+  const key = cursorKey(query)
+  cursors.value = { ...cursors.value, [key]: undefined }
+  const cursor = await threadsStore.fetchThreads({ ...query, refresh })
+  cursors.value = { ...cursors.value, [key]: cursor }
 }
 
 async function handleRefresh() {
@@ -155,11 +162,12 @@ function handleTabChange(tab: TabKey) {
 }
 
 async function handleLoadMore() {
-  const tab = activeTab.value
-  const { cursor } = pagination.value[tab]
+  const query = queryFor(activeTab.value)
+  const key = cursorKey(query)
+  const cursor = cursors.value[key]
   if (cursor === undefined || threadsStore.loadingMore) return
-  const next = await threadsStore.fetchThreads({ status: statusFor(tab), cursor })
-  pagination.value[tab] = { loaded: true, cursor: next }
+  const next = await threadsStore.fetchThreads({ ...query, cursor })
+  cursors.value = { ...cursors.value, [key]: next }
 }
 
 async function handleBulkArchive() {

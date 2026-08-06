@@ -26,16 +26,22 @@ function thread(id: string, status: string) {
 const ACTIVE = [thread('act_1', 'active'), thread('act_2', 'active'), thread('act_3', 'active')]
 const ARCHIVED = [thread('arch_1', 'archived'), thread('arch_2', 'archived')]
 
+interface ThreadRequest {
+  status: string
+  cursor: string | null
+}
+
 /**
  * Serve each listing separately, as the real API does — a `status=archived` request
- * knows nothing about active threads. Returns the statuses requested, so a test can
- * assert which listings were loaded.
+ * knows nothing about active threads. Returns the requests made, so a test can assert
+ * which listings were loaded and whether they were read from the beginning.
  */
-async function stubThreads(page: Page): Promise<string[]> {
-  const requested: string[] = []
+async function stubThreads(page: Page): Promise<ThreadRequest[]> {
+  const requested: ThreadRequest[] = []
   await page.route('**/accounts/*/threads*', (route: Route) => {
-    const status = new URL(route.request().url()).searchParams.get('status')
-    requested.push(status ?? 'all')
+    const params = new URL(route.request().url()).searchParams
+    const status = params.get('status')
+    requested.push({ status: status ?? 'all', cursor: params.get('cursor') })
     const threads = status === 'archived' ? ARCHIVED : status === 'active' ? ACTIVE : [...ACTIVE, ...ARCHIVED]
     return route.fulfill({
       status: 200,
@@ -94,7 +100,7 @@ test.describe('inbox notification badges', () => {
 
     await expect(page.getByText('archived thread arch_1')).toBeVisible()
     await expectBothBadges(page, '3')
-    expect(requested).toContain('archived')
+    expect(requested.map((r) => r.status)).toContain('archived')
   })
 
   test('count active threads when the app opens straight onto the Archived tab', async ({ page }) => {
@@ -106,7 +112,7 @@ test.describe('inbox notification badges', () => {
     await expectBothBadges(page, '3')
   })
 
-  test('keep each tab on its own pagination when switching back and forth', async ({ page }) => {
+  test('read a listing from the beginning every time its tab is selected', async ({ page }) => {
     await stubAccounts(page)
     const requested = await stubThreads(page)
     await gotoAuthed(page, '/')
@@ -120,9 +126,12 @@ test.describe('inbox notification badges', () => {
     await archivedTab(page).click()
     await expect(page.getByText('archived thread arch_1')).toBeVisible()
 
-    // Returning to a tab resumes it: its pages are already loaded and its cursor still
-    // points past them, so it does not restart from the first page.
-    expect(requested.filter((status) => status === 'archived')).toHaveLength(1)
+    // Selecting a tab starts its query over. A cursor belongs to the query that produced
+    // it, so none is carried across a tab switch — every one of these reads page one.
+    const archived = requested.filter((r) => r.status === 'archived')
+    expect(archived).toHaveLength(2)
+    expect(archived.every((r) => r.cursor === null)).toBe(true)
+    expect(requested.every((r) => r.cursor === null)).toBe(true)
     await expectBothBadges(page, '3')
   })
 
@@ -132,7 +141,7 @@ test.describe('inbox notification badges', () => {
     await gotoAuthed(page, '/')
 
     await expectBothBadges(page, '3')
-    expect(requested).not.toContain('archived')
-    expect(requested).not.toContain('all')
+    expect(requested.map((r) => r.status)).not.toContain('archived')
+    expect(requested.map((r) => r.status)).not.toContain('all')
   })
 })
