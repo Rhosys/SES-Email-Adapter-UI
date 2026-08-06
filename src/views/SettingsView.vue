@@ -24,6 +24,7 @@ import BuildInfo from '@/components/BuildInfo.vue'
 import UserAvatarIcon from '@/components/UserAvatarIcon.vue'
 import ConnectionIcon from '@/components/ConnectionIcon.vue'
 import { connectionLabel } from '@/lib/connections'
+import { mailboxConnectionProperties } from '@/lib/mailbox-scopes'
 import { useGestureHandler } from '@/composables/useGestureHandler'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useToast } from '@/composables/useToast'
@@ -637,8 +638,20 @@ async function connectExchange(platform: 'gmail' | 'outlook') {
   const connectionId = platform === 'gmail' ? 'google' : 'microsoft'
   const basePath = import.meta.env.VITE_BASE_PATH ?? '/'
   const redirectUrl = `${window.location.origin}${basePath}settings/email-forwarding?tab=inbound&completeExchange=${platform}`
-  await loginClient.authenticate({ connectionId, redirectUrl })
-  // If authenticate doesn't redirect (connection already exists), complete inline
+
+  // linkIdentity, not authenticate: connecting a mailbox attaches a provider identity to the
+  // signed-in user. authenticate() logs them *in as* that identity instead, which for a user
+  // who signed up with one provider and connects a mailbox on another either switches their
+  // session identity or forks a second account.
+  //
+  // connectionProperties carry the mail scopes — Authress requests provider scopes at link
+  // time, so a mailbox linked without them can be read but never sent from.
+  await loginClient.linkIdentity({
+    connectionId,
+    connectionProperties: mailboxConnectionProperties(platform),
+    redirectUrl,
+  })
+  // If linkIdentity doesn't redirect (identity already linked with these scopes), complete inline
   await completeExchangeActivation(platform)
 }
 
@@ -647,30 +660,11 @@ async function completeExchangeActivation(platform: 'gmail' | 'outlook') {
   emxConnecting.value = true
   emxActivationError.value = ''
 
-  const connectionId = platform === 'gmail' ? 'google' : 'microsoft'
-  let emailAddress: string
-  try {
-    const profile = await loginClient.getUserProfile()
-    const linked = profile?.linkedIdentities?.find(
-      (i) => i.connection.connectionId === connectionId,
-    )
-    emailAddress = linked?.connection.userId ?? ''
-  } catch {
-    emxActivationError.value = 'Failed to resolve provider email'
-    emxConnecting.value = false
-    return
-  }
-
-  if (!emailAddress) {
-    emxActivationError.value = 'Could not determine email address from provider'
-    emxConnecting.value = false
-    return
-  }
-
-  const createResult = await api.createExternalExchange(accountStore.accountId, {
-    platform,
-    emailAddress,
-  })
+  // The mailbox address is deliberately not sent: the only mailbox identifier available here
+  // is the linked identity's provider-side user id, which for Google is a numeric subject and
+  // not an email address at all. The backend asks the provider directly using the access
+  // token it already holds, which is the only authoritative source.
+  const createResult = await api.createExternalExchange(accountStore.accountId, { platform })
   emxConnecting.value = false
   if (createResult.isErr()) {
     emxActivationError.value = createResult.error.message
