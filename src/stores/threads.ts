@@ -24,9 +24,10 @@ export const useThreadsStore = defineStore('threads', () => {
   // The store's whole job: every thread it has loaded, keyed by account. Which of them
   // a given screen shows, and how far that screen has paginated, is the screen's business.
   const _byAccount = ref<Record<string, Thread[]>>({})
-  // Whether the active listing has pages beyond what's loaded, so the badge can render
-  // "50+" instead of a confidently wrong "50". A property of the loaded list, not a cursor.
-  const _moreActive = ref<Record<string, boolean>>({})
+  // The active listing's next-page cursor, per account. Set means there are active threads
+  // beyond the ones loaded, so the badge reads "50+" rather than a confidently wrong "50".
+  // Startup always loads the first page of active threads, so this is always answered.
+  const _activeCursor = ref<Record<string, string | undefined>>({})
   const loading = ref(false)
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
@@ -65,7 +66,7 @@ export const useThreadsStore = defineStore('threads', () => {
 
   const activeCountHasMore = computed(() => {
     const id = accountStore.accountId
-    return id ? _moreActive.value[id] === true : false
+    return id ? _activeCursor.value[id] !== undefined : false
   })
 
   // ─── Cache mutation helpers ───────────────────────────────────────────────
@@ -102,21 +103,27 @@ export const useThreadsStore = defineStore('threads', () => {
     _writeThreads(id, existing.map((a) => (a.threadId === threadId ? { ...a, ...partial } : a)))
   }
 
+  /** The cached threads a page doesn't carry a newer copy of. */
+  function _notIn(page: Thread[], cached: Thread[]) {
+    const pageIds = new Set(page.map((t) => t.threadId))
+    return cached.filter((t) => !pageIds.has(t.threadId))
+  }
+
   /**
-   * Fold a fetched page into the cache. One cache serves every listing, so a page must
-   * only ever displace threads the request actually spoke for: reloading the first page
-   * of one status replaces that status's threads and leaves the rest alone. Anything
-   * else lets one screen's fetch silently empty another's list — and the badge counts
-   * with it.
+   * Take a page's threads as the current contents of one listing, dropping the threads
+   * that listing held before — this is how threads archived on another device stop
+   * being counted. One cache serves every listing, so it only displaces threads the
+   * request spoke for: reloading `status=archived` says nothing about active threads,
+   * and they stay.
    */
-  function _mergePage(id: string, page: Thread[], status: ThreadStatus | undefined, isFirstPage: boolean) {
-    const fetchedIds = new Set(page.map((t) => t.threadId))
-    const retained = (_byAccount.value[id] ?? []).filter((t) => {
-      if (fetchedIds.has(t.threadId)) return false
-      if (!isFirstPage) return true
-      return status !== undefined && t.status !== status
-    })
-    _writeThreads(id, [...retained, ...page])
+  function _replaceListing(id: string, status: ThreadStatus, page: Thread[]) {
+    const otherListings = (_byAccount.value[id] ?? []).filter((t) => t.status !== status)
+    _writeThreads(id, [..._notIn(page, otherListings), ...page])
+  }
+
+  /** Add a page's threads to what's already loaded — the next page of a listing. */
+  function _addThreads(id: string, page: Thread[]) {
+    _writeThreads(id, [..._notIn(page, _byAccount.value[id] ?? []), ...page])
   }
 
   /**
@@ -150,11 +157,13 @@ export const useThreadsStore = defineStore('threads', () => {
     }
     const page = result.value
     const next = page.pagination.cursor ?? undefined
-    _mergePage(id, page.threads, status, isFirstPage)
-    // The "All" listing covers active threads too, so both settle the badge's "+".
-    if (status === 'active' || status === undefined) {
-      _moreActive.value = { ..._moreActive.value, [id]: next !== undefined }
-    }
+    // A status-scoped first page is the whole front of that listing, so it replaces what
+    // the listing held. The unscoped "All" page is a mix that speaks for no listing in
+    // full — treating it as a replacement would drop active threads it happened not to
+    // include, and shrink the badge. It only ever adds.
+    if (isFirstPage && status !== undefined) _replaceListing(id, status, page.threads)
+    else _addThreads(id, page.threads)
+    if (status === 'active') _activeCursor.value = { ..._activeCursor.value, [id]: next }
     return next
   }
 

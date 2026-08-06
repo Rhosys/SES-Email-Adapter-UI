@@ -258,6 +258,30 @@ describe('badge counts', () => {
     expect(store.activeCountHasMore).toBe(false)
   })
 
+  it('survives the mixed "All" listing, which speaks for no listing in full', async () => {
+    vi.mocked(api.listThreads).mockResolvedValueOnce(
+      ok({
+        threads: [mockThread({ threadId: 'act_1' }), mockThread({ threadId: 'act_2' }), mockThread({ threadId: 'act_3' })],
+        pagination: { cursor: null },
+      }),
+    )
+    const store = useThreadsStore()
+    await store.fetchThreads({ status: 'active' })
+    expect(store.activeCount).toBe(3)
+
+    // The All tab's first page is a mix, and doesn't have room for every active thread.
+    vi.mocked(api.listThreads).mockResolvedValueOnce(
+      ok({
+        threads: [mockThread({ threadId: 'act_1' }), mockThread({ threadId: 'arch_1', status: 'archived' })],
+        pagination: { cursor: 'cursor_abc' },
+      }),
+    )
+    await store.fetchThreads()
+
+    expect(store.activeCount).toBe(3)
+    expect(store.threadsWithStatus('archived').map((a) => a.threadId)).toEqual(['arch_1'])
+  })
+
   it('drops active threads the server no longer returns', async () => {
     vi.mocked(api.listThreads).mockResolvedValueOnce(
       ok({
