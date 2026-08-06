@@ -42,7 +42,7 @@ describe('WorkflowPanel', () => {
   it('renders AuthPanel for auth workflow with service name', () => {
     const data: AuthData = {
       workflow: 'auth',
-      authType: 'otp',
+      authType: 'verification',
       code: '482931',
       service: 'GitHub',
       expiresInMinutes: 10,

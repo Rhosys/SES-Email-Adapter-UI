@@ -23,7 +23,7 @@ export const mockSignals: Record<string, Signal[]> = {
         headers: { 'Return-Path': 'bounces@stripe.com', 'X-Mailer': 'Stripe Mailer' },
         recipientAddress: 'hello@demo.catchmail.app',
         workflow: 'auth',
-        workflowData: { workflow: 'auth', authType: 'otp', code: '847291', expiresInMinutes: 10, service: 'Stripe' },
+        workflowData: { workflow: 'auth', authType: 'verification', code: '847291', expiresInMinutes: 10, service: 'Stripe' },
         actions: [],
         spamScore: 0,
         matchedRules: [{ ruleId: 'rule_sys_auth', actions: [{ type: 'assign_workflow', value: 'auth' }], labelsAdded: [] }],
