@@ -33,7 +33,9 @@ function labelColor(key: string): string {
       <span class="shrink-0 text-[15px] font-semibold text-ctp-text sm:text-sm">{{ thread.sender.name || thread.sender.address }}</span>
       <span v-if="thread.sender.name" class="shrink-0 text-xs text-ctp-subtext0">{{ thread.sender.address }}</span>
       <span v-if="thread.recipientAddress" class="shrink-0 text-xs text-ctp-subtext0">→ {{ thread.recipientAddress }}</span>
-      <span v-if="hasPendingSend" class="shrink-0 rounded-full bg-ctp-peach/15 px-1.5 py-0.5 text-xs text-ctp-peach">Sending…</span>
+      <!-- Pending sends sit in an undo window before they actually leave, but from
+           the user's point of view the reply is already sent. -->
+      <span v-if="hasPendingSend" class="shrink-0 rounded-full bg-ctp-green/15 px-1.5 py-0.5 text-xs text-ctp-green">Sent</span>
       <span class="ml-auto shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
     </div>
     <div class="mt-0.5 text-[15px] text-ctp-subtext1 sm:text-sm">{{ thread.subject || thread.summary }}</div>

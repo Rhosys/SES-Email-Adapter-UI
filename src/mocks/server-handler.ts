@@ -9,6 +9,7 @@ import { mockSignals } from './data/signals'
 import { mockRules } from './data/rules'
 import { mockLabels } from './data/labels'
 import { mockAliases } from './data/aliases'
+import { mockExchanges } from './data/exchanges'
 import { mockDomains } from './data/domains'
 import { mockTemplates } from './data/templates'
 import { mockTeamMembers } from './data/team'
@@ -41,7 +42,7 @@ function match(pattern: string, url: string): Record<string, string> | null {
   return params
 }
 
-export async function handleMockRequest(method: string, url: string): Promise<MockResponse | null> {
+export async function handleMockRequest(method: string, url: string, body?: unknown): Promise<MockResponse | null> {
   if (method === 'OPTIONS') return { status: 204, body: '' }
 
   // GET /accounts
@@ -139,6 +140,11 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
     return { status: 200, body: { aliases: mockAliases, pagination: { cursor: null } } }
   }
 
+  // GET /accounts/:accountId/external-exchanges
+  if (method === 'GET' && match('/accounts/:accountId/external-exchanges', url)) {
+    return { status: 200, body: { exchanges: mockExchanges, pagination: { cursor: null } } }
+  }
+
   // GET /accounts/:accountId/domains
   if (method === 'GET' && match('/accounts/:accountId/domains', url)) {
     return { status: 200, body: { domains: mockDomains, pagination: { cursor: null } } }
@@ -200,6 +206,9 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
   // POST /accounts/:accountId/threads/:threadId/signals — create draft
   if (method === 'POST' && match('/accounts/:accountId/threads/:threadId/signals', url)) {
     const draftParams = match('/accounts/:accountId/threads/:threadId/signals', url)!
+    // Echo what the client sent (from/to/subject), the way the backend does — the
+    // composer seeds the reply's From from the alias the thread arrived on.
+    const draftBody = (body ?? {}) as { from?: { address: string }; to?: unknown[]; subject?: string; textBody?: string }
     return { status: 201, body: {
       signalId: 'sig_draft_' + Date.now(),
       threadId: draftParams.threadId,
@@ -207,7 +216,16 @@ export async function handleMockRequest(method: string, url: string): Promise<Mo
       status: 'draft',
       type: 'email',
       createdAt: new Date().toISOString(),
-      data: { from: { address: 'you@demo.catchmail.app' }, to: [], cc: [], bcc: [], subject: '', body: '', attachments: [], sendInitiatedAt: '' }
+      data: {
+        from: draftBody.from ?? { address: 'you@demo.catchmail.app' },
+        to: draftBody.to ?? [],
+        cc: [],
+        bcc: [],
+        subject: draftBody.subject ?? '',
+        body: draftBody.textBody ?? '',
+        attachments: [],
+        sendInitiatedAt: '',
+      },
     }}
   }
 

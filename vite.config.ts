@@ -4,11 +4,26 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
 import { execSync } from 'node:child_process'
+import type { IncomingMessage } from 'node:http'
 
 // Deploys live under a base path: '/a/' for main, '/pr/<slug>/' for previews,
 // '/' locally. The service worker scope and navigation fallback are derived from
 // this, so the PWA is correctly isolated per deployment.
 const basePath = process.env.VITE_BASE_PATH ?? '/'
+
+/** Reads a JSON request body, so mock handlers can echo what the client sent. */
+async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+  if (!req.method || req.method === 'GET' || req.method === 'DELETE' || req.method === 'OPTIONS') return undefined
+  const chunks: Buffer[] = []
+  for await (const chunk of req) chunks.push(chunk as Buffer)
+  const raw = Buffer.concat(chunks).toString('utf8')
+  if (!raw) return undefined
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return undefined
+  }
+}
 
 /** Dev-only mock API middleware — serves mock data for /accounts/* routes when in mock mode. */
 function mockApiPlugin(): Plugin {
@@ -30,7 +45,8 @@ function mockApiPlugin(): Plugin {
         // Dynamically import handlers — they use the mock data
         try {
           const { handleMockRequest } = await server.ssrLoadModule('/src/mocks/server-handler.ts')
-          const result = await handleMockRequest(req.method ?? 'GET', req.url)
+          const body = await readJsonBody(req)
+          const result = await handleMockRequest(req.method ?? 'GET', req.url, body)
           if (result) {
             if (result.status === 204) {
               res.statusCode = 204

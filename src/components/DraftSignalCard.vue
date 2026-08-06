@@ -8,8 +8,8 @@ import { useUserConfigStore } from '@/stores/userConfig'
 import { api } from '@/lib/api'
 import { useToast } from '@/composables/useToast'
 import { useDeferredHide } from '@/composables/useDeferredHide'
-import type { Signal, Domain } from '@/types/server'
-import { isEmailSignal } from '@/lib/signal-guards'
+import type { Signal, Domain, Alias, ExternalMailExchange } from '@/types/server'
+import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 const props = defineProps<{ signal: Signal }>()
@@ -24,33 +24,110 @@ const { hideWithDefer } = useDeferredHide()
 
 const shouldReturnToInbox = computed(() => userConfigStore.postSendView === 'return_to_inbox')
 
+// Sentinel option: compose an address the account can send from that isn't in the list
+const CUSTOM_FROM = '__custom__'
+
 // Parse existing from address (empty for brand-new drafts)
 function splitAddress(address: string): [string, string] {
   const at = address.indexOf('@')
   return at >= 0 ? [address.slice(0, at), address.slice(at + 1)] : ['', '']
 }
 
+function domainOf(address: string): string {
+  return splitAddress(address)[1].toLowerCase()
+}
+
 const emailData = isEmailSignal(props.signal) ? props.signal.data : null
 const [initLocal, initDomain] = splitAddress(emailData?.from?.address ?? '')
 const localPart = ref(initLocal)
 const selectedDomain = ref(initDomain)
+const selectedFrom = ref('')
 const subject = ref(emailData?.subject ?? '')
 const body = ref(emailData?.body ?? '')
 
 const expanded = ref(true)
 const showPreview = ref(false)
 const domains = ref<Domain[]>([])
-const domainsLoaded = ref(false)
+const aliases = ref<Alias[]>([])
+const exchanges = ref<ExternalMailExchange[]>([])
+const sendersLoaded = ref(false)
 const saving = ref(false)
 const sendState = ref<'idle' | 'sending' | 'cancellable'>('idle')
 const toastId = ref<string | null>(null)
 const error = ref<string | null>(null)
 
 const verifiedDomains = computed(() => domains.value.filter((d) => d.senderSetupComplete))
-
-const fromAddress = computed(() =>
-  localPart.value && selectedDomain.value ? `${localPart.value}@${selectedDomain.value}` : '',
+const verifiedDomainNames = computed(
+  () => new Set(verifiedDomains.value.map((d) => d.domain.toLowerCase())),
 )
+
+// Aliases sit on our own domains, so they're only sendable once the domain's
+// sender setup is verified.
+const aliasOptions = computed(() =>
+  aliases.value.map((a) => a.alias).filter((a) => verifiedDomainNames.value.has(domainOf(a))),
+)
+
+// IMAP/JMAP mailboxes are whole addresses on domains we don't own — they can't be
+// built from a local part plus one of our domains, so they're offered verbatim.
+const mailboxOptions = computed(() =>
+  exchanges.value
+    .filter((e) => (e.platform === 'imap' || e.platform === 'jmap') && e.status === 'active' && e.emailAddress)
+    .map((e) => e.emailAddress),
+)
+
+const addressOptions = computed(() => [...aliasOptions.value, ...mailboxOptions.value])
+const canPickCustom = computed(() => verifiedDomains.value.length > 0)
+const hasSendableAddress = computed(() => addressOptions.value.length > 0 || canPickCustom.value)
+const isCustomFrom = computed(() => selectedFrom.value === CUSTOM_FROM)
+
+const fromAddress = computed(() => {
+  if (!isCustomFrom.value) return selectedFrom.value
+  return localPart.value && selectedDomain.value ? `${localPart.value}@${selectedDomain.value}` : ''
+})
+
+// The address this thread arrived on — the reply should go back out from it. The
+// draft signal carries it already (the store seeds `from` on create); fall back to
+// the newest inbound signal for drafts created without one.
+const originalRecipient = computed(() => {
+  const seeded = emailData?.from?.address
+  if (seeded) return seeded
+  const threadId = props.signal.threadId
+  if (!threadId) return ''
+  const inbound = signalsStore.threadSignals(threadId).find(isInboundEmailSignal)
+  return inbound?.data.recipientAddress ?? ''
+})
+
+/**
+ * Picks the From entry matching the original recipient: a listed alias or connected
+ * mailbox when one matches outright, otherwise the custom local-part + domain editor
+ * when the address sits on a verified domain (an unregistered catch-all address).
+ * Falls back to the first sendable address when nothing lines up.
+ */
+function selectInitialFrom() {
+  const original = originalRecipient.value
+  const match = addressOptions.value.find((a) => a.toLowerCase() === original.toLowerCase())
+  if (match) {
+    selectedFrom.value = match
+    return
+  }
+
+  const domain = verifiedDomains.value.find((d) => d.domain.toLowerCase() === domainOf(original))
+  if (original && domain) {
+    localPart.value = splitAddress(original)[0]
+    selectedDomain.value = domain.domain
+    selectedFrom.value = CUSTOM_FROM
+    return
+  }
+
+  if (addressOptions.value.length > 0) {
+    selectedFrom.value = addressOptions.value[0]!
+    return
+  }
+  if (canPickCustom.value) {
+    if (!selectedDomain.value) selectedDomain.value = verifiedDomains.value[0]!.domain
+    selectedFrom.value = CUSTOM_FROM
+  }
+}
 
 const previewHtml = computed(() => (body.value ? (marked.parse(body.value) as string) : ''))
 
@@ -66,27 +143,54 @@ const toLabel = computed(() => emailData?.to?.map((e) => e.address).join(', ') ?
 
 onMounted(async () => {
   if (!accountStore.accountId) return
-  const result = await api.listDomains(accountStore.accountId)
-  if (result.isOk()) {
-    domains.value = result.value
-    if (!selectedDomain.value && verifiedDomains.value.length > 0) {
-      selectedDomain.value = verifiedDomains.value[0].domain
-    }
+  const accountId = accountStore.accountId
+  const [domainResult, aliasResult, exchangeResult] = await Promise.all([
+    api.listDomains(accountId),
+    api.listAliases(accountId),
+    api.listExternalExchanges(accountId),
+  ])
+  if (domainResult.isOk()) domains.value = domainResult.value
+  if (aliasResult.isOk()) aliases.value = aliasResult.value
+  // A missing/failed exchange list just means no external mailboxes to send from.
+  if (exchangeResult.isOk()) exchanges.value = exchangeResult.value
+  selectInitialFrom()
+  sendersLoaded.value = true
+})
+
+// Switching to the custom editor needs a domain selected, or its dropdown opens blank.
+watch(selectedFrom, (value) => {
+  if (value === CUSTOM_FROM && !selectedDomain.value && verifiedDomains.value.length > 0) {
+    selectedDomain.value = verifiedDomains.value[0]!.domain
   }
-  domainsLoaded.value = true
 })
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-watch([localPart, selectedDomain, subject, body], () => {
+watch([fromAddress, subject, body], () => {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => void persistDraft(), 900)
 })
+
+// Mirrors what the server holds, so resolving the From address on load doesn't
+// trigger a save when it lands on the value the draft already had.
+let persisted = {
+  from: emailData?.from?.address ?? '',
+  subject: emailData?.subject ?? '',
+  body: emailData?.body ?? '',
+}
 
 async function persistDraft() {
   if (!accountStore.accountId) return
   const threadId = props.signal.threadId
   if (!threadId) return
+  const pending = { from: fromAddress.value, subject: subject.value, body: body.value }
+  if (
+    pending.from === persisted.from &&
+    pending.subject === persisted.subject &&
+    pending.body === persisted.body
+  ) {
+    return
+  }
   saving.value = true
   const result = await api.updateDraftSignal(accountStore.accountId, threadId, props.signal.signalId, {
     from: fromAddress.value ? { address: fromAddress.value } : undefined,
@@ -98,6 +202,7 @@ async function persistDraft() {
     error.value = result.error.message
     return
   }
+  persisted = pending
   if (props.signal.threadId) signalsStore.updateSignal(props.signal.threadId, result.value)
 }
 
@@ -221,29 +326,49 @@ async function discard() {
         <span class="font-medium">To:</span> {{ toLabel }}
       </div>
 
-      <!-- From: local-part @ domain -->
-      <div v-if="domainsLoaded" class="mb-2">
-        <template v-if="verifiedDomains.length === 0">
+      <!-- From: alias / connected mailbox / custom local-part @ domain -->
+      <div v-if="sendersLoaded" class="mb-2">
+        <template v-if="!hasSendableAddress">
           <div
             class="rounded border border-ctp-yellow/40 bg-ctp-yellow/10 px-3 py-2 text-xs text-ctp-yellow"
           >
-            <span class="font-medium">No verified sending domain.</span>
-            You need at least one verified domain before you can send replies.
+            <span class="font-medium">No verified sending address.</span>
+            You need a verified domain or a connected IMAP/JMAP mailbox before you can send replies.
             <router-link to="/settings/email-forwarding?tab=domains" class="underline hover:text-ctp-text">
               Add one in Settings → Domains.
             </router-link>
           </div>
         </template>
         <template v-else>
-          <label for="draft-from-local" class="mb-1 block text-xs text-ctp-subtext0">From</label>
+          <label for="draft-from" class="mb-1 block text-xs text-ctp-subtext0">From</label>
+          <select
+            id="draft-from"
+            v-model="selectedFrom"
+            class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+          >
+            <optgroup v-if="aliasOptions.length > 0" label="Aliases">
+              <option v-for="address in aliasOptions" :key="address" :value="address">
+                {{ address }}
+              </option>
+            </optgroup>
+            <optgroup v-if="mailboxOptions.length > 0" label="Connected mailboxes">
+              <option v-for="address in mailboxOptions" :key="address" :value="address">
+                {{ address }}
+              </option>
+            </optgroup>
+            <option v-if="canPickCustom" :value="CUSTOM_FROM">Custom address…</option>
+          </select>
+
           <div
-            class="flex items-center rounded border border-ctp-surface1 bg-ctp-base focus-within:border-ctp-mauve"
+            v-if="isCustomFrom"
+            class="mt-1.5 flex items-center rounded border border-ctp-surface1 bg-ctp-base focus-within:border-ctp-mauve"
           >
             <input
               id="draft-from-local"
               v-model="localPart"
               type="text"
               placeholder="you"
+              aria-label="Custom address local part"
               class="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:outline-none"
             />
             <span class="shrink-0 text-xs text-ctp-subtext0">@</span>
@@ -325,41 +450,46 @@ async function discard() {
         />
       </div>
 
-      <!-- Actions -->
-      <div class="flex items-center gap-3">
+      <!-- Actions — discard on the left, send actions on the right -->
+      <div class="flex flex-wrap items-center gap-3">
         <template v-if="sendState === 'cancellable'">
-          <span class="text-sm text-ctp-subtext0">Sent — cancellable via toast…</span>
-          <button class="text-sm text-ctp-red hover:opacity-80" @click="cancelSend">
-            Cancel send
+          <span class="text-sm text-ctp-subtext0">Sent — undo from the toast…</span>
+          <button
+            class="ml-auto rounded-lg border border-ctp-red/50 px-3 py-1.5 text-sm font-medium text-ctp-red hover:bg-ctp-red/10"
+            @click="cancelSend"
+          >
+            Undo send
           </button>
         </template>
         <template v-else>
           <AsyncButton
-            :action="sendAndArchive"
-            :disabled="!canSend"
-            class="flex items-center gap-1.5"
-          >
-            <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-              <path d="M1.5 2h13l-1 2H2.5L1.5 2zm.5 3h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V5zm4 2v5h5V7H6z"/>
-            </svg>
-            Send + Archive
-          </AsyncButton>
-          <AsyncButton
-            :action="sendAndWait"
-            :disabled="!canSend"
-            class="flex items-center gap-1.5"
-          >
-            <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-              <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm.5 3v4.2l3 1.8-.5.9-3.5-2.1V4h1z"/>
-            </svg>
-            Send + Wait
-          </AsyncButton>
-          <AsyncButton
             :action="discard"
-            class="ml-auto text-sm text-ctp-subtext0 hover:text-ctp-red"
+            class="rounded-lg border border-ctp-surface1 px-3 py-1.5 text-sm text-ctp-subtext0 hover:border-ctp-red hover:text-ctp-red"
           >
             Discard draft
           </AsyncButton>
+          <div class="ml-auto flex flex-wrap items-center gap-2">
+            <AsyncButton
+              :action="sendAndWait"
+              :disabled="!canSend"
+              class="gap-1.5 rounded-lg border border-ctp-mauve/50 px-3 py-1.5 text-sm font-medium text-ctp-mauve hover:bg-ctp-mauve/10"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm.5 3v4.2l3 1.8-.5.9-3.5-2.1V4h1z"/>
+              </svg>
+              Send + Wait
+            </AsyncButton>
+            <AsyncButton
+              :action="sendAndArchive"
+              :disabled="!canSend"
+              class="gap-1.5 rounded-lg bg-ctp-mauve px-3 py-1.5 text-sm font-medium text-ctp-base hover:opacity-90"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M1.5 2h13l-1 2H2.5L1.5 2zm.5 3h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V5zm4 2v5h5V7H6z"/>
+              </svg>
+              Send + Archive
+            </AsyncButton>
+          </div>
         </template>
       </div>
     </div>

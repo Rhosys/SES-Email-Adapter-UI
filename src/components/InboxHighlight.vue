@@ -159,5 +159,20 @@ defineExpose({ visible })
 
     <!-- Non-auth: show WorkflowPanel as-is -->
     <WorkflowPanel v-else-if="latestSignal" :signal="latestSignal" />
+
+    <!-- Jump straight to the thread this panel was built from, rather than hunting
+         for it in the list below. Only shown here — the thread detail screen is
+         already the destination. -->
+    <div class="mt-3 flex justify-end border-t border-ctp-surface0 pt-3">
+      <RouterLink
+        :to="{ name: 'thread-detail', params: { id: highlightThread.threadId } }"
+        class="flex items-center gap-1.5 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 no-underline hover:border-ctp-mauve hover:text-ctp-mauve"
+      >
+        Go to thread
+        <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M6 3.5L10.5 8 6 12.5l-1-1L8.5 8 5 4.5l1-1z"/>
+        </svg>
+      </RouterLink>
+    </div>
   </div>
 </template>

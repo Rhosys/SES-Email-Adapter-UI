@@ -386,9 +386,6 @@ const iframeStyle = {
         <div class="text-xs text-ctp-subtext0">{{ sentAt }}</div>
       </button>
 
-      <!-- Undo error inline -->
-      <span v-if="undoError" class="mt-1 shrink-0 text-xs text-ctp-red">{{ undoError }}</span>
-
       <!-- Overflow menu -->
       <OverflowMenu
         class="shrink-0 self-start"
@@ -419,15 +416,6 @@ const iframeStyle = {
           @click="showMatchedRules"
         >
           Show matched rules
-        </button>
-        <button
-          v-if="isUserSent"
-          :disabled="undoPending"
-          class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-red hover:bg-ctp-surface0 disabled:opacity-50"
-          role="menuitem"
-          @click="undoSend"
-        >
-          {{ undoPending ? 'Undoing…' : 'Undo send' }}
         </button>
         <button
           v-if="isAdminUser()"
@@ -529,8 +517,20 @@ const iframeStyle = {
       </div>
     </template>
 
-    <!-- Signal footer — reply action (always visible, even when collapsed) -->
-    <div v-if="signal.type === 'email'" class="flex justify-end border-t border-ctp-surface0 px-4 py-2">
+    <!-- Signal footer — undo/reply actions (always visible, even when collapsed) -->
+    <div v-if="signal.type === 'email'" class="flex flex-wrap items-center justify-end gap-2 border-t border-ctp-surface0 px-4 py-2">
+      <span v-if="undoError" class="mr-auto text-xs text-ctp-red">{{ undoError }}</span>
+      <button
+        v-if="isUserSent"
+        :disabled="undoPending"
+        class="flex items-center gap-1.5 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-red hover:border-ctp-red disabled:opacity-50"
+        @click="undoSend"
+      >
+        <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M7 3.5L2 8l5 4.5V9.5c4.5 0 6.5 1.5 8 4.5-.5-4.5-3-8-8-8V3.5z"/>
+        </svg>
+        {{ undoPending ? 'Undoing…' : 'Undo send' }}
+      </button>
       <button
         class="flex items-center gap-1.5 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
         @click="$emit('reply')"
