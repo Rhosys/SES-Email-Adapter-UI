@@ -52,7 +52,7 @@ export const mockSignals: Record<string, Signal[]> = {
         headers: { 'Return-Path': 'notify@notion.so' },
         recipientAddress: 'hello@demo.catchmail.app',
         workflow: 'auth',
-        workflowData: { workflow: 'auth', authType: 'magic_link', service: 'Notion', expiresInMinutes: 5 },
+        workflowData: { workflow: 'auth', authType: 'verification', service: 'Notion', actionUrl: 'https://www.notion.so/loginmagiclink?token=abc123', expiresInMinutes: 5 },
         actions: [{ url: 'https://www.notion.so/loginmagiclink?token=abc123', text: null }],
         spamScore: 0,
       },
