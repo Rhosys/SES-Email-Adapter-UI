@@ -9,24 +9,28 @@ const props = defineProps<{ data: AuthData; actions: SignalAction[]; receivedAt:
 const action = computed(() => props.actions[0] ?? null)
 
 const authTypeLabel: Record<AuthData['authType'], string> = {
-  otp: 'One-time code',
   two_factor: 'Two-factor code',
   password_reset: 'Password reset link',
-  magic_link: 'Magic link',
   verification: 'Verification link',
   security_alert: 'Security alert',
   other: 'Authentication email',
 }
 
 const actionLabel: Record<AuthData['authType'], string> = {
-  otp: 'Open link',
   two_factor: 'Open link',
   password_reset: 'Reset password',
-  magic_link: 'Open link',
   verification: 'Verify email',
   security_alert: 'View alert',
   other: 'Open link',
 }
+
+// `verification` covers both one-time codes and click-to-verify links, so the
+// label follows whichever the signal actually carries.
+const typeLabel = computed(() =>
+  props.data.authType === 'verification' && props.data.code
+    ? 'One-time code'
+    : authTypeLabel[props.data.authType],
+)
 
 const expiresAt = computed(() => {
   if (!props.data.expiresInMinutes) return null
@@ -67,7 +71,7 @@ function copyCode() {
   <div class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
     <div class="mb-3 flex items-center gap-2">
       <span class="text-sm font-semibold text-ctp-text">{{ data.service }}</span>
-      <span class="text-xs text-ctp-subtext0">{{ authTypeLabel[data.authType] }}</span>
+      <span class="text-xs text-ctp-subtext0">{{ typeLabel }}</span>
     </div>
 
     <!-- Code display -->
