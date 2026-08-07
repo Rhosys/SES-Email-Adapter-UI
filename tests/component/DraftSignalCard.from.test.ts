@@ -2,9 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import { ok } from 'neverthrow'
+import { ok, type Result } from 'neverthrow'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
 import { useAccountStore } from '@/stores/account'
+import type { ApiError } from '@/lib/api'
 import type { Alias, Domain, ExternalMailExchange, Signal } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
@@ -86,21 +87,27 @@ function makeDraft(fromAddress: string): Signal {
 
 let pinia: ReturnType<typeof createPinia>
 
-async function mountCard(signal: Signal) {
-  const router = createRouter({
+function makeRouter() {
+  return createRouter({
     history: createMemoryHistory(),
     routes: [
       { path: '/', name: 'inbox', component: { template: '<div />' } },
       { path: '/settings/email-forwarding', name: 'settings', component: { template: '<div />' } },
     ],
   })
+}
+
+/** Mounts without awaiting the sender-identity fetches — for asserting what's on
+ *  screen before that background request resolves. */
+async function mountCardUnflushed(signal: Signal) {
+  const router = makeRouter()
   await router.push('/')
   await router.isReady()
+  return mount(DraftSignalCard, { props: { signal }, global: { plugins: [pinia, router] } })
+}
 
-  const wrapper = mount(DraftSignalCard, {
-    props: { signal },
-    global: { plugins: [pinia, router] },
-  })
+async function mountCard(signal: Signal) {
+  const wrapper = await mountCardUnflushed(signal)
   await flushPromises()
   return wrapper
 }
@@ -115,6 +122,13 @@ async function editFrom(wrapper: Wrapper) {
 
 function fromSelect(wrapper: Wrapper) {
   return wrapper.find('#draft-from')
+}
+
+/** A promise the test controls the resolution of, for the three sender-identity calls. */
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((r) => { resolve = r })
+  return { promise, resolve }
 }
 
 describe('DraftSignalCard — From address', () => {
@@ -146,21 +160,53 @@ describe('DraftSignalCard — From address', () => {
     )
   })
 
-  it('shows the address the thread arrived on without waiting on any request', async () => {
-    const wrapper = await mountCard(makeDraft('work@demo.app'))
+  it('renders the fixed address synchronously, before the sender-identity fetch resolves', async () => {
+    const domainsPending = deferred<Result<Domain[], ApiError>>()
+    vi.mocked(api.listDomains).mockReturnValue(domainsPending.promise)
 
+    const wrapper = await mountCardUnflushed(makeDraft('work@demo.app'))
+
+    // No await between mount and this assertion — the fetch is still in flight.
     expect(wrapper.text()).toContain('work@demo.app')
     expect(fromSelect(wrapper).exists()).toBe(false)
-    expect(api.listAliases).not.toHaveBeenCalled()
-    expect(api.listDomains).not.toHaveBeenCalled()
-    expect(api.listExternalExchanges).not.toHaveBeenCalled()
+
+    domainsPending.resolve(ok([makeDomain('demo.app')]))
+    await flushPromises()
   })
 
-  it('loads the pickable identities only once the pencil is used', async () => {
+  it('warms the shared sender-identities cache in the background on mount, once', async () => {
+    await mountCard(makeDraft('work@demo.app'))
+
+    expect(api.listDomains).toHaveBeenCalledTimes(1)
+    expect(api.listAliases).toHaveBeenCalledTimes(1)
+    expect(api.listExternalExchanges).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens the editor instantly once the background fetch has already resolved', async () => {
     const wrapper = await mountCard(makeDraft('work@demo.app'))
     await editFrom(wrapper)
 
-    expect(api.listAliases).toHaveBeenCalledTimes(1)
+    expect(fromSelect(wrapper).exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('Loading addresses…')
+    // The pencil click didn't trigger a second round of fetches.
+    expect(api.listDomains).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a brief loading state if the pencil is clicked before the fetch resolves', async () => {
+    const domainsPending = deferred<Result<Domain[], ApiError>>()
+    vi.mocked(api.listDomains).mockReturnValue(domainsPending.promise)
+
+    const wrapper = await mountCardUnflushed(makeDraft('work@demo.app'))
+    await wrapper.find('[aria-label="Change sender address"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Loading addresses…')
+    expect(fromSelect(wrapper).exists()).toBe(false)
+
+    domainsPending.resolve(ok([makeDomain('demo.app')]))
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Loading addresses…')
     expect(fromSelect(wrapper).exists()).toBe(true)
   })
 

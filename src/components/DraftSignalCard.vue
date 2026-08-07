@@ -5,10 +5,11 @@ import { marked } from 'marked'
 import { useAccountStore } from '@/stores/account'
 import { useSignalsStore } from '@/stores/signals'
 import { useUserConfigStore } from '@/stores/userConfig'
+import { useSenderIdentitiesStore } from '@/stores/senderIdentities'
 import { api } from '@/lib/api'
 import { useToast } from '@/composables/useToast'
 import { useDeferredHide } from '@/composables/useDeferredHide'
-import type { Signal, Domain, Alias, ExternalMailExchange } from '@/types/server'
+import type { Signal } from '@/types/server'
 import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 
@@ -18,6 +19,7 @@ const emit = defineEmits<{ discard: []; sent: [] }>()
 const accountStore = useAccountStore()
 const signalsStore = useSignalsStore()
 const userConfigStore = useUserConfigStore()
+const senderIdentities = useSenderIdentitiesStore()
 const router = useRouter()
 const { deferAction, undo: undoToast } = useToast()
 const { hideWithDefer } = useDeferredHide()
@@ -65,23 +67,18 @@ const body = ref(emailData?.body ?? '')
 
 const expanded = ref(true)
 const showPreview = ref(false)
-const domains = ref<Domain[]>([])
-const aliases = ref<Alias[]>([])
-const exchanges = ref<ExternalMailExchange[]>([])
-const sendersLoading = ref(false)
-const sendersLoaded = ref(false)
 const saving = ref(false)
 const sendState = ref<'idle' | 'sending' | 'cancellable'>('idle')
 const toastId = ref<string | null>(null)
 const error = ref<string | null>(null)
 
-const verifiedDomains = computed(() => domains.value.filter((d) => d.senderSetupComplete))
+const verifiedDomains = computed(() => senderIdentities.domains.filter((d) => d.senderSetupComplete))
 
 // Connected mailboxes are whole addresses on domains we don't own, whatever the
 // platform — they can't be built from a local part plus one of our domains, so
 // they're offered verbatim.
 const mailboxOptions = computed(() =>
-  exchanges.value.filter((e) => e.status === 'active' && e.emailAddress).map((e) => e.emailAddress),
+  senderIdentities.exchanges.filter((e) => e.status === 'active' && e.emailAddress).map((e) => e.emailAddress),
 )
 
 // Aliases are only suggested for the domain being composed on — the full account-wide
@@ -89,7 +86,7 @@ const mailboxOptions = computed(() =>
 const aliasSuggestions = computed(() => {
   const domain = selectedDomain.value.toLowerCase()
   if (!domain) return []
-  return aliases.value
+  return senderIdentities.aliases
     .filter((a) => domainOf(a.alias) === domain)
     .map((a) => splitAddress(a.alias)[0])
 })
@@ -103,30 +100,26 @@ const editedAddress = computed(() => {
   return localPart.value && selectedDomain.value ? `${localPart.value}@${selectedDomain.value}` : ''
 })
 
-/**
- * Opens the sender editor, loading the pickable identities on first use — nothing is
- * fetched while the user is just accepting the address the thread arrived on.
- */
-async function startEditingFrom() {
+// Warms the shared sender-identities store as soon as the card exists, in the
+// background — this never blocks the fixed From display above, and it's shared
+// across every draft card, so by the time a pencil is clicked the data has
+// usually already arrived (or come straight from the persisted cache).
+senderIdentities.ensureLoaded()
+
+// If the editor is opened before that fetch resolves, pick up the result the
+// moment it lands rather than leaving the editor stuck on "Loading addresses…".
+watch(
+  () => senderIdentities.hasData,
+  (loaded) => {
+    if (loaded && editingFrom.value) selectCurrentIdentity()
+  },
+)
+
+/** Opens the sender editor, pointing it at the current address once identities are available. */
+function startEditingFrom() {
   editingFrom.value = true
-  if (sendersLoaded.value || sendersLoading.value) return
-  const accountId = accountStore.accountId
-  if (!accountId) return
-
-  sendersLoading.value = true
-  const [domainResult, aliasResult, exchangeResult] = await Promise.all([
-    api.listDomains(accountId),
-    api.listAliases(accountId),
-    api.listExternalExchanges(accountId),
-  ])
-  if (domainResult.isOk()) domains.value = domainResult.value
-  if (aliasResult.isOk()) aliases.value = aliasResult.value
-  // A missing/failed exchange list just means no external mailboxes to send from.
-  if (exchangeResult.isOk()) exchanges.value = exchangeResult.value
-  sendersLoading.value = false
-  sendersLoaded.value = true
-
-  selectCurrentIdentity()
+  senderIdentities.ensureLoaded()
+  if (senderIdentities.hasData) selectCurrentIdentity()
 }
 
 /**
@@ -377,7 +370,11 @@ async function discard() {
           </button>
         </div>
 
-        <div v-else-if="sendersLoading" class="text-xs text-ctp-subtext0">Loading addresses…</div>
+        <!-- Only the true cold-start (no cache, first fetch still in flight) blocks here.
+             Once identities have loaded once this session, a later background refresh
+             (senderIdentities.loading) never re-shows this — the list underneath just
+             updates in place. -->
+        <div v-else-if="!senderIdentities.hasData" class="text-xs text-ctp-subtext0">Loading addresses…</div>
 
         <template v-else>
           <div
