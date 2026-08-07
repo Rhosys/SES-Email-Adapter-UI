@@ -21,6 +21,8 @@ vi.mock('@/lib/api', async (importOriginal) => {
       listAccounts: vi.fn(),
       createDraftSignal: vi.fn(),
       listDomains: vi.fn(),
+      listAliases: vi.fn(),
+      listExternalExchanges: vi.fn(),
     },
   }
 })
@@ -180,6 +182,8 @@ describe('ThreadDetailView — reply reuses existing draft', () => {
     }
     vi.mocked(api.listAccounts).mockResolvedValue(ok([accountStore.account]))
     vi.mocked(api.listDomains).mockResolvedValue(ok([]))
+    vi.mocked(api.listAliases).mockResolvedValue(ok([]))
+    vi.mocked(api.listExternalExchanges).mockResolvedValue(ok([]))
   })
 
   it('creates a draft on first reply, then reuses it instead of creating a second one', async () => {

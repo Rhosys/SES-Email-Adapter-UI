@@ -33,10 +33,10 @@ async function cancelSend() {
   <div class="rounded-lg border border-ctp-peach/40 bg-ctp-mantle">
     <!-- Banner -->
     <div class="flex items-center justify-between rounded-t-lg bg-ctp-peach/10 px-4 py-2">
-      <span v-if="cancellable" class="text-sm font-medium text-ctp-peach">
-        Sending in {{ remainingSeconds }}s — cancel?
+      <span class="text-sm font-medium text-ctp-green">Sent</span>
+      <span v-if="cancellable" class="text-xs text-ctp-subtext0">
+        Undo available for {{ remainingSeconds }}s
       </span>
-      <span v-else class="text-sm font-medium text-ctp-green">Sent</span>
     </div>
 
     <!-- Content -->
@@ -48,12 +48,15 @@ async function cancelSend() {
     </div>
 
     <!-- Actions -->
-    <div v-if="cancellable" class="border-t border-ctp-peach/20 px-4 py-2">
+    <div v-if="cancellable" class="flex justify-end border-t border-ctp-peach/20 px-4 py-2">
       <AsyncButton
         :action="cancelSend"
-        class="text-sm text-ctp-peach hover:opacity-80"
+        class="gap-1.5 rounded-lg border border-ctp-peach/50 px-3 py-1.5 text-sm font-medium text-ctp-peach hover:bg-ctp-peach/10"
       >
-        Cancel send
+        <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M7 3.5L2 8l5 4.5V9.5c4.5 0 6.5 1.5 8 4.5-.5-4.5-3-8-8-8V3.5z"/>
+        </svg>
+        Undo send
       </AsyncButton>
     </div>
   </div>
