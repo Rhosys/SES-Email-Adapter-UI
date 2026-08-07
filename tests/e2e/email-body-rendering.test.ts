@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Page, type Frame } from '@playwright/test'
 import { wrapEmailHtml } from '../../src/lib/emailHtml'
 
 // Regression coverage for the mobile-overflow / desktop-centering tension in
@@ -19,6 +19,16 @@ import { wrapEmailHtml } from '../../src/lib/emailHtml'
 //     nested table's explicit pixel width still drags every ancestor table
 //     up to that width (browsers size an auto-layout table to fit its widest
 //     un-shrinkable descendant), overflowing narrow viewports.
+//
+// The fixture is rendered through an actual sandboxed <iframe srcdoc> — the
+// same structure EmailSignalCard.vue uses — rather than loading the wrapped
+// HTML as the top-level document. That's not just fidelity for its own sake:
+// a <meta name="viewport"> tag (which wrapEmailHtml injects) has no effect
+// inside an iframe in any browser, so testing through the iframe exercises
+// exactly what production relies on (the CSS overrides alone) instead of a
+// mechanism that never applies in production and is, separately, unreliable
+// under Playwright/WebKit when the top-level document is loaded via
+// setContent() rather than a real navigation.
 
 /** Mirrors the real-world nested "container" table pattern that broke this twice. */
 const HOSTILE_EMAIL_HTML = `
@@ -39,27 +49,47 @@ const HOSTILE_EMAIL_HTML = `
 </table>
 `
 
-async function renderEmail(page: Page, rawHtml: string) {
-  await page.setContent(wrapEmailHtml(rawHtml))
+function escapeForAttribute(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
 }
 
-async function hasHorizontalOverflow(page: Page): Promise<boolean> {
-  return page.evaluate(
+/** Same sandbox + full-width iframe pattern as EmailSignalCard.vue's email body iframe. */
+function hostPage(rawHtml: string): string {
+  const srcdoc = escapeForAttribute(wrapEmailHtml(rawHtml))
+  return `<!doctype html>
+<html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0">
+<iframe title="Email content" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" style="width:100%;height:1200px;border:0;display:block" srcdoc="${srcdoc}"></iframe>
+</body></html>`
+}
+
+/** Navigates via a real data: URL (not setContent) and returns the iframe's content frame. */
+async function renderEmail(page: Page, rawHtml: string): Promise<Frame> {
+  await page.goto('data:text/html;charset=utf-8,' + encodeURIComponent(hostPage(rawHtml)))
+  const handle = await page.locator('iframe[title="Email content"]').elementHandle()
+  const frame = await handle!.contentFrame()
+  expect(frame, 'email iframe must produce a content frame').not.toBeNull()
+  await frame!.waitForLoadState('domcontentloaded')
+  return frame!
+}
+
+async function hasHorizontalOverflow(frame: Frame): Promise<boolean> {
+  return frame.evaluate(
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
   )
 }
 
 test.describe('email body rendering — nested fixed-width container tables', () => {
-  test('never overflows the viewport horizontally', async ({ page }) => {
-    await renderEmail(page, HOSTILE_EMAIL_HTML)
-    expect(await hasHorizontalOverflow(page), 'wrapped email must not force horizontal scroll').toBe(
+  test('never overflows the iframe horizontally', async ({ page }) => {
+    const frame = await renderEmail(page, HOSTILE_EMAIL_HTML)
+    expect(await hasHorizontalOverflow(frame), 'wrapped email must not force horizontal scroll').toBe(
       false,
     )
   })
 
   test('probe content stays fully inside the viewport', async ({ page }) => {
-    await renderEmail(page, HOSTILE_EMAIL_HTML)
-    const box = await page.locator('#probe').boundingBox()
+    const frame = await renderEmail(page, HOSTILE_EMAIL_HTML)
+    const box = await frame.locator('#probe').boundingBox()
     const viewport = page.viewportSize()!
     expect(box, 'probe element must be present').not.toBeNull()
     expect(box!.x, 'probe must not start off the left edge').toBeGreaterThanOrEqual(0)
@@ -69,8 +99,8 @@ test.describe('email body rendering — nested fixed-width container tables', ()
   })
 
   test('sender-centered container table stays horizontally centered', async ({ page }) => {
-    await renderEmail(page, HOSTILE_EMAIL_HTML)
-    const box = await page.locator('table.container').boundingBox()
+    const frame = await renderEmail(page, HOSTILE_EMAIL_HTML)
+    const box = await frame.locator('table.container').boundingBox()
     const viewport = page.viewportSize()!
     const boxCenter = box!.x + box!.width / 2
     const viewportCenter = viewport.width / 2
@@ -89,9 +119,9 @@ test.describe('email body rendering — nested fixed-width container tables', ()
       'Confirm your email address',
       'https://example.com/verify?token=' + 'a'.repeat(120),
     )
-    await renderEmail(page, withLongToken)
+    const frame = await renderEmail(page, withLongToken)
     expect(
-      await hasHorizontalOverflow(page),
+      await hasHorizontalOverflow(frame),
       'an unbreakable token must not force the whole page to overflow',
     ).toBe(false)
   })
