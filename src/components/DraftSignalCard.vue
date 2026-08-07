@@ -24,7 +24,7 @@ const { hideWithDefer } = useDeferredHide()
 
 const shouldReturnToInbox = computed(() => userConfigStore.postSendView === 'return_to_inbox')
 
-// Sentinel option: compose an address the account can send from that isn't in the list
+// Sentinel option: compose an address on one of our domains rather than pick a mailbox
 const CUSTOM_FROM = '__custom__'
 
 // Parse existing from address (empty for brand-new drafts)
@@ -38,7 +38,25 @@ function domainOf(address: string): string {
 }
 
 const emailData = isEmailSignal(props.signal) ? props.signal.data : null
-const [initLocal, initDomain] = splitAddress(emailData?.from?.address ?? '')
+
+// The address this thread arrived on — the reply goes back out from it. The draft
+// signal carries it already (the store seeds `from` on create); fall back to the
+// newest inbound signal for drafts created without one. Known synchronously, so the
+// sender renders immediately instead of waiting on any request.
+const seededFrom = (() => {
+  const seeded = emailData?.from?.address
+  if (seeded) return seeded
+  const threadId = props.signal.threadId
+  if (!threadId) return ''
+  const inbound = signalsStore.threadSignals(threadId).find(isInboundEmailSignal)
+  return inbound?.data.recipientAddress ?? ''
+})()
+
+// The authoritative From value. Editing writes back into it; nothing else derives it.
+const fromAddress = ref(seededFrom)
+const editingFrom = ref(false)
+
+const [initLocal, initDomain] = splitAddress(seededFrom)
 const localPart = ref(initLocal)
 const selectedDomain = ref(initDomain)
 const selectedFrom = ref('')
@@ -50,6 +68,7 @@ const showPreview = ref(false)
 const domains = ref<Domain[]>([])
 const aliases = ref<Alias[]>([])
 const exchanges = ref<ExternalMailExchange[]>([])
+const sendersLoading = ref(false)
 const sendersLoaded = ref(false)
 const saving = ref(false)
 const sendState = ref<'idle' | 'sending' | 'cancellable'>('idle')
@@ -57,76 +76,98 @@ const toastId = ref<string | null>(null)
 const error = ref<string | null>(null)
 
 const verifiedDomains = computed(() => domains.value.filter((d) => d.senderSetupComplete))
-const verifiedDomainNames = computed(
-  () => new Set(verifiedDomains.value.map((d) => d.domain.toLowerCase())),
-)
 
-// Aliases sit on our own domains, so they're only sendable once the domain's
-// sender setup is verified.
-const aliasOptions = computed(() =>
-  aliases.value.map((a) => a.alias).filter((a) => verifiedDomainNames.value.has(domainOf(a))),
-)
-
-// IMAP/JMAP mailboxes are whole addresses on domains we don't own — they can't be
-// built from a local part plus one of our domains, so they're offered verbatim.
+// Connected mailboxes are whole addresses on domains we don't own, whatever the
+// platform — they can't be built from a local part plus one of our domains, so
+// they're offered verbatim.
 const mailboxOptions = computed(() =>
-  exchanges.value
-    .filter((e) => (e.platform === 'imap' || e.platform === 'jmap') && e.status === 'active' && e.emailAddress)
-    .map((e) => e.emailAddress),
+  exchanges.value.filter((e) => e.status === 'active' && e.emailAddress).map((e) => e.emailAddress),
 )
 
-const addressOptions = computed(() => [...aliasOptions.value, ...mailboxOptions.value])
+// Aliases are only suggested for the domain being composed on — the full account-wide
+// list runs to hundreds of entries and is useless as a dropdown.
+const aliasSuggestions = computed(() => {
+  const domain = selectedDomain.value.toLowerCase()
+  if (!domain) return []
+  return aliases.value
+    .filter((a) => domainOf(a.alias) === domain)
+    .map((a) => splitAddress(a.alias)[0])
+})
+
 const canPickCustom = computed(() => verifiedDomains.value.length > 0)
-const hasSendableAddress = computed(() => addressOptions.value.length > 0 || canPickCustom.value)
+const hasSendableAddress = computed(() => mailboxOptions.value.length > 0 || canPickCustom.value)
 const isCustomFrom = computed(() => selectedFrom.value === CUSTOM_FROM)
 
-const fromAddress = computed(() => {
+const editedAddress = computed(() => {
   if (!isCustomFrom.value) return selectedFrom.value
   return localPart.value && selectedDomain.value ? `${localPart.value}@${selectedDomain.value}` : ''
 })
 
-// The address this thread arrived on — the reply should go back out from it. The
-// draft signal carries it already (the store seeds `from` on create); fall back to
-// the newest inbound signal for drafts created without one.
-const originalRecipient = computed(() => {
-  const seeded = emailData?.from?.address
-  if (seeded) return seeded
-  const threadId = props.signal.threadId
-  if (!threadId) return ''
-  const inbound = signalsStore.threadSignals(threadId).find(isInboundEmailSignal)
-  return inbound?.data.recipientAddress ?? ''
-})
+/**
+ * Opens the sender editor, loading the pickable identities on first use — nothing is
+ * fetched while the user is just accepting the address the thread arrived on.
+ */
+async function startEditingFrom() {
+  editingFrom.value = true
+  if (sendersLoaded.value || sendersLoading.value) return
+  const accountId = accountStore.accountId
+  if (!accountId) return
+
+  sendersLoading.value = true
+  const [domainResult, aliasResult, exchangeResult] = await Promise.all([
+    api.listDomains(accountId),
+    api.listAliases(accountId),
+    api.listExternalExchanges(accountId),
+  ])
+  if (domainResult.isOk()) domains.value = domainResult.value
+  if (aliasResult.isOk()) aliases.value = aliasResult.value
+  // A missing/failed exchange list just means no external mailboxes to send from.
+  if (exchangeResult.isOk()) exchanges.value = exchangeResult.value
+  sendersLoading.value = false
+  sendersLoaded.value = true
+
+  selectCurrentIdentity()
+}
 
 /**
- * Picks the From entry matching the original recipient: a listed alias or connected
- * mailbox when one matches outright, otherwise the custom local-part + domain editor
- * when the address sits on a verified domain (an unregistered catch-all address).
- * Falls back to the first sendable address when nothing lines up.
+ * Points the editor at whatever the From address already is: the matching connected
+ * mailbox when there is one, otherwise the local-part + domain editor. Falls back to
+ * the first sendable identity when the current address can't be sent from at all.
  */
-function selectInitialFrom() {
-  const original = originalRecipient.value
-  const match = addressOptions.value.find((a) => a.toLowerCase() === original.toLowerCase())
-  if (match) {
-    selectedFrom.value = match
+function selectCurrentIdentity() {
+  const current = fromAddress.value
+  const mailbox = mailboxOptions.value.find((a) => a.toLowerCase() === current.toLowerCase())
+  if (mailbox) {
+    selectedFrom.value = mailbox
     return
   }
 
-  const domain = verifiedDomains.value.find((d) => d.domain.toLowerCase() === domainOf(original))
-  if (original && domain) {
-    localPart.value = splitAddress(original)[0]
+  const domain = verifiedDomains.value.find((d) => d.domain.toLowerCase() === domainOf(current))
+  if (current && domain) {
+    localPart.value = splitAddress(current)[0]
     selectedDomain.value = domain.domain
     selectedFrom.value = CUSTOM_FROM
     return
   }
 
-  if (addressOptions.value.length > 0) {
-    selectedFrom.value = addressOptions.value[0]!
+  if (canPickCustom.value) {
+    if (!verifiedDomains.value.some((d) => d.domain === selectedDomain.value)) {
+      selectedDomain.value = verifiedDomains.value[0]!.domain
+    }
+    selectedFrom.value = CUSTOM_FROM
     return
   }
-  if (canPickCustom.value) {
-    if (!selectedDomain.value) selectedDomain.value = verifiedDomains.value[0]!.domain
-    selectedFrom.value = CUSTOM_FROM
-  }
+  if (mailboxOptions.value.length > 0) selectedFrom.value = mailboxOptions.value[0]!
+}
+
+function applyFrom() {
+  if (editedAddress.value) fromAddress.value = editedAddress.value
+  editingFrom.value = false
+}
+
+function cancelEditingFrom() {
+  editingFrom.value = false
+  selectCurrentIdentity()
 }
 
 const previewHtml = computed(() => (body.value ? (marked.parse(body.value) as string) : ''))
@@ -141,21 +182,9 @@ const canSend = computed(
 
 const toLabel = computed(() => emailData?.to?.map((e) => e.address).join(', ') ?? '')
 
-onMounted(async () => {
-  if (!accountStore.accountId) return
-  const accountId = accountStore.accountId
-  const [domainResult, aliasResult, exchangeResult] = await Promise.all([
-    api.listDomains(accountId),
-    api.listAliases(accountId),
-    api.listExternalExchanges(accountId),
-  ])
-  if (domainResult.isOk()) domains.value = domainResult.value
-  if (aliasResult.isOk()) aliases.value = aliasResult.value
-  // A missing/failed exchange list just means no external mailboxes to send from.
-  if (exchangeResult.isOk()) exchanges.value = exchangeResult.value
-  selectInitialFrom()
-  sendersLoaded.value = true
-})
+// Persist a From resolved from the thread's inbound signal — the draft itself was
+// created without one, so the server doesn't know it yet.
+onMounted(() => void persistDraft())
 
 // Switching to the custom editor needs a domain selected, or its dropdown opens blank.
 watch(selectedFrom, (value) => {
@@ -326,61 +355,104 @@ async function discard() {
         <span class="font-medium">To:</span> {{ toLabel }}
       </div>
 
-      <!-- From: alias / connected mailbox / custom local-part @ domain -->
-      <div v-if="sendersLoaded" class="mb-2">
-        <template v-if="!hasSendableAddress">
+      <!-- From — the address the thread arrived on, shown straight away. Editing it is
+           the rare case, so the pickable identities only load when the pencil is used. -->
+      <div class="mb-2">
+        <span class="mb-1 block text-xs text-ctp-subtext0">From</span>
+
+        <div v-if="!editingFrom" class="flex items-center gap-1.5">
+          <span class="min-w-0 truncate text-xs text-ctp-text">
+            {{ fromAddress || 'No sender address chosen' }}
+          </span>
+          <button
+            type="button"
+            aria-label="Change sender address"
+            title="Change sender address"
+            class="shrink-0 rounded p-1 text-ctp-subtext0 hover:text-ctp-mauve"
+            @click="startEditingFrom"
+          >
+            <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M11.5 1.5l3 3L5 14H2v-3l9.5-9.5zm-8 10.1V12.5h.9l7.2-7.2-.9-.9-7.2 7.2z"/>
+            </svg>
+          </button>
+        </div>
+
+        <div v-else-if="sendersLoading" class="text-xs text-ctp-subtext0">Loading addresses…</div>
+
+        <template v-else>
           <div
+            v-if="!hasSendableAddress"
             class="rounded border border-ctp-yellow/40 bg-ctp-yellow/10 px-3 py-2 text-xs text-ctp-yellow"
           >
             <span class="font-medium">No verified sending address.</span>
-            You need a verified domain or a connected IMAP/JMAP mailbox before you can send replies.
+            You need a verified domain or a connected mailbox before you can send replies.
             <router-link to="/settings/email-forwarding?tab=domains" class="underline hover:text-ctp-text">
               Add one in Settings → Domains.
             </router-link>
           </div>
-        </template>
-        <template v-else>
-          <label for="draft-from" class="mb-1 block text-xs text-ctp-subtext0">From</label>
-          <select
-            id="draft-from"
-            v-model="selectedFrom"
-            class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
-          >
-            <optgroup v-if="aliasOptions.length > 0" label="Aliases">
-              <option v-for="address in aliasOptions" :key="address" :value="address">
-                {{ address }}
-              </option>
-            </optgroup>
-            <optgroup v-if="mailboxOptions.length > 0" label="Connected mailboxes">
-              <option v-for="address in mailboxOptions" :key="address" :value="address">
-                {{ address }}
-              </option>
-            </optgroup>
-            <option v-if="canPickCustom" :value="CUSTOM_FROM">Custom address…</option>
-          </select>
 
-          <div
-            v-if="isCustomFrom"
-            class="mt-1.5 flex items-center rounded border border-ctp-surface1 bg-ctp-base focus-within:border-ctp-mauve"
-          >
-            <input
-              id="draft-from-local"
-              v-model="localPart"
-              type="text"
-              placeholder="you"
-              aria-label="Custom address local part"
-              class="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:outline-none"
-            />
-            <span class="shrink-0 text-xs text-ctp-subtext0">@</span>
+          <template v-else>
+            <label for="draft-from" class="sr-only">Sender address</label>
             <select
-              v-model="selectedDomain"
-              aria-label="Domain"
-              class="shrink-0 bg-transparent py-1.5 pr-2 text-xs text-ctp-text focus:outline-none"
+              id="draft-from"
+              v-model="selectedFrom"
+              class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
             >
-              <option v-for="d in verifiedDomains" :key="d.domainId" :value="d.domain">
-                {{ d.domain }}
-              </option>
+              <optgroup v-if="mailboxOptions.length > 0" label="Connected mailboxes">
+                <option v-for="address in mailboxOptions" :key="address" :value="address">
+                  {{ address }}
+                </option>
+              </optgroup>
+              <option v-if="canPickCustom" :value="CUSTOM_FROM">Address on my domain…</option>
             </select>
+
+            <div
+              v-if="isCustomFrom"
+              class="mt-1.5 flex items-center rounded border border-ctp-surface1 bg-ctp-base focus-within:border-ctp-mauve"
+            >
+              <input
+                id="draft-from-local"
+                v-model="localPart"
+                type="text"
+                placeholder="you"
+                aria-label="Sender address local part"
+                list="draft-from-aliases"
+                class="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:outline-none"
+              />
+              <!-- Suggestions are scoped to the chosen domain — the account-wide alias
+                   list is far too long to offer whole. -->
+              <datalist id="draft-from-aliases">
+                <option v-for="alias in aliasSuggestions" :key="alias" :value="alias" />
+              </datalist>
+              <span class="shrink-0 text-xs text-ctp-subtext0">@</span>
+              <select
+                v-model="selectedDomain"
+                aria-label="Domain"
+                class="shrink-0 bg-transparent py-1.5 pr-2 text-xs text-ctp-text focus:outline-none"
+              >
+                <option v-for="d in verifiedDomains" :key="d.domainId" :value="d.domain">
+                  {{ d.domain }}
+                </option>
+              </select>
+            </div>
+          </template>
+
+          <div class="mt-1.5 flex items-center gap-2">
+            <button
+              type="button"
+              :disabled="!editedAddress"
+              class="rounded border border-ctp-mauve/50 px-2 py-1 text-xs font-medium text-ctp-mauve hover:bg-ctp-mauve/10 disabled:opacity-50"
+              @click="applyFrom"
+            >
+              Use this address
+            </button>
+            <button
+              type="button"
+              class="rounded px-2 py-1 text-xs text-ctp-subtext0 hover:text-ctp-text"
+              @click="cancelEditingFrom"
+            >
+              Cancel
+            </button>
           </div>
         </template>
       </div>

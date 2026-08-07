@@ -105,11 +105,19 @@ async function mountCard(signal: Signal) {
   return wrapper
 }
 
-function fromSelect(wrapper: Awaited<ReturnType<typeof mountCard>>) {
+type Wrapper = Awaited<ReturnType<typeof mountCard>>
+
+/** Opens the sender editor the way a user does — via the pencil. */
+async function editFrom(wrapper: Wrapper) {
+  await wrapper.find('[aria-label="Change sender address"]').trigger('click')
+  await flushPromises()
+}
+
+function fromSelect(wrapper: Wrapper) {
   return wrapper.find('#draft-from')
 }
 
-describe('DraftSignalCard — From address selection', () => {
+describe('DraftSignalCard — From address', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
@@ -124,48 +132,109 @@ describe('DraftSignalCard — From address selection', () => {
       updatedAt: '2025-01-01T00:00:00Z',
     }
 
-    vi.mocked(api.listDomains).mockResolvedValue(ok([makeDomain('demo.app')]))
+    vi.mocked(api.listDomains).mockResolvedValue(ok([makeDomain('demo.app'), makeDomain('other.app')]))
     vi.mocked(api.listAliases).mockResolvedValue(
-      ok([makeAlias('hello@demo.app'), makeAlias('work@demo.app')]),
+      ok([makeAlias('hello@demo.app'), makeAlias('work@demo.app'), makeAlias('sales@other.app')]),
     )
     vi.mocked(api.listExternalExchanges).mockResolvedValue(
       ok([
         makeExchange('ada@imap-host.example', 'imap'),
         makeExchange('ada@jmap-host.example', 'jmap'),
+        makeExchange('ada@gmail.example', 'gmail'),
+        makeExchange('ada@outlook.example', 'outlook'),
       ]),
     )
   })
 
-  it('auto-selects the alias the email was originally addressed to', async () => {
+  it('shows the address the thread arrived on without waiting on any request', async () => {
     const wrapper = await mountCard(makeDraft('work@demo.app'))
-    expect((fromSelect(wrapper).element as HTMLSelectElement).value).toBe('work@demo.app')
-    expect(wrapper.find('#draft-from-local').exists()).toBe(false)
+
+    expect(wrapper.text()).toContain('work@demo.app')
+    expect(fromSelect(wrapper).exists()).toBe(false)
+    expect(api.listAliases).not.toHaveBeenCalled()
+    expect(api.listDomains).not.toHaveBeenCalled()
+    expect(api.listExternalExchanges).not.toHaveBeenCalled()
   })
 
-  it('offers IMAP and JMAP mailboxes and auto-selects the matching one', async () => {
-    const wrapper = await mountCard(makeDraft('ada@jmap-host.example'))
+  it('loads the pickable identities only once the pencil is used', async () => {
+    const wrapper = await mountCard(makeDraft('work@demo.app'))
+    await editFrom(wrapper)
+
+    expect(api.listAliases).toHaveBeenCalledTimes(1)
+    expect(fromSelect(wrapper).exists()).toBe(true)
+  })
+
+  it('offers connected mailboxes of every platform, not just IMAP/JMAP', async () => {
+    const wrapper = await mountCard(makeDraft('work@demo.app'))
+    await editFrom(wrapper)
+
     const options = fromSelect(wrapper).findAll('option').map((o) => o.text())
     expect(options).toContain('ada@imap-host.example')
     expect(options).toContain('ada@jmap-host.example')
-    expect((fromSelect(wrapper).element as HTMLSelectElement).value).toBe('ada@jmap-host.example')
+    expect(options).toContain('ada@gmail.example')
+    expect(options).toContain('ada@outlook.example')
   })
 
-  it('falls back to the custom editor for an unregistered address on a verified domain', async () => {
+  it('suggests only the aliases on the selected domain', async () => {
+    const wrapper = await mountCard(makeDraft('work@demo.app'))
+    await editFrom(wrapper)
+
+    const suggestions = wrapper.find('#draft-from-aliases').findAll('option')
+      .map((o) => o.attributes('value'))
+    expect(suggestions).toEqual(['hello', 'work'])
+
+    await wrapper.find('[aria-label="Domain"]').setValue('other.app')
+    const afterSwitch = wrapper.find('#draft-from-aliases').findAll('option')
+      .map((o) => o.attributes('value'))
+    expect(afterSwitch).toEqual(['sales'])
+  })
+
+  it('opens the editor on the matching connected mailbox', async () => {
+    const wrapper = await mountCard(makeDraft('ada@gmail.example'))
+    await editFrom(wrapper)
+
+    expect((fromSelect(wrapper).element as HTMLSelectElement).value).toBe('ada@gmail.example')
+  })
+
+  it('opens the domain editor prefilled for an address on a verified domain', async () => {
     const wrapper = await mountCard(makeDraft('catch-all@demo.app'))
+    await editFrom(wrapper)
+
     expect((fromSelect(wrapper).element as HTMLSelectElement).value).toBe('__custom__')
     expect((wrapper.find('#draft-from-local').element as HTMLInputElement).value).toBe('catch-all')
   })
 
-  it('falls back to the first known address when the original recipient is unusable', async () => {
-    const wrapper = await mountCard(makeDraft('nobody@unknown.example'))
-    expect((fromSelect(wrapper).element as HTMLSelectElement).value).toBe('hello@demo.app')
+  it('applies the edited address and returns to the fixed display', async () => {
+    const wrapper = await mountCard(makeDraft('work@demo.app'))
+    await editFrom(wrapper)
+
+    await wrapper.find('#draft-from-local').setValue('billing')
+    await wrapper.findAll('button').find((b) => b.text() === 'Use this address')!.trigger('click')
+    await flushPromises()
+
+    expect(fromSelect(wrapper).exists()).toBe(false)
+    expect(wrapper.text()).toContain('billing@demo.app')
+  })
+
+  it('keeps the original address when the edit is cancelled', async () => {
+    const wrapper = await mountCard(makeDraft('work@demo.app'))
+    await editFrom(wrapper)
+
+    await wrapper.find('#draft-from-local').setValue('billing')
+    await wrapper.findAll('button').find((b) => b.text() === 'Cancel')!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('work@demo.app')
+    expect(wrapper.text()).not.toContain('billing@demo.app')
   })
 
   it('skips mailboxes that failed activation', async () => {
     vi.mocked(api.listExternalExchanges).mockResolvedValue(
       ok([makeExchange('broken@imap-host.example', 'imap', 'activation_failed')]),
     )
-    const wrapper = await mountCard(makeDraft('hello@demo.app'))
+    const wrapper = await mountCard(makeDraft('work@demo.app'))
+    await editFrom(wrapper)
+
     const options = fromSelect(wrapper).findAll('option').map((o) => o.text())
     expect(options).not.toContain('broken@imap-host.example')
   })
@@ -173,7 +242,9 @@ describe('DraftSignalCard — From address selection', () => {
   it('warns instead of offering a picker when nothing can send', async () => {
     vi.mocked(api.listDomains).mockResolvedValue(ok([makeDomain('demo.app', false)]))
     vi.mocked(api.listExternalExchanges).mockResolvedValue(ok([]))
-    const wrapper = await mountCard(makeDraft('hello@demo.app'))
+    const wrapper = await mountCard(makeDraft('work@demo.app'))
+    await editFrom(wrapper)
+
     expect(fromSelect(wrapper).exists()).toBe(false)
     expect(wrapper.text()).toContain('No verified sending address.')
   })
