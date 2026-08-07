@@ -575,7 +575,9 @@ export const api = {
 
   createExternalExchange(
     accountId: string,
-    body: { platform: string; emailAddress?: string; imapConfig?: { host: string; tlsConfig: 'TLS' | 'DISABLED'; username: string; password: string }; jmapConfig?: { sessionUrl: string; username: string; password: string } },
+    // connectionId / connectionUserId identify the Authress connection and the provider-side
+    // identity the mailbox was linked with; the server persists them for later token fetches.
+    body: { platform: string; emailAddress?: string; connectionId?: string; connectionUserId?: string; imapConfig?: { host: string; tlsConfig: 'TLS' | 'DISABLED'; username: string; password: string }; jmapConfig?: { sessionUrl: string; username: string; password: string } },
   ): Promise<Result<ExternalMailExchange, ApiError>> {
     return request<ExternalMailExchange>(`/accounts/${accountId}/external-exchanges`, {
       method: 'POST',
