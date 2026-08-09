@@ -114,7 +114,7 @@ export const useAccountStore = defineStore('account', () => {
     writeAccountsCache(accounts.value)
   }
 
-  /** Fire-and-forget: starts fetchAccount and stores the promise for guards to await. */
+  /** Starts fetchAccount asynchronously; guards await the stored promise via waitForFetch(). */
   function startFetch(fromAccountId?: string) {
     pendingFetch = fetchAccount(fromAccountId)
   }

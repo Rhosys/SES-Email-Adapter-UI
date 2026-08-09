@@ -93,7 +93,7 @@ export const useViewsStore = defineStore('views', () => {
         return v
       }),
     }
-    // Fire-and-forget persistence — errors are non-critical for reordering
+    // Optimistic reorder — positions revert on next page load if persistence fails
     void api.updateView(id, sourceId, { position: tgt.position })
     void api.updateView(id, targetId, { position: srcPosition })
   }
