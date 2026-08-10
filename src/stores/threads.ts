@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { ok, err, type Result } from 'neverthrow'
+import { DateTime } from 'luxon'
 import { api, ApiError } from '@/lib/api'
 import logger from '@/lib/logger'
 import { useAccountStore } from '@/stores/account'
@@ -34,17 +35,16 @@ export const useThreadsStore = defineStore('threads', () => {
   const selectedIds = ref(new Set<string>())
   const bulkActionPending = ref(false)
 
-  /**
-   * Every loaded thread for the current account. Threads with no signals are dropped —
-   * a null lastSignalAt means there is nothing left to show (e.g. the thread's only
-   * signal was reprocessed onto another thread).
-   */
+  // Threads with no meaningful lastSignalAt (null or ancient sentinel values like
+  // the Unix epoch) have nothing to show. Filter them once so all downstream
+  // computeds (sortedThreads, activeThreads, badges) share a consistent base.
+  const _signalCutoff = DateTime.now().minus({ years: 100 }).toISO()
   const threads = computed<Thread[]>(() => {
     const id = accountStore.accountId
     if (!id) return []
     const all = _byAccount.value[id]
     if (!Array.isArray(all)) return []
-    return all.filter((a) => a.lastSignalAt != null)
+    return all.filter((a) => a.lastSignalAt != null && a.lastSignalAt > _signalCutoff)
   })
 
   function byLastSignalDesc(a: Thread, b: Thread) {
