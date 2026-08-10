@@ -698,6 +698,12 @@ export const api = {
     )
   },
 
+  listResourcesByThread(accountId: string, threadId: string): Promise<Result<ResourceListWire, ApiError>> {
+    return request<ResourceListWire>(
+      `/accounts/${accountId}/threads/${threadId}/resources`,
+    )
+  },
+
   getResource(accountId: string, resourceId: string): Promise<Result<Resource, ApiError>> {
     return request<Resource>(`/accounts/${accountId}/resources/${resourceId}`)
   },

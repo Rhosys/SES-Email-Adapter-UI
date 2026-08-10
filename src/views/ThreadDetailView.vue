@@ -14,6 +14,7 @@ import { visibleLabels, findLabelMeta } from '@/lib/labels'
 import { useLabelsStore } from '@/stores/labels'
 import { api } from '@/lib/api'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
+import ThreadResources from '@/components/ThreadResources.vue'
 import SignalRenderer from '@/components/SignalRenderer.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
 import PendingSendCard from '@/components/PendingSendCard.vue'
@@ -509,6 +510,9 @@ async function removeLabel(label: string) {
       <div v-if="signalsStore.latestSignal && isInboundEmailSignal(signalsStore.latestSignal) && signalsStore.latestSignal.data.workflowData" class="mb-6">
         <WorkflowPanel :signal="signalsStore.latestSignal" />
       </div>
+
+      <!-- Resources associated with this thread -->
+      <ThreadResources :thread-id="threadId" />
 
       <!-- Signal thread — newest first, received + draft signals -->
       <div v-if="dedupedSignals.length > 0" ref="signalListRef" class="space-y-4">
