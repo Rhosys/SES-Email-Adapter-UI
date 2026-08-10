@@ -10,6 +10,7 @@ import { useAccountStore } from './stores/account'
 import { useSpamStore } from './stores/spam'
 import { useQuarantineStore } from './stores/quarantine'
 import { useThreadsStore } from './stores/threads'
+import { useSignalsStore } from './stores/signals'
 import { isAdminUser } from './stores/admin'
 import { useUserConfigStore } from './stores/userConfig'
 import { useLogStore } from './stores/logs'
@@ -92,7 +93,19 @@ enableMocking().then(() => {
     // counts loaded active threads, and it renders everywhere. Archived and "All" stay
     // unfetched until their tab is selected.
     const threadsStore = useThreadsStore()
-    void threadsStore.fetchThreads({ status: 'active' })
+    void threadsStore.fetchThreads({ status: 'active' }).then(() => {
+      // Once active threads are loaded, prefetch signals for recent ones so inline
+      // workflow panels have data immediately — regardless of which page the user landed on.
+      const signalsStore = useSignalsStore()
+      const RECENCY_WINDOW_MS = 15 * 60 * 1000
+      const now = Date.now()
+      const recentThreads = threadsStore.sortedThreads
+        .filter(t => t.lastSignalAt && now - new Date(t.lastSignalAt).getTime() < RECENCY_WINDOW_MS)
+        .map(t => ({ threadId: t.threadId, lastSignalAt: t.lastSignalAt! }))
+      if (recentThreads.length > 0) {
+        void signalsStore.fetchForThreads(recentThreads)
+      }
+    })
 
     if (isAdminUser()) {
       const spamStore = useSpamStore()

@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import type { SupportData } from '@/types/server'
 import { useClipboard } from '@/composables/useClipboard'
 
-const props = defineProps<{ data: SupportData }>()
+const props = defineProps<{ data: SupportData; compact?: boolean }>()
 const { copied, copy } = useClipboard()
 
 type TicketStep = 'open' | 'in_progress' | 'awaiting' | 'resolved'
@@ -43,7 +43,33 @@ const isAwaiting = computed(() => props.data.eventType === 'awaiting_response')
 </script>
 
 <template>
-  <div class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
+  <!-- Compact: single row for inbox thread list -->
+  <div v-if="compact" class="flex items-center gap-2 text-xs">
+    <span class="shrink-0 text-ctp-subtext0">🎫</span>
+    <span class="shrink-0 font-medium text-ctp-text">{{ data.service }}</span>
+    <span class="shrink-0" :class="isAwaiting ? 'text-ctp-peach' : isResolved ? 'text-ctp-green' : 'text-ctp-subtext0'">{{ statusLabel[data.eventType] }}</span>
+    <span v-if="data.ticketId" class="shrink-0 font-mono text-ctp-subtext0">#{{ data.ticketId }}</span>
+    <button
+      v-if="data.ticketId"
+      class="shrink-0 text-ctp-subtext0 hover:text-ctp-text"
+      @click.prevent="copy(`#${data.ticketId}`)"
+    >
+      {{ copied ? '✓' : 'Copy' }}
+    </button>
+    <a
+      v-if="data.responseUrl"
+      :href="data.responseUrl"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="ml-auto shrink-0 text-ctp-blue hover:underline"
+      @click.stop
+    >
+      Respond →
+    </a>
+  </div>
+
+  <!-- Full: detail view card -->
+  <div v-else class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
     <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
       <div>
         <span class="text-sm font-medium text-ctp-text">{{ data.service }}</span>

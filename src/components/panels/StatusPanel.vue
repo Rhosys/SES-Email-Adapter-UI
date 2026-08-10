@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { StatusData } from '@/types/server'
 
-const props = defineProps<{ data: StatusData }>()
+const props = defineProps<{ data: StatusData; compact?: boolean }>()
 
 const typeLabel: Record<StatusData['statusType'], string> = {
   terms_update: 'Terms of service update',
@@ -26,7 +26,26 @@ const effectiveDateLabel = (() => {
 </script>
 
 <template>
-  <div class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
+  <!-- Compact: single row for inbox thread list -->
+  <div v-if="compact" class="flex items-center gap-2 text-xs">
+    <span class="shrink-0 text-ctp-subtext0">📋</span>
+    <span class="shrink-0 font-medium text-ctp-text">{{ data.provider }}</span>
+    <span class="shrink-0 text-ctp-subtext0">{{ typeLabel[data.statusType] }}</span>
+    <span v-if="effectiveDateLabel" class="shrink-0 text-ctp-subtext0">Effective {{ effectiveDateLabel }}</span>
+    <a
+      v-if="data.documentUrl"
+      :href="data.documentUrl"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="ml-auto shrink-0 text-ctp-blue hover:underline"
+      @click.stop
+    >
+      View →
+    </a>
+  </div>
+
+  <!-- Full: detail view card -->
+  <div v-else class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
     <div class="flex flex-wrap items-center gap-2">
       <span class="text-sm text-ctp-subtext1">{{ data.provider }}</span>
       <span class="text-xs text-ctp-subtext0">{{ typeLabel[data.statusType] }}</span>

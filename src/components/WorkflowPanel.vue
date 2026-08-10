@@ -20,8 +20,9 @@ function narrowWorkflowData<W extends Workflow>(_workflow: W, data: WorkflowData
   return data as Extract<WorkflowData, { workflow: W }>
 }
 
-const props = withDefaults(defineProps<{ signal: Signal; actions?: SignalAction[] }>(), {
-  actions: () => []
+const props = withDefaults(defineProps<{ signal: Signal; actions?: SignalAction[]; compact?: boolean }>(), {
+  actions: () => [],
+  compact: false,
 })
 
 const inboundData = computed(() => isInboundEmailSignal(props.signal) ? props.signal.data : null)
@@ -50,17 +51,17 @@ const testData = computed(() => workflow.value === 'test' && data.value ? narrow
 </script>
 
 <template>
-  <AuthPanel v-if="authVisible" :data="authData!" :actions="resolvedActions" :received-at="receivedAt" />
-  <ConversationPanel v-else-if="conversationData" :data="conversationData" />
-  <CrmPanel v-else-if="crmData" :data="crmData" />
-  <PackagePanel v-else-if="packageData" :data="packageData" />
-  <TravelPanel v-else-if="travelData" :data="travelData" />
-  <PaymentsPanel v-else-if="paymentsData" :data="paymentsData" />
-  <AlertPanel v-else-if="alertData" :data="alertData" :actions="resolvedActions" />
-  <ContentPanel v-else-if="contentData" :data="contentData" />
-  <StatusPanel v-else-if="statusData" :data="statusData" />
-  <HealthcarePanel v-else-if="healthcareData" :data="healthcareData" />
-  <JobPanel v-else-if="jobData" :data="jobData" :actions="resolvedActions" />
-  <SupportPanel v-else-if="supportData" :data="supportData" />
-  <TestPanel v-else-if="testData" :data="testData" />
+  <AuthPanel v-if="authVisible" :data="authData!" :actions="resolvedActions" :received-at="receivedAt" :compact="compact" />
+  <ConversationPanel v-else-if="conversationData" :data="conversationData" :compact="compact" />
+  <CrmPanel v-else-if="crmData" :data="crmData" :compact="compact" />
+  <PackagePanel v-else-if="packageData" :data="packageData" :compact="compact" />
+  <TravelPanel v-else-if="travelData" :data="travelData" :compact="compact" />
+  <PaymentsPanel v-else-if="paymentsData" :data="paymentsData" :compact="compact" />
+  <AlertPanel v-else-if="alertData" :data="alertData" :actions="resolvedActions" :compact="compact" />
+  <ContentPanel v-else-if="contentData" :data="contentData" :compact="compact" />
+  <StatusPanel v-else-if="statusData" :data="statusData" :compact="compact" />
+  <HealthcarePanel v-else-if="healthcareData" :data="healthcareData" :compact="compact" />
+  <JobPanel v-else-if="jobData" :data="jobData" :actions="resolvedActions" :compact="compact" />
+  <SupportPanel v-else-if="supportData" :data="supportData" :compact="compact" />
+  <TestPanel v-else-if="testData" :data="testData" :compact="compact" />
 </template>

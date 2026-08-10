@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useThreadsStore } from '@/stores/threads'
+import { useSignalsStore } from '@/stores/signals'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useDeferredHide } from '@/composables/useDeferredHide'
 import InboxTabBar from '@/components/InboxTabBar.vue'
@@ -15,19 +16,31 @@ import InboxEmpty from '@/components/InboxEmpty.vue'
 import InboxZeroCelebration from '@/components/InboxZeroCelebration.vue'
 import StatsWidget from '@/components/StatsWidget.vue'
 import ResourcesBanner from '@/components/ResourcesBanner.vue'
-import InboxHighlight from '@/components/InboxHighlight.vue'
 import type { FetchThreadsOptions } from '@/stores/threads'
 import type { ThreadStatus } from '@/types/server'
 
 const route = useRoute()
 const router = useRouter()
 const threadsStore = useThreadsStore()
+const signalsStore = useSignalsStore()
 const { onAction, offAction } = useKeyboardShortcuts()
 const { hiddenIds } = useDeferredHide()
 
+const RECENCY_WINDOW_MS = 15 * 60 * 1000
+
 const refreshing = ref(false)
 const lastRefreshedAt = ref<string | null>(null)
-const highlightRef = ref<InstanceType<typeof InboxHighlight> | null>(null)
+
+async function fetchRecentSignals() {
+  const now = Date.now()
+  const recentThreads = threadsStore.sortedThreads
+    .filter(t => t.lastSignalAt && now - new Date(t.lastSignalAt).getTime() < RECENCY_WINDOW_MS)
+    .map(t => ({ threadId: t.threadId, lastSignalAt: t.lastSignalAt! }))
+  if (recentThreads.length > 0) {
+    await signalsStore.fetchForThreads(recentThreads)
+  }
+}
+
 
 const VALID_TABS = ['active', 'archived', 'all'] as const
 type TabKey = (typeof VALID_TABS)[number]
@@ -89,6 +102,7 @@ async function loadTab(tab: TabKey, refresh = false) {
 async function handleRefresh() {
   refreshing.value = true
   await loadTab(activeTab.value, true)
+  await fetchRecentSignals()
   lastRefreshedAt.value = new Date().toLocaleTimeString()
   refreshing.value = false
 }
@@ -232,8 +246,7 @@ watch(
 
     <!-- pb-24 on mobile clears the fixed InboxTabBar bottom bar -->
     <main class="mx-auto max-w-4xl px-4 pt-4 pb-24 sm:pb-4">
-      <InboxHighlight ref="highlightRef" />
-      <StatsWidget v-if="!highlightRef?.visible" />
+      <StatsWidget />
       <ResourcesBanner />
 
       <InboxError v-if="threadsStore.error" :message="threadsStore.error" />

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { AlertData, SignalAction } from '@/types/server'
 
-defineProps<{ data: AlertData; actions: SignalAction[] }>()
+defineProps<{ data: AlertData; actions: SignalAction[]; compact?: boolean }>()
 
 const alertTypeLabel: Record<AlertData['alertType'], string> = {
   suspicious_login: 'Suspicious login detected',
@@ -46,7 +46,33 @@ const severityClass = (severity?: AlertData['severity']) => {
 </script>
 
 <template>
+  <!-- Compact: single row for inbox thread list -->
+  <div v-if="compact" class="flex items-center gap-2 text-xs">
+    <span class="shrink-0 text-ctp-subtext0">⚠</span>
+    <span class="shrink-0 font-medium" :class="data.severity === 'critical' ? 'text-ctp-red' : 'text-ctp-text'">{{ data.service }}</span>
+    <span class="shrink-0 text-ctp-subtext0">{{ alertTypeLabel[data.alertType] }}</span>
+    <span
+      v-if="data.severity"
+      class="shrink-0 rounded px-1 py-0.5 text-xs font-medium uppercase"
+      :class="data.severity === 'critical' ? 'bg-ctp-red text-ctp-base' : data.severity === 'warning' ? 'bg-ctp-peach text-ctp-base' : 'bg-ctp-blue text-ctp-base'"
+    >
+      {{ data.severity }}
+    </span>
+    <a
+      v-if="data.requiresAction && actions.length"
+      :href="actions[0]!.url"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="ml-auto shrink-0 rounded bg-ctp-red px-2 py-0.5 text-xs font-medium text-ctp-base hover:opacity-90"
+      @click.stop
+    >
+      {{ actions[0]!.text ?? 'Investigate →' }}
+    </a>
+  </div>
+
+  <!-- Full: detail view card -->
   <div
+    v-else
     class="rounded-lg border p-4"
     :class="[
       isFraud(data.alertType) ? 'border-ctp-red bg-ctp-red/10' : severityClass(data.severity),

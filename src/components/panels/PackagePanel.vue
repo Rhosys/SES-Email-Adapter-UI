@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import type { PackageData } from '@/types/server'
 
-const props = defineProps<{ data: PackageData }>()
+const props = defineProps<{ data: PackageData; compact?: boolean }>()
 
 type PackageStep = 'ordered' | 'shipped' | 'in_transit' | 'out_for_delivery' | 'delivered'
 
@@ -61,7 +61,26 @@ const estimatedLabel = computed(() => {
 </script>
 
 <template>
-  <div class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
+  <!-- Compact: single row for inbox thread list -->
+  <div v-if="compact" class="flex items-center gap-2 text-xs">
+    <span class="shrink-0 text-ctp-subtext0">📦</span>
+    <span class="shrink-0 font-medium text-ctp-text">{{ data.retailer }}</span>
+    <span class="shrink-0 text-ctp-subtext0">{{ typeLabel[data.packageType] }}</span>
+    <span v-if="estimatedLabel" class="shrink-0" :class="estimatedLabel.urgent ? 'text-ctp-peach' : 'text-ctp-subtext0'">{{ estimatedLabel.text }}</span>
+    <a
+      v-if="data.trackingUrl"
+      :href="data.trackingUrl"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="ml-auto shrink-0 text-ctp-blue hover:underline"
+      @click.stop
+    >
+      Track →
+    </a>
+  </div>
+
+  <!-- Full: detail view card -->
+  <div v-else class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
     <div class="mb-3 flex items-center justify-between">
       <div>
         <span class="text-sm font-medium text-ctp-text">{{ data.retailer }}</span>

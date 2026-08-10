@@ -7,6 +7,10 @@ import { formatRelativeTime } from '@/composables/useFormattedTime'
 import { useLabelsStore } from '@/stores/labels'
 import { useSignalsStore } from '@/stores/signals'
 import { visibleLabels, findLabelMeta } from '@/lib/labels'
+import { isInboundEmailSignal } from '@/lib/signal-guards'
+import WorkflowPanel from './WorkflowPanel.vue'
+
+const RECENCY_WINDOW_MS = 15 * 60 * 1000
 
 const props = defineProps<{ thread: Thread }>()
 
@@ -21,6 +25,17 @@ const timestamp = computed(() =>
 const hasPendingSend = computed(() =>
   signalsStore.allSignals.some(s => s.status === 'pending_send' && s.threadId === props.thread.threadId)
 )
+
+const isRecent = computed(() => {
+  if (!props.thread.lastSignalAt) return false
+  return Date.now() - new Date(props.thread.lastSignalAt).getTime() < RECENCY_WINDOW_MS
+})
+
+const latestInboundSignal = computed(() => {
+  if (!isRecent.value) return null
+  const signals = signalsStore.threadSignals(props.thread.threadId)
+  return signals.find(s => isInboundEmailSignal(s) && s.data.workflowData) ?? null
+})
 
 function labelColor(key: string): string {
   return findLabelMeta(labelsStore.items, key)?.color ?? '#cba6f7'
@@ -48,5 +63,6 @@ function labelColor(key: string): string {
       />
       <span v-if="thread.summary && thread.subject" class="text-xs text-ctp-subtext0">{{ thread.summary }}</span>
     </div>
+    <WorkflowPanel v-if="latestInboundSignal" :signal="latestInboundSignal" compact class="mt-1" />
   </RouterLink>
 </template>

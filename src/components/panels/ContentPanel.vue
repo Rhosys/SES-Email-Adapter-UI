@@ -2,7 +2,7 @@
 import type { ContentData } from '@/types/server'
 import { useClipboard } from '@/composables/useClipboard'
 
-defineProps<{ data: ContentData }>()
+defineProps<{ data: ContentData; compact?: boolean }>()
 const { copied, copy } = useClipboard()
 
 const typeLabel: Record<ContentData['contentType'], string> = {
@@ -15,7 +15,24 @@ const typeLabel: Record<ContentData['contentType'], string> = {
 </script>
 
 <template>
-  <div class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
+  <!-- Compact: single row for inbox thread list -->
+  <div v-if="compact" class="flex items-center gap-2 text-xs">
+    <span class="shrink-0 text-ctp-subtext0">📰</span>
+    <span class="shrink-0 font-medium text-ctp-text">{{ data.publisher }}</span>
+    <span class="shrink-0 text-ctp-subtext0">{{ typeLabel[data.contentType] }}</span>
+    <code v-if="data.discountCode" class="shrink-0 rounded bg-ctp-surface1 px-1.5 py-0.5 font-mono text-xs text-ctp-green">{{ data.discountCode }}</code>
+    <button
+      v-if="data.discountCode"
+      class="shrink-0 text-ctp-subtext0 hover:text-ctp-text"
+      @click.prevent="copy(data.discountCode!)"
+    >
+      {{ copied ? '✓' : 'Copy' }}
+    </button>
+    <span v-if="data.discountAmount" class="shrink-0 text-ctp-subtext0">{{ data.discountAmount }} off</span>
+  </div>
+
+  <!-- Full: detail view card -->
+  <div v-else class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
     <div class="flex flex-wrap items-center gap-2">
       <span class="text-sm text-ctp-subtext1">{{ data.publisher }}</span>
       <span class="text-xs text-ctp-subtext0">{{ typeLabel[data.contentType] }}</span>

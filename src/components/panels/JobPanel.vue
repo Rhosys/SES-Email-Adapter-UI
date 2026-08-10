@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import type { JobData, SignalAction } from '@/types/server'
 
-const props = defineProps<{ data: JobData; actions: SignalAction[] }>()
+const props = defineProps<{ data: JobData; actions: SignalAction[]; compact?: boolean }>()
 
 type JobStage = 'submitted' | 'reviewing' | 'interview' | 'offer' | 'rejected'
 const stages: JobStage[] = ['submitted', 'reviewing', 'interview', 'offer', 'rejected']
@@ -55,7 +55,27 @@ const interviewLabel = computed(() => {
 </script>
 
 <template>
-  <div class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
+  <!-- Compact: single row for inbox thread list -->
+  <div v-if="compact" class="flex items-center gap-2 text-xs">
+    <span class="shrink-0 text-ctp-subtext0">💼</span>
+    <span class="shrink-0 font-medium text-ctp-text">{{ data.company ?? 'Company' }}</span>
+    <span v-if="data.role" class="shrink-0 text-ctp-subtext0">{{ data.role }}</span>
+    <span v-if="currentStage" class="shrink-0" :class="stageClass[currentStage]">{{ stageLabel[currentStage] }}</span>
+    <span v-if="interviewLabel" class="shrink-0 text-ctp-peach">{{ interviewLabel }}</span>
+    <a
+      v-if="actions.length"
+      :href="actions[0]!.url"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="ml-auto shrink-0 text-ctp-blue hover:underline"
+      @click.stop
+    >
+      {{ actions[0]!.text ?? 'View →' }}
+    </a>
+  </div>
+
+  <!-- Full: detail view card -->
+  <div v-else class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
     <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
       <div>
         <p class="text-sm font-medium text-ctp-text">{{ data.company ?? 'Company' }}</p>

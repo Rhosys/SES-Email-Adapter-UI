@@ -4,7 +4,7 @@ import type { AuthData, SignalAction } from '@/types/server'
 import { useCountdown } from '@/composables/useCountdown'
 import { useClipboard } from '@/composables/useClipboard'
 
-const props = defineProps<{ data: AuthData; actions: SignalAction[]; receivedAt: string }>()
+const props = defineProps<{ data: AuthData; actions: SignalAction[]; receivedAt: string; compact?: boolean }>()
 
 const action = computed(() => props.actions[0] ?? null)
 
@@ -68,7 +68,33 @@ function copyCode() {
 </script>
 
 <template>
-  <div class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
+  <!-- Compact: single row for inbox thread list -->
+  <div v-if="compact" class="flex items-center gap-2 text-xs">
+    <span class="shrink-0 text-ctp-subtext0">🔑</span>
+    <span class="shrink-0 font-medium text-ctp-text">{{ data.service }}</span>
+    <code v-if="formattedCode" class="shrink-0 rounded bg-ctp-surface1 px-1.5 py-0.5 font-mono text-xs tracking-wider text-ctp-text">{{ formattedCode }}</code>
+    <button
+      v-if="data.code"
+      class="shrink-0 rounded border border-ctp-surface1 px-1.5 py-0.5 text-xs text-ctp-subtext1 hover:bg-ctp-surface1"
+      @click.prevent="copyCode"
+    >
+      {{ copied ? '✓' : 'Copy' }}
+    </button>
+    <a
+      v-if="action && !data.code"
+      :href="action.url"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="shrink-0 rounded bg-ctp-blue px-2 py-0.5 text-xs font-medium text-ctp-base hover:opacity-90"
+      @click.stop
+    >
+      {{ action.text ?? actionLabel[data.authType] }}
+    </a>
+    <span v-if="countdown.display" class="ml-auto shrink-0" :class="urgencyClass">{{ countdown.display }}</span>
+  </div>
+
+  <!-- Full: detail view card -->
+  <div v-else class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
     <div class="mb-3 flex items-center gap-2">
       <span class="text-sm font-semibold text-ctp-text">{{ data.service }}</span>
       <span class="text-xs text-ctp-subtext0">{{ typeLabel }}</span>

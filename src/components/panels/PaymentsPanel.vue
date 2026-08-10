@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import type { PaymentsData } from '@/types/server'
 import { useClipboard } from '@/composables/useClipboard'
 
-const props = defineProps<{ data: PaymentsData }>()
+const props = defineProps<{ data: PaymentsData; compact?: boolean }>()
 const { copied, copy } = useClipboard()
 
 const typeLabel: Record<PaymentsData['paymentType'], string> = {
@@ -48,7 +48,38 @@ const dueDateLabel = computed(() => {
 </script>
 
 <template>
-  <div class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
+  <!-- Compact: single row for inbox thread list -->
+  <div v-if="compact" class="flex items-center gap-2 text-xs">
+    <span class="shrink-0 text-ctp-subtext0">💳</span>
+    <span class="shrink-0 font-medium text-ctp-text">{{ data.vendor }}</span>
+    <span class="shrink-0 text-ctp-subtext0">{{ typeLabel[data.paymentType] }}</span>
+    <span v-if="formattedAmount" class="shrink-0 font-medium" :class="data.paymentType === 'refund' ? 'text-ctp-green' : 'text-ctp-text'">{{ formattedAmount }}</span>
+    <span v-if="dueDateLabel" class="shrink-0" :class="dueDateLabel.urgent ? 'text-ctp-red' : 'text-ctp-subtext0'">{{ dueDateLabel.text }}</span>
+    <a
+      v-if="data.managementUrl && isActionRequired"
+      :href="data.managementUrl"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="ml-auto shrink-0 rounded bg-ctp-blue px-2 py-0.5 text-xs font-medium text-ctp-base hover:opacity-90"
+      @click.stop
+    >
+      Pay now
+    </a>
+    <a
+      v-if="data.downloadUrl"
+      :href="data.downloadUrl"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="shrink-0 text-ctp-blue hover:underline"
+      :class="{ 'ml-auto': !data.managementUrl || !isActionRequired }"
+      @click.stop
+    >
+      PDF
+    </a>
+  </div>
+
+  <!-- Full: detail view card -->
+  <div v-else class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
     <!-- Payment failed banner -->
     <div
       v-if="data.paymentType === 'payment_failed'"
