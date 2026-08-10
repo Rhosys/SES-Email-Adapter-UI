@@ -15,6 +15,7 @@ import HealthcarePanel from './panels/HealthcarePanel.vue'
 import JobPanel from './panels/JobPanel.vue'
 import SupportPanel from './panels/SupportPanel.vue'
 import TestPanel from './panels/TestPanel.vue'
+import EventsPanel from './panels/EventsPanel.vue'
 
 function narrowWorkflowData<W extends Workflow>(_workflow: W, data: WorkflowData): Extract<WorkflowData, { workflow: W }> {
   return data as Extract<WorkflowData, { workflow: W }>
@@ -47,6 +48,7 @@ const statusData = computed(() => workflow.value === 'status' && data.value ? na
 const healthcareData = computed(() => workflow.value === 'healthcare' && data.value ? narrowWorkflowData('healthcare', data.value) : null)
 const jobData = computed(() => workflow.value === 'job' && data.value ? narrowWorkflowData('job', data.value) : null)
 const supportData = computed(() => workflow.value === 'support' && data.value ? narrowWorkflowData('support', data.value) : null)
+const eventsData = computed(() => workflow.value === 'events' && data.value ? narrowWorkflowData('events', data.value) : null)
 const testData = computed(() => workflow.value === 'test' && data.value ? narrowWorkflowData('test', data.value) : null)
 </script>
 
@@ -63,5 +65,6 @@ const testData = computed(() => workflow.value === 'test' && data.value ? narrow
   <HealthcarePanel v-else-if="healthcareData" :data="healthcareData" :compact="compact" />
   <JobPanel v-else-if="jobData" :data="jobData" :actions="resolvedActions" :compact="compact" />
   <SupportPanel v-else-if="supportData" :data="supportData" :compact="compact" />
+  <EventsPanel v-else-if="eventsData" :data="eventsData" />
   <TestPanel v-else-if="testData" :data="testData" :compact="compact" />
 </template>

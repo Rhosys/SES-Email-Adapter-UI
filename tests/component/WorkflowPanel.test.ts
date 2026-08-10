@@ -45,7 +45,7 @@ describe('WorkflowPanel', () => {
       authType: 'verification',
       code: '482931',
       service: 'GitHub',
-      expiresInMinutes: 10,
+      expiresInMinutes: '10',
     }
     const wrapper = mount(WorkflowPanel, {
       props: { signal: makeSignal(data) },

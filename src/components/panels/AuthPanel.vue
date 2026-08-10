@@ -35,7 +35,7 @@ const typeLabel = computed(() =>
 const expiresAt = computed(() => {
   if (!props.data.expiresInMinutes) return null
   const base = new Date(props.receivedAt)
-  return new Date(base.getTime() + props.data.expiresInMinutes * 60_000)
+  return new Date(base.getTime() + parseFloat(props.data.expiresInMinutes) * 60_000)
 })
 
 const countdown = useCountdown(expiresAt.value)

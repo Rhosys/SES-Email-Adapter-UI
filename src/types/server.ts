@@ -386,7 +386,7 @@ export interface AuthData {
   authType: 'verification' | 'password_reset' | 'two_factor' | 'security_alert' | 'other'
   code?: string
   actionUrl?: string
-  expiresInMinutes?: number
+  expiresInMinutes?: string
   service: string
 }
 
@@ -410,7 +410,7 @@ export interface PackageData {
   trackingNumber?: string
   trackingUrl?: string
   estimatedDelivery?: string
-  items?: Array<{ name: string; quantity: number; price?: number }>
+  items?: Array<{ name: string; quantity: string; price?: string }>
 }
 
 export interface TravelData {
@@ -423,7 +423,7 @@ export interface TravelData {
   origin?: string
   destination?: string
   passengers?: Array<{ name: string }>
-  totalAmount?: number
+  totalAmount?: string
   currency?: string
 }
 
@@ -431,7 +431,7 @@ export interface PaymentsData {
   workflow: 'payments'
   paymentType: 'invoice' | 'receipt' | 'subscription_renewal' | 'payment_failed' | 'plan_changed' | 'tax' | 'wire_transfer' | 'refund' | 'statement' | 'other'
   vendor: string
-  amount?: number
+  amount?: string
   currency?: string
   dueDate?: string
   invoiceNumber?: string
@@ -503,6 +503,23 @@ export interface SupportData {
   responseUrl?: string
 }
 
+export interface EventsData {
+  workflow: 'events'
+  eventType: 'ticket_confirmation' | 'reminder' | 'update' | 'cancellation' | 'venue_change'
+  eventName: string
+  venueName?: string
+  venueAddress?: string
+  eventStartDatetime?: string
+  eventEndDatetime?: string
+  performer?: string
+  ticketReference?: string
+  seatDetails?: string
+  ticketCount?: string
+  ticketUrl?: string
+  totalAmount?: string
+  currency?: string
+}
+
 export interface TestData {
   workflow: 'test'
   triggeredBy: 'user' | 'system'
@@ -521,6 +538,7 @@ export type WorkflowData =
   | HealthcareData
   | JobData
   | SupportData
+  | EventsData
   | TestData
 
 // ─── Rule ─────────────────────────────────────────────────────────────────────

@@ -92,8 +92,9 @@ enableMocking().then(() => {
     // Always the active listing, whichever page the user lands on: the sidebar badge
     // counts loaded active threads, and it renders everywhere. Archived and "All" stay
     // unfetched until their tab is selected.
+    // refresh: true triggers EMX dispatch — syncs IMAP/JMAP exchanges on session start.
     const threadsStore = useThreadsStore()
-    void threadsStore.fetchThreads({ status: 'active' }).then(() => {
+    void threadsStore.fetchThreads({ status: 'active', refresh: true }).then(() => {
       // Once active threads are loaded, prefetch signals for recent ones so inline
       // workflow panels have data immediately — regardless of which page the user landed on.
       const signalsStore = useSignalsStore()
@@ -129,5 +130,15 @@ enableMocking().then(() => {
       userId: identity.userId ?? undefined,
       accountId: accountStore.accountId ?? undefined,
     }
+  })
+
+  // Trigger EMX sync when the user returns to the tab (visibility change) so
+  // IMAP/JMAP exchanges are polled immediately rather than waiting for the next
+  // 15-minute scheduler tick.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return
+    const id = useAccountStore().accountId
+    if (!id) return
+    void useThreadsStore().fetchThreads({ status: 'active', refresh: true })
   })
 })

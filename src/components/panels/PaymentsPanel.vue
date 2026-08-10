@@ -25,11 +25,13 @@ const isActionRequired = computed(() =>
 
 const formattedAmount = computed(() => {
   if (!props.data.amount) return null
+  const num = parseFloat(props.data.amount)
+  if (!Number.isFinite(num)) return null
   const fmt = new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency: props.data.currency ?? 'USD',
   })
-  return fmt.format(props.data.amount)
+  return fmt.format(num)
 })
 
 const dueDateLabel = computed(() => {

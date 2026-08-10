@@ -23,6 +23,8 @@ vi.mock('@/lib/api', async (importOriginal) => {
       listDomains: vi.fn(),
       listAliases: vi.fn(),
       listExternalExchanges: vi.fn(),
+      listResourcesByThread: vi.fn(),
+      patchResource: vi.fn(),
     },
   }
 })
@@ -107,6 +109,7 @@ function mockDraftSignal(overrides: Partial<Signal> = {}): Signal {
 async function mountView(thread: Thread, signals: Signal[] = []) {
   vi.mocked(api.getThread).mockResolvedValue(ok(thread))
   vi.mocked(api.listSignals).mockResolvedValue(ok({ signals, pagination: { cursor: null } }))
+  vi.mocked(api.listResourcesByThread).mockResolvedValue(ok({ resources: [], pagination: { cursor: null } }))
 
   const router = makeRouter()
   await router.push(`/threads/${thread.threadId}`)

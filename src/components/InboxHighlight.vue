@@ -58,7 +58,7 @@ const formattedCode = computed(() => {
 const expiresAt = computed(() => {
   if (!authData.value?.expiresInMinutes || !inboundData.value) return null
   const base = new Date(inboundData.value.receivedAt)
-  return new Date(base.getTime() + authData.value.expiresInMinutes * 60_000)
+  return new Date(base.getTime() + parseFloat(authData.value.expiresInMinutes) * 60_000)
 })
 
 const countdown = computed(() => {
