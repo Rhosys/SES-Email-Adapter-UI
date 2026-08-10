@@ -22,6 +22,7 @@ const editingLabel = ref<Label | null>(null)
 const labelName = ref('')
 const labelColor = ref('#cba6f7')
 const labelIcon = ref('')
+const labelApplyInstruction = ref('')
 const labelPending = ref(false)
 
 const PRESET_COLORS = [
@@ -40,6 +41,7 @@ function openNewLabel() {
   labelName.value = ''
   labelColor.value = '#cba6f7'
   labelIcon.value = ''
+  labelApplyInstruction.value = ''
   showLabelForm.value = true
 }
 
@@ -48,6 +50,7 @@ function openEditLabel(label: Label) {
   labelName.value = label.name
   labelColor.value = label.color ?? '#cba6f7'
   labelIcon.value = label.icon ?? ''
+  labelApplyInstruction.value = label.applyInstruction
   showLabelForm.value = true
 }
 
@@ -57,10 +60,11 @@ function cancelLabel() {
 }
 
 async function saveLabel() {
-  if (!labelName.value.trim()) return
+  if (!labelName.value.trim() || !labelApplyInstruction.value.trim()) return
   labelPending.value = true
   const body = {
     name: labelName.value.trim(),
+    applyInstruction: labelApplyInstruction.value.trim(),
     color: labelColor.value || undefined,
     icon: labelIcon.value.trim() || undefined,
   }
@@ -283,11 +287,24 @@ onMounted(async () => {
                 class="w-24 rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
               />
             </div>
+            <div>
+              <label for="label-apply-instruction" class="mb-1 block text-xs text-ctp-subtext0">Apply instruction <span class="text-ctp-red">*</span></label>
+              <textarea
+                id="label-apply-instruction"
+                v-model="labelApplyInstruction"
+                rows="2"
+                placeholder="e.g. Apply only to emails about monthly billing statements or payment receipts"
+                class="w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+              />
+              <p class="mt-1 text-xs text-ctp-subtext0">
+                Tells the classifier when to apply this label. Be specific about what kind of emails should get it.
+              </p>
+            </div>
           </div>
           <div class="mt-4 flex gap-2">
             <AsyncButton
               :action="saveLabel"
-              :disabled="!labelName.trim()"
+              :disabled="!labelName.trim() || !labelApplyInstruction.trim()"
               class="rounded bg-ctp-mauve px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
             >
               Save

@@ -26,6 +26,7 @@ function mockLabel(overrides: Partial<Label> = {}): Label {
     name: 'Test label',
     color: '#cba6f7',
     createdAt: '2025-01-01T00:00:00Z',
+    applyInstruction: 'Test instruction',
     ...overrides,
   }
 }
@@ -57,7 +58,7 @@ describe('labelsStore', () => {
   it('createLabel adds item and returns true', async () => {
     vi.mocked(api.createLabel).mockResolvedValue(ok(mockLabel({ label: 'lbl_2', name: 'New' })))
     const store = useLabelsStore()
-    const result = await store.createLabel({ name: 'New' })
+    const result = await store.createLabel({ name: 'New', applyInstruction: 'Test instruction' })
     expect(result).toBe(true)
     expect(store.items).toHaveLength(1)
     expect(store.items[0].name).toBe('New')
@@ -66,7 +67,7 @@ describe('labelsStore', () => {
   it('createLabel sets error and returns false on failure', async () => {
     vi.mocked(api.createLabel).mockResolvedValue(err(new ApiError(400, 'Bad request')))
     const store = useLabelsStore()
-    const result = await store.createLabel({ name: 'New' })
+    const result = await store.createLabel({ name: 'New', applyInstruction: 'Test instruction' })
     expect(result).toBe(false)
     expect(store.error).toBe('Bad request')
   })

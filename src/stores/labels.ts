@@ -26,7 +26,7 @@ export const useLabelsStore = defineStore('labels', () => {
     _byAccount.value = { ..._byAccount.value, [id]: result.value }
   }
 
-  async function createLabel(body: { name: string; color?: string; icon?: string }) {
+  async function createLabel(body: { name: string; applyInstruction: string; color?: string; icon?: string }) {
     const id = accountStore.accountId
     if (!id) return false
     const result = await api.createLabel(id, body)
@@ -43,7 +43,7 @@ export const useLabelsStore = defineStore('labels', () => {
 
   async function updateLabel(
     labelKey: string,
-    body: { name?: string; color?: string; icon?: string },
+    body: { name?: string; applyInstruction?: string; color?: string; icon?: string },
   ) {
     const id = accountStore.accountId
     if (!id) return false

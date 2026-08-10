@@ -282,6 +282,7 @@ describe('RuleEditorView — assign_label action', () => {
       label: 'lbl_1',
       name: 'VIP',
       createdAt: '2025-01-01T00:00:00Z',
+      applyInstruction: 'Apply to test label emails',
     }
     vi.mocked(api.listLabels).mockResolvedValue(ok([label]))
     vi.mocked(api.listRules).mockResolvedValue(

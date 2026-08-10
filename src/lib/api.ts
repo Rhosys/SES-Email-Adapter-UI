@@ -362,7 +362,7 @@ export const api = {
 
   createLabel(
     accountId: string,
-    body: { name: string; color?: string; icon?: string },
+    body: { name: string; applyInstruction: string; color?: string; icon?: string },
   ): Promise<Result<Label, ApiError>> {
     return request<Label>(`/accounts/${accountId}/labels`, {
       method: 'POST',
@@ -373,7 +373,7 @@ export const api = {
   updateLabel(
     accountId: string,
     labelId: string,
-    body: { name?: string; color?: string; icon?: string },
+    body: { name?: string; applyInstruction?: string; color?: string; icon?: string },
   ): Promise<Result<Label, ApiError>> {
     return request<Label>(`/accounts/${accountId}/labels/${labelId}`, {
       method: 'PATCH',
