@@ -203,10 +203,7 @@ router.beforeEach(async (to) => {
 
   const authenticated = await loginClient.userSessionExists()
   if (!authenticated) {
-    const basePath = import.meta.env.VITE_BASE_PATH ?? '/'
-    const redirectUrl = `${window.location.origin}${basePath}login?redirect=${encodeURIComponent(to.fullPath)}`
-    loginClient.authenticate({ redirectUrl })
-    return new Promise<boolean>(() => {});
+    return { name: 'login', query: { redirect: to.fullPath } }
   }
 
   // Onboarding manages its own account creation — let it through always
