@@ -61,6 +61,17 @@ describe('WorkflowPanel', () => {
     expect(wrapper.text()).toContain('Reply needed')
   })
 
+  it('renders nothing for a conversation workflow with no reply needed', () => {
+    const data: ConversationData = {
+      sentiment: 'neutral',
+      requiresReply: false,
+    }
+    const wrapper = mount(WorkflowPanel, {
+      props: { signal: makeSignal('conversation', data) },
+    })
+    expect(wrapper.html()).toBe('<!--v-if-->')
+  })
+
   it('renders TestPanel for test workflow', () => {
     const data: TestData = { triggeredBy: 'user' }
     const wrapper = mount(WorkflowPanel, {
