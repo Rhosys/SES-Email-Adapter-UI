@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 import { useResourcesStore } from '@/stores/resources'
 import WorkflowIcon from '@/components/WorkflowIcon.vue'
 import ResourceAssetCard from '@/components/ResourceAssetCard.vue'
-import { parseResourceDate, dayKey } from '@/lib/resourceDate'
+import { formatResourceDate } from '@/lib/resourceDate'
 import type { Resource, ResourceWorkflow } from '@/types/server'
 
 const resourcesStore = useResourcesStore()
@@ -21,16 +21,6 @@ const workflowLabel: Record<ResourceWorkflow, string> = {
   healthcare: 'Healthcare',
   job: 'Jobs',
   events: 'Events',
-}
-
-function formatDate(dateStr: string): string {
-  const date = parseResourceDate(dateStr)
-  const now = new Date()
-  if (dayKey(date) === dayKey(now)) return 'Today'
-  const tomorrow = new Date(now)
-  tomorrow.setDate(now.getDate() + 1)
-  if (dayKey(date) === dayKey(tomorrow)) return 'Tomorrow'
-  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
 function handleDismiss(resource: Resource) {
@@ -93,7 +83,7 @@ function handleComplete(resource: Resource) {
                   >
                     {{ workflowLabel[resource.workflow] || resource.workflow }}
                   </RouterLink>
-                  <span class="text-[10px] text-ctp-subtext0">{{ formatDate(resource.expectedResolutionDate) }}</span>
+                  <span class="text-[10px] text-ctp-subtext0">{{ formatResourceDate(resource.expectedResolutionDate) }}</span>
                 </div>
                 <!-- Assets -->
                 <div v-if="resource.assets.length > 0" class="mt-2 space-y-1.5">
@@ -149,7 +139,7 @@ function handleComplete(resource: Resource) {
                   >
                     {{ workflowLabel[resource.workflow] || resource.workflow }}
                   </RouterLink>
-                  <span class="text-[10px] text-ctp-subtext0">{{ formatDate(resource.expectedResolutionDate) }}</span>
+                  <span class="text-[10px] text-ctp-subtext0">{{ formatResourceDate(resource.expectedResolutionDate) }}</span>
                 </div>
                 <div v-if="resource.assets.length > 0" class="mt-2 space-y-1.5">
                   <ResourceAssetCard
@@ -203,7 +193,7 @@ function handleComplete(resource: Resource) {
                   >
                     {{ workflowLabel[resource.workflow] || resource.workflow }}
                   </RouterLink>
-                  <span class="text-[10px] text-ctp-subtext0">{{ formatDate(resource.expectedResolutionDate) }}</span>
+                  <span class="text-[10px] text-ctp-subtext0">{{ formatResourceDate(resource.expectedResolutionDate) }}</span>
                 </div>
                 <div v-if="resource.assets.length > 0" class="mt-2 space-y-1.5">
                   <ResourceAssetCard

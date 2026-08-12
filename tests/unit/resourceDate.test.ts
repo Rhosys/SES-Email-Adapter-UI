@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { parseResourceDate, dayKey, isResourceDatePast } from '@/lib/resourceDate'
+import { parseResourceDate, dayKey, isResourceDatePast, formatResourceDate } from '@/lib/resourceDate'
 
 describe('parseResourceDate', () => {
   it('anchors a bare calendar date to local midnight, not UTC midnight', () => {
@@ -62,5 +62,50 @@ describe('isResourceDatePast', () => {
     expect(isResourceDatePast('2026-08-26T18:00:00Z')).toBe(false)
     // Earlier today (UTC) — already past, even though it's still "today".
     expect(isResourceDatePast('2026-08-26T06:00:00Z')).toBe(true)
+  })
+})
+
+describe('formatResourceDate', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('labels a same-day bare date as Today without inventing a time', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 26, 10, 0, 0))
+    const result = formatResourceDate('2026-08-26')
+    expect(result).toMatch(/^Today, /)
+    expect(result).not.toMatch(/\d{1,2}:\d{2}/)
+  })
+
+  it('always includes the time when the source carries one, even under a relative label', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 26, 10, 0, 0))
+    const result = formatResourceDate('2026-08-26T17:00:00')
+    expect(result).toMatch(/^Today, /)
+    expect(result).toMatch(/\d{1,2}:\d{2}/)
+  })
+
+  it('never drops the concrete date for an item a few days out', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 26, 10, 0, 0))
+    const result = formatResourceDate('2026-08-29')
+    expect(result).toMatch(/^In 3 days, /)
+  })
+
+  it('labels yesterday explicitly instead of dropping to a bare date', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 26, 10, 0, 0))
+    const result = formatResourceDate('2026-08-25T09:00:00')
+    expect(result).toMatch(/^Yesterday, /)
+    expect(result).toMatch(/\d{1,2}:\d{2}/)
+  })
+
+  it('falls back to a plain date (with time, if present) beyond the labeled window', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 26, 10, 0, 0))
+    const result = formatResourceDate('2026-09-15T14:30:00')
+    expect(result).not.toMatch(/^(Today|Tomorrow|Yesterday|In \d)/)
+    expect(result).toMatch(/\d{1,2}:\d{2}/)
   })
 })

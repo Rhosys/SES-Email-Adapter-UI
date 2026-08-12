@@ -4,7 +4,7 @@ import { api } from '@/lib/api'
 import { useAccountStore } from '@/stores/account'
 import WorkflowIcon from '@/components/WorkflowIcon.vue'
 import ResourceAssetCard from '@/components/ResourceAssetCard.vue'
-import { parseResourceDate, dayKey, isResourceDatePast } from '@/lib/resourceDate'
+import { formatResourceDate, isResourceDatePast } from '@/lib/resourceDate'
 import type { Resource, ResourceStatus, ResourceWorkflow } from '@/types/server'
 
 const props = defineProps<{ threadId: string }>()
@@ -23,22 +23,6 @@ const workflowLabel: Record<ResourceWorkflow, string> = {
   healthcare: 'Healthcare',
   job: 'Job',
   events: 'Event',
-}
-
-function formatDate(dateStr: string): string {
-  const date = parseResourceDate(dateStr)
-  const now = new Date()
-  if (dayKey(date) === dayKey(now)) return 'Today'
-  const tomorrow = new Date(now)
-  tomorrow.setDate(now.getDate() + 1)
-  if (dayKey(date) === dayKey(tomorrow)) return 'Tomorrow'
-  const diff = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-  if (diff > 0 && diff <= 7) return `In ${diff} day${diff === 1 ? '' : 's'}`
-  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
-}
-
-function isPast(dateStr: string): boolean {
-  return isResourceDatePast(dateStr)
 }
 
 async function fetchResources() {
@@ -88,9 +72,9 @@ onMounted(() => {
             </span>
             <span
               class="text-xs"
-              :class="isPast(resource.expectedResolutionDate) ? 'font-medium text-ctp-red' : 'text-ctp-subtext0'"
+              :class="isResourceDatePast(resource.expectedResolutionDate) ? 'font-medium text-ctp-red' : 'text-ctp-subtext0'"
             >
-              {{ formatDate(resource.expectedResolutionDate) }}
+              {{ formatResourceDate(resource.expectedResolutionDate) }}
             </span>
           </div>
           <!-- Assets -->

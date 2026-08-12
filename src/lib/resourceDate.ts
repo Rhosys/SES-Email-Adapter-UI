@@ -31,3 +31,34 @@ export function isResourceDatePast(dateStr: string): boolean {
   if (BARE_DATE.test(dateStr)) return dayKey(dateStr) < dayKey(new Date())
   return parseResourceDate(dateStr).getTime() < Date.now()
 }
+
+// Human-friendly label for a resource date. Relative wording (Today/
+// Tomorrow/Yesterday/In N days) is shown alongside the concrete date, never
+// instead of it — and the time-of-day is always included when the source
+// string actually carried one, regardless of which branch applies.
+export function formatResourceDate(dateStr: string): string {
+  const date = parseResourceDate(dateStr)
+  const hasTime = !BARE_DATE.test(dateStr)
+  const now = new Date()
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  const tomorrow = new Date(now)
+  tomorrow.setDate(now.getDate() + 1)
+
+  const key = dayKey(date)
+  let label: string | null = null
+  if (key === dayKey(now)) label = 'Today'
+  else if (key === dayKey(yesterday)) label = 'Yesterday'
+  else if (key === dayKey(tomorrow)) label = 'Tomorrow'
+  else {
+    const diffDays = Math.round((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    if (diffDays > 0 && diffDays <= 7) label = `In ${diffDays} day${diffDays === 1 ? '' : 's'}`
+  }
+
+  const dateOptions: Intl.DateTimeFormatOptions = hasTime
+    ? { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }
+    : { month: 'short', day: 'numeric' }
+  const formatted = date.toLocaleDateString(undefined, dateOptions)
+
+  return label ? `${label}, ${formatted}` : formatted
+}
