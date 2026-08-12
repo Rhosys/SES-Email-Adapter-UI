@@ -70,6 +70,7 @@ function makeRouter() {
       { path: '/labels', component: stub },
       { path: '/settings', component: stub },
       { path: '/search', component: stub },
+      { path: '/stats', name: 'stats', component: stub },
     ],
   })
 }
