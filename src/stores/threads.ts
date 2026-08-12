@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { ok, err, type Result } from 'neverthrow'
-import { DateTime } from 'luxon'
 import { api, ApiError } from '@/lib/api'
 import logger from '@/lib/logger'
 import { useAccountStore } from '@/stores/account'
@@ -38,7 +37,7 @@ export const useThreadsStore = defineStore('threads', () => {
   // Threads with no meaningful lastSignalAt (null or ancient sentinel values like
   // the Unix epoch) have nothing to show. Filter them once so all downstream
   // computeds (sortedThreads, activeThreads, badges) share a consistent base.
-  const _signalCutoff = DateTime.now().minus({ years: 100 }).toISO()
+  const _signalCutoff = "2000-01-01T00:00:00.000Z"
   const threads = computed<Thread[]>(() => {
     const id = accountStore.accountId
     if (!id) return []
