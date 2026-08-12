@@ -250,7 +250,7 @@ watch(
 
     <!-- pb-24 on mobile clears the fixed InboxTabBar bottom bar -->
     <main class="mx-auto max-w-4xl px-4 pt-4 pb-24 sm:pb-4">
-      <StatsWidget />
+      <StatsWidget class="hidden sm:block" />
       <ResourcesBanner />
 
       <InboxError v-if="threadsStore.error" :message="threadsStore.error" />
