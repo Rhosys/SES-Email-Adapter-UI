@@ -42,7 +42,7 @@
 export function wrapEmailHtml(rawHtml: string): string {
   const markup = `<base target="_blank"><meta name="viewport" content="width=device-width, initial-scale=1"><style>
     html, body { overflow-x: hidden !important; }
-    body { display: flex !important; flex-direction: column !important; margin: 0 !important; }
+    body { display: flex !important; flex-direction: column !important; margin: 0 !important; padding: 1rem !important; }
     body > table, body > center { align-self: center !important; }
     * { max-width: 100% !important; min-width: 0 !important; box-sizing: border-box !important; }
     img, video, svg { height: auto !important; }
