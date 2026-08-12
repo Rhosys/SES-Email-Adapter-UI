@@ -7,7 +7,8 @@ import { formatRelativeTime } from '@/composables/useFormattedTime'
 import { useLabelsStore } from '@/stores/labels'
 import { useSignalsStore } from '@/stores/signals'
 import { visibleLabels, findLabelMeta } from '@/lib/labels'
-import { isInboundEmailSignal } from '@/lib/signal-guards'
+import { aggregateWorkflowPanels } from '@/lib/workflow-aggregator'
+import { groupByBodyFingerprint, attachLinkedSignals } from '@/lib/dedup'
 import WorkflowPanel from './WorkflowPanel.vue'
 
 const RECENCY_WINDOW_MS = 15 * 60 * 1000
@@ -31,10 +32,13 @@ const isRecent = computed(() => {
   return Date.now() - new Date(props.thread.lastSignalAt).getTime() < RECENCY_WINDOW_MS
 })
 
-const latestInboundSignal = computed(() => {
+const mergedWorkflowData = computed(() => {
   if (!isRecent.value) return null
   const signals = signalsStore.threadSignals(props.thread.threadId)
-  return signals.find(s => isInboundEmailSignal(s) && s.data.workflowData) ?? null
+  if (signals.length === 0) return null
+  const deduped = attachLinkedSignals(groupByBodyFingerprint(signals))
+  const groups = aggregateWorkflowPanels(deduped)
+  return groups[0]?.entries[0] ?? null
 })
 
 function labelColor(key: string): string {
@@ -63,6 +67,6 @@ function labelColor(key: string): string {
       />
       <span v-if="thread.summary && thread.subject" class="text-xs text-ctp-subtext0">{{ thread.summary }}</span>
     </div>
-    <WorkflowPanel v-if="latestInboundSignal" :signal="latestInboundSignal" compact class="mt-1" />
+    <WorkflowPanel v-if="mergedWorkflowData" :data="mergedWorkflowData" compact class="mt-1" />
   </RouterLink>
 </template>
