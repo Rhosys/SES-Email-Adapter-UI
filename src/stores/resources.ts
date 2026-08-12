@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { api } from '@/lib/api'
 import logger from '@/lib/logger'
 import { useAccountStore } from '@/stores/account'
+import { dayKey } from '@/lib/resourceDate'
 import type { Resource, ResourceStatus, ResourceWorkflow } from '@/types/server'
 
 export const useResourcesStore = defineStore('resources', () => {
@@ -21,18 +22,18 @@ export const useResourcesStore = defineStore('resources', () => {
   const activeResources = computed(() => items.value.filter((r) => r.status === 'active'))
 
   const today = computed(() => {
-    const now = new Date().toISOString().slice(0, 10)
-    return activeResources.value.filter((r) => r.expectedResolutionDate.slice(0, 10) <= now)
+    const now = dayKey(new Date())
+    return activeResources.value.filter((r) => dayKey(r.expectedResolutionDate) <= now)
   })
 
   const thisWeek = computed(() => {
     const now = new Date()
     const endOfWeek = new Date(now)
     endOfWeek.setDate(now.getDate() + 7)
-    const todayStr = now.toISOString().slice(0, 10)
-    const weekEndStr = endOfWeek.toISOString().slice(0, 10)
+    const todayStr = dayKey(now)
+    const weekEndStr = dayKey(endOfWeek)
     return activeResources.value.filter((r) => {
-      const day = r.expectedResolutionDate.slice(0, 10)
+      const day = dayKey(r.expectedResolutionDate)
       return day > todayStr && day <= weekEndStr
     })
   })
@@ -41,8 +42,8 @@ export const useResourcesStore = defineStore('resources', () => {
     const now = new Date()
     const endOfWeek = new Date(now)
     endOfWeek.setDate(now.getDate() + 7)
-    const weekEndStr = endOfWeek.toISOString().slice(0, 10)
-    return activeResources.value.filter((r) => r.expectedResolutionDate.slice(0, 10) > weekEndStr)
+    const weekEndStr = dayKey(endOfWeek)
+    return activeResources.value.filter((r) => dayKey(r.expectedResolutionDate) > weekEndStr)
   })
 
   const byWorkflow = computed(() => {

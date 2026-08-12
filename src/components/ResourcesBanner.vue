@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { useResourcesStore } from '@/stores/resources'
 import WorkflowIcon from '@/components/WorkflowIcon.vue'
 import ResourceAssetCard from '@/components/ResourceAssetCard.vue'
+import { parseResourceDate, dayKey } from '@/lib/resourceDate'
 import type { Resource, ResourceWorkflow } from '@/types/server'
 
 const resourcesStore = useResourcesStore()
@@ -23,14 +24,12 @@ const workflowLabel: Record<ResourceWorkflow, string> = {
 }
 
 function formatDate(dateStr: string): string {
-  const day = dateStr.slice(0, 10)
-  const date = new Date(day + 'T00:00:00')
+  const date = parseResourceDate(dateStr)
   const now = new Date()
-  const todayStr = now.toISOString().slice(0, 10)
-  if (day === todayStr) return 'Today'
+  if (dayKey(date) === dayKey(now)) return 'Today'
   const tomorrow = new Date(now)
   tomorrow.setDate(now.getDate() + 1)
-  if (day === tomorrow.toISOString().slice(0, 10)) return 'Tomorrow'
+  if (dayKey(date) === dayKey(tomorrow)) return 'Tomorrow'
   return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
