@@ -10,6 +10,7 @@ import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { retentionExpiresAt } from '@/lib/retention'
 import { groupByBodyFingerprint, attachLinkedSignals } from '@/lib/dedup'
+import { aggregateWorkflowPanels } from '@/lib/workflow-aggregator'
 import { visibleLabels, findLabelMeta } from '@/lib/labels'
 import { useLabelsStore } from '@/stores/labels'
 import { api } from '@/lib/api'
@@ -42,6 +43,8 @@ const updating = ref(false)
 const threadId = computed(() => route.params.id as string)
 
 const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalsStore.items)))
+
+const workflowGroups = computed(() => aggregateWorkflowPanels(dedupedSignals.value))
 
 // Sender domain to block, derived from the thread's denormalised sender address
 const senderDomain = computed(() => {
@@ -156,8 +159,11 @@ function onSignalUndo() {
   void signalsStore.fetchAll(threadId.value)
 }
 
-function onSignalReprocessed() {
-  void signalsStore.fetchAll(threadId.value)
+async function onSignalReprocessed() {
+  await signalsStore.fetchAll(threadId.value)
+  if (signalsStore.items.length === 0) {
+    void router.push('/')
+  }
 }
 
 async function archive() {
@@ -506,9 +512,13 @@ async function removeLabel(label: string) {
         ⚠ {{ retentionMessage }}
       </RouterLink>
 
-      <!-- Workflow panel (from latest signal with workflowData) -->
-      <div v-if="signalsStore.latestSignal && isInboundEmailSignal(signalsStore.latestSignal) && signalsStore.latestSignal.data.workflowData" class="mb-6">
-        <WorkflowPanel :signal="signalsStore.latestSignal" />
+      <!-- Workflow panels (stacked, grouped by type) -->
+      <div v-if="workflowGroups.length > 0" class="mb-6 space-y-3">
+        <WorkflowPanel
+          v-for="group in workflowGroups"
+          :key="group.workflow"
+          :workflow-group="group"
+        />
       </div>
 
       <!-- Resources associated with this thread -->
