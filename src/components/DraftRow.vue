@@ -43,7 +43,7 @@ async function discard() {
 
 <template>
   <div
-    class="flex items-start gap-3 border-b border-ctp-surface0 px-4 py-3 transition-colors hover:bg-ctp-surface0"
+    class="flex items-start gap-3 border-b border-ctp-surface1 px-4 py-3 transition-colors hover:bg-ctp-surface0"
     :class="{ 'opacity-50': pending }"
     role="listitem"
   >
