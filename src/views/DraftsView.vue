@@ -20,9 +20,18 @@ onMounted(async () => {
       <h1 class="text-lg font-semibold">Drafts</h1>
     </header>
     <main class="mx-auto max-w-3xl">
-      <!-- Loading -->
+      <div v-if="store.drafts.length > 0" role="list" aria-label="Drafts">
+        <DraftRow
+          v-for="signal in store.drafts"
+          :key="signal.signalId"
+          :signal="signal"
+          :pending="false"
+        />
+      </div>
+
+      <!-- Loading skeleton — only when no cached drafts available -->
       <div
-        v-if="store.loading"
+        v-else-if="store.loading"
         role="status"
         aria-label="Loading drafts…"
         class="animate-pulse divide-y divide-ctp-surface0 border-b border-ctp-surface0"
@@ -41,15 +50,6 @@ onMounted(async () => {
         <p class="mx-auto mt-2 max-w-sm text-sm text-ctp-subtext0">
           When you start composing a reply but don't send it, it'll appear here.
         </p>
-      </div>
-
-      <div v-else role="list" aria-label="Drafts">
-        <DraftRow
-          v-for="signal in store.drafts"
-          :key="signal.signalId"
-          :signal="signal"
-          :pending="false"
-        />
       </div>
     </main>
   </div>

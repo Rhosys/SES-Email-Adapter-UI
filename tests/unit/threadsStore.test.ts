@@ -53,7 +53,6 @@ describe('threadsStore', () => {
     const store = useThreadsStore()
     await store.fetchThreads({ status: 'active' })
     expect(store.threads).toHaveLength(1)
-    expect(store.loading).toBe(false)
     expect(store.error).toBeNull()
   })
 
@@ -307,19 +306,6 @@ describe('stale-while-revalidate', { timeout: 5000 }, () => {
     vi.clearAllMocks()
     const accountStore = useAccountStore()
     accountStore.account = { accountId: 'acc_1', name: 'Test' } as Account
-  })
-
-  it('fetchThreads with cached data does not show loading state', async () => {
-    const store = useThreadsStore()
-    // Populate cache via a successful fetch first (_byAccount is private)
-    vi.mocked(api.listThreads).mockResolvedValueOnce(ok({ threads: [mockThread()], pagination: { cursor: null } }))
-    await store.fetchThreads({ status: 'active' })
-
-    vi.mocked(api.listThreads).mockResolvedValueOnce(ok({ threads: [mockThread()], pagination: { cursor: null } }))
-    await store.fetchThreads({ status: 'active' })
-
-    // loading should never have been true on second call — SWR skips loading when cache exists
-    expect(store.loading).toBe(false)
   })
 
   it('fetchThreads replaces cached data with fresh API response', async () => {

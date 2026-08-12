@@ -28,7 +28,6 @@ export const useThreadsStore = defineStore('threads', () => {
   // beyond the ones loaded, so the badge reads "50+" rather than a confidently wrong "50".
   // Startup always loads the first page of active threads, so this is always answered.
   const _activeCursor = ref<Record<string, string | undefined>>({})
-  const loading = ref(false)
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
   const selectedIds = ref(new Set<string>())
@@ -135,8 +134,7 @@ export const useThreadsStore = defineStore('threads', () => {
     const id = accountStore.accountId
     if (!id) return undefined
     const isFirstPage = cursor === undefined
-    if (isFirstPage) loading.value = true
-    else loadingMore.value = true
+    if (!isFirstPage) loadingMore.value = true
     error.value = null
     const result = await api.listThreads(id, {
       status,
@@ -144,7 +142,6 @@ export const useThreadsStore = defineStore('threads', () => {
       limit: PAGE_SIZE,
       refresh: refresh ? new Date().toISOString() : undefined,
     })
-    loading.value = false
     loadingMore.value = false
     if (result.isErr()) {
       if ((_byAccount.value[id] ?? []).length > 0) {
@@ -337,7 +334,6 @@ export const useThreadsStore = defineStore('threads', () => {
     threadsWithStatus,
     activeCount,
     activeCountHasMore,
-    loading,
     loadingMore,
     error,
     selectedIds,

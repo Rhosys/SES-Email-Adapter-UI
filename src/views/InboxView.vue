@@ -29,6 +29,7 @@ const { hiddenIds } = useDeferredHide()
 const RECENCY_WINDOW_MS = 15 * 60 * 1000
 
 const refreshing = ref(false)
+const loading = ref(true)
 const lastRefreshedAt = ref<string | null>(null)
 
 async function fetchRecentSignals() {
@@ -95,7 +96,10 @@ async function loadTab(tab: TabKey, refresh = false) {
   const query = queryFor(tab)
   const key = cursorKey(query)
   cursors.value = { ...cursors.value, [key]: undefined }
+  // Skip skeleton if the store already has items for this tab
+  if (tabThreads.value.length > 0) loading.value = false
   const cursor = await threadsStore.fetchThreads({ ...query, refresh })
+  loading.value = false
   cursors.value = { ...cursors.value, [key]: cursor }
 }
 
@@ -201,9 +205,9 @@ const showCelebration = ref(false)
 let prevActiveCount = -1
 
 watch(
-  [() => threadsStore.loading, () => visibleItems.value.length, () => activeTab.value],
-  ([loading, count, tab]) => {
-    if (loading) return
+  [() => loading.value, () => visibleItems.value.length, () => activeTab.value],
+  ([isLoading, count, tab]) => {
+    if (isLoading) return
     if (tab === 'active') {
       if (prevActiveCount > 0 && count === 0) showCelebration.value = true
       prevActiveCount = count
@@ -307,7 +311,7 @@ watch(
       </ThreadListShell>
 
       <div
-        v-else-if="threadsStore.loading"
+        v-else-if="loading"
         role="status"
         aria-label="Loading inbox…"
         class="inbox-skeleton-loader animate-pulse divide-y divide-ctp-surface0"
