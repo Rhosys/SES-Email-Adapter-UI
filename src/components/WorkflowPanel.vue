@@ -29,6 +29,9 @@ const props = withDefaults(defineProps<{
   actions?: SignalAction[]
   compact?: boolean
 }>(), {
+  signal: undefined,
+  workflowGroup: undefined,
+  data: undefined,
   actions: () => [],
   compact: false,
 })
