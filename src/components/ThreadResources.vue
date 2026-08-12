@@ -2,8 +2,10 @@
 import { ref, onMounted, computed } from 'vue'
 import { api } from '@/lib/api'
 import { useAccountStore } from '@/stores/account'
+import { isAdminUser } from '@/stores/admin'
 import WorkflowIcon from '@/components/WorkflowIcon.vue'
 import ResourceAssetCard from '@/components/ResourceAssetCard.vue'
+import OverflowMenu from '@/components/ui/OverflowMenu.vue'
 import { formatResourceDate, isResourceDatePast } from '@/lib/resourceDate'
 import type { Resource, ResourceStatus, ResourceWorkflow } from '@/types/server'
 
@@ -51,12 +53,26 @@ async function completeResource(resourceId: string) {
 onMounted(() => {
   void fetchResources()
 })
+
+const viewingResource = ref<Resource | null>(null)
+const resourceObjectJson = computed(() => (viewingResource.value ? JSON.stringify(viewingResource.value, null, 2) : ''))
+const resourceObjectCopied = ref(false)
+
+function showResourceObject(resource: Resource) {
+  viewingResource.value = resource
+}
+
+function copyResourceObject() {
+  if (!resourceObjectJson.value) return
+  void navigator.clipboard.writeText(resourceObjectJson.value).then(() => {
+    resourceObjectCopied.value = true
+    setTimeout(() => { resourceObjectCopied.value = false }, 1500)
+  })
+}
 </script>
 
 <template>
   <div v-if="resources.length > 0" class="mb-6 rounded-lg border border-ctp-surface0 bg-ctp-mantle p-4">
-    <h2 class="mb-3 text-xs font-semibold uppercase tracking-wide text-ctp-subtext0">Resources</h2>
-
     <!-- Active resources -->
     <div v-if="activeResources.length > 0" class="space-y-2">
       <div
@@ -95,6 +111,22 @@ onMounted(() => {
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
         </button>
+        <!-- Admin overflow menu -->
+        <OverflowMenu
+          v-if="isAdminUser()"
+          class="shrink-0"
+          label="Resource actions"
+          sheet-title="Resource actions"
+          trigger-class="flex h-8 w-8 items-center justify-center rounded text-ctp-subtext0 opacity-0 transition-opacity hover:bg-ctp-surface0 hover:text-ctp-text group-hover:opacity-100"
+        >
+          <button
+            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
+            role="menuitem"
+            @click="showResourceObject(resource)"
+          >
+            Show resource
+          </button>
+        </OverflowMenu>
       </div>
     </div>
 
@@ -106,4 +138,21 @@ onMounted(() => {
       </div>
     </div>
   </div>
+
+  <!-- Resource object modal -->
+  <Teleport to="body">
+    <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -->
+    <div v-if="viewingResource" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80" @click.self="viewingResource = null">
+      <div class="relative max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl border border-ctp-surface1 bg-ctp-mantle p-4 shadow-2xl">
+        <div class="mb-3 flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-ctp-text">Resource object</h3>
+          <div class="flex items-center gap-3">
+            <button class="text-xs text-ctp-subtext0 hover:text-ctp-mauve" @click="copyResourceObject">{{ resourceObjectCopied ? '✓ Copied' : 'Copy' }}</button>
+            <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="viewingResource = null">Close</button>
+          </div>
+        </div>
+        <pre class="overflow-auto rounded-lg bg-ctp-base p-3 font-mono text-xs text-ctp-text break-all whitespace-pre-wrap">{{ resourceObjectJson }}</pre>
+      </div>
+    </div>
+  </Teleport>
 </template>
