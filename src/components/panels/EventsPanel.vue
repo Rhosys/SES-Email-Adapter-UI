@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { EventsData } from '@/types/server'
 import { useClipboard } from '@/composables/useClipboard'
+import { formatResourceDate, dayKey } from '@/lib/resourceDate'
 
 const props = defineProps<{ data: EventsData }>()
 const { copied, copy } = useClipboard()
@@ -27,29 +28,13 @@ const formattedAmount = computed(() => {
 
 const eventDateLabel = computed(() => {
   if (!props.data.eventStartDatetime) return null
-  const d = new Date(props.data.eventStartDatetime)
+  const key = dayKey(props.data.eventStartDatetime)
   const now = new Date()
-  const diffMs = d.getTime() - now.getTime()
-  const diffDays = Math.floor(diffMs / 86_400_000)
-  if (diffMs < 0) return { text: 'Past', urgent: false }
-  if (diffDays === 0) {
-    return {
-      text: `Today ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`,
-      urgent: true,
-    }
-  }
-  if (diffDays === 1) {
-    return {
-      text: `Tomorrow ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`,
-      urgent: true,
-    }
-  }
-  if (diffDays <= 7) {
-    return { text: `In ${diffDays} days`, urgent: false }
-  }
+  const tomorrow = new Date(now)
+  tomorrow.setDate(now.getDate() + 1)
   return {
-    text: d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-    urgent: false,
+    text: formatResourceDate(props.data.eventStartDatetime),
+    urgent: key === dayKey(now) || key === dayKey(tomorrow),
   }
 })
 </script>

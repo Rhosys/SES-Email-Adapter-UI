@@ -1,12 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
-import type { Signal, AuthData, ConversationData, TestData } from '@/types/server'
+import type { Signal, Workflow, AuthData, ConversationData, TestData } from '@/types/server'
 
-function makeSignal(workflowData?: unknown): Signal {
-  const workflow = workflowData && typeof workflowData === 'object' && 'workflow' in workflowData
-    ? (workflowData as { workflow: string }).workflow
-    : 'conversation'
+function makeSignal(workflow: Workflow, workflowData?: unknown): Signal {
   return {
     signalId: 'sig_1',
     threadId: 'thread_1',
@@ -34,21 +31,20 @@ function makeSignal(workflowData?: unknown): Signal {
 describe('WorkflowPanel', () => {
   it('renders nothing when workflowData is absent', () => {
     const wrapper = mount(WorkflowPanel, {
-      props: { signal: makeSignal(undefined) },
+      props: { signal: makeSignal('conversation', undefined) },
     })
     expect(wrapper.html()).toBe('<!--v-if-->')
   })
 
   it('renders AuthPanel for auth workflow with service name', () => {
     const data: AuthData = {
-      workflow: 'auth',
       authType: 'verification',
       code: '482931',
       service: 'GitHub',
       expiresInMinutes: '10',
     }
     const wrapper = mount(WorkflowPanel, {
-      props: { signal: makeSignal(data) },
+      props: { signal: makeSignal('auth', data) },
     })
     expect(wrapper.text()).toContain('GitHub')
     expect(wrapper.text()).toContain('482 931')
@@ -56,20 +52,19 @@ describe('WorkflowPanel', () => {
 
   it('renders ConversationPanel for conversation workflow', () => {
     const data: ConversationData = {
-      workflow: 'conversation',
       sentiment: 'neutral',
       requiresReply: true,
     }
     const wrapper = mount(WorkflowPanel, {
-      props: { signal: makeSignal(data) },
+      props: { signal: makeSignal('conversation', data) },
     })
     expect(wrapper.text()).toContain('Reply needed')
   })
 
   it('renders TestPanel for test workflow', () => {
-    const data: TestData = { workflow: 'test', triggeredBy: 'user' }
+    const data: TestData = { triggeredBy: 'user' }
     const wrapper = mount(WorkflowPanel, {
-      props: { signal: makeSignal(data) },
+      props: { signal: makeSignal('test', data) },
     })
     expect(wrapper.text()).toContain('TEST')
     expect(wrapper.text()).toContain('Sent by you')

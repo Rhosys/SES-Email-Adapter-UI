@@ -9,6 +9,7 @@ export interface WorkflowGroup {
 
 interface ExtractedEntry {
   data: WorkflowData
+  workflow: Workflow
   signalIndex: number
 }
 
@@ -22,7 +23,6 @@ function canonicalize(data: WorkflowData): string {
 }
 
 function areMergeCompatible(a: WorkflowData, b: WorkflowData): boolean {
-  if (a.workflow !== b.workflow) return false
   const ra = a as unknown as Record<string, unknown>
   const rb = b as unknown as Record<string, unknown>
   for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
@@ -49,15 +49,15 @@ export function aggregateWorkflowPanels(dedupedSignals: SignalGroup[]): Workflow
   for (let i = 0; i < dedupedSignals.length && extracted.length < 10; i++) {
     const group = dedupedSignals[i]
     if (!isInboundEmailSignal(group.signal)) continue
-    const wd = group.signal.data.workflowData
-    if (!wd || !wd.workflow) continue
-    extracted.push({ data: wd, signalIndex: i })
+    const { workflow, workflowData: wd } = group.signal.data
+    if (!wd || !workflow) continue
+    extracted.push({ data: wd, workflow, signalIndex: i })
   }
 
   // 2. Group by workflow type, track newest signal index per group
-  const buckets = new Map<string, { entries: ExtractedEntry[]; newestIndex: number }>()
+  const buckets = new Map<Workflow, { entries: ExtractedEntry[]; newestIndex: number }>()
   for (const entry of extracted) {
-    const key = entry.data.workflow
+    const key = entry.workflow
     const existing = buckets.get(key)
     if (existing) {
       existing.entries.push(entry)
@@ -93,6 +93,7 @@ export function aggregateWorkflowPanels(dedupedSignals: SignalGroup[]): Workflow
             // merge oldest-into-newest so newest values win
             bucket.entries[i] = {
               data: mergeEntries(bucket.entries[j].data, bucket.entries[i].data),
+              workflow: bucket.entries[i].workflow,
               signalIndex: bucket.entries[i].signalIndex,
             }
             bucket.entries.splice(j, 1)
@@ -112,7 +113,7 @@ export function aggregateWorkflowPanels(dedupedSignals: SignalGroup[]): Workflow
       return aKey.localeCompare(bKey)
     })
     .map(([key, bucket]): WorkflowGroup => ({
-      workflow: key as Workflow,
+      workflow: key,
       entries: bucket.entries.map((e) => e.data),
     }))
 

@@ -382,7 +382,6 @@ export type BlockedSignal = Signal & { status: BlockedStatus }
 // ─── WorkflowData union ───────────────────────────────────────────────────────
 
 export interface AuthData {
-  workflow: 'auth'
   authType: 'verification' | 'password_reset' | 'two_factor' | 'security_alert' | 'other'
   code?: string
   actionUrl?: string
@@ -391,19 +390,16 @@ export interface AuthData {
 }
 
 export interface ConversationData {
-  workflow: 'conversation'
   sentiment: 'positive' | 'neutral' | 'negative' | 'urgent'
   requiresReply: boolean
 }
 
 export interface CrmData {
-  workflow: 'crm'
   senderCompany?: string
   senderRole?: string
 }
 
 export interface PackageData {
-  workflow: 'package'
   packageType: 'confirmation' | 'shipping' | 'out_for_delivery' | 'delivered' | 'return' | 'refund' | 'cancellation'
   retailer: string
   orderNumber?: string
@@ -414,7 +410,6 @@ export interface PackageData {
 }
 
 export interface TravelData {
-  workflow: 'travel'
   travelType: 'flight' | 'hotel' | 'car_rental' | 'train' | 'cruise' | 'activity' | 'itinerary' | 'check_in_reminder' | 'boarding_pass'
   provider: string
   confirmationNumber?: string
@@ -428,7 +423,6 @@ export interface TravelData {
 }
 
 export interface PaymentsData {
-  workflow: 'payments'
   paymentType: 'invoice' | 'receipt' | 'subscription_renewal' | 'payment_failed' | 'plan_changed' | 'tax' | 'wire_transfer' | 'refund' | 'statement' | 'other'
   vendor: string
   amount?: string
@@ -441,7 +435,6 @@ export interface PaymentsData {
 }
 
 export interface AlertData {
-  workflow: 'alert'
   alertType: string
   service: string
   severity?: 'info' | 'warning' | 'critical'
@@ -454,7 +447,6 @@ export interface AlertData {
 }
 
 export interface ContentData {
-  workflow: 'content'
   contentType: 'newsletter' | 'promotion' | 'social_digest' | 'product_update' | 'announcement'
   publisher: string
   topics?: string[]
@@ -464,7 +456,6 @@ export interface ContentData {
 }
 
 export interface StatusData {
-  workflow: 'status'
   statusType: 'terms_update' | 'privacy_policy' | 'data_processor' | 'cookie_policy' | 'compliance' | 'service_notice' | 'government' | 'account_notification' | 'other'
   provider: string
   effectiveDate?: string
@@ -473,7 +464,6 @@ export interface StatusData {
 }
 
 export interface HealthcareData {
-  workflow: 'healthcare'
   eventType: 'appointment_reminder' | 'appointment_confirmation' | 'test_results' | 'prescription' | 'insurance_update' | 'billing' | 'referral'
   provider?: string
   appointmentDate?: string
@@ -483,7 +473,6 @@ export interface HealthcareData {
 }
 
 export interface JobData {
-  workflow: 'job'
   jobType: 'application_status' | 'recruiter_outreach' | 'interview_request' | 'offer' | 'rejection' | 'job_posting'
   company?: string
   role?: string
@@ -494,7 +483,6 @@ export interface JobData {
 }
 
 export interface SupportData {
-  workflow: 'support'
   eventType: 'ticket_opened' | 'ticket_updated' | 'ticket_resolved' | 'ticket_closed' | 'awaiting_response' | 'status_update'
   ticketId?: string
   service: string
@@ -504,7 +492,6 @@ export interface SupportData {
 }
 
 export interface EventsData {
-  workflow: 'events'
   eventType: 'ticket_confirmation' | 'reminder' | 'update' | 'cancellation' | 'venue_change'
   eventName: string
   venueName?: string
@@ -521,25 +508,32 @@ export interface EventsData {
 }
 
 export interface TestData {
-  workflow: 'test'
   triggeredBy: 'user' | 'system'
 }
 
-export type WorkflowData =
-  | AuthData
-  | ConversationData
-  | CrmData
-  | PackageData
-  | TravelData
-  | PaymentsData
-  | AlertData
-  | ContentData
-  | StatusData
-  | HealthcareData
-  | JobData
-  | SupportData
-  | EventsData
-  | TestData
+// Maps each Workflow value that carries structured data to its data shape.
+// The signal envelope's own `workflow` field (InboundEmailSignalData.workflow)
+// is the only reliable discriminant on the wire — none of these interfaces
+// carry a `workflow` field of their own, so callers must key off the envelope,
+// never off workflowData itself.
+export interface WorkflowDataMap {
+  auth: AuthData
+  conversation: ConversationData
+  crm: CrmData
+  package: PackageData
+  travel: TravelData
+  payments: PaymentsData
+  alert: AlertData
+  content: ContentData
+  status: StatusData
+  healthcare: HealthcareData
+  job: JobData
+  support: SupportData
+  events: EventsData
+  test: TestData
+}
+
+export type WorkflowData = WorkflowDataMap[keyof WorkflowDataMap]
 
 // ─── Rule ─────────────────────────────────────────────────────────────────────
 
