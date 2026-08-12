@@ -248,6 +248,24 @@ describe('aggregateWorkflowPanels', () => {
       expect(result[0].workflow).toBe('package')
     })
 
+    it('uses the signal envelope workflow when workflowData omits its own workflow field', () => {
+      // Real API payloads (e.g. events/ticket_confirmation) may not echo the
+      // discriminator inside workflowData itself — only signal.data.workflow is set.
+      const groups: SignalGroup[] = [
+        makeSignalGroup({
+          eventName: 'CHNUG #4',
+          eventType: 'ticket_confirmation',
+        } as unknown as WorkflowData, { threadId: 'thread-1' }),
+      ]
+      const emailSignal = groups[0].signal as EmailInboundSignal
+      emailSignal.data.workflow = 'events'
+
+      const result = aggregateWorkflowPanels(groups)
+      expect(result).toHaveLength(1)
+      expect(result[0].workflow).toBe('events')
+      expect(result[0].entries).toHaveLength(1)
+    })
+
     it('skips non-inbound email signals', () => {
       const outboundSignal: Signal = {
         signalId: 'outbound-1',

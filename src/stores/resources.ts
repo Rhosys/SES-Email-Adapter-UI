@@ -22,7 +22,7 @@ export const useResourcesStore = defineStore('resources', () => {
 
   const today = computed(() => {
     const now = new Date().toISOString().slice(0, 10)
-    return activeResources.value.filter((r) => r.expectedResolutionDate <= now)
+    return activeResources.value.filter((r) => r.expectedResolutionDate.slice(0, 10) <= now)
   })
 
   const thisWeek = computed(() => {
@@ -31,9 +31,10 @@ export const useResourcesStore = defineStore('resources', () => {
     endOfWeek.setDate(now.getDate() + 7)
     const todayStr = now.toISOString().slice(0, 10)
     const weekEndStr = endOfWeek.toISOString().slice(0, 10)
-    return activeResources.value.filter(
-      (r) => r.expectedResolutionDate > todayStr && r.expectedResolutionDate <= weekEndStr,
-    )
+    return activeResources.value.filter((r) => {
+      const day = r.expectedResolutionDate.slice(0, 10)
+      return day > todayStr && day <= weekEndStr
+    })
   })
 
   const upcoming = computed(() => {
@@ -41,7 +42,7 @@ export const useResourcesStore = defineStore('resources', () => {
     const endOfWeek = new Date(now)
     endOfWeek.setDate(now.getDate() + 7)
     const weekEndStr = endOfWeek.toISOString().slice(0, 10)
-    return activeResources.value.filter((r) => r.expectedResolutionDate > weekEndStr)
+    return activeResources.value.filter((r) => r.expectedResolutionDate.slice(0, 10) > weekEndStr)
   })
 
   const byWorkflow = computed(() => {

@@ -8,6 +8,7 @@ import { useLabelsStore } from '@/stores/labels'
 import { useSignalsStore } from '@/stores/signals'
 import { visibleLabels, findLabelMeta } from '@/lib/labels'
 import { aggregateWorkflowPanels } from '@/lib/workflow-aggregator'
+import type { WorkflowGroup } from '@/lib/workflow-aggregator'
 import { groupByBodyFingerprint, attachLinkedSignals } from '@/lib/dedup'
 import WorkflowPanel from './WorkflowPanel.vue'
 
@@ -32,13 +33,15 @@ const isRecent = computed(() => {
   return Date.now() - new Date(props.thread.lastSignalAt).getTime() < RECENCY_WINDOW_MS
 })
 
-const mergedWorkflowData = computed(() => {
+const mergedWorkflowGroup = computed((): WorkflowGroup | null => {
   if (!isRecent.value) return null
   const signals = signalsStore.threadSignals(props.thread.threadId)
   if (signals.length === 0) return null
   const deduped = attachLinkedSignals(groupByBodyFingerprint(signals))
   const groups = aggregateWorkflowPanels(deduped)
-  return groups[0]?.entries[0] ?? null
+  const group = groups[0]
+  if (!group || group.entries.length === 0) return null
+  return { workflow: group.workflow, entries: [group.entries[0]] }
 })
 
 function labelColor(key: string): string {
@@ -67,6 +70,6 @@ function labelColor(key: string): string {
       />
       <span v-if="thread.summary && thread.subject" class="text-xs text-ctp-subtext0">{{ thread.summary }}</span>
     </div>
-    <WorkflowPanel v-if="mergedWorkflowData" :data="mergedWorkflowData" compact class="mt-1" />
+    <WorkflowPanel v-if="mergedWorkflowGroup" :workflow-group="mergedWorkflowGroup" compact class="mt-1" />
   </RouterLink>
 </template>

@@ -25,20 +25,21 @@ const workflowLabel: Record<ResourceWorkflow, string> = {
 }
 
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00')
+  const day = dateStr.slice(0, 10)
+  const date = new Date(day + 'T00:00:00')
   const now = new Date()
   const todayStr = now.toISOString().slice(0, 10)
-  if (dateStr === todayStr) return 'Today'
+  if (day === todayStr) return 'Today'
   const tomorrow = new Date(now)
   tomorrow.setDate(now.getDate() + 1)
-  if (dateStr === tomorrow.toISOString().slice(0, 10)) return 'Tomorrow'
+  if (day === tomorrow.toISOString().slice(0, 10)) return 'Tomorrow'
   const diff = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
   if (diff > 0 && diff <= 7) return `In ${diff} day${diff === 1 ? '' : 's'}`
   return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
 function isPast(dateStr: string): boolean {
-  return dateStr < new Date().toISOString().slice(0, 10)
+  return dateStr.slice(0, 10) < new Date().toISOString().slice(0, 10)
 }
 
 async function fetchResources() {

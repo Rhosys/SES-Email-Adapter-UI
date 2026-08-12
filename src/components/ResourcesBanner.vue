@@ -23,13 +23,14 @@ const workflowLabel: Record<ResourceWorkflow, string> = {
 }
 
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00')
+  const day = dateStr.slice(0, 10)
+  const date = new Date(day + 'T00:00:00')
   const now = new Date()
   const todayStr = now.toISOString().slice(0, 10)
-  if (dateStr === todayStr) return 'Today'
+  if (day === todayStr) return 'Today'
   const tomorrow = new Date(now)
   tomorrow.setDate(now.getDate() + 1)
-  if (dateStr === tomorrow.toISOString().slice(0, 10)) return 'Tomorrow'
+  if (day === tomorrow.toISOString().slice(0, 10)) return 'Tomorrow'
   return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
