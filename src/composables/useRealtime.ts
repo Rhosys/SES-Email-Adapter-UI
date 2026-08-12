@@ -75,12 +75,18 @@ export function useRealtime() {
         { type: 'module', name: 'ses-realtime' },
       )
       worker.port.onmessage = (e: MessageEvent) => {
-        const msg = e.data as { type: string; data?: RealtimeEvent }
-        if (msg.type === 'event' && msg.data) handleEvent(msg.data)
+        const msg = e.data as { type: string; connected?: boolean; data?: RealtimeEvent }
+        if (msg.type === 'status') {
+          logger.info({ title: 'Realtime: connection status', connected: msg.connected })
+        } else if (msg.type === 'event' && msg.data) {
+          logger.info({ title: 'Realtime: event received', eventType: msg.data.type, data: msg.data })
+          handleEvent(msg.data)
+        }
       }
       worker.port.start()
     }
 
+    logger.info({ title: 'Realtime: activating websocket', accountId })
     worker.port.postMessage({ type: 'init', accountId, token })
   }
 
