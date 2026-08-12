@@ -37,8 +37,15 @@ const { hideWithDefer } = useDeferredHide()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
 const showSenderPopup = ref(false)
+const senderPopupRef = ref<HTMLElement | null>(null)
 const threadData = ref<Thread | null>(null)
 const updating = ref(false)
+
+function handleSenderPopupClickOutside(e: MouseEvent) {
+  if (senderPopupRef.value && !senderPopupRef.value.contains(e.target as Node)) {
+    showSenderPopup.value = false
+  }
+}
 
 const threadId = computed(() => route.params.id as string)
 
@@ -120,6 +127,8 @@ watch(dedupedSignals, async () => {
 }, { flush: 'post' })
 
 onMounted(async () => {
+  document.addEventListener('click', handleSenderPopupClickOutside)
+
   // Point the store at this thread so items computed returns cached signals
   signalsStore.currentThreadId = threadId.value
 
@@ -145,6 +154,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   observer?.disconnect()
+  document.removeEventListener('click', handleSenderPopupClickOutside)
 })
 
 function onDraftDiscard() {
@@ -439,14 +449,14 @@ async function removeLabel(label: string) {
         </div>
         <!-- Line 2: From / Alias -->
         <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-ctp-subtext1">
-          <span v-if="thread.sender.address" class="relative">
+          <span v-if="thread.sender.address" ref="senderPopupRef" class="relative">
             <span class="text-ctp-overlay1">From:</span>
             <span v-if="thread.sender.name" class="font-medium text-ctp-text">{{ thread.sender.name }}</span>
             <button
               type="button"
-              class="cursor-pointer hover:text-ctp-mauve hover:underline"
+              class="ml-1 cursor-pointer hover:text-ctp-mauve hover:underline"
               @click="showSenderPopup = !showSenderPopup"
-            >{{ thread.sender.address }}</button>
+            >{{ thread.sender.name ? `<${thread.sender.address}>` : thread.sender.address }}</button>
             <div v-if="showSenderPopup && accountStore.accountId" class="absolute left-0 top-full z-20 mt-1">
               <SenderInfoPopup
                 :sender-address="thread.sender.address"
