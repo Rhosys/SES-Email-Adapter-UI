@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Signal, SignalAction, Workflow, WorkflowData } from '@/types/server'
+import type { Signal, SignalAction, Workflow, WorkflowData, WorkflowDataMap } from '@/types/server'
 import type { WorkflowGroup } from '@/lib/workflow-aggregator'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import AuthPanel from './panels/AuthPanel.vue'
@@ -18,8 +18,10 @@ import SupportPanel from './panels/SupportPanel.vue'
 import TestPanel from './panels/TestPanel.vue'
 import EventsPanel from './panels/EventsPanel.vue'
 
-function narrowWorkflowData<W extends Workflow>(_workflow: W, data: WorkflowData): Extract<WorkflowData, { workflow: W }> {
-  return data as Extract<WorkflowData, { workflow: W }>
+// The `_workflow` value never appears in `data` itself (workflowData carries no
+// discriminant of its own) — it only pins the generic so the return type narrows.
+function narrowWorkflowData<W extends keyof WorkflowDataMap>(_workflow: W, data: WorkflowData): WorkflowDataMap[W] {
+  return data as WorkflowDataMap[W]
 }
 
 const props = withDefaults(defineProps<{

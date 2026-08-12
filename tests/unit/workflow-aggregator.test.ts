@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { aggregateWorkflowPanels } from '@/lib/workflow-aggregator'
 import type { SignalGroup } from '@/lib/dedup'
-import type { Signal, WorkflowData, EmailInboundSignal, PackageData } from '@/types/server'
+import type { Signal, Workflow, WorkflowData, EmailInboundSignal, PackageData } from '@/types/server'
 
 let counter = 0
-function makeSignalGroup(workflowData?: WorkflowData, overrides?: Partial<EmailInboundSignal>): SignalGroup {
+// workflow is passed explicitly because WorkflowData carries no discriminant of
+// its own on the wire — the signal envelope's `data.workflow` is authoritative.
+function makeSignalGroup(workflow: Workflow, workflowData?: WorkflowData, overrides?: Partial<EmailInboundSignal>): SignalGroup {
   counter++
   const signal: EmailInboundSignal = {
     signalId: overrides?.signalId ?? `sig-${counter}`,
@@ -23,7 +25,7 @@ function makeSignalGroup(workflowData?: WorkflowData, overrides?: Partial<EmailI
       attachments: [],
       headers: {},
       recipientAddress: 'user@example.com',
-      workflow: workflowData?.workflow ?? 'package',
+      workflow,
       workflowData,
       spamScore: 0,
     },
@@ -35,8 +37,7 @@ describe('aggregateWorkflowPanels', () => {
   describe('limits to 10 qualifying signals', () => {
     it('uses only the first 10 signals with workflowData', () => {
       const groups: SignalGroup[] = Array.from({ length: 12 }, (_, i) =>
-        makeSignalGroup({
-          workflow: 'package',
+        makeSignalGroup('package', {
           packageType: 'shipping',
           retailer: `retailer-${i}`,
         } as PackageData)
@@ -56,9 +57,9 @@ describe('aggregateWorkflowPanels', () => {
   describe('groups by workflow type', () => {
     it('produces one group per distinct workflow type', () => {
       const groups: SignalGroup[] = [
-        makeSignalGroup({ workflow: 'package', packageType: 'shipping', retailer: 'Amazon' } as PackageData),
-        makeSignalGroup({ workflow: 'auth', authType: 'verification', service: 'GitHub' }),
-        makeSignalGroup({ workflow: 'package', packageType: 'delivered', retailer: 'eBay' } as PackageData),
+        makeSignalGroup('package', { packageType: 'shipping', retailer: 'Amazon' } as PackageData),
+        makeSignalGroup('auth', { authType: 'verification', service: 'GitHub' }),
+        makeSignalGroup('package', { packageType: 'delivered', retailer: 'eBay' } as PackageData),
       ]
 
       const result = aggregateWorkflowPanels(groups)
@@ -70,8 +71,8 @@ describe('aggregateWorkflowPanels', () => {
 
     it('groups entries with same workflow into same group', () => {
       const groups: SignalGroup[] = [
-        makeSignalGroup({ workflow: 'package', packageType: 'shipping', retailer: 'Amazon' } as PackageData),
-        makeSignalGroup({ workflow: 'package', packageType: 'delivered', retailer: 'eBay' } as PackageData),
+        makeSignalGroup('package', { packageType: 'shipping', retailer: 'Amazon' } as PackageData),
+        makeSignalGroup('package', { packageType: 'delivered', retailer: 'eBay' } as PackageData),
       ]
 
       const result = aggregateWorkflowPanels(groups)
@@ -83,11 +84,11 @@ describe('aggregateWorkflowPanels', () => {
 
   describe('deduplicates identical entries (content-equality)', () => {
     it('removes exact duplicates keeping only one', () => {
-      const data: PackageData = { workflow: 'package', packageType: 'shipping', retailer: 'Amazon', orderNumber: '123' }
+      const data: PackageData = { packageType: 'shipping', retailer: 'Amazon', orderNumber: '123' }
       const groups: SignalGroup[] = [
-        makeSignalGroup({ ...data }),
-        makeSignalGroup({ ...data }),
-        makeSignalGroup({ ...data }),
+        makeSignalGroup('package', { ...data }),
+        makeSignalGroup('package', { ...data }),
+        makeSignalGroup('package', { ...data }),
       ]
 
       const result = aggregateWorkflowPanels(groups)
@@ -96,9 +97,9 @@ describe('aggregateWorkflowPanels', () => {
     })
 
     it('treats entries differing only in null/undefined fields as identical', () => {
-      const a: PackageData = { workflow: 'package', packageType: 'shipping', retailer: 'Amazon', trackingNumber: undefined }
-      const b: PackageData = { workflow: 'package', packageType: 'shipping', retailer: 'Amazon' }
-      const groups: SignalGroup[] = [makeSignalGroup(a), makeSignalGroup(b)]
+      const a: PackageData = { packageType: 'shipping', retailer: 'Amazon', trackingNumber: undefined }
+      const b: PackageData = { packageType: 'shipping', retailer: 'Amazon' }
+      const groups: SignalGroup[] = [makeSignalGroup('package', a), makeSignalGroup('package', b)]
 
       const result = aggregateWorkflowPanels(groups)
       expect(result).toHaveLength(1)
@@ -109,10 +110,10 @@ describe('aggregateWorkflowPanels', () => {
 
   describe('merges merge-compatible entries (null-fill, newest wins)', () => {
     it('merges two entries where one has a field the other lacks', () => {
-      const older: PackageData = { workflow: 'package', packageType: 'shipping', retailer: 'Amazon', trackingNumber: '123' }
-      const newer: PackageData = { workflow: 'package', packageType: 'shipping', retailer: 'Amazon' }
+      const older: PackageData = { packageType: 'shipping', retailer: 'Amazon', trackingNumber: '123' }
+      const newer: PackageData = { packageType: 'shipping', retailer: 'Amazon' }
       // newer is index 0 (most recent), older is index 1
-      const groups: SignalGroup[] = [makeSignalGroup(newer), makeSignalGroup(older)]
+      const groups: SignalGroup[] = [makeSignalGroup('package', newer), makeSignalGroup('package', older)]
 
       const result = aggregateWorkflowPanels(groups)
       expect(result).toHaveLength(1)
@@ -122,9 +123,9 @@ describe('aggregateWorkflowPanels', () => {
     })
 
     it('newest value wins when both define the same field identically', () => {
-      const older: PackageData = { workflow: 'package', packageType: 'shipping', retailer: 'Amazon', estimatedDelivery: 'Jan 5' }
-      const newer: PackageData = { workflow: 'package', packageType: 'shipping', retailer: 'Amazon', estimatedDelivery: 'Jan 5', trackingNumber: 'XYZ' }
-      const groups: SignalGroup[] = [makeSignalGroup(newer), makeSignalGroup(older)]
+      const older: PackageData = { packageType: 'shipping', retailer: 'Amazon', estimatedDelivery: 'Jan 5' }
+      const newer: PackageData = { packageType: 'shipping', retailer: 'Amazon', estimatedDelivery: 'Jan 5', trackingNumber: 'XYZ' }
+      const groups: SignalGroup[] = [makeSignalGroup('package', newer), makeSignalGroup('package', older)]
 
       const result = aggregateWorkflowPanels(groups)
       expect(result).toHaveLength(1)
@@ -137,9 +138,9 @@ describe('aggregateWorkflowPanels', () => {
 
   describe('retains non-merge-compatible entries as separate items', () => {
     it('keeps entries with conflicting defined values separate', () => {
-      const a: PackageData = { workflow: 'package', packageType: 'shipping', retailer: 'Amazon', trackingNumber: '111' }
-      const b: PackageData = { workflow: 'package', packageType: 'shipping', retailer: 'Amazon', trackingNumber: '222' }
-      const groups: SignalGroup[] = [makeSignalGroup(a), makeSignalGroup(b)]
+      const a: PackageData = { packageType: 'shipping', retailer: 'Amazon', trackingNumber: '111' }
+      const b: PackageData = { packageType: 'shipping', retailer: 'Amazon', trackingNumber: '222' }
+      const groups: SignalGroup[] = [makeSignalGroup('package', a), makeSignalGroup('package', b)]
 
       const result = aggregateWorkflowPanels(groups)
       expect(result).toHaveLength(1)
@@ -147,9 +148,9 @@ describe('aggregateWorkflowPanels', () => {
     })
 
     it('keeps entries with different retailers separate', () => {
-      const a: PackageData = { workflow: 'package', packageType: 'shipping', retailer: 'Amazon' }
-      const b: PackageData = { workflow: 'package', packageType: 'shipping', retailer: 'eBay' }
-      const groups: SignalGroup[] = [makeSignalGroup(a), makeSignalGroup(b)]
+      const a: PackageData = { packageType: 'shipping', retailer: 'Amazon' }
+      const b: PackageData = { packageType: 'shipping', retailer: 'eBay' }
+      const groups: SignalGroup[] = [makeSignalGroup('package', a), makeSignalGroup('package', b)]
 
       const result = aggregateWorkflowPanels(groups)
       expect(result).toHaveLength(1)
@@ -161,8 +162,8 @@ describe('aggregateWorkflowPanels', () => {
     it('group with newest signal appears first', () => {
       // Index 0 is newest. auth at index 0, package at index 1
       const groups: SignalGroup[] = [
-        makeSignalGroup({ workflow: 'auth', authType: 'verification', service: 'GitHub' }),
-        makeSignalGroup({ workflow: 'package', packageType: 'shipping', retailer: 'Amazon' } as PackageData),
+        makeSignalGroup('auth', { authType: 'verification', service: 'GitHub' }),
+        makeSignalGroup('package', { packageType: 'shipping', retailer: 'Amazon' } as PackageData),
       ]
 
       const result = aggregateWorkflowPanels(groups)
@@ -173,9 +174,9 @@ describe('aggregateWorkflowPanels', () => {
     it('when a workflow type appears at multiple positions, uses the newest', () => {
       // package at 0, auth at 1, package at 2
       const groups: SignalGroup[] = [
-        makeSignalGroup({ workflow: 'package', packageType: 'shipping', retailer: 'Amazon' } as PackageData),
-        makeSignalGroup({ workflow: 'auth', authType: 'verification', service: 'GitHub' }),
-        makeSignalGroup({ workflow: 'package', packageType: 'delivered', retailer: 'eBay' } as PackageData),
+        makeSignalGroup('package', { packageType: 'shipping', retailer: 'Amazon' } as PackageData),
+        makeSignalGroup('auth', { authType: 'verification', service: 'GitHub' }),
+        makeSignalGroup('package', { packageType: 'delivered', retailer: 'eBay' } as PackageData),
       ]
 
       const result = aggregateWorkflowPanels(groups)
@@ -188,10 +189,10 @@ describe('aggregateWorkflowPanels', () => {
       // travel at 0, package at 1, travel at 2, package at 3
       // travel newest = 0, package newest = 1 → travel first
       const groups: SignalGroup[] = [
-        makeSignalGroup({ workflow: 'travel', travelType: 'flight', provider: 'Swiss' }),
-        makeSignalGroup({ workflow: 'package', packageType: 'shipping', retailer: 'Amazon' } as PackageData),
-        makeSignalGroup({ workflow: 'travel', travelType: 'hotel', provider: 'Hilton' }),
-        makeSignalGroup({ workflow: 'package', packageType: 'delivered', retailer: 'eBay' } as PackageData),
+        makeSignalGroup('travel', { travelType: 'flight', provider: 'Swiss' }),
+        makeSignalGroup('package', { packageType: 'shipping', retailer: 'Amazon' } as PackageData),
+        makeSignalGroup('travel', { travelType: 'hotel', provider: 'Hilton' }),
+        makeSignalGroup('package', { packageType: 'delivered', retailer: 'eBay' } as PackageData),
       ]
 
       const result = aggregateWorkflowPanels(groups)
@@ -207,16 +208,16 @@ describe('aggregateWorkflowPanels', () => {
 
     it('skips signals without workflowData', () => {
       const groups: SignalGroup[] = [
-        makeSignalGroup(undefined),
-        makeSignalGroup(undefined),
+        makeSignalGroup('package', undefined),
+        makeSignalGroup('auth', undefined),
       ]
 
       expect(aggregateWorkflowPanels(groups)).toEqual([])
     })
 
     it('all duplicates produce a single entry', () => {
-      const data: PackageData = { workflow: 'package', packageType: 'shipping', retailer: 'Amazon' }
-      const groups: SignalGroup[] = Array.from({ length: 5 }, () => makeSignalGroup({ ...data }))
+      const data: PackageData = { packageType: 'shipping', retailer: 'Amazon' }
+      const groups: SignalGroup[] = Array.from({ length: 5 }, () => makeSignalGroup('package', { ...data }))
 
       const result = aggregateWorkflowPanels(groups)
       expect(result).toHaveLength(1)
@@ -225,9 +226,9 @@ describe('aggregateWorkflowPanels', () => {
 
     it('mixed workflow types produce multiple groups', () => {
       const groups: SignalGroup[] = [
-        makeSignalGroup({ workflow: 'auth', authType: 'verification', service: 'GitHub' }),
-        makeSignalGroup({ workflow: 'package', packageType: 'shipping', retailer: 'Amazon' } as PackageData),
-        makeSignalGroup({ workflow: 'travel', travelType: 'flight', provider: 'Swiss' }),
+        makeSignalGroup('auth', { authType: 'verification', service: 'GitHub' }),
+        makeSignalGroup('package', { packageType: 'shipping', retailer: 'Amazon' } as PackageData),
+        makeSignalGroup('travel', { travelType: 'flight', provider: 'Swiss' }),
       ]
 
       const result = aggregateWorkflowPanels(groups)
@@ -235,35 +236,14 @@ describe('aggregateWorkflowPanels', () => {
     })
 
     it('skips entries with empty workflow string', () => {
-      const signal = makeSignalGroup({ workflow: 'package', packageType: 'shipping', retailer: 'Amazon' } as PackageData)
+      const signal = makeSignalGroup('package', { packageType: 'shipping', retailer: 'Amazon' } as PackageData)
       // Manually set workflow to empty string on signal data
-      const emptyWorkflow = makeSignalGroup(undefined)
-      const emailSignal = emptyWorkflow.signal as EmailInboundSignal
-      emailSignal.data.workflowData = { workflow: '' as never }
-      emailSignal.data.workflow = '' as never
+      const emptyWorkflow = makeSignalGroup('' as never, { packageType: 'shipping', retailer: 'nobody' } as PackageData)
 
       const groups: SignalGroup[] = [signal, emptyWorkflow]
       const result = aggregateWorkflowPanels(groups)
       expect(result).toHaveLength(1)
       expect(result[0].workflow).toBe('package')
-    })
-
-    it('uses the signal envelope workflow when workflowData omits its own workflow field', () => {
-      // Real API payloads (e.g. events/ticket_confirmation) may not echo the
-      // discriminator inside workflowData itself — only signal.data.workflow is set.
-      const groups: SignalGroup[] = [
-        makeSignalGroup({
-          eventName: 'CHNUG #4',
-          eventType: 'ticket_confirmation',
-        } as unknown as WorkflowData, { threadId: 'thread-1' }),
-      ]
-      const emailSignal = groups[0].signal as EmailInboundSignal
-      emailSignal.data.workflow = 'events'
-
-      const result = aggregateWorkflowPanels(groups)
-      expect(result).toHaveLength(1)
-      expect(result[0].workflow).toBe('events')
-      expect(result[0].entries).toHaveLength(1)
     })
 
     it('skips non-inbound email signals', () => {
@@ -286,7 +266,7 @@ describe('aggregateWorkflowPanels', () => {
       }
       const groups: SignalGroup[] = [
         { signal: outboundSignal, duplicates: [] },
-        makeSignalGroup({ workflow: 'package', packageType: 'shipping', retailer: 'Amazon' } as PackageData),
+        makeSignalGroup('package', { packageType: 'shipping', retailer: 'Amazon' } as PackageData),
       ]
 
       const result = aggregateWorkflowPanels(groups)
