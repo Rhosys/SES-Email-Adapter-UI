@@ -102,24 +102,22 @@ function copyResourceObject() {
             />
           </div>
         </div>
-        <!-- Complete action -->
-        <button
-          type="button"
-          class="shrink-0 rounded p-1 text-ctp-subtext0 opacity-0 transition-opacity hover:bg-ctp-surface0 hover:text-ctp-green group-hover:opacity-100"
-          title="Mark complete"
-          @click.stop="completeResource(resource.resourceId)"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-        </button>
-        <!-- Admin overflow menu -->
+        <!-- Overflow menu: resource actions -->
         <OverflowMenu
-          v-if="isAdminUser()"
           class="shrink-0"
           label="Resource actions"
           sheet-title="Resource actions"
           trigger-class="flex h-8 w-8 items-center justify-center rounded text-ctp-subtext0 opacity-0 transition-opacity hover:bg-ctp-surface0 hover:text-ctp-text group-hover:opacity-100"
         >
           <button
+            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
+            role="menuitem"
+            @click="completeResource(resource.resourceId)"
+          >
+            Mark complete
+          </button>
+          <button
+            v-if="isAdminUser()"
             class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
             role="menuitem"
             @click="showResourceObject(resource)"

@@ -20,6 +20,7 @@ export const useResourcesStore = defineStore('resources', () => {
   })
 
   const activeResources = computed(() => items.value.filter((r) => r.status === 'active'))
+  const completedResources = computed(() => items.value.filter((r) => r.status === 'complete'))
 
   const today = computed(() => {
     const now = dayKey(new Date())
@@ -76,21 +77,43 @@ export const useResourcesStore = defineStore('resources', () => {
     _byAccount.value = { ..._byAccount.value, [id]: result.value.resources }
   }
 
-  async function completeResource(resourceId: string) {
+  // Fetches every resource regardless of status, for the full Resources view
+  // where users browse and toggle both active and completed items.
+  async function fetchAllResources() {
+    const id = accountStore.accountId
+    if (!id) return
+    loading.value = true
+    error.value = null
+    const result = await api.listResources(id, { limit: 100 })
+    loading.value = false
+    if (result.isErr()) {
+      if ((_byAccount.value[id] ?? []).length > 0) {
+        logger.warn({ title: 'Resources fetch failed with cache available', error: result.error.message })
+      } else {
+        error.value = result.error.message
+      }
+      return
+    }
+    _byAccount.value = { ..._byAccount.value, [id]: result.value.resources }
+  }
+
+  async function setResourceStatus(resourceId: string, status: ResourceStatus) {
     const id = accountStore.accountId
     if (!id) return
     const existing = _byAccount.value[id] ?? []
     _byAccount.value = {
       ..._byAccount.value,
-      [id]: existing.map((r) =>
-        r.resourceId === resourceId ? { ...r, status: 'complete' as ResourceStatus } : r,
-      ),
+      [id]: existing.map((r) => (r.resourceId === resourceId ? { ...r, status } : r)),
     }
-    const result = await api.patchResource(id, resourceId, { status: 'complete' })
+    const result = await api.patchResource(id, resourceId, { status })
     if (result.isErr()) {
       _byAccount.value = { ..._byAccount.value, [id]: existing }
-      logger.error({ title: 'Failed to complete resource', error: result.error.message })
+      logger.error({ title: 'Failed to update resource status', error: result.error.message })
     }
+  }
+
+  async function completeResource(resourceId: string) {
+    return setResourceStatus(resourceId, 'complete')
   }
 
   async function dismissResource(resourceId: string) {
@@ -102,12 +125,15 @@ export const useResourcesStore = defineStore('resources', () => {
     error,
     items,
     activeResources,
+    completedResources,
     today,
     thisWeek,
     upcoming,
     byWorkflow,
     hasResources,
     fetchResources,
+    fetchAllResources,
+    setResourceStatus,
     completeResource,
     dismissResource,
   }

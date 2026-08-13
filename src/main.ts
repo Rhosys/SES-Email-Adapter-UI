@@ -11,6 +11,7 @@ import { useSpamStore } from './stores/spam'
 import { useQuarantineStore } from './stores/quarantine'
 import { useThreadsStore } from './stores/threads'
 import { useSignalsStore } from './stores/signals'
+import { useResourcesStore } from './stores/resources'
 import { isAdminUser } from './stores/admin'
 import { useUserConfigStore } from './stores/userConfig'
 import { useLogStore } from './stores/logs'
@@ -88,6 +89,9 @@ enableMocking().then(() => {
   accountStore.waitForFetch().then(() => {
     const quarantineStore = useQuarantineStore()
     void quarantineStore.fetchSignals(true)
+
+    const resourcesStore = useResourcesStore()
+    void resourcesStore.fetchResources()
 
     // Always the active listing, whichever page the user lands on: the sidebar badge
     // counts loaded active threads, and it renders everywhere. Archived and "All" stay

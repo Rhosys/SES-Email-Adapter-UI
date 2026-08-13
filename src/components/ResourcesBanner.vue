@@ -96,6 +96,14 @@ function handleComplete(resource: Resource) {
               </div>
               <!-- Actions -->
               <div class="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <RouterLink
+                  :to="{ name: 'thread-detail', params: { id: resource.threadId } }"
+                  class="rounded p-1 text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-mauve"
+                  title="Jump to thread"
+                  @click.stop
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6 3.5L10.5 8 6 12.5l-1-1L8.5 8 5 4.5l1-1z" /></svg>
+                </RouterLink>
                 <button
                   type="button"
                   class="rounded p-1 text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-green"
@@ -150,6 +158,14 @@ function handleComplete(resource: Resource) {
                 </div>
               </div>
               <div class="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <RouterLink
+                  :to="{ name: 'thread-detail', params: { id: resource.threadId } }"
+                  class="rounded p-1 text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-mauve"
+                  title="Jump to thread"
+                  @click.stop
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6 3.5L10.5 8 6 12.5l-1-1L8.5 8 5 4.5l1-1z" /></svg>
+                </RouterLink>
                 <button
                   type="button"
                   class="rounded p-1 text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-green"
@@ -204,6 +220,14 @@ function handleComplete(resource: Resource) {
                 </div>
               </div>
               <div class="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <RouterLink
+                  :to="{ name: 'thread-detail', params: { id: resource.threadId } }"
+                  class="rounded p-1 text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-mauve"
+                  title="Jump to thread"
+                  @click.stop
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6 3.5L10.5 8 6 12.5l-1-1L8.5 8 5 4.5l1-1z" /></svg>
+                </RouterLink>
                 <button
                   type="button"
                   class="rounded p-1 text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-green"

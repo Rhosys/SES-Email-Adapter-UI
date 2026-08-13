@@ -71,9 +71,29 @@ describe('ThreadResources', () => {
     expect(wrapper.text()).not.toContain('Resources')
   })
 
-  it('hides the admin overflow menu for non-admin accounts', async () => {
+  it('shows the overflow menu for non-admin accounts, without a "Show resource" item', async () => {
     const wrapper = await mountResources()
-    expect(wrapper.find('[aria-label="Resource actions"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-label="Resource actions"]').exists()).toBe(true)
+    await wrapper.find('[aria-label="Resource actions"]').trigger('click')
+    expect(wrapper.findAll('button').some((b) => b.text() === 'Show resource')).toBe(false)
+  })
+
+  it('does not render a standalone complete button — completing lives in the overflow menu', async () => {
+    const wrapper = await mountResources()
+    expect(wrapper.find('[title="Mark complete"]').exists()).toBe(false)
+  })
+
+  it('marks a resource complete from the overflow menu', async () => {
+    vi.mocked(api.patchResource).mockResolvedValue(ok(mockResource({ status: 'complete' })))
+
+    const wrapper = await mountResources()
+    await wrapper.find('[aria-label="Resource actions"]').trigger('click')
+
+    const completeButton = wrapper.findAll('button').find((b) => b.text() === 'Mark complete')!
+    await completeButton.trigger('click')
+    await flushPromises()
+
+    expect(api.patchResource).toHaveBeenCalledWith('acc_1', 'res_1', { status: 'complete' })
   })
 
   it('shows a "Show resource" popup with the resource JSON and a copy button for admins', async () => {

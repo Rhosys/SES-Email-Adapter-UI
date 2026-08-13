@@ -19,6 +19,7 @@ import { mockViews } from './data/views'
 import { mockForwardingTargets } from './data/forwarding'
 import { mockAuditEvents } from './data/audit'
 import { mockBilling } from './data/billing'
+import { mockResources } from './data/resources'
 
 import { mockSenders } from './data/senders'
 
@@ -195,6 +196,45 @@ export async function handleMockRequest(method: string, url: string, body?: unkn
         { date: '2026-06', allowed: 52, quarantined: 6, blocked: 13 },
       ],
     }}
+  }
+
+  // GET /accounts/:accountId/threads/:threadId/resources
+  params = match('/accounts/:accountId/threads/:threadId/resources', url)
+  if (method === 'GET' && params) {
+    const threadResources = mockResources.filter((r) => r.threadId === params!.threadId)
+    return { status: 200, body: { resources: threadResources, pagination: { cursor: null } } }
+  }
+
+  // GET /accounts/:accountId/resources/:resourceId
+  params = match('/accounts/:accountId/resources/:resourceId', url)
+  if (method === 'GET' && params) {
+    const resource = mockResources.find((r) => r.resourceId === params!.resourceId)
+    return resource ? { status: 200, body: resource } : { status: 404, body: { title: 'Not found' } }
+  }
+
+  // PATCH /accounts/:accountId/resources/:resourceId
+  params = match('/accounts/:accountId/resources/:resourceId', url)
+  if (method === 'PATCH' && params) {
+    const resource = mockResources.find((r) => r.resourceId === params!.resourceId)
+    if (!resource) return { status: 404, body: { title: 'Not found' } }
+    const patchBody = (body ?? {}) as { status?: 'active' | 'complete' }
+    if (patchBody.status) {
+      resource.status = patchBody.status
+      resource.resolvedAt = patchBody.status === 'complete' ? new Date().toISOString() : undefined
+      resource.updatedAt = new Date().toISOString()
+    }
+    return { status: 200, body: resource }
+  }
+
+  // GET /accounts/:accountId/resources
+  if (method === 'GET' && match('/accounts/:accountId/resources', url)) {
+    const urlObj = new URL(url, 'http://localhost')
+    const workflow = urlObj.searchParams.get('workflow')
+    const status = urlObj.searchParams.get('status')
+    const filtered = mockResources.filter((r) =>
+      (!workflow || r.workflow === workflow) && (!status || r.status === status),
+    )
+    return { status: 200, body: { resources: filtered, pagination: { cursor: null } } }
   }
 
   // POST /accounts/:accountId/signals/:signalId/quarantineResponse
