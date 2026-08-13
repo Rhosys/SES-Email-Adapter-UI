@@ -521,7 +521,7 @@ const iframeStyle = {
     <div v-if="signal.type === 'email'" class="flex flex-wrap items-center justify-end gap-2 border-t border-ctp-surface0 px-4 py-2">
       <span v-if="undoError" class="mr-auto text-xs text-ctp-red">{{ undoError }}</span>
       <button
-        v-if="isUserSent"
+        v-if="isUserSent && signal.status !== 'sent'"
         :disabled="undoPending"
         class="flex items-center gap-1.5 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-red hover:border-ctp-red disabled:opacity-50"
         @click="undoSend"

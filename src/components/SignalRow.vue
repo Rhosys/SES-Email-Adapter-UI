@@ -100,7 +100,7 @@ async function undoSend() {
         View original email
       </button>
       <button
-        v-if="isUserSent"
+        v-if="isUserSent && signal.status !== 'sent'"
         :disabled="undoPending"
         class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-ctp-red hover:bg-ctp-surface0 disabled:opacity-50"
         role="menuitem"
