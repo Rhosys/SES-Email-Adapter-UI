@@ -57,7 +57,7 @@ function actionsForEntry(idx: number): SignalAction[] {
 
 function isAuthVisible(entry: WorkflowData, idx: number): boolean {
   const auth = narrowWorkflowData('auth', entry)
-  return !!(auth.code || actionsForEntry(idx).length > 0)
+  return !!(auth.code || auth.actionUrl || actionsForEntry(idx).length > 0)
 }
 
 function isConversationVisible(entry: WorkflowData): boolean {
