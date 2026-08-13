@@ -1,22 +1,13 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAccountStore } from '@/stores/account'
-import { api } from '@/lib/api'
 import type { Signal } from '@/types/server'
 import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
 import OverflowMenu from '@/components/ui/OverflowMenu.vue'
 
 const props = defineProps<{ signal: Signal }>()
-const emit = defineEmits<{ undo: [] }>()
 
 const router = useRouter()
-const accountStore = useAccountStore()
-
-const undoPending = ref(false)
-const undoError = ref<string | null>(null)
-
-const isUserSent = computed(() => props.signal.source === 'user')
 
 const fromLabel = computed(() => {
   if (!isEmailSignal(props.signal)) return ''
@@ -48,19 +39,6 @@ const sentAt = computed(() => {
 function viewOriginal() {
   void router.push({ name: 'thread-detail', params: { id: props.signal.threadId } })
 }
-
-async function undoSend() {
-  if (!accountStore.accountId || !props.signal.threadId || undoPending.value) return
-  undoPending.value = true
-  undoError.value = null
-  const result = await api.patchSignal(accountStore.accountId, props.signal.threadId, props.signal.signalId, { status: 'draft' })
-  undoPending.value = false
-  if (result.isOk()) {
-    emit('undo')
-  } else {
-    undoError.value = 'Already delivered'
-  }
-}
 </script>
 
 <template>
@@ -77,9 +55,6 @@ async function undoSend() {
       <span class="font-medium text-ctp-text">{{ subjectLine }}</span>
       <span v-if="snippet"> · {{ snippet }}</span>
     </span>
-
-    <!-- Undo error -->
-    <span v-if="undoError" class="shrink-0 text-ctp-red">{{ undoError }}</span>
 
     <!-- Timestamp -->
     <span class="shrink-0 text-ctp-subtext0">{{ sentAt }}</span>
@@ -98,15 +73,6 @@ async function undoSend() {
         @click="viewOriginal"
       >
         View original email
-      </button>
-      <button
-        v-if="isUserSent && signal.status !== 'sent'"
-        :disabled="undoPending"
-        class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-ctp-red hover:bg-ctp-surface0 disabled:opacity-50"
-        role="menuitem"
-        @click="undoSend"
-      >
-        {{ undoPending ? 'Undoing…' : 'Undo send' }}
       </button>
     </OverflowMenu>
   </button>

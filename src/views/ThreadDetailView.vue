@@ -165,10 +165,6 @@ function onDraftSent() {
   void signalsStore.fetchAll(threadId.value)
 }
 
-function onSignalUndo() {
-  void signalsStore.fetchAll(threadId.value)
-}
-
 async function onSignalReprocessed() {
   await signalsStore.fetchAll(threadId.value)
   if (signalsStore.items.length === 0) {
@@ -555,7 +551,6 @@ async function removeLabel(label: string) {
               :signal="group.signal"
               :linked-signal="group.linkedSignal"
               :default-expanded="index === 0"
-              @undo="onSignalUndo"
               @reply="startDraft"
               @reprocessed="onSignalReprocessed"
             />

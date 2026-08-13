@@ -13,7 +13,7 @@ import CopyMenuItem from '@/components/CopyMenuItem.vue'
 import OverflowMenu from '@/components/ui/OverflowMenu.vue'
 
 const props = withDefaults(defineProps<{ signal: Signal; defaultExpanded?: boolean }>(), { defaultExpanded: true })
-const emit = defineEmits<{ undo: []; reply: []; reprocessed: [] }>()
+const emit = defineEmits<{ reply: []; reprocessed: [] }>()
 
 const router = useRouter()
 const accountStore = useAccountStore()
@@ -22,9 +22,6 @@ const signalsStore = useSignalsStore()
 const expanded = ref(props.defaultExpanded)
 const reprocessing = ref(false)
 const reprocessError = ref<string | null>(null)
-const undoPending = ref(false)
-const undoError = ref<string | null>(null)
-const isUserSent = computed(() => props.signal.source === 'user')
 const threadId = computed(() => props.signal.threadId)
 
 const signalMatchedRules = computed(() => {
@@ -223,19 +220,6 @@ const sentAt = computed(() => {
     timeStyle: 'short',
   })
 })
-
-async function undoSend() {
-  if (!accountStore.accountId || !props.signal.threadId || undoPending.value) return
-  undoPending.value = true
-  undoError.value = null
-  const result = await api.patchSignal(accountStore.accountId, props.signal.threadId, props.signal.signalId, { status: 'draft' })
-  undoPending.value = false
-  if (result.isOk()) {
-    emit('undo')
-  } else {
-    undoError.value = 'Email already delivered — cannot undo'
-  }
-}
 
 async function reprocessSignal() {
   if (!accountStore.accountId || reprocessing.value) return
@@ -517,20 +501,8 @@ const iframeStyle = {
       </div>
     </template>
 
-    <!-- Signal footer — undo/reply actions (always visible, even when collapsed) -->
+    <!-- Signal footer — reply action (always visible, even when collapsed) -->
     <div v-if="signal.type === 'email'" class="flex flex-wrap items-center justify-end gap-2 border-t border-ctp-surface0 px-4 py-2">
-      <span v-if="undoError" class="mr-auto text-xs text-ctp-red">{{ undoError }}</span>
-      <button
-        v-if="isUserSent && signal.status !== 'sent'"
-        :disabled="undoPending"
-        class="flex items-center gap-1.5 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-red hover:border-ctp-red disabled:opacity-50"
-        @click="undoSend"
-      >
-        <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-          <path d="M7 3.5L2 8l5 4.5V9.5c4.5 0 6.5 1.5 8 4.5-.5-4.5-3-8-8-8V3.5z"/>
-        </svg>
-        {{ undoPending ? 'Undoing…' : 'Undo send' }}
-      </button>
       <button
         class="flex items-center gap-1.5 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
         @click="$emit('reply')"
