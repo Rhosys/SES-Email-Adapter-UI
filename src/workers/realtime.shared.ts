@@ -4,6 +4,9 @@
 declare const self: SharedWorkerGlobalScope
 
 const WS_BASE = (() => {
+  const wsUrl = import.meta.env.VITE_API_WS_URL as string
+  if (wsUrl) return wsUrl
+
   const base = (import.meta.env.VITE_API_BASE_URL as string) ?? 'http://localhost:8787'
   return base.startsWith('https://')
     ? base.replace('https://', 'wss://')
