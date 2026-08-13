@@ -1,8 +1,9 @@
 import type { Label } from '@/types/server'
 
-// system:workflow:* labels duplicate the workflow badge shown alongside a thread — hide them from label chips.
+// system:* labels are internal (e.g. system:workflow:* duplicates the workflow badge shown
+// alongside a thread) — hide them all from label chips.
 export function visibleLabels(labels: string[]): string[] {
-  return labels.filter((l) => !l.startsWith('system:workflow:'))
+  return labels.filter((l) => !l.startsWith('system:'))
 }
 
 // Resolves a label key (e.g. "lbl_6") to its user-defined name/color. Returns

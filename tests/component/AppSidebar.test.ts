@@ -68,6 +68,7 @@ function makeRouter() {
       { path: '/rules', component: stub },
       { path: '/templates', component: stub },
       { path: '/labels', component: stub },
+      { path: '/resources', name: 'resources', component: stub },
       { path: '/settings', component: stub },
       { path: '/search', component: stub },
       { path: '/stats', name: 'stats', component: stub },

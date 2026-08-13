@@ -75,6 +75,11 @@ export const router = createRouter({
           component: () => import('@/views/LabelsView.vue'),
         },
         {
+          path: 'resources',
+          name: 'resources',
+          component: () => import('@/views/ResourcesView.vue'),
+        },
+        {
           path: 'rules',
           name: 'rules',
           component: () => import('@/views/RulesView.vue'),
@@ -170,6 +175,7 @@ const ROUTE_TITLES: Record<string, string> = {
   drafts: 'Drafts',
   search: 'Search',
   labels: 'Labels & Views',
+  resources: 'Resources',
   rules: 'Rules',
   'rules-new': 'New rule',
   'rules-edit': 'Edit rule',

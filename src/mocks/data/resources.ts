@@ -1,0 +1,80 @@
+import type { Resource } from '@/types/server'
+
+// Dates are anchored around the mock "today" (2026-08-13) so the Today/This
+// week/Upcoming buckets in ResourcesBanner and ResourcesView each have
+// representative entries, plus one overdue and one already-completed example.
+export const mockResources: Resource[] = [
+  {
+    resourceId: 'res_pay_3',
+    threadId: 'thr_pay_3',
+    workflow: 'payments',
+    status: 'active',
+    expectedResolutionDate: '2026-08-05',
+    assets: [],
+    createdAt: '2026-06-08T02:00:00Z',
+    updatedAt: '2026-06-08T02:00:00Z',
+  },
+  {
+    resourceId: 'res_pkg_1',
+    threadId: 'thr_pkg_1',
+    workflow: 'package',
+    status: 'active',
+    expectedResolutionDate: '2026-08-13',
+    assets: [],
+    createdAt: '2026-06-07T22:00:00Z',
+    updatedAt: '2026-06-07T22:00:00Z',
+  },
+  {
+    resourceId: 'res_travel_1',
+    threadId: 'thr_travel_1',
+    workflow: 'travel',
+    status: 'active',
+    expectedResolutionDate: '2026-08-16T08:45:00Z',
+    assets: [
+      { type: 'pkpass', label: 'LH1234 boarding pass', rawValue: 'XKJF82', sourceSignalId: 'sig_travel1_1', extractedAt: '2026-06-05T14:00:00Z' },
+    ],
+    createdAt: '2026-06-05T14:00:00Z',
+    updatedAt: '2026-06-05T14:00:00Z',
+  },
+  {
+    resourceId: 'res_health_1',
+    threadId: 'thr_health_1',
+    workflow: 'healthcare',
+    status: 'active',
+    expectedResolutionDate: '2026-08-19',
+    assets: [],
+    createdAt: '2026-06-09T00:00:00Z',
+    updatedAt: '2026-06-09T00:00:00Z',
+  },
+  {
+    resourceId: 'res_pay_1',
+    threadId: 'thr_pay_1',
+    workflow: 'payments',
+    status: 'active',
+    expectedResolutionDate: '2026-08-25',
+    assets: [],
+    createdAt: '2026-06-01T03:00:00Z',
+    updatedAt: '2026-06-01T03:00:00Z',
+  },
+  {
+    resourceId: 'res_job_1',
+    threadId: 'thr_job_1',
+    workflow: 'job',
+    status: 'active',
+    expectedResolutionDate: '2026-09-10',
+    assets: [],
+    createdAt: '2026-06-06T00:00:00Z',
+    updatedAt: '2026-06-06T00:00:00Z',
+  },
+  {
+    resourceId: 'res_pay_2',
+    threadId: 'thr_pay_2',
+    workflow: 'payments',
+    status: 'complete',
+    expectedResolutionDate: '2026-08-01',
+    resolvedAt: '2026-08-02T00:00:00Z',
+    assets: [],
+    createdAt: '2026-06-01T00:05:00Z',
+    updatedAt: '2026-08-02T00:00:00Z',
+  },
+]

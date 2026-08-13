@@ -8,6 +8,7 @@ import { useThreadsStore } from '@/stores/threads'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useSpamStore } from '@/stores/spam'
 import { useDraftsStore } from '@/stores/drafts'
+import { useResourcesStore } from '@/stores/resources'
 import { isAdminUser } from '@/stores/admin'
 import { useIdentity } from '@/composables/useIdentity'
 import { formatBadgeCount } from '@/lib/badge'
@@ -24,6 +25,7 @@ const threadsStore = useThreadsStore()
 const quarantineStore = useQuarantineStore()
 const spamStore = useSpamStore()
 const draftsStore = useDraftsStore()
+const resourcesStore = useResourcesStore()
 
 const isAdmin = computed(() => isAdminUser())
 
@@ -280,6 +282,31 @@ const accountSwitcherOpen = ref(false)
             <span class="truncate">{{ label.icon ? `${label.icon} ` : '' }}{{ label.name }}</span>
           </RouterLink>
         </div>
+
+        <RouterLink
+          :to="{ name: 'resources' }"
+          data-tour="nav-resources"
+          class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
+          :class="
+            isActive('/resources')
+              ? 'bg-ctp-surface0 text-ctp-text font-medium'
+              : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
+          "
+        >
+          <!-- Clipboard-check icon -->
+          <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path
+              d="M4 1.5a1 1 0 011-1h6a1 1 0 011 1V2h.5A1.5 1.5 0 0114 3.5v10A1.5 1.5 0 0112.5 15h-9A1.5 1.5 0 012 13.5v-10A1.5 1.5 0 013.5 2H4v-.5zM5.5 2h5v1h-5V2zM3.5 3a.5.5 0 00-.5.5v10a.5.5 0 00.5.5h9a.5.5 0 00.5-.5v-10a.5.5 0 00-.5-.5H3.5zm7.354 3.146a.5.5 0 010 .708l-3.5 3.5a.5.5 0 01-.708 0l-1.5-1.5a.5.5 0 11.708-.708L7 9.293l3.146-3.147a.5.5 0 01.708 0z"
+            />
+          </svg>
+          <span class="flex-1">Resources</span>
+          <span
+            v-if="resourcesStore.activeResources.length > 0"
+            class="shrink-0 rounded-full bg-ctp-sapphire px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ctp-base"
+          >
+            {{ formatBadgeCount(resourcesStore.activeResources.length, false) }}
+          </span>
+        </RouterLink>
       </div>
     </nav>
 

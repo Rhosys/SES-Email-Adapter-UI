@@ -50,6 +50,22 @@ describe('WorkflowPanel', () => {
     expect(wrapper.text()).toContain('482 931')
   })
 
+  it('renders AuthPanel for auth workflow with only an actionUrl and no code or actions', () => {
+    const data: AuthData = {
+      authType: 'verification',
+      service: 'Notion',
+      actionUrl: 'https://www.notion.so/loginmagiclink?token=abc123',
+      expiresInMinutes: '5',
+    }
+    const wrapper = mount(WorkflowPanel, {
+      props: { signal: makeSignal('auth', data) },
+    })
+    expect(wrapper.text()).toContain('Notion')
+    const link = wrapper.find('a')
+    expect(link.exists()).toBe(true)
+    expect(link.attributes('href')).toBe(data.actionUrl)
+  })
+
   it('renders ConversationPanel for conversation workflow', () => {
     const data: ConversationData = {
       sentiment: 'neutral',
