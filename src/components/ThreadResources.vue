@@ -15,8 +15,13 @@ const accountStore = useAccountStore()
 const resources = ref<Resource[]>([])
 const loading = ref(false)
 
-const activeResources = computed(() => resources.value.filter(r => r.status === 'active'))
-const completedResources = computed(() => resources.value.filter(r => r.status === 'complete'))
+const sortedResources = computed(() =>
+  [...resources.value].sort((a, b) => {
+    if (a.status === 'active' && b.status !== 'active') return -1
+    if (a.status !== 'active' && b.status === 'active') return 1
+    return a.expectedResolutionDate.localeCompare(b.expectedResolutionDate)
+  }),
+)
 
 const workflowLabel: Record<ResourceWorkflow, string> = {
   package: 'Package',
@@ -39,13 +44,13 @@ async function fetchResources() {
   }
 }
 
-async function completeResource(resourceId: string) {
+async function setStatus(resourceId: string, status: ResourceStatus) {
   const accountId = accountStore.accountId
   if (!accountId) return
   resources.value = resources.value.map(r =>
-    r.resourceId === resourceId ? { ...r, status: 'complete' as ResourceStatus } : r,
+    r.resourceId === resourceId ? { ...r, status } : r,
   )
-  const result = await api.patchResource(accountId, resourceId, { status: 'complete' })
+  const result = await api.patchResource(accountId, resourceId, { status })
   if (result.isErr()) {
     await fetchResources()
   }
@@ -74,26 +79,40 @@ function copyResourceObject() {
 
 <template>
   <div v-if="resources.length > 0" class="mb-6 rounded-lg border border-ctp-surface0 bg-ctp-mantle p-4">
-    <!-- Active resources -->
-    <div v-if="activeResources.length > 0" class="space-y-2">
+    <div class="space-y-2">
       <div
-        v-for="resource in activeResources"
+        v-for="resource in sortedResources"
         :key="resource.resourceId"
         class="group flex items-start gap-3 rounded-md border border-ctp-surface0 bg-ctp-base p-3 transition-colors hover:border-ctp-surface1"
       >
         <WorkflowIcon :workflow="resource.workflow as any" class="mt-0.5 shrink-0" />
         <div class="min-w-0 flex-1">
           <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-ctp-text">
-              {{ workflowLabel[resource.workflow] || resource.workflow }}
-            </span>
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-ctp-text">
+                {{ workflowLabel[resource.workflow] || resource.workflow }}
+              </span>
+              <span
+                v-if="resource.status === 'complete'"
+                class="inline-block rounded-full bg-ctp-green/15 px-2 py-0.5 text-[10px] font-medium text-ctp-green"
+              >
+                Completed
+              </span>
+            </div>
             <span
               class="text-xs"
-              :class="isResourceDatePast(resource.displayDate ?? resource.expectedResolutionDate) ? 'font-medium text-ctp-red' : 'text-ctp-subtext0'"
+              :class="resource.status === 'active' && isResourceDatePast(resource.displayDate ?? resource.expectedResolutionDate) ? 'font-medium text-ctp-red' : 'text-ctp-subtext0'"
             >
               {{ formatResourceDate(resource.displayDate ?? resource.expectedResolutionDate) }}
             </span>
           </div>
+
+          <!-- Metadata row -->
+          <div v-if="resource.resolvedAt || resource.createdAt" class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-ctp-subtext0">
+            <span v-if="resource.createdAt">Created {{ formatResourceDate(resource.createdAt) }}</span>
+            <span v-if="resource.resolvedAt">Resolved {{ formatResourceDate(resource.resolvedAt) }}</span>
+          </div>
+
           <!-- Assets -->
           <div v-if="resource.assets.length > 0" class="mt-2 space-y-1.5">
             <ResourceAssetCard
@@ -113,9 +132,9 @@ function copyResourceObject() {
           <button
             class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
             role="menuitem"
-            @click="completeResource(resource.resourceId)"
+            @click="setStatus(resource.resourceId, resource.status === 'active' ? 'complete' : 'active')"
           >
-            Mark complete
+            {{ resource.status === 'active' ? 'Mark complete' : 'Mark active' }}
           </button>
           <button
             v-if="isAdminUser()"
@@ -126,14 +145,6 @@ function copyResourceObject() {
             Show resource
           </button>
         </OverflowMenu>
-      </div>
-    </div>
-
-    <!-- Completed resources (collapsed summary) -->
-    <div v-if="completedResources.length > 0" class="mt-3 border-t border-ctp-surface0 pt-3">
-      <div class="flex items-center gap-2 text-xs text-ctp-subtext0">
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-        <span>{{ completedResources.length }} completed</span>
       </div>
     </div>
   </div>
