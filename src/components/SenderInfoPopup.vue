@@ -88,7 +88,9 @@ async function updateAliasPolicy(policy: UnknownSenderPolicy) {
 
       <!-- Sender policy -->
       <div class="mb-3">
-        <label for="sender-policy" class="mb-1 block text-xs text-ctp-subtext0">Sender policy</label>
+        <label for="sender-policy" class="mb-1 block text-xs text-ctp-subtext0">
+          Policy for <span class="font-medium text-ctp-text">{{ senderDomain }}</span> on this alias
+        </label>
         <select
           id="sender-policy"
           :value="senderConfig?.policy ?? ''"
@@ -103,7 +105,9 @@ async function updateAliasPolicy(policy: UnknownSenderPolicy) {
 
       <!-- Alias unknown sender policy -->
       <div>
-        <label for="alias-policy" class="mb-1 block text-xs text-ctp-subtext0">Unknown sender policy</label>
+        <label for="alias-policy" class="mb-1 block text-xs text-ctp-subtext0">
+          Default policy for other senders on <span class="font-medium text-ctp-text">{{ aliasAddress }}</span>
+        </label>
         <select
           id="alias-policy"
           :value="aliasPolicy"
