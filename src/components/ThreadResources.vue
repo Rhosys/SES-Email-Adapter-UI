@@ -27,6 +27,7 @@ const workflowLabel: Record<ResourceWorkflow, string> = {
   events: 'Event',
 }
 
+
 async function fetchResources() {
   const accountId = accountStore.accountId
   if (!accountId) return
@@ -88,9 +89,9 @@ function copyResourceObject() {
             </span>
             <span
               class="text-xs"
-              :class="isResourceDatePast(resource.expectedResolutionDate) ? 'font-medium text-ctp-red' : 'text-ctp-subtext0'"
+              :class="isResourceDatePast(resource.displayDate ?? resource.expectedResolutionDate) ? 'font-medium text-ctp-red' : 'text-ctp-subtext0'"
             >
-              {{ formatResourceDate(resource.expectedResolutionDate) }}
+              {{ formatResourceDate(resource.displayDate ?? resource.expectedResolutionDate) }}
             </span>
           </div>
           <!-- Assets -->

@@ -847,6 +847,7 @@ export interface Resource {
   workflow: ResourceWorkflow
   status: ResourceStatus
   expectedResolutionDate: string
+  displayDate?: string
   resolvedAt?: string
   assets: ResourceAsset[]
   createdAt: string
