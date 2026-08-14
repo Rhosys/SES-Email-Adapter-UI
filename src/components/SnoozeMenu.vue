@@ -84,6 +84,7 @@ function submitCustom() {
           <input
             v-model="customDate"
             type="date"
+            aria-label="Snooze until date"
             class="flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-sm text-ctp-text"
             :min="DateTime.local().plus({ days: 1 }).toISODate()!"
           />

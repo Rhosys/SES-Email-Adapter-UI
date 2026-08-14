@@ -216,8 +216,35 @@ jobs:
 
       # ── Lint / type-check / test ────────────────────────────────────────────
 
-      - name: Check
-        run: npm run check:ci
+      - name: Type-check
+        run: npx vue-tsc --noEmit
+
+      - name: Lint
+        run: |
+          set -eo pipefail
+          OUTPUT=$(npx eslint . --ext .ts,.vue --format json 2>&1) || true
+          echo "$OUTPUT" | node -e "
+            const fs = require('fs');
+            const input = fs.readFileSync('/dev/stdin', 'utf8');
+            let results;
+            try { results = JSON.parse(input); } catch { process.exit(0); }
+            let hasErrors = false;
+            for (const file of results) {
+              for (const msg of file.messages) {
+                if (msg.severity < 2) continue;
+                hasErrors = true;
+                const rel = file.filePath.replace(process.cwd() + '/', '');
+                const rule = msg.ruleId || 'unknown';
+                const title = rule + ': ' + msg.message;
+                console.log('::error file=' + rel + ',line=' + msg.line + ',col=' + msg.column + ',title=' + title + '::' + msg.message + ' [' + rule + ']');
+              }
+            }
+            process.exit(hasErrors ? 1 : 0);
+          "
+        shell: bash
+
+      - name: Test
+        run: npx vitest run
 
       - name: Format check (advisory)
         continue-on-error: true

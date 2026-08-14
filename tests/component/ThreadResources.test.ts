@@ -4,15 +4,20 @@ import { setActivePinia, createPinia } from 'pinia'
 import ThreadResources from '@/components/ThreadResources.vue'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
-import { ok } from 'neverthrow'
+import { ok, err } from 'neverthrow'
+import { ApiError } from '@/lib/api'
 import type { Resource } from '@/types/server'
 
-vi.mock('@/lib/api', () => ({
-  api: {
-    listResourcesByThread: vi.fn(),
-    patchResource: vi.fn(),
-  },
-}))
+vi.mock('@/lib/api', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/api')>()
+  return {
+    ...original,
+    api: {
+      listResourcesByThread: vi.fn(),
+      patchResource: vi.fn(),
+    },
+  }
+})
 
 function mockResource(overrides: Partial<Resource> = {}): Resource {
   return {
@@ -28,7 +33,6 @@ function mockResource(overrides: Partial<Resource> = {}): Resource {
   }
 }
 
-const writeText = vi.fn().mockResolvedValue(undefined)
 let pinia: ReturnType<typeof createPinia>
 
 async function mountResources() {
@@ -56,64 +60,65 @@ describe('ThreadResources', () => {
       updatedAt: '2025-01-01T00:00:00Z',
     }
 
-    Object.defineProperty(navigator, 'clipboard', {
-      value: { writeText },
-      configurable: true,
-    })
-
     vi.mocked(api.listResourcesByThread).mockResolvedValue(
       ok({ resources: [mockResource()], pagination: { cursor: null } }),
     )
   })
 
-  it('does not render a "Resources" text label', async () => {
+  it('renders nothing when no resources exist', async () => {
+    vi.mocked(api.listResourcesByThread).mockResolvedValue(
+      ok({ resources: [], pagination: { cursor: null } }),
+    )
     const wrapper = await mountResources()
-    expect(wrapper.text()).not.toContain('Resources')
+    expect(wrapper.find('[role="list"]').exists()).toBe(false)
   })
 
-  it('shows the overflow menu for non-admin accounts, without a "Show resource" item', async () => {
+  it('renders the resource panel when resources exist', async () => {
     const wrapper = await mountResources()
-    expect(wrapper.find('[aria-label="Resource actions"]').exists()).toBe(true)
-    await wrapper.find('[aria-label="Resource actions"]').trigger('click')
-    expect(wrapper.findAll('button').some((b) => b.text() === 'Show resource')).toBe(false)
+    expect(wrapper.find('[role="list"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Package')
   })
 
-  it('does not render a standalone complete button — completing lives in the overflow menu', async () => {
+  it('does not show a "Jump to thread" link (thread-scoped view)', async () => {
     const wrapper = await mountResources()
-    expect(wrapper.find('[title="Mark complete"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Jump to thread')
   })
 
-  it('marks a resource complete from the overflow menu', async () => {
+  it('shows "Mark complete" button for active resources', async () => {
+    const wrapper = await mountResources()
+    const btn = wrapper.findAll('button').find((b) => b.text() === 'Mark complete')
+    expect(btn).toBeDefined()
+  })
+
+  it('marks a resource complete via the toggle button', async () => {
     vi.mocked(api.patchResource).mockResolvedValue(ok(mockResource({ status: 'complete' })))
 
     const wrapper = await mountResources()
-    await wrapper.find('[aria-label="Resource actions"]').trigger('click')
-
-    const completeButton = wrapper.findAll('button').find((b) => b.text() === 'Mark complete')!
-    await completeButton.trigger('click')
+    const btn = wrapper.findAll('button').find((b) => b.text() === 'Mark complete')!
+    await btn.trigger('click')
     await flushPromises()
 
     expect(api.patchResource).toHaveBeenCalledWith('acc_1', 'res_1', { status: 'complete' })
   })
 
-  it('shows a "Show resource" popup with the resource JSON and a copy button for admins', async () => {
-    const accountStore = useAccountStore()
-    accountStore.account!.accountId = 'acc-t8cmlkkck3vtm'
+  it('shows "Completed" badge and "Mark active" for complete resources', async () => {
+    vi.mocked(api.listResourcesByThread).mockResolvedValue(
+      ok({ resources: [mockResource({ status: 'complete' })], pagination: { cursor: null } }),
+    )
+    const wrapper = await mountResources()
+    expect(wrapper.text()).toContain('Completed')
+    const btn = wrapper.findAll('button').find((b) => b.text() === 'Mark active')
+    expect(btn).toBeDefined()
+  })
+
+  it('refetches resources when patchResource fails', async () => {
+    vi.mocked(api.patchResource).mockResolvedValue(err(new ApiError(500, 'fail')))
 
     const wrapper = await mountResources()
-    await wrapper.find('[aria-label="Resource actions"]').trigger('click')
-
-    const showButton = wrapper.findAll('button').find((b) => b.text() === 'Show resource')!
-    await showButton.trigger('click')
+    const btn = wrapper.findAll('button').find((b) => b.text() === 'Mark complete')!
+    await btn.trigger('click')
     await flushPromises()
 
-    expect(document.body.textContent).toContain('Resource object')
-    expect(document.body.textContent).toContain('"resourceId": "res_1"')
-
-    const copyButton = Array.from(document.body.querySelectorAll('button')).find((b) => b.textContent === 'Copy')!
-    copyButton.click()
-    await flushPromises()
-
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('"resourceId": "res_1"'))
+    expect(api.listResourcesByThread).toHaveBeenCalledTimes(2)
   })
 })

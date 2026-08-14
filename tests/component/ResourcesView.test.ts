@@ -89,7 +89,7 @@ describe('ResourcesView', () => {
     expect(link.text()).toContain('Jump to thread')
   })
 
-  it('hides completed resources under the Active tab and shows them under Complete', async () => {
+  it('shows all resources in a single sorted list with Completed badge', async () => {
     vi.mocked(api.listResources).mockResolvedValue(
       ok({
         resources: [mockResource({ resourceId: 'res_active' }), mockResource({ resourceId: 'res_done', status: 'complete' })],
@@ -98,13 +98,10 @@ describe('ResourcesView', () => {
     )
     const wrapper = await mountView()
 
-    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(1)
-
-    const completeTab = wrapper.findAll('button').find((b) => b.text() === 'Complete')!
-    await completeTab.trigger('click')
-
-    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(1)
+    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(2)
+    expect(wrapper.text()).toContain('Completed')
     expect(wrapper.text()).toContain('Mark active')
+    expect(wrapper.text()).toContain('Mark complete')
   })
 
   it('toggles a resource status via the Mark complete / Mark active button', async () => {
