@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useRelativeTime } from '@/composables/useRelativeTime'
@@ -12,48 +12,40 @@ const router = useRouter()
 const store = useQuarantineStore()
 useRelativeTime()
 
-// Per-section loading — true only until the first fetch resolves (cold start).
-const loadingVisible = ref(true)
-const loadingHidden = ref(true)
+const loading = ref(true)
 
-const isEmpty = computed(
-  () => !loadingVisible.value && !loadingHidden.value && store.quarantineVisible.length === 0 && store.quarantineHidden.length === 0,
+const hasData = computed(
+  () => store.quarantineVisible.length > 0 || store.quarantineHidden.length > 0,
 )
 
-async function doFetch(reset: boolean) {
-  // If data already cached, skip showing skeleton
-  if (store.quarantineVisible.length > 0) loadingVisible.value = false
-  if (store.quarantineHidden.length > 0) loadingHidden.value = false
-  await store.fetchSignals(reset)
-  loadingVisible.value = false
-  loadingHidden.value = false
-}
-
-onMounted(async () => {
+function filtersFromQuery(): Filters {
   const { sender, after, before } = route.query
-  store.setFilters({
+  return {
     sender: String(sender || ''),
     after: String(after || ''),
     before: String(before || ''),
-  })
-  await doFetch(true)
+  }
+}
+
+async function doFetch(filters: Filters) {
+  if (hasData.value) loading.value = false
+  store.setFilters(filters)
+  await store.fetchSignals(true)
+  loading.value = false
+}
+
+onMounted(async () => {
+  await doFetch(filtersFromQuery())
 })
 
-watch(
-  () => ({ ...store.filters }),
-  async (filters) => {
-    const query: Record<string, string> = {}
-    if (filters.sender) query.sender = filters.sender
-    if (filters.after) query.after = filters.after
-    if (filters.before) query.before = filters.before
-    void router.replace({ query })
-    await doFetch(true)
-  },
-  { deep: true },
-)
-
-function onUpdateFilters(next: Partial<Filters>) {
-  store.setFilters(next)
+async function onUpdateFilters(next: Partial<Filters>) {
+  const merged = { ...store.filters, ...next }
+  const query: Record<string, string> = {}
+  if (merged.sender) query.sender = merged.sender
+  if (merged.after) query.after = merged.after
+  if (merged.before) query.before = merged.before
+  void router.replace({ query })
+  await doFetch(merged)
 }
 
 async function loadMore() {
@@ -82,17 +74,8 @@ async function loadMore() {
         <button class="ml-2 underline" @click="store.clearError()">Dismiss</button>
       </div>
 
-      <!-- Empty -->
-      <div v-if="isEmpty" class="py-20 text-center text-ctp-subtext0">
-        <p class="text-base font-medium text-ctp-text">No emails waiting for review</p>
-        <p class="mx-auto mt-2 max-w-sm text-sm">
-          When a new sender writes to you, their email waits here — you decide whether to let them
-          through or block them for good. Nothing has arrived yet, or you've already reviewed
-          everything.
-        </p>
-      </div>
-
-      <template v-else>
+      <!-- Data -->
+      <template v-if="hasData">
         <!-- Needs review (quarantine_visible) -->
         <section v-if="store.quarantineVisible.length > 0" aria-label="Needs review">
           <div
@@ -112,21 +95,6 @@ async function loadMore() {
             />
           </TransitionGroup>
         </section>
-        <div
-          v-else-if="loadingVisible"
-          role="status"
-          aria-label="Loading quarantine…"
-          class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
-        >
-          <div v-for="i in 5" :key="i" class="flex items-center gap-3 px-4 py-3">
-            <div class="flex-1 space-y-1.5">
-              <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${50 + (i * 13) % 35}%` }" />
-              <div class="h-3 w-32 rounded bg-ctp-surface1" />
-            </div>
-            <div class="h-7 w-16 shrink-0 rounded bg-ctp-surface1" />
-            <div class="h-7 w-14 shrink-0 rounded bg-ctp-surface1" />
-          </div>
-        </div>
 
         <!-- Silently held (quarantine_hidden) -->
         <section
@@ -158,23 +126,8 @@ async function loadMore() {
             />
           </TransitionGroup>
         </section>
-        <div
-          v-else-if="loadingHidden"
-          role="status"
-          aria-label="Loading silently held…"
-          class="mt-6 animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
-        >
-          <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-4 py-3">
-            <div class="flex-1 space-y-1.5">
-              <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${50 + (i * 13) % 35}%` }" />
-              <div class="h-3 w-32 rounded bg-ctp-surface1" />
-            </div>
-            <div class="h-7 w-16 shrink-0 rounded bg-ctp-surface1" />
-            <div class="h-7 w-14 shrink-0 rounded bg-ctp-surface1" />
-          </div>
-        </div>
 
-        <!-- Load more — fetches remaining visible pages first, then hidden -->
+        <!-- Load more -->
         <div v-if="store.hasMore" class="flex justify-center py-6">
           <button
             :disabled="store.loadingMore"
@@ -185,6 +138,33 @@ async function loadMore() {
           </button>
         </div>
       </template>
+
+      <!-- Skeleton -->
+      <div
+        v-else-if="loading"
+        role="status"
+        aria-label="Loading quarantine…"
+        class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
+      >
+        <div v-for="i in 5" :key="i" class="flex items-center gap-3 px-4 py-3">
+          <div class="flex-1 space-y-1.5">
+            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${50 + (i * 13) % 35}%` }" />
+            <div class="h-3 w-32 rounded bg-ctp-surface1" />
+          </div>
+          <div class="h-7 w-16 shrink-0 rounded bg-ctp-surface1" />
+          <div class="h-7 w-14 shrink-0 rounded bg-ctp-surface1" />
+        </div>
+      </div>
+
+      <!-- Empty -->
+      <div v-else class="py-20 text-center text-ctp-subtext0">
+        <p class="text-base font-medium text-ctp-text">No emails waiting for review</p>
+        <p class="mx-auto mt-2 max-w-sm text-sm">
+          When a new sender writes to you, their email waits here — you decide whether to let them
+          through or block them for good. Nothing has arrived yet, or you've already reviewed
+          everything.
+        </p>
+      </div>
     </main>
   </div>
 </template>
