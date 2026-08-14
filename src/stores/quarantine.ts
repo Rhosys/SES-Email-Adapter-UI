@@ -21,20 +21,22 @@ function byReceivedDesc(a: QuarantinedSignal, b: QuarantinedSignal) {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 }
 
+function toParams(filters: QuarantineFilters, cursor?: string): QuarantineSignalListParams {
+  const p: QuarantineSignalListParams = { limit: 50 }
+  if (filters.sender) p.sender = filters.sender
+  if (filters.after) p.after = filters.after
+  if (filters.before) p.before = filters.before
+  if (cursor) p.cursor = cursor
+  return p
+}
+
 export const useQuarantineStore = defineStore('quarantine', () => {
   const accountStore = useAccountStore()
 
   const _byAccount = ref<Record<string, QuarantineData>>({})
   const _cursors = ref<Record<string, { visible?: string; hidden?: string }>>({})
-  const loadingMore = ref(false)
   const error = ref<string | null>(null)
   const actionPending = ref<Set<string>>(new Set())
-
-  const filters = ref<QuarantineFilters>({
-    sender: '',
-    after: '',
-    before: '',
-  })
 
   // Sidebar notification badge — derived from persisted data (no separate fetch needed).
   const visibleCount = computed(() => {
@@ -72,27 +74,16 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     return !!(c?.visible || c?.hidden)
   })
 
-  function buildParams(cursor?: string): QuarantineSignalListParams {
-    const p: QuarantineSignalListParams = { limit: 50 }
-    if (filters.value.sender) p.sender = filters.value.sender
-    if (filters.value.after) p.after = filters.value.after
-    if (filters.value.before) p.before = filters.value.before
-    if (cursor) p.cursor = cursor
-    return p
-  }
-
-  async function fetchSignals(reset = false) {
+  async function fetchSignals(filters: QuarantineFilters = { sender: '', after: '', before: '' }) {
     const id = accountStore.accountId
     if (!id) return
-    if (reset) {
-      const { [id]: _, ...rest } = _cursors.value
-      _cursors.value = rest
-    }
+    const { [id]: _, ...rest } = _cursors.value
+    _cursors.value = rest
     error.value = null
 
     const [visResult, hidResult] = await Promise.all([
-      api.listQuarantinedSignals(id, 'quarantine_visible', buildParams()),
-      api.listQuarantinedSignals(id, 'quarantine_hidden', buildParams()),
+      api.listQuarantinedSignals(id, 'quarantine_visible', toParams(filters)),
+      api.listQuarantinedSignals(id, 'quarantine_hidden', toParams(filters)),
     ])
 
     if (visResult.isErr()) {
@@ -130,11 +121,9 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     }
   }
 
-  // Exhaust all visible pages before moving to hidden pages.
-  async function fetchMore() {
+  async function fetchMore(filters: QuarantineFilters = { sender: '', after: '', before: '' }) {
     const id = accountStore.accountId
-    if (!id || !hasMore.value || loadingMore.value) return
-    loadingMore.value = true
+    if (!id || !hasMore.value) return
 
     const d = _data(id)
     const c = _cursors.value[id]
@@ -143,9 +132,8 @@ export const useQuarantineStore = defineStore('quarantine', () => {
       const result = await api.listQuarantinedSignals(
         id,
         'quarantine_visible',
-        buildParams(c.visible),
+        toParams(filters, c.visible),
       )
-      loadingMore.value = false
       if (result.isErr()) { error.value = result.error.message; return }
       _byAccount.value = {
         ..._byAccount.value,
@@ -165,9 +153,8 @@ export const useQuarantineStore = defineStore('quarantine', () => {
       const result = await api.listQuarantinedSignals(
         id,
         'quarantine_hidden',
-        buildParams(c.hidden),
+        toParams(filters, c.hidden),
       )
-      loadingMore.value = false
       if (result.isErr()) { error.value = result.error.message; return }
       _byAccount.value = {
         ..._byAccount.value,
@@ -183,8 +170,6 @@ export const useQuarantineStore = defineStore('quarantine', () => {
           hidden: result.value.pagination.cursor ?? undefined,
         },
       }
-    } else {
-      loadingMore.value = false
     }
   }
 
@@ -232,10 +217,6 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     return true
   }
 
-  function setFilters(next: Partial<QuarantineFilters>) {
-    filters.value = { ...filters.value, ...next }
-  }
-
   function clearError() {
     error.value = null
   }
@@ -246,16 +227,13 @@ export const useQuarantineStore = defineStore('quarantine', () => {
     visibleCount,
     visibleCountHasMore,
     hasMore,
-    loadingMore,
     error,
     actionPending,
-    filters,
     fetchSignals,
     fetchMore,
     allow,
     reject,
     dismiss,
-    setFilters,
     clearError,
   }
 }, {

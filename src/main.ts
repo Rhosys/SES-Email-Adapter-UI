@@ -88,7 +88,7 @@ enableMocking().then(() => {
   // reality on first paint — regardless of which page the user navigates to first.
   accountStore.waitForFetch().then(() => {
     const quarantineStore = useQuarantineStore()
-    void quarantineStore.fetchSignals(true)
+    void quarantineStore.fetchSignals()
 
     const resourcesStore = useResourcesStore()
     void resourcesStore.fetchResources()
@@ -114,7 +114,7 @@ enableMocking().then(() => {
 
     if (isAdminUser()) {
       const spamStore = useSpamStore()
-      void spamStore.fetchSignals(true)
+      void spamStore.fetchSignals()
     }
   })
 

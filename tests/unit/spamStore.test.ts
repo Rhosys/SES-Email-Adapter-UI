@@ -75,7 +75,7 @@ describe('spamStore', () => {
       'cursor-hidden',
     )
     const store = useSpamStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
 
     expect(store.blockedCount).toBe(3)
     expect(store.blockedCountHasMore).toBe(true)
@@ -84,7 +84,7 @@ describe('spamStore', () => {
   it('blockedCount is 0 and hasMore false when nothing is blocked', async () => {
     mockBothCalls([], [])
     const store = useSpamStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
 
     expect(store.blockedCount).toBe(0)
     expect(store.blockedCountHasMore).toBe(false)
@@ -96,7 +96,7 @@ describe('spamStore', () => {
       [mockSignal({ signalId: 'r1', status: 'block_reject' })],
     )
     const store = useSpamStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
     expect(store.blockedCount).toBe(3)
 
     vi.mocked(api.deleteSignal).mockResolvedValue(ok(undefined))
@@ -112,7 +112,7 @@ describe('spamStore', () => {
   it('deleteSignal keeps the signal and surfaces an error banner when a non-404 failure occurs', async () => {
     mockBothCalls([mockSignal({ signalId: 'h1' })], [])
     const store = useSpamStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
 
     vi.mocked(api.deleteSignal).mockResolvedValue(err(new ApiError(500, 'boom')))
     const error = await store.deleteSignal('h1')
@@ -126,7 +126,7 @@ describe('spamStore', () => {
   it('deleteSignal returns the 404 without tripping the shared error banner', async () => {
     mockBothCalls([mockSignal({ signalId: 'h1' })], [])
     const store = useSpamStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
 
     vi.mocked(api.deleteSignal).mockResolvedValue(err(new ApiError(404, 'not found')))
     const error = await store.deleteSignal('h1')

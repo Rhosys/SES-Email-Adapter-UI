@@ -77,7 +77,7 @@ describe('quarantineStore', () => {
     mockBothCalls([vis2, vis1], [hid1])
 
     const store = useQuarantineStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
 
     // visible-first ordering is maintained; each bucket sorted by receivedAt desc
     expect(store.quarantineVisible.map((s) => s.signalId)).toEqual(['v1', 'v2'])
@@ -91,7 +91,7 @@ describe('quarantineStore', () => {
       .mockResolvedValueOnce(ok({ signals: [], pagination: { cursor: null } }))
 
     const store = useQuarantineStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
 
     expect(store.quarantineVisible).toHaveLength(0)
     expect(store.quarantineHidden).toHaveLength(0)
@@ -104,7 +104,7 @@ describe('quarantineStore', () => {
       .mockResolvedValueOnce(err(new ApiError(503, 'Hidden fetch failed')))
 
     const store = useQuarantineStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
 
     expect(store.error).toBe('Hidden fetch failed')
   })
@@ -112,11 +112,11 @@ describe('quarantineStore', () => {
   it('fetchSignals resets both buckets when reset=true', async () => {
     mockBothCalls([mockSignal()], [])
     const store = useQuarantineStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
     expect(store.quarantineVisible).toHaveLength(1)
 
     mockBothCalls([], [])
-    await store.fetchSignals(true)
+    await store.fetchSignals()
     expect(store.quarantineVisible).toHaveLength(0)
     expect(store.quarantineHidden).toHaveLength(0)
   })
@@ -124,21 +124,21 @@ describe('quarantineStore', () => {
   it('hasMore is true when either cursor is set', async () => {
     mockBothCalls([mockSignal()], [], 'cursor_vis', undefined)
     const store = useQuarantineStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
     expect(store.hasMore).toBe(true)
   })
 
   it('hasMore is false when no cursors', async () => {
     mockBothCalls([mockSignal()], [])
     const store = useQuarantineStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
     expect(store.hasMore).toBe(false)
   })
 
   it('fetchMore loads next visible page before hidden pages', async () => {
     mockBothCalls([mockSignal({ signalId: 'v1' })], [mockSignal({ signalId: 'h1', status: 'quarantine_hidden' })], 'cur_v', 'cur_h')
     const store = useQuarantineStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
 
     // fetchMore should request the visible cursor next
     vi.mocked(api.listQuarantinedSignals).mockResolvedValueOnce(
@@ -159,7 +159,7 @@ describe('quarantineStore', () => {
   it('fetchMore loads hidden page once visible is exhausted', async () => {
     mockBothCalls([], [mockSignal({ signalId: 'h1', status: 'quarantine_hidden' })], undefined, 'cur_h')
     const store = useQuarantineStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
 
     vi.mocked(api.listQuarantinedSignals).mockResolvedValueOnce(
       ok({ signals: [mockSignal({ signalId: 'h2', status: 'quarantine_hidden' })], pagination: { cursor: null } }),
@@ -178,7 +178,7 @@ describe('quarantineStore', () => {
   it('allow removes signal from visible items on success', async () => {
     mockBothCalls([mockSignal({ signalId: 'sig_1' }), mockSignal({ signalId: 'sig_2' })], [])
     const store = useQuarantineStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
 
     vi.mocked(api.quarantineResponse).mockResolvedValue(ok({ thread: { threadId: 'thread-123' }, signal: mockSignal({ status: 'active' }) }))
     const result = await store.allow('sig_1')
@@ -190,7 +190,7 @@ describe('quarantineStore', () => {
   it('allow sets error and returns false on failure', async () => {
     mockBothCalls([mockSignal()], [])
     const store = useQuarantineStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
 
     vi.mocked(api.quarantineResponse).mockResolvedValue(err(new ApiError(500, 'Failed')))
     const result = await store.allow('sig_1')
@@ -202,7 +202,7 @@ describe('quarantineStore', () => {
   it('reject removes signal from list on success', async () => {
     mockBothCalls([mockSignal({ signalId: 'sig_1' })], [])
     const store = useQuarantineStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
 
     vi.mocked(api.quarantineResponse).mockResolvedValue(ok({ signal: mockSignal({ status: 'block_hidden' }) }))
     const result = await store.reject('sig_1')
@@ -214,7 +214,7 @@ describe('quarantineStore', () => {
   it('reject sets error and returns false on failure', async () => {
     mockBothCalls([mockSignal()], [])
     const store = useQuarantineStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
 
     vi.mocked(api.quarantineResponse).mockResolvedValue(err(new ApiError(500, 'Failed')))
     const result = await store.reject('sig_1')
@@ -226,7 +226,7 @@ describe('quarantineStore', () => {
   it('actionPending tracks in-flight signal ids', async () => {
     mockBothCalls([mockSignal()], [])
     const store = useQuarantineStore()
-    await store.fetchSignals(true)
+    await store.fetchSignals()
 
     let resolve!: () => void
     vi.mocked(api.quarantineResponse).mockReturnValue(
@@ -239,14 +239,6 @@ describe('quarantineStore', () => {
     resolve()
     await p
     expect(store.actionPending.has('sig_1')).toBe(false)
-  })
-
-  it('setFilters merges filter fields', () => {
-    const store = useQuarantineStore()
-    store.setFilters({ sender: 'test@example.com', after: '2025-01-01' })
-    expect(store.filters.sender).toBe('test@example.com')
-    expect(store.filters.after).toBe('2025-01-01')
-    expect(store.filters.before).toBe('')
   })
 
   it('clearError resets error', () => {
@@ -276,7 +268,7 @@ describe('stale-while-revalidate', { timeout: 5000 }, () => {
     vi.mocked(api.listQuarantinedSignals)
       .mockResolvedValueOnce(ok({ signals: [mockSignal({ signalId: 'v1' })], pagination: { cursor: null } }))
       .mockResolvedValueOnce(ok({ signals: [mockSignal({ signalId: 'h1', status: 'quarantine_hidden' })], pagination: { cursor: null } }))
-    await store.fetchSignals(true)
+    await store.fetchSignals()
     expect(store.quarantineVisible).toHaveLength(1)
 
     vi.mocked(api.listQuarantinedSignals)
@@ -294,7 +286,7 @@ describe('stale-while-revalidate', { timeout: 5000 }, () => {
     vi.mocked(api.listQuarantinedSignals)
       .mockResolvedValueOnce(ok({ signals: [mockSignal({ signalId: 'v_cached' })], pagination: { cursor: null } }))
       .mockResolvedValueOnce(ok({ signals: [mockSignal({ signalId: 'h_cached', status: 'quarantine_hidden' })], pagination: { cursor: null } }))
-    await store.fetchSignals(true)
+    await store.fetchSignals()
     expect(store.quarantineVisible).toHaveLength(1)
 
     vi.mocked(api.listQuarantinedSignals)

@@ -53,12 +53,12 @@ onMounted(async () => {
     // Signal already cached — show immediately, refresh in background
     loading.value = false
     updating.value = true
-    await Promise.all([spamStore.fetchSignals(true), rulesStore.fetchRules()])
+    await Promise.all([spamStore.fetchSignals(), rulesStore.fetchRules()])
     updating.value = false
     notFound.value = !signal.value
   } else {
     loading.value = true
-    await spamStore.fetchSignals(true)
+    await spamStore.fetchSignals()
     await rulesStore.fetchRules()
     loading.value = false
     notFound.value = !signal.value
@@ -66,7 +66,7 @@ onMounted(async () => {
 })
 
 function onSignalReprocessed() {
-  void spamStore.fetchSignals(true)
+  void spamStore.fetchSignals()
 }
 
 const noticeOpen = ref(false)
@@ -93,7 +93,7 @@ async function onDelete() {
         "The server couldn\u2019t delete this blocked email. This action may not be available yet, or the email may have already been removed.\n\nBlocked emails are cleared automatically once they pass your account\u2019s retention window \u2014 so there\u2019s nothing you need to do to keep the list tidy. To stop similar emails in future, adjust the matching rule or the sender\u2019s policy.",
     }
     noticeOpen.value = true
-    void spamStore.fetchSignals(true)
+    void spamStore.fetchSignals()
     return
   }
   void router.push('/spam')

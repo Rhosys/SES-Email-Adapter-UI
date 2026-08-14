@@ -13,10 +13,13 @@ const store = useSpamStore()
 useRelativeTime()
 
 const loading = ref(true)
+const loadingMore = ref(false)
 
 const hasData = computed(
   () => store.blockHidden.length > 0 || store.blockReject.length > 0,
 )
+
+const filters = ref<SpamFilters>(filtersFromQuery())
 
 function filtersFromQuery(): SpamFilters {
   const { sender, after, before } = route.query
@@ -28,29 +31,31 @@ function filtersFromQuery(): SpamFilters {
   }
 }
 
-async function doFetch(filters: SpamFilters) {
+async function doFetch() {
   if (hasData.value) loading.value = false
-  store.setFilters(filters)
-  await store.fetchSignals(true)
+  await store.fetchSignals(filters.value)
   loading.value = false
 }
 
 onMounted(async () => {
-  await doFetch(filtersFromQuery())
+  await doFetch()
 })
 
 async function onUpdateFilters(next: Partial<SpamFilters>) {
-  const merged = { ...store.filters, ...next }
+  filters.value = { ...filters.value, ...next }
   const query: Record<string, string> = {}
-  if (merged.sender) query.sender = merged.sender
-  if (merged.after) query.after = merged.after
-  if (merged.before) query.before = merged.before
+  if (filters.value.sender) query.sender = filters.value.sender
+  if (filters.value.after) query.after = filters.value.after
+  if (filters.value.before) query.before = filters.value.before
   void router.replace({ query })
-  await doFetch(merged)
+  await doFetch()
 }
 
 async function loadMore() {
-  await store.fetchMore()
+  if (loadingMore.value) return
+  loadingMore.value = true
+  await store.fetchMore(filters.value)
+  loadingMore.value = false
 }
 </script>
 
@@ -63,7 +68,7 @@ async function loadMore() {
       </p>
     </header>
 
-    <QuarantineFilters :filters="store.filters" @update="onUpdateFilters" />
+    <QuarantineFilters :filters="filters" @update="onUpdateFilters" />
 
     <main class="mx-auto max-w-4xl">
       <!-- Error -->
@@ -132,11 +137,11 @@ async function loadMore() {
         <!-- Load more -->
         <div v-if="store.hasMore" class="flex justify-center py-6">
           <button
-            :disabled="store.loadingMore"
+            :disabled="loadingMore"
             class="rounded bg-ctp-surface0 px-4 py-2 text-sm text-ctp-text hover:bg-ctp-surface1 disabled:opacity-50"
             @click="loadMore"
           >
-            {{ store.loadingMore ? 'Loading…' : 'Load more' }}
+            {{ loadingMore ? 'Loading…' : 'Load more' }}
           </button>
         </div>
       </template>

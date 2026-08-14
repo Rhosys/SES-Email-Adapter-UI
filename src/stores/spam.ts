@@ -21,20 +21,22 @@ function byReceivedDesc(a: BlockedSignal, b: BlockedSignal) {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 }
 
+function toParams(filters: SpamFilters, cursor?: string): QuarantineSignalListParams {
+  const p: QuarantineSignalListParams = { limit: 50 }
+  if (filters.sender) p.sender = filters.sender
+  if (filters.after) p.after = filters.after
+  if (filters.before) p.before = filters.before
+  if (cursor) p.cursor = cursor
+  return p
+}
+
 export const useSpamStore = defineStore('spam', () => {
   const accountStore = useAccountStore()
 
   const _byAccount = ref<Record<string, SpamData>>({})
   const _cursors = ref<Record<string, { hidden?: string; reject?: string }>>({})
-  const loadingMore = ref(false)
   const error = ref<string | null>(null)
   const actionPending = ref<Set<string>>(new Set())
-
-  const filters = ref<SpamFilters>({
-    sender: '',
-    after: '',
-    before: '',
-  })
 
   function _data(id: string): SpamData {
     const raw = _byAccount.value[id]
@@ -80,27 +82,16 @@ export const useSpamStore = defineStore('spam', () => {
     return c?.hidden !== undefined || c?.reject !== undefined
   })
 
-  function buildParams(cursor?: string): QuarantineSignalListParams {
-    const p: QuarantineSignalListParams = { limit: 50 }
-    if (filters.value.sender) p.sender = filters.value.sender
-    if (filters.value.after) p.after = filters.value.after
-    if (filters.value.before) p.before = filters.value.before
-    if (cursor) p.cursor = cursor
-    return p
-  }
-
-  async function fetchSignals(reset = false) {
+  async function fetchSignals(filters: SpamFilters = { sender: '', after: '', before: '' }) {
     const id = accountStore.accountId
     if (!id) return
-    if (reset) {
-      const { [id]: _, ...rest } = _cursors.value
-      _cursors.value = rest
-    }
+    const { [id]: _, ...rest } = _cursors.value
+    _cursors.value = rest
     error.value = null
 
     const [hidResult, rejResult] = await Promise.all([
-      api.listBlockedSignals(id, 'block_hidden', buildParams()),
-      api.listBlockedSignals(id, 'block_reject', buildParams()),
+      api.listBlockedSignals(id, 'block_hidden', toParams(filters)),
+      api.listBlockedSignals(id, 'block_reject', toParams(filters)),
     ])
 
     if (hidResult.isErr()) {
@@ -138,17 +129,15 @@ export const useSpamStore = defineStore('spam', () => {
     }
   }
 
-  async function fetchMore() {
+  async function fetchMore(filters: SpamFilters = { sender: '', after: '', before: '' }) {
     const id = accountStore.accountId
-    if (!id || !hasMore.value || loadingMore.value) return
-    loadingMore.value = true
+    if (!id || !hasMore.value) return
 
     const d = _data(id)
     const c = _cursors.value[id]
 
     if (c?.hidden) {
-      const result = await api.listBlockedSignals(id, 'block_hidden', buildParams(c.hidden))
-      loadingMore.value = false
+      const result = await api.listBlockedSignals(id, 'block_hidden', toParams(filters, c.hidden))
       if (result.isErr()) { error.value = result.error.message; return }
       _byAccount.value = {
         ..._byAccount.value,
@@ -162,8 +151,7 @@ export const useSpamStore = defineStore('spam', () => {
         [id]: { ...c, hidden: result.value.pagination.cursor ?? undefined },
       }
     } else if (c?.reject) {
-      const result = await api.listBlockedSignals(id, 'block_reject', buildParams(c.reject))
-      loadingMore.value = false
+      const result = await api.listBlockedSignals(id, 'block_reject', toParams(filters, c.reject))
       if (result.isErr()) { error.value = result.error.message; return }
       _byAccount.value = {
         ..._byAccount.value,
@@ -176,8 +164,6 @@ export const useSpamStore = defineStore('spam', () => {
         ..._cursors.value,
         [id]: { ...c, reject: result.value.pagination.cursor ?? undefined },
       }
-    } else {
-      loadingMore.value = false
     }
   }
 
@@ -211,10 +197,6 @@ export const useSpamStore = defineStore('spam', () => {
     return null
   }
 
-  function setFilters(next: Partial<SpamFilters>) {
-    filters.value = { ...filters.value, ...next }
-  }
-
   function clearError() {
     error.value = null
   }
@@ -225,14 +207,11 @@ export const useSpamStore = defineStore('spam', () => {
     blockedCount,
     blockedCountHasMore,
     hasMore,
-    loadingMore,
     error,
     actionPending,
-    filters,
     fetchSignals,
     fetchMore,
     deleteSignal,
-    setFilters,
     clearError,
   }
 }, {

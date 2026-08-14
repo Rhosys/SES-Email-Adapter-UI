@@ -51,12 +51,12 @@ onMounted(async () => {
     // Signal already cached — show immediately, refresh in background
     loading.value = false
     updating.value = true
-    await Promise.all([quarantineStore.fetchSignals(true), rulesStore.fetchRules()])
+    await Promise.all([quarantineStore.fetchSignals(), rulesStore.fetchRules()])
     updating.value = false
     notFound.value = !signal.value
   } else {
     loading.value = true
-    await quarantineStore.fetchSignals(true)
+    await quarantineStore.fetchSignals()
     await rulesStore.fetchRules()
     loading.value = false
     notFound.value = !signal.value
@@ -89,7 +89,7 @@ function onReplyAttempt() {
 }
 
 function onSignalReprocessed() {
-  void quarantineStore.fetchSignals(true)
+  void quarantineStore.fetchSignals()
 }
 </script>
 
