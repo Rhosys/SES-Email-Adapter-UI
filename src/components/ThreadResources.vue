@@ -1,56 +1,31 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { api } from '@/lib/api'
 import { useAccountStore } from '@/stores/account'
-import { isAdminUser } from '@/stores/admin'
-import WorkflowIcon from '@/components/WorkflowIcon.vue'
-import ResourceAssetCard from '@/components/ResourceAssetCard.vue'
-import OverflowMenu from '@/components/ui/OverflowMenu.vue'
-import { formatResourceDate, isResourceDatePast } from '@/lib/resourceDate'
-import type { Resource, ResourceStatus, ResourceWorkflow } from '@/types/server'
+import ResourcePanel from '@/components/ResourcePanel.vue'
+import type { Resource, ResourceStatus } from '@/types/server'
 
 const props = defineProps<{ threadId: string }>()
 
 const accountStore = useAccountStore()
 const resources = ref<Resource[]>([])
-const loading = ref(false)
-
-const sortedResources = computed(() =>
-  [...resources.value].sort((a, b) => {
-    if (a.status === 'active' && b.status !== 'active') return -1
-    if (a.status !== 'active' && b.status === 'active') return 1
-    return a.expectedResolutionDate.localeCompare(b.expectedResolutionDate)
-  }),
-)
-
-const workflowLabel: Record<ResourceWorkflow, string> = {
-  package: 'Package',
-  travel: 'Travel',
-  payments: 'Payment',
-  healthcare: 'Healthcare',
-  job: 'Job',
-  events: 'Event',
-}
-
 
 async function fetchResources() {
   const accountId = accountStore.accountId
   if (!accountId) return
-  loading.value = true
   const result = await api.listResourcesByThread(accountId, props.threadId)
-  loading.value = false
   if (result.isOk()) {
     resources.value = result.value.resources
   }
 }
 
-async function setStatus(resourceId: string, status: ResourceStatus) {
+async function handleToggle(resourceId: string, newStatus: ResourceStatus) {
   const accountId = accountStore.accountId
   if (!accountId) return
-  resources.value = resources.value.map(r =>
-    r.resourceId === resourceId ? { ...r, status } : r,
+  resources.value = resources.value.map((r) =>
+    r.resourceId === resourceId ? { ...r, status: newStatus } : r,
   )
-  const result = await api.patchResource(accountId, resourceId, { status })
+  const result = await api.patchResource(accountId, resourceId, { status: newStatus })
   if (result.isErr()) {
     await fetchResources()
   }
@@ -59,110 +34,13 @@ async function setStatus(resourceId: string, status: ResourceStatus) {
 onMounted(() => {
   void fetchResources()
 })
-
-const viewingResource = ref<Resource | null>(null)
-const resourceObjectJson = computed(() => (viewingResource.value ? JSON.stringify(viewingResource.value, null, 2) : ''))
-const resourceObjectCopied = ref(false)
-
-function showResourceObject(resource: Resource) {
-  viewingResource.value = resource
-}
-
-function copyResourceObject() {
-  if (!resourceObjectJson.value) return
-  void navigator.clipboard.writeText(resourceObjectJson.value).then(() => {
-    resourceObjectCopied.value = true
-    setTimeout(() => { resourceObjectCopied.value = false }, 1500)
-  })
-}
 </script>
 
 <template>
   <div v-if="resources.length > 0" class="mb-6 rounded-lg border border-ctp-surface0 bg-ctp-mantle p-4">
-    <div class="space-y-2">
-      <div
-        v-for="resource in sortedResources"
-        :key="resource.resourceId"
-        class="group flex items-start gap-3 rounded-md border border-ctp-surface0 bg-ctp-base p-3 transition-colors hover:border-ctp-surface1"
-      >
-        <WorkflowIcon :workflow="resource.workflow as any" class="mt-0.5 shrink-0" />
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-medium text-ctp-text">
-                {{ workflowLabel[resource.workflow] || resource.workflow }}
-              </span>
-              <span
-                v-if="resource.status === 'complete'"
-                class="inline-block rounded-full bg-ctp-green/15 px-2 py-0.5 text-[10px] font-medium text-ctp-green"
-              >
-                Completed
-              </span>
-            </div>
-            <span
-              class="text-xs"
-              :class="resource.status === 'active' && isResourceDatePast(resource.displayDate ?? resource.expectedResolutionDate) ? 'font-medium text-ctp-red' : 'text-ctp-subtext0'"
-            >
-              {{ formatResourceDate(resource.displayDate ?? resource.expectedResolutionDate) }}
-            </span>
-          </div>
-
-          <!-- Metadata row -->
-          <div v-if="resource.resolvedAt || resource.createdAt" class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-ctp-subtext0">
-            <span v-if="resource.createdAt">Created {{ formatResourceDate(resource.createdAt) }}</span>
-            <span v-if="resource.resolvedAt">Resolved {{ formatResourceDate(resource.resolvedAt) }}</span>
-          </div>
-
-          <!-- Assets -->
-          <div v-if="resource.assets.length > 0" class="mt-2 space-y-1.5">
-            <ResourceAssetCard
-              v-for="(asset, idx) in resource.assets"
-              :key="idx"
-              :asset="asset"
-            />
-          </div>
-        </div>
-        <!-- Overflow menu: resource actions -->
-        <OverflowMenu
-          class="shrink-0"
-          label="Resource actions"
-          sheet-title="Resource actions"
-          trigger-class="flex h-8 w-8 items-center justify-center rounded text-ctp-subtext0 opacity-0 transition-opacity hover:bg-ctp-surface0 hover:text-ctp-text group-hover:opacity-100"
-        >
-          <button
-            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
-            role="menuitem"
-            @click="setStatus(resource.resourceId, resource.status === 'active' ? 'complete' : 'active')"
-          >
-            {{ resource.status === 'active' ? 'Mark complete' : 'Mark active' }}
-          </button>
-          <button
-            v-if="isAdminUser()"
-            class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ctp-subtext1 hover:bg-ctp-surface0 hover:text-ctp-text"
-            role="menuitem"
-            @click="showResourceObject(resource)"
-          >
-            Show resource
-          </button>
-        </OverflowMenu>
-      </div>
-    </div>
+    <ResourcePanel
+      :resources="resources"
+      @toggle-status="handleToggle"
+    />
   </div>
-
-  <!-- Resource object modal -->
-  <Teleport to="body">
-    <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -->
-    <div v-if="viewingResource" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80" @click.self="viewingResource = null">
-      <div class="relative max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl border border-ctp-surface1 bg-ctp-mantle p-4 shadow-2xl">
-        <div class="mb-3 flex items-center justify-between">
-          <h3 class="text-sm font-semibold text-ctp-text">Resource object</h3>
-          <div class="flex items-center gap-3">
-            <button class="text-xs text-ctp-subtext0 hover:text-ctp-mauve" @click="copyResourceObject">{{ resourceObjectCopied ? '✓ Copied' : 'Copy' }}</button>
-            <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="viewingResource = null">Close</button>
-          </div>
-        </div>
-        <pre class="overflow-auto rounded-lg bg-ctp-base p-3 font-mono text-xs text-ctp-text break-all whitespace-pre-wrap">{{ resourceObjectJson }}</pre>
-      </div>
-    </div>
-  </Teleport>
 </template>
