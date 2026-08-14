@@ -23,6 +23,7 @@ import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import CopyMenuItem from '@/components/CopyMenuItem.vue'
 import OverflowMenu from '@/components/ui/OverflowMenu.vue'
+import SnoozeMenu from '@/components/SnoozeMenu.vue'
 import SenderInfoPopup from '@/components/SenderInfoPopup.vue'
 import type { Thread } from '@/types/server'
 
@@ -48,6 +49,14 @@ function handleSenderPopupClickOutside(e: MouseEvent) {
 }
 
 const threadId = computed(() => route.params.id as string)
+
+const snoozedAnnotation = computed(() => {
+  const t = threadData.value ?? threadsStore.getThread(threadId.value)
+  if (!t?.followupAt || t.status !== 'active') return null
+  const followup = new Date(t.followupAt)
+  if (followup.getTime() > Date.now()) return null
+  return `This thread was snoozed and resurfaced at ${followup.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+})
 
 const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalsStore.items)))
 
@@ -184,6 +193,17 @@ async function archive() {
     },
     8_000,
     { submessage: summary ? summary.slice(0, 70) : undefined },
+  )
+  void router.push('/')
+}
+
+async function snooze(isoTime: string) {
+  const result = await threadsStore.snoozeThread(threadId.value, isoTime)
+  if (result.isErr()) return
+  showUndo(
+    'Thread snoozed',
+    async () => { await threadsStore.moveToInbox(threadId.value) },
+    8_000,
   )
   void router.push('/')
 }
@@ -348,6 +368,7 @@ async function removeLabel(label: string) {
           </svg>
           Unsubscribe
         </AsyncButton>
+        <SnoozeMenu v-if="thread.status === 'active'" @snooze="snooze" />
         <AsyncButton
           v-if="thread.status === 'active'"
           :action="archive"
@@ -525,6 +546,10 @@ async function removeLabel(label: string) {
           :key="group.workflow"
           :workflow-group="group"
         />
+      </div>
+
+      <div v-if="snoozedAnnotation" class="mx-4 mb-3 rounded-lg border border-ctp-yellow/30 bg-ctp-yellow/5 px-3 py-2 text-sm text-ctp-yellow">
+        {{ snoozedAnnotation }}
       </div>
 
       <!-- Resources associated with this thread -->

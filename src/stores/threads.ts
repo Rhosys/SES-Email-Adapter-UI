@@ -299,6 +299,16 @@ export const useThreadsStore = defineStore('threads', () => {
     return setStatus(threadId, 'archived')
   }
 
+  async function snoozeThread(threadId: string, followupAt: string): Promise<Result<Thread, ApiError | NoCurrentAccountError>> {
+    const id = accountStore.accountId
+    if (!id) return err(new NoCurrentAccountError())
+    _patchThreadLocal(threadId, { status: 'archived' })
+    const result = await api.patchThread(id, threadId, { status: 'archived', followupAt })
+    if (result.isErr()) return err(result.error)
+    _upsertThread(result.value)
+    return ok(result.value)
+  }
+
   function moveToInbox(threadId: string) {
     return setStatus(threadId, 'active')
   }
@@ -349,6 +359,7 @@ export const useThreadsStore = defineStore('threads', () => {
     bulkLabel,
     setStatus,
     archiveThread,
+    snoozeThread,
     moveToInbox,
     deleteThread,
     labelThread,

@@ -33,6 +33,15 @@ const isRecent = computed(() => {
   return Date.now() - new Date(props.thread.lastSignalAt).getTime() < RECENCY_WINDOW_MS
 })
 
+const snoozeBadge = computed(() => {
+  if (!props.thread.followupAt || props.thread.status !== 'active') return null
+  const followup = new Date(props.thread.followupAt)
+  if (followup.getTime() > Date.now()) return null
+  const today = new Date()
+  if (followup.toDateString() === today.toDateString()) return 'Snoozed until today'
+  return `Snoozed until ${followup.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+})
+
 const mergedWorkflowGroup = computed((): WorkflowGroup | null => {
   if (!isRecent.value) return null
   const signals = signalsStore.threadSignals(props.thread.threadId)
@@ -58,6 +67,7 @@ function labelColor(key: string): string {
       <!-- Pending sends sit in an undo window before they actually leave, but from
            the user's point of view the reply is already sent. -->
       <span v-if="hasPendingSend" class="shrink-0 rounded-full bg-ctp-green/15 px-1.5 py-0.5 text-xs text-ctp-green">Sent</span>
+      <span v-if="snoozeBadge" class="shrink-0 rounded-full bg-ctp-yellow/15 px-1.5 py-0.5 text-xs text-ctp-yellow">{{ snoozeBadge }}</span>
       <span class="ml-auto shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
     </div>
     <div class="mt-0.5 text-[15px] text-ctp-subtext1 sm:text-sm">{{ thread.subject || thread.summary }}</div>

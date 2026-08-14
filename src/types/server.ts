@@ -138,6 +138,7 @@ export interface Thread {
   updatedAt: string
   retentionDuration?: RetentionDuration
   urgency?: ThreadUrgency
+  followupAt?: string
   // Denormalised from latest inbound signal
   sender: { address: string; name?: string }
   recipientAddress?: string

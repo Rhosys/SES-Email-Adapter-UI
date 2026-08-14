@@ -3,6 +3,7 @@ import type { Thread } from '@/types/server'
 import { useThreadsStore } from '@/stores/threads'
 import ThreadRowContent from './ThreadRowContent.vue'
 import SwipeableThreadRow from './SwipeableThreadRow.vue'
+import SnoozeMenu from './SnoozeMenu.vue'
 
 const props = defineProps<{ thread: Thread; selected: boolean; focused?: boolean }>()
 const emit = defineEmits<{ 'toggle-select': [id: string] }>()
@@ -12,6 +13,10 @@ const threadsStore = useThreadsStore()
 async function archiveThread(close?: () => void) {
   close?.()
   await threadsStore.archiveThread(props.thread.threadId)
+}
+
+async function snooze(isoTime: string) {
+  await threadsStore.snoozeThread(props.thread.threadId, isoTime)
 }
 </script>
 
@@ -39,8 +44,9 @@ async function archiveThread(close?: () => void) {
 
       <ThreadRowContent :thread="thread" />
 
-      <!-- Archive action (hover, desktop) -->
+      <!-- Archive + Snooze actions (hover, desktop) -->
       <div class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <SnoozeMenu @snooze="snooze" />
         <button
           class="flex h-7 items-center gap-1 rounded border border-ctp-surface1 px-2 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
           title="Archive"
