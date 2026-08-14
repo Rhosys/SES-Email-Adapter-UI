@@ -22,13 +22,22 @@ function canonicalize(data: WorkflowData): string {
   return JSON.stringify(clean)
 }
 
+function isPrefixMatch(a: string, b: string): boolean {
+  const la = a.toLowerCase()
+  const lb = b.toLowerCase()
+  return lb.startsWith(la) || la.startsWith(lb)
+}
+
 function areMergeCompatible(a: WorkflowData, b: WorkflowData): boolean {
   const ra = a as unknown as Record<string, unknown>
   const rb = b as unknown as Record<string, unknown>
   for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
     const va = ra[key]
     const vb = rb[key]
-    if (va != null && vb != null && JSON.stringify(va) !== JSON.stringify(vb)) return false
+    if (va != null && vb != null && JSON.stringify(va) !== JSON.stringify(vb)) {
+      if (typeof va === "string" && typeof vb === "string" && isPrefixMatch(va, vb)) continue
+      return false
+    }
   }
   return true
 }
@@ -38,7 +47,13 @@ function mergeEntries(older: WorkflowData, newer: WorkflowData): WorkflowData {
   const rn = newer as unknown as Record<string, unknown>
   const merged: Record<string, unknown> = {}
   for (const key of new Set([...Object.keys(older), ...Object.keys(newer)])) {
-    merged[key] = rn[key] ?? ro[key]
+    const vo = ro[key]
+    const vn = rn[key]
+    if (typeof vo === "string" && typeof vn === "string" && vo !== vn) {
+      merged[key] = vo.length > vn.length ? vo : vn
+    } else {
+      merged[key] = vn ?? vo
+    }
   }
   return merged as unknown as WorkflowData
 }
