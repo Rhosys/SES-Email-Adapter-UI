@@ -8,6 +8,7 @@ import { useToast } from '@/composables/useToast'
 import { useDeferredHide } from '@/composables/useDeferredHide'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
+import { DateTime } from 'luxon'
 import { retentionExpiresAt } from '@/lib/retention'
 import { groupByBodyFingerprint, attachLinkedSignals } from '@/lib/dedup'
 import { aggregateWorkflowPanels } from '@/lib/workflow-aggregator'
@@ -124,6 +125,14 @@ function observeSignals() {
 
 function scrollToPreserved() {
   if (!topVisibleSignalId || !signalListRef.value) return
+
+  // Only auto-scroll if the preserved signal arrived within the last 30 minutes
+  const signal = signalsStore.items.find(s => s.signalId === topVisibleSignalId)
+  if (signal) {
+    const ts = isInboundEmailSignal(signal) ? signal.data.receivedAt : signal.createdAt
+    if (DateTime.fromISO(ts).diffNow().negate().as('minutes') > 30) return
+  }
+
   const el = signalListRef.value.querySelector(`[data-signal-id="${topVisibleSignalId}"]`)
   if (el) {
     el.scrollIntoView({ block: 'center', behavior: 'smooth' })
