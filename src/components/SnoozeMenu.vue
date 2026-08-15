@@ -84,6 +84,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
       <svg class="h-3 w-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
         <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 1.5a5.5 5.5 0 110 11 5.5 5.5 0 010-11zM7.25 4v4.5l3.5 2.1.75-1.23-2.75-1.64V4h-1.5z"/>
       </svg>
+      <span>Snooze</span>
     </button>
 
     <!-- Desktop: anchored popover -->

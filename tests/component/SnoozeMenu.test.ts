@@ -41,7 +41,7 @@ describe('SnoozeMenu — desktop popover', () => {
     const wrapper = mount(SnoozeMenu, { attachTo: document.body })
     await wrapper.find('button[title="Snooze"]').trigger('click')
 
-    const confirmBefore = wrapper.findAll('button').find((b) => b.text() === 'Snooze')!
+    const confirmBefore = wrapper.find('[role="dialog"]').findAll('button').find((b) => b.text() === 'Snooze')!
     expect(confirmBefore.attributes('disabled')).toBeDefined()
 
     // Pick the first enabled (non-disabled) calendar day.
