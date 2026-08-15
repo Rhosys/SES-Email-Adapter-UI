@@ -6,7 +6,7 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import ThreadDetailView from '@/views/ThreadDetailView.vue'
 import { useAccountStore } from '@/stores/account'
 import { useToast } from '@/composables/useToast'
-import type { Thread, Signal } from '@/types/server'
+import type { Thread, Signal, Workflow } from '@/types/server'
 
 Element.prototype.scrollIntoView = vi.fn()
 
@@ -82,6 +82,33 @@ function mockEmailSignal(overrides: Partial<Signal> = {}): Signal {
       spamScore: 0,
     },
     ...overrides,
+  } as Signal
+}
+
+function mockUnsubscribableSignal(workflow: Workflow, workflowData: unknown): Signal {
+  return {
+    signalId: 'sig_1',
+    threadId: 'thread_1',
+    type: 'email',
+    source: 'system',
+    status: 'active',
+    createdAt: '2025-01-01T12:00:00Z',
+    data: {
+      receivedAt: '2025-01-01T12:00:00Z',
+      summary: 'Test',
+      from: { address: 'sender@example.com', name: 'Sender' },
+      to: [{ address: 'inbox@example.com' }],
+      cc: [],
+      subject: 'Test subject',
+      body: 'Hello',
+      attachments: [],
+      headers: {},
+      recipientAddress: 'inbox@example.com',
+      spamScore: 0,
+      unsubscribe: { type: 'server', url: 'https://example.com/unsub' },
+      workflow,
+      workflowData,
+    },
   } as Signal
 }
 
@@ -314,14 +341,7 @@ describe('ThreadDetailView — unsubscribe', () => {
 
   it('shows the unsubscribe action inside the workflow panel, not the top action bar', async () => {
     const thread = makeThread()
-    const signal = mockEmailSignal({
-      data: {
-        ...mockEmailSignal().data,
-        workflow: 'content',
-        workflowData: { contentType: 'newsletter', publisher: 'Acme Weekly' },
-        unsubscribe: { url: 'https://example.com/unsub' },
-      },
-    })
+    const signal = mockUnsubscribableSignal('content', { contentType: 'newsletter', publisher: 'Acme Weekly' })
     const wrapper = await mountView(thread, [signal])
 
     const topBar = wrapper.find('.mb-4.flex.items-center.justify-between')
@@ -335,14 +355,7 @@ describe('ThreadDetailView — unsubscribe', () => {
 
   it('shows a standalone unsubscribe panel when no workflow panel is displayed', async () => {
     const thread = makeThread()
-    const signal = mockEmailSignal({
-      data: {
-        ...mockEmailSignal().data,
-        workflow: 'conversation',
-        workflowData: { sentiment: 'neutral', requiresReply: false },
-        unsubscribe: { url: 'https://example.com/unsub' },
-      },
-    })
+    const signal = mockUnsubscribableSignal('conversation', { sentiment: 'neutral', requiresReply: false })
     const wrapper = await mountView(thread, [signal])
 
     const unsubscribeButton = wrapper.findAll('button').find((b) => b.text().includes('Unsubscribe'))
@@ -353,14 +366,7 @@ describe('ThreadDetailView — unsubscribe', () => {
   it('unsubscribes after confirmation and navigates back to the inbox', async () => {
     vi.mocked(api.unsubscribeThread).mockResolvedValue(ok({ status: 'unsubscribed' }))
     const thread = makeThread()
-    const signal = mockEmailSignal({
-      data: {
-        ...mockEmailSignal().data,
-        workflow: 'content',
-        workflowData: { contentType: 'newsletter', publisher: 'Acme Weekly' },
-        unsubscribe: { url: 'https://example.com/unsub' },
-      },
-    })
+    const signal = mockUnsubscribableSignal('content', { contentType: 'newsletter', publisher: 'Acme Weekly' })
     const wrapper = await mountView(thread, [signal])
 
     const unsubscribeButton = wrapper.findAll('button').find((b) => b.text().includes('Unsubscribe'))!
