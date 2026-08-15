@@ -67,6 +67,8 @@ const workflowGroups = computed(() => aggregateWorkflowPanels(dedupedSignals.val
 
 const hasVisibleWorkflowPanel = computed(() => workflowGroups.value.some((group) => groupHasVisibleEntries(group)))
 
+const firstVisibleWorkflowIndex = computed(() => workflowGroups.value.findIndex((group) => groupHasVisibleEntries(group)))
+
 // Sender domain to block, derived from the thread's denormalised sender address
 const senderDomain = computed(() => {
   const sender = thread.value?.sender?.address
@@ -545,13 +547,14 @@ async function removeLabel(label: string) {
       </RouterLink>
 
       <!-- Workflow panels (stacked, grouped by type) — the unsubscribe action, when
-           available, is rendered as part of each panel rather than a separate button. -->
+           available, is attached to the first visible panel only, so it never repeats
+           across multiple workflow panels on the same thread. -->
       <div v-if="hasVisibleWorkflowPanel" class="mb-6 space-y-3">
         <WorkflowPanel
-          v-for="group in workflowGroups"
+          v-for="(group, i) in workflowGroups"
           :key="group.workflow"
           :workflow-group="group"
-          :unsubscribe-action="canUnsubscribe ? unsubscribe : undefined"
+          :unsubscribe-action="canUnsubscribe && i === firstVisibleWorkflowIndex ? unsubscribe : undefined"
         />
       </div>
 

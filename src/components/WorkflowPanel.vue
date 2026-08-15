@@ -109,7 +109,9 @@ const showUnsubscribeFooter = computed(() =>
       <EventsPanel v-else-if="resolvedGroup!.workflow === 'events'" :data="narrowWorkflowData('events', visibleEntries[0].entry)" />
       <TestPanel v-else-if="resolvedGroup!.workflow === 'test'" :data="narrowWorkflowData('test', visibleEntries[0].entry)" :compact="compact" />
     </template>
-    <div v-if="showUnsubscribeFooter" class="mt-2 flex items-center justify-between gap-3 rounded-lg border border-ctp-surface1 bg-ctp-mantle px-4 py-2.5">
+    <!-- Attached to the panel above via a top divider rather than its own bordered
+         box, so it reads as part of that panel instead of a second, separate one. -->
+    <div v-if="showUnsubscribeFooter" class="mt-2 flex items-center justify-between gap-3 border-t border-ctp-surface1 px-1 pt-2">
       <span class="text-xs text-ctp-subtext0">Don't want emails like this?</span>
       <AsyncButton
         :action="unsubscribeAction!"
