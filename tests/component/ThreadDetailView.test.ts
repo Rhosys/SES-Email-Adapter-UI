@@ -25,6 +25,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
       listExternalExchanges: vi.fn(),
       listResourcesByThread: vi.fn(),
       patchResource: vi.fn(),
+      unsubscribeThread: vi.fn(),
     },
   }
 })
@@ -291,6 +292,86 @@ describe('ThreadDetailView — signal count badge', () => {
     expect(badge!.text().trim()).toBe('2 Signals')
     expect(badge!.classes()).toContain('bg-ctp-surface1')
     expect(badge!.classes()).toContain('text-ctp-subtext0')
+  })
+})
+
+describe('ThreadDetailView — unsubscribe', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    vi.clearAllMocks()
+
+    const accountStore = useAccountStore()
+    accountStore.account = {
+      accountId: 'acc_1',
+      name: 'Test',
+      filtering: { defaultUnknownSenderPolicy: 'quarantine_visible' },
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-01T00:00:00Z',
+    }
+    vi.mocked(api.listAccounts).mockResolvedValue(ok([accountStore.account]))
+  })
+
+  it('shows the unsubscribe action inside the workflow panel, not the top action bar', async () => {
+    const thread = makeThread()
+    const signal = mockEmailSignal({
+      data: {
+        ...mockEmailSignal().data,
+        workflow: 'content',
+        workflowData: { contentType: 'newsletter', publisher: 'Acme Weekly' },
+        unsubscribe: { url: 'https://example.com/unsub' },
+      },
+    })
+    const wrapper = await mountView(thread, [signal])
+
+    const topBar = wrapper.find('.mb-4.flex.items-center.justify-between')
+    expect(topBar.text()).not.toContain('Unsubscribe')
+
+    const unsubscribeButton = wrapper.findAll('button').find((b) => b.text().includes('Unsubscribe'))
+    expect(unsubscribeButton).toBeTruthy()
+    // Nested inside the workflow-panel section, alongside the publisher's content.
+    expect(unsubscribeButton!.element.closest('.mb-6')?.textContent).toContain('Acme Weekly')
+  })
+
+  it('shows a standalone unsubscribe panel when no workflow panel is displayed', async () => {
+    const thread = makeThread()
+    const signal = mockEmailSignal({
+      data: {
+        ...mockEmailSignal().data,
+        workflow: 'conversation',
+        workflowData: { sentiment: 'neutral', requiresReply: false },
+        unsubscribe: { url: 'https://example.com/unsub' },
+      },
+    })
+    const wrapper = await mountView(thread, [signal])
+
+    const unsubscribeButton = wrapper.findAll('button').find((b) => b.text().includes('Unsubscribe'))
+    expect(unsubscribeButton).toBeTruthy()
+    expect(wrapper.text()).toContain('one-click unsubscribe')
+  })
+
+  it('unsubscribes after confirmation and navigates back to the inbox', async () => {
+    vi.mocked(api.unsubscribeThread).mockResolvedValue(ok({ status: 'unsubscribed' }))
+    const thread = makeThread()
+    const signal = mockEmailSignal({
+      data: {
+        ...mockEmailSignal().data,
+        workflow: 'content',
+        workflowData: { contentType: 'newsletter', publisher: 'Acme Weekly' },
+        unsubscribe: { url: 'https://example.com/unsub' },
+      },
+    })
+    const wrapper = await mountView(thread, [signal])
+
+    const unsubscribeButton = wrapper.findAll('button').find((b) => b.text().includes('Unsubscribe'))!
+    await unsubscribeButton.trigger('click')
+    await flushPromises()
+
+    const confirmButton = wrapper.findAll('button').find((b) => b.text() === 'Unsubscribe' && b.classes().includes('bg-ctp-red'))!
+    await confirmButton.trigger('click')
+    await flushPromises()
+
+    expect(api.unsubscribeThread).toHaveBeenCalledWith('acc_1', 'thread_1')
   })
 })
 

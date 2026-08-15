@@ -12,10 +12,12 @@ import { DateTime } from 'luxon'
 import { retentionExpiresAt } from '@/lib/retention'
 import { groupByBodyFingerprint, attachLinkedSignals } from '@/lib/dedup'
 import { aggregateWorkflowPanels } from '@/lib/workflow-aggregator'
+import { groupHasVisibleEntries } from '@/lib/workflow-visibility'
 import { visibleLabels, findLabelMeta } from '@/lib/labels'
 import { useLabelsStore } from '@/stores/labels'
 import { api } from '@/lib/api'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
+import UnsubscribePanel from '@/components/panels/UnsubscribePanel.vue'
 import ThreadResources from '@/components/ThreadResources.vue'
 import SignalRenderer from '@/components/SignalRenderer.vue'
 import DraftSignalCard from '@/components/DraftSignalCard.vue'
@@ -62,6 +64,8 @@ const snoozedAnnotation = computed(() => {
 const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalsStore.items)))
 
 const workflowGroups = computed(() => aggregateWorkflowPanels(dedupedSignals.value))
+
+const hasVisibleWorkflowPanel = computed(() => workflowGroups.value.some((group) => groupHasVisibleEntries(group)))
 
 // Sender domain to block, derived from the thread's denormalised sender address
 const senderDomain = computed(() => {
@@ -236,6 +240,8 @@ const hasUnsubscribe = computed(() =>
   signalsStore.items.some((s) => isInboundEmailSignal(s) && s.data.unsubscribe),
 )
 
+const canUnsubscribe = computed(() => hasUnsubscribe.value && thread.value?.status === 'active')
+
 async function deleteThread() {
   const confirmed = await confirmAction({
     title: 'Delete thread',
@@ -367,16 +373,6 @@ async function removeLabel(label: string) {
       </RouterLink>
 
       <div v-if="thread" class="flex items-center gap-2">
-        <AsyncButton
-          v-if="hasUnsubscribe && thread.status === 'active'"
-          :action="unsubscribe"
-          class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-peach hover:text-ctp-peach"
-        >
-          <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM4.5 7.5h7v1h-7v-1z"/>
-          </svg>
-          Unsubscribe
-        </AsyncButton>
         <SnoozeMenu v-if="thread.status === 'active'" @snooze="snooze" />
         <AsyncButton
           v-if="thread.status === 'active'"
@@ -548,13 +544,20 @@ async function removeLabel(label: string) {
         ⚠ {{ retentionMessage }}
       </RouterLink>
 
-      <!-- Workflow panels (stacked, grouped by type) -->
-      <div v-if="workflowGroups.length > 0" class="mb-6 space-y-3">
+      <!-- Workflow panels (stacked, grouped by type) — the unsubscribe action, when
+           available, is rendered as part of each panel rather than a separate button. -->
+      <div v-if="hasVisibleWorkflowPanel" class="mb-6 space-y-3">
         <WorkflowPanel
           v-for="group in workflowGroups"
           :key="group.workflow"
           :workflow-group="group"
+          :unsubscribe-action="canUnsubscribe ? unsubscribe : undefined"
         />
+      </div>
+
+      <!-- No workflow panel to attach it to, but a sender-level unsubscribe is available -->
+      <div v-else-if="canUnsubscribe" class="mb-6">
+        <UnsubscribePanel :action="unsubscribe" />
       </div>
 
       <div v-if="snoozedAnnotation" class="mx-4 mb-3 rounded-lg border border-ctp-yellow/30 bg-ctp-yellow/5 px-3 py-2 text-sm text-ctp-yellow">
