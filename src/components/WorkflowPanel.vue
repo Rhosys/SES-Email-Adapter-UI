@@ -74,8 +74,8 @@ const showUnsubscribeFooter = computed(() =>
 
 <template>
   <div v-if="visibleEntries.length > 0">
-    <div v-if="visibleEntries.length > 1" class="space-y-2">
-      <div v-for="({ entry, idx }) in visibleEntries" :key="idx" class="rounded-md border border-ctp-surface0 bg-ctp-base p-3">
+    <div v-if="visibleEntries.length > 1" class="space-y-2 rounded-md border border-ctp-surface0 bg-ctp-base p-3">
+      <template v-for="({ entry, idx }) in visibleEntries" :key="idx">
         <AuthPanel v-if="resolvedGroup!.workflow === 'auth'" :data="narrowWorkflowData('auth', entry)" :actions="actionsForEntry(idx)" :received-at="receivedAt" :compact="compact" />
         <ConversationPanel v-else-if="resolvedGroup!.workflow === 'conversation'" :data="narrowWorkflowData('conversation', entry)" :compact="compact" />
         <CrmPanel v-else-if="resolvedGroup!.workflow === 'crm'" :data="narrowWorkflowData('crm', entry)" :compact="compact" />
@@ -90,9 +90,9 @@ const showUnsubscribeFooter = computed(() =>
         <SupportPanel v-else-if="resolvedGroup!.workflow === 'support'" :data="narrowWorkflowData('support', entry)" :compact="compact" />
         <EventsPanel v-else-if="resolvedGroup!.workflow === 'events'" :data="narrowWorkflowData('events', entry)" />
         <TestPanel v-else-if="resolvedGroup!.workflow === 'test'" :data="narrowWorkflowData('test', entry)" :compact="compact" />
-      </div>
+      </template>
     </div>
-    <div v-else class="rounded-md border border-ctp-surface0 bg-ctp-base p-3">
+    <template v-else>
       <AuthPanel v-if="resolvedGroup!.workflow === 'auth'" :data="narrowWorkflowData('auth', visibleEntries[0].entry)" :actions="entryActions" :received-at="receivedAt" :compact="compact" />
       <ConversationPanel v-else-if="resolvedGroup!.workflow === 'conversation'" :data="narrowWorkflowData('conversation', visibleEntries[0].entry)" :compact="compact" />
       <CrmPanel v-else-if="resolvedGroup!.workflow === 'crm'" :data="narrowWorkflowData('crm', visibleEntries[0].entry)" :compact="compact" />
@@ -107,7 +107,7 @@ const showUnsubscribeFooter = computed(() =>
       <SupportPanel v-else-if="resolvedGroup!.workflow === 'support'" :data="narrowWorkflowData('support', visibleEntries[0].entry)" :compact="compact" />
       <EventsPanel v-else-if="resolvedGroup!.workflow === 'events'" :data="narrowWorkflowData('events', visibleEntries[0].entry)" />
       <TestPanel v-else-if="resolvedGroup!.workflow === 'test'" :data="narrowWorkflowData('test', visibleEntries[0].entry)" :compact="compact" />
-    </div>
+    </template>
     <!-- Attached to the panel above via a top divider rather than its own bordered
          box, so it reads as part of that panel instead of a second, separate one. -->
     <div v-if="showUnsubscribeFooter" class="mt-2 flex items-center justify-between gap-3 border-t border-ctp-surface1 px-1 pt-2">
