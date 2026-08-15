@@ -3,6 +3,7 @@
  * No service worker, no MSW, no browser registration.
  * Just matches URL patterns and returns mock JSON.
  */
+import type { Thread } from '@/types/server'
 import { mockAccounts } from './data/accounts'
 import { mockThreads } from './data/threads'
 import { mockSignals } from './data/signals'
@@ -84,8 +85,17 @@ export async function handleMockRequest(method: string, url: string, body?: unkn
   }
 
   // PATCH /accounts/:accountId/threads/:threadId
-  if (method === 'PATCH' && match('/accounts/:accountId/threads/:threadId', url)) {
-    return { status: 200, body: mockThreads[0] }
+  params = match('/accounts/:accountId/threads/:threadId', url)
+  if (method === 'PATCH' && params) {
+    const thread = mockThreads.find((a) => a.threadId === params!.threadId)
+    if (!thread) return { status: 404, body: { title: 'Not found' } }
+    const patchBody = (body ?? {}) as { status?: Thread['status']; labels?: string[]; followupAt?: string }
+    if (patchBody.status !== undefined) thread.status = patchBody.status
+    if (patchBody.labels !== undefined) thread.labels = patchBody.labels
+    if (patchBody.followupAt !== undefined) thread.followupAt = patchBody.followupAt
+    if (patchBody.status === 'deleted') thread.deletedAt = new Date().toISOString()
+    thread.updatedAt = new Date().toISOString()
+    return { status: 200, body: thread }
   }
 
   // GET /accounts/:accountId/threads/:threadId/signals

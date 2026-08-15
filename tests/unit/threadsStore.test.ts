@@ -190,6 +190,29 @@ describe('threadsStore', () => {
     expect(store.activeCount).toBe(1)
   })
 
+  it('snoozeThread updates the cached status and followupAt from the response', async () => {
+    vi.mocked(api.listThreads).mockResolvedValue(ok({ threads: [mockThread()], pagination: { cursor: null } }))
+    vi.mocked(api.patchThread).mockResolvedValue(ok(mockThread({ status: 'archived', followupAt: '2099-01-01T09:00:00.000Z' })))
+    const store = useThreadsStore()
+    await store.fetchThreads({ status: 'active' })
+    await store.snoozeThread('thread_1', '2099-01-01T09:00:00.000Z')
+    expect(store.threads.find((a) => a.threadId === 'thread_1')?.status).toBe('archived')
+    expect(store.threadsWithStatus('active')).toHaveLength(0)
+  })
+
+  it('snoozeThread leaves the cached thread untouched when the request fails (no stale optimistic patch)', async () => {
+    vi.mocked(api.listThreads).mockResolvedValue(ok({ threads: [mockThread()], pagination: { cursor: null } }))
+    vi.mocked(api.patchThread).mockResolvedValue(err(new ApiError(400, 'Invalid request body')))
+    const store = useThreadsStore()
+    await store.fetchThreads({ status: 'active' })
+    const result = await store.snoozeThread('thread_1', '2099-01-01T09:00:00.000+02:00')
+    expect(result.isErr()).toBe(true)
+    // A rejected request must not leave the thread looking archived in the cache —
+    // that's exactly what made a failed snooze look like it "worked" until refresh.
+    expect(store.threads.find((a) => a.threadId === 'thread_1')?.status).toBe('active')
+    expect(store.threadsWithStatus('active')).toHaveLength(1)
+  })
+
   it('unsubscribeThread patches the cached status without a full thread in the response', async () => {
     vi.mocked(api.listThreads).mockResolvedValue(ok({ threads: [mockThread()], pagination: { cursor: null } }))
     vi.mocked(api.unsubscribeThread).mockResolvedValue(ok({ status: 'archived', url: 'https://example.com' }))

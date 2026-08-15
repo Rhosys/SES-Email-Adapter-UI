@@ -302,7 +302,10 @@ export const useThreadsStore = defineStore('threads', () => {
   async function snoozeThread(threadId: string, followupAt: string): Promise<Result<Thread, ApiError | NoCurrentAccountError>> {
     const id = accountStore.accountId
     if (!id) return err(new NoCurrentAccountError())
-    _patchThreadLocal(threadId, { status: 'archived' })
+    // No optimistic pre-patch here (unlike setStatus's callers, this request can be
+    // rejected by the server — e.g. a malformed followupAt) — the cache must only
+    // reflect 'archived' once the server has actually confirmed it, or a rejected
+    // request would leave the UI showing snoozed while the thread is still active.
     const result = await api.patchThread(id, threadId, { status: 'archived', followupAt })
     if (result.isErr()) return err(result.error)
     _upsertThread(result.value)
