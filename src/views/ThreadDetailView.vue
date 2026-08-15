@@ -379,7 +379,7 @@ async function removeLabel(label: string) {
         <AsyncButton
           v-if="thread.status === 'active'"
           :action="archive"
-          class="flex h-8 items-center gap-1.5 rounded-lg border border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-red hover:text-ctp-red"
+          class="btn hover:border-ctp-red hover:text-ctp-red"
         >
           <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path d="M1.5 2h13l-1 2H2.5L1.5 2zm.5 3h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V5zm4 2v5h5V7H6z"/>
@@ -389,7 +389,7 @@ async function removeLabel(label: string) {
         <AsyncButton
           v-if="thread.status === 'archived' || thread.status === 'deleted'"
           :action="moveToInbox"
-          class="flex h-8 items-center gap-1.5 border-ctp-surface1 px-3 text-sm text-ctp-subtext1 hover:border-ctp-green hover:text-ctp-green"
+          class="btn hover:border-ctp-green hover:text-ctp-green"
         >
           <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <g transform="rotate(90 8 8)"><path d="M8 1a1 1 0 011 1v5.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 011.414-1.414L7 7.586V2a1 1 0 011-1zM2 10a1 1 0 011 1v2h10v-2a1 1 0 112 0v3a1 1 0 01-1 1H2a1 1 0 01-1-1v-3a1 1 0 011-1z"/></g>

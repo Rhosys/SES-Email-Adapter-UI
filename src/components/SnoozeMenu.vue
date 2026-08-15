@@ -75,7 +75,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
   <div class="relative">
     <button
       type="button"
-      class="flex h-7 items-center gap-1 rounded border border-ctp-surface1 px-2 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
+      class="btn hover:border-ctp-mauve hover:text-ctp-mauve"
       title="Snooze"
       aria-haspopup="dialog"
       :aria-expanded="open"

@@ -199,6 +199,31 @@
   }
 }
 
+/* ── .btn — canonical action button ── */
+.btn {
+  display: flex;
+  height: 2rem; /* h-8 */
+  align-items: center;
+  gap: 0.375rem; /* gap-1.5 */
+  border-radius: var(--radius-lg, 0.5rem);
+  border: 1px solid var(--color-surface1);
+  padding-inline: 0.75rem; /* px-3 */
+  font-size: var(--text-sm, 0.875rem);
+  line-height: 1;
+  color: var(--color-subtext1);
+}
+
+.btn:hover {
+  border-color: var(--color-overlay0);
+  color: var(--color-text);
+}
+
+.btn svg {
+  width: 0.875rem; /* 3.5 */
+  height: 0.875rem;
+  flex-shrink: 0;
+}
+
 
 /* ── Smooth signal card transitions on data updates ── */
 .signal-enter-active {
