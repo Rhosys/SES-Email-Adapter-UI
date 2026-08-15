@@ -353,6 +353,34 @@ describe('ThreadDetailView — unsubscribe', () => {
     expect(unsubscribeButton!.element.closest('.mb-6')?.textContent).toContain('Acme Weekly')
   })
 
+  it('attaches unsubscribe to only the first visible panel when a thread has multiple workflows', async () => {
+    const thread = makeThread()
+    const contentSignal = mockUnsubscribableSignal('content', { contentType: 'newsletter', publisher: 'Acme Weekly' })
+    const alertSignal = mockEmailSignal({
+      signalId: 'sig_2',
+      createdAt: '2025-01-02T12:00:00Z',
+      data: {
+        receivedAt: '2025-01-02T12:00:00Z',
+        summary: 'Alert',
+        from: { address: 'alerts@example.com', name: 'Alerts' },
+        to: [{ address: 'inbox@example.com' }],
+        cc: [],
+        subject: 'Alert subject',
+        body: 'Something happened',
+        attachments: [],
+        headers: {},
+        recipientAddress: 'inbox@example.com',
+        workflow: 'alert',
+        workflowData: { alertType: 'ci_failure', service: 'GitLab', severity: 'warning', requiresAction: true },
+        spamScore: 0,
+      },
+    })
+    const wrapper = await mountView(thread, [contentSignal, alertSignal])
+
+    const unsubscribeButtons = wrapper.findAll('button').filter((b) => b.text().includes('Unsubscribe'))
+    expect(unsubscribeButtons).toHaveLength(1)
+  })
+
   it('shows a standalone unsubscribe panel when no workflow panel is displayed', async () => {
     const thread = makeThread()
     const signal = mockUnsubscribableSignal('conversation', { sentiment: 'neutral', requiresReply: false })
