@@ -59,8 +59,27 @@ describe('SnoozeMenu — desktop popover', () => {
     const dt = DateTime.fromISO(isoTime)
     expect(dt.hour).toBe(9)
     expect(dt.minute).toBe(0)
+    // The backend's followupAt schema (z.iso.datetime()) only accepts UTC
+    // timestamps with a literal 'Z' suffix, not a numeric offset — regression
+    // test for a bug where every snooze silently failed server-side.
+    expect(isoTime).toMatch(/Z$/)
     wrapper.unmount()
   })
+
+  it.each(['Later today', 'Tomorrow morning', 'Next week'])(
+    'emits a UTC (Z-suffixed) timestamp for the "%s" preset, not a local-offset one',
+    async (presetLabel) => {
+      const wrapper = mount(SnoozeMenu, { attachTo: document.body })
+      await wrapper.find('button[title="Snooze"]').trigger('click')
+
+      const preset = wrapper.findAll('button').find((b) => b.text().includes(presetLabel))!
+      await preset.trigger('click')
+
+      const isoTime = wrapper.emitted('snooze')![0]![0] as string
+      expect(isoTime).toMatch(/Z$/)
+      wrapper.unmount()
+    },
+  )
 
   it('closes without emitting when Cancel is clicked', async () => {
     const wrapper = mount(SnoozeMenu, { attachTo: document.body })

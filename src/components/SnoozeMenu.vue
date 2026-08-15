@@ -12,18 +12,22 @@ const selectedDate = ref<string | null>(null)
 
 const minDate = computed(() => DateTime.local().plus({ days: 1 }).toISODate()!)
 
+// The backend's followupAt schema (Zod's z.iso.datetime()) only accepts UTC
+// timestamps with a literal 'Z' suffix — Luxon's default .toISO() emits a
+// numeric offset (e.g. +02:00, or even +00:00 in the UTC zone) instead, which
+// that schema rejects outright. Always normalize to UTC before serializing.
 function laterToday(): string {
   const now = DateTime.local()
   const target = now.hour < 17 ? now.set({ hour: 17, minute: 0, second: 0, millisecond: 0 }) : now.plus({ hours: 3 }).startOf('hour')
-  return target.toISO()!
+  return target.toUTC().toISO()!
 }
 
 function tomorrowMorning(): string {
-  return DateTime.local().plus({ days: 1 }).set({ hour: 9, minute: 0, second: 0, millisecond: 0 }).toISO()!
+  return DateTime.local().plus({ days: 1 }).set({ hour: 9, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()!
 }
 
 function nextWeek(): string {
-  return DateTime.local().plus({ weeks: 1 }).startOf('day').set({ hour: 9 }).toISO()!
+  return DateTime.local().plus({ weeks: 1 }).startOf('day').set({ hour: 9 }).toUTC().toISO()!
 }
 
 function toggle() {
@@ -51,7 +55,7 @@ const confirmLabel = computed(() =>
 function confirmCustomDate() {
   if (!selectedDate.value) return
   const dt = DateTime.fromISO(selectedDate.value).set({ hour: 9, minute: 0, second: 0, millisecond: 0 })
-  emit('snooze', dt.toISO()!)
+  emit('snooze', dt.toUTC().toISO()!)
   close()
 }
 
