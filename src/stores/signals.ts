@@ -2,10 +2,12 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { ok, err, type Result } from 'neverthrow'
 import { api, ApiError } from '@/lib/api'
+import { isInboundEmailSignal } from '@/lib/signal-guards'
 import logger from '@/lib/logger'
 import { useAccountStore } from '@/stores/account'
 import { NoCurrentAccountError } from '@/stores/errors'
 import type { Signal } from '@/types/server'
+import { DateTime } from 'luxon'
 
 export const useSignalsStore = defineStore('signals', () => {
   const accountStore = useAccountStore()
@@ -30,10 +32,14 @@ export const useSignalsStore = defineStore('signals', () => {
   function setThreadSignals(threadId: string, signals: Signal[]) {
     const accountId = accountStore.accountId
     if (!accountId) return
-    // Always enforce newest-first by createdAt — fetchAll's merge of fresh +
-    // cached pages assumes that invariant, but locally-created signals
-    // (drafts) or out-of-window pagination can otherwise land out of order.
-    const sorted = [...signals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    // Always enforce newest-first by receivedAt (for inbound emails) or
+    // createdAt (for drafts, system signals). This is the canonical
+    // chronological order the user sees in the thread conversation.
+    const sorted = [...signals].sort((a, b) => {
+      const aMs = DateTime.fromISO(isInboundEmailSignal(a) ? a.data.receivedAt : a.createdAt).toMillis()
+      const bMs = DateTime.fromISO(isInboundEmailSignal(b) ? b.data.receivedAt : b.createdAt).toMillis()
+      return bMs - aMs
+    })
     const forAccount = _byAccount.value[accountId] ?? {}
     _byAccount.value = { ..._byAccount.value, [accountId]: { ...forAccount, [threadId]: sorted } }
   }
