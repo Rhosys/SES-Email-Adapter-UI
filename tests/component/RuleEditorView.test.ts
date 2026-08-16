@@ -129,13 +129,13 @@ describe('RuleEditorView — new rule', () => {
   it('+ Add group button adds a group', async () => {
     const wrapper = await mountEditor()
     const initialGroups = wrapper.findAll(
-      '.rounded-lg.border.border-ctp-surface1.bg-ctp-mantle.p-3',
+      '[data-testid="condition-group"]',
     )
     const initialCount = initialGroups.length
     const addGroupBtn = wrapper.findAll('button').find((b) => b.text() === '+ Add condition group')
     await addGroupBtn!.trigger('click')
     await wrapper.vm.$nextTick()
-    const newGroups = wrapper.findAll('.rounded-lg.border.border-ctp-surface1.bg-ctp-mantle.p-3')
+    const newGroups = wrapper.findAll('[data-testid="condition-group"]')
     expect(newGroups.length).toBe(initialCount + 1)
   })
 

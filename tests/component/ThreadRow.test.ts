@@ -54,7 +54,7 @@ describe('ActiveThreadRow', () => {
 
   it('shows label dots for each label', () => {
     const wrapper = mountActive(baseThread)
-    const dots = wrapper.findAll('.h-2.w-2.rounded-full')
+    const dots = wrapper.findAll('[aria-label^="Label:"]')
     expect(dots.length).toBe(1)
   })
 
@@ -78,7 +78,7 @@ describe('ActiveThreadRow', () => {
   it('renders multiple label dots', () => {
     const thread = { ...baseThread, labels: ['label-a', 'label-b'] }
     const wrapper = mountActive(thread)
-    const dots = wrapper.findAll('.h-2.w-2.rounded-full')
+    const dots = wrapper.findAll('[aria-label^="Label:"]')
     expect(dots.length).toBe(2)
   })
 })

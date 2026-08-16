@@ -87,6 +87,8 @@ function labelColor(key: string): string {
           :key="label"
           class="h-2 w-2 shrink-0 rounded-full"
           :style="{ backgroundColor: labelColor(label) }"
+          role="img"
+          :aria-label="`Label: ${label}`"
         />
       </div>
     </div>

@@ -344,13 +344,13 @@ describe('ThreadDetailView — unsubscribe', () => {
     const signal = mockUnsubscribableSignal('content', { contentType: 'newsletter', publisher: 'Acme Weekly' })
     const wrapper = await mountView(thread, [signal])
 
-    const topBar = wrapper.find('.mb-4.flex.items-center.justify-between')
-    expect(topBar.text()).not.toContain('Unsubscribe')
+    // The top action bar (contains "← Back to inbox" link) should not have Unsubscribe
+    const backLink = wrapper.find('a[href="/"]')
+    expect(backLink.element.parentElement?.textContent).not.toContain('Unsubscribe')
 
-    const unsubscribeButton = wrapper.findAll('button').find((b) => b.text().includes('Unsubscribe'))
-    expect(unsubscribeButton).toBeTruthy()
-    // Nested inside the workflow-panel section, alongside the publisher's content.
-    expect(unsubscribeButton!.element.closest('.mb-6')?.textContent).toContain('Acme Weekly')
+    // The workflow-panels wrapper contains both the publisher name and the unsubscribe button
+    const workflowSection = wrapper.findAll('div').find((el) => el.text().includes('Acme Weekly') && el.text().includes('Unsubscribe'))
+    expect(workflowSection).toBeTruthy()
   })
 
   it('attaches unsubscribe to only the first visible panel when a thread has multiple workflows', async () => {

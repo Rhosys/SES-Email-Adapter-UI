@@ -87,11 +87,11 @@ describe('SettingsView — forwarding verification date', () => {
     }
     const wrapper = await mountForwardingTab([fwd])
 
-    const verifiedText = wrapper.find('.text-ctp-green')
-    expect(verifiedText.exists()).toBe(true)
-    expect(verifiedText.text()).toContain('Verified on')
+    const verifiedText = wrapper.findAll('p').find((el) => el.text().includes('Verified on'))
+    expect(verifiedText).toBeTruthy()
+    expect(verifiedText!.text()).toContain('Verified on')
     // The formatted date should contain "Jun" and "2025" (medium dateStyle)
-    expect(verifiedText.text()).toMatch(/Jun.*2025/)
+    expect(verifiedText!.text()).toMatch(/Jun.*2025/)
   })
 
   it('shows "Pending verification" when verifiedAt is absent', async () => {
@@ -103,11 +103,10 @@ describe('SettingsView — forwarding verification date', () => {
     }
     const wrapper = await mountForwardingTab([fwd])
 
-    const pendingText = wrapper.find('.text-ctp-yellow')
-    expect(pendingText.exists()).toBe(true)
-    expect(pendingText.text()).toBe('Pending verification')
+    const pendingText = wrapper.findAll('p').find((el) => el.text() === 'Pending verification')
+    expect(pendingText).toBeTruthy()
 
     // Should NOT show verified badge
-    expect(wrapper.find('.text-ctp-green').exists()).toBe(false)
+    expect(wrapper.findAll('p').find((el) => el.text().includes('Verified on'))).toBeFalsy()
   })
 })

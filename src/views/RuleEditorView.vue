@@ -481,6 +481,7 @@ watch(signalAction, (val) => {
             v-for="(group, gi) in groups"
             :key="gi"
             class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-3"
+            data-testid="condition-group"
           >
             <!-- AND / OR toggle -->
             <div class="mb-2 flex items-center justify-between">

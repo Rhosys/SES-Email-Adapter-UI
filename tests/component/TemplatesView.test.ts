@@ -111,10 +111,9 @@ describe('TemplatesView — error indicator', () => {
     })
     const wrapper = await mountView([tpl])
 
-    const dot = wrapper.find('span.bg-ctp-red')
+    const dot = wrapper.find('span[aria-label="Has function error"]')
     expect(dot.exists()).toBe(true)
     expect(dot.attributes('title')).toBe('Function error')
-    expect(dot.attributes('aria-label')).toBe('Has function error')
   })
 
   it('does not render red dot when no function has lastError', async () => {
@@ -123,14 +122,14 @@ describe('TemplatesView — error indicator', () => {
     })
     const wrapper = await mountView([tpl])
 
-    expect(wrapper.find('span.bg-ctp-red').exists()).toBe(false)
+    expect(wrapper.find('span[aria-label="Has function error"]').exists()).toBe(false)
   })
 
   it('does not render red dot when functions array is empty', async () => {
     const tpl = mockTemplate({ functions: [] })
     const wrapper = await mountView([tpl])
 
-    expect(wrapper.find('span.bg-ctp-red').exists()).toBe(false)
+    expect(wrapper.find('span[aria-label="Has function error"]').exists()).toBe(false)
   })
 
   it('shows lastError indicator in editor when function has lastError and no local validation error', async () => {
@@ -144,7 +143,7 @@ describe('TemplatesView — error indicator', () => {
     await editBtn!.trigger('click')
     await wrapper.vm.$nextTick()
 
-    const indicator = wrapper.find('span.text-ctp-peach[title="Last execution error"]')
+    const indicator = wrapper.find('span[title="Last execution error"]')
     expect(indicator.exists()).toBe(true)
     expect(indicator.text()).toBe('⚠')
   })
@@ -159,7 +158,7 @@ describe('TemplatesView — error indicator', () => {
     await editBtn!.trigger('click')
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.bg-ctp-peach\\/10').exists()).toBe(false)
+    expect(wrapper.find('span[title="Last execution error"]').exists()).toBe(false)
   })
 
   it('shows only local validation error when both lastError and fnErrors exist for a function', async () => {
@@ -177,7 +176,7 @@ describe('TemplatesView — error indicator', () => {
     await wrapper.vm.$nextTick()
 
     // Before save: backend error indicator is visible (no local error yet)
-    expect(wrapper.find('span.text-ctp-peach[title="Last execution error"]').exists()).toBe(true)
+    expect(wrapper.find('span[title="Last execution error"]').exists()).toBe(true)
 
     // Trigger save to run validation via mocked worker
     const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Save changes')
@@ -185,11 +184,11 @@ describe('TemplatesView — error indicator', () => {
     await flushPromises()
 
     // After validation, the local error indicator (✕) should show
-    const localError = wrapper.find('span.text-ctp-red[title="Has error"]')
+    const localError = wrapper.find('span[title="Has error"]')
     expect(localError.exists()).toBe(true)
 
     // The backend lastError indicator should NOT show (fnErrors takes precedence)
-    const backendError = wrapper.find('span.text-ctp-peach[title="Last execution error"]')
+    const backendError = wrapper.find('span[title="Last execution error"]')
     expect(backendError.exists()).toBe(false)
   })
 })
