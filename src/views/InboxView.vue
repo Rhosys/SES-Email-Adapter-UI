@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useThreadsStore } from '@/stores/threads'
 import { useSignalsStore } from '@/stores/signals'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { useDeferredHide } from '@/composables/useDeferredHide'
 import InboxTabBar from '@/components/InboxTabBar.vue'
 import BulkActionBar from '@/components/BulkActionBar.vue'
@@ -25,6 +26,7 @@ const threadsStore = useThreadsStore()
 const signalsStore = useSignalsStore()
 const { onAction, offAction } = useKeyboardShortcuts()
 const { hiddenIds } = useDeferredHide()
+const isMobile = useIsMobile()
 
 const RECENCY_WINDOW_MS = 15 * 60 * 1000
 
@@ -263,6 +265,7 @@ watch(
       />
 
       <BulkActionBar
+        v-if="threadsStore.selectedIds.size > 0 || !isMobile"
         :count="threadsStore.selectedIds.size"
         :pending="threadsStore.bulkActionPending"
         :all-selected="allSelected"
