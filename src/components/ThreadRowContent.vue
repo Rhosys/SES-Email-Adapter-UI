@@ -60,37 +60,35 @@ function labelColor(key: string): string {
 
 <template>
   <RouterLink :to="{ name: 'thread-detail', params: { id: thread.threadId } }" class="min-w-0 flex-1">
-    <!-- Row 1: sender identity + addresses + (desktop-only: badges & timestamp) -->
-    <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+    <!-- Row 1: Sender Name  Sender Email  ———  Time -->
+    <div class="flex items-center gap-x-2">
       <span class="shrink-0 text-[15px] font-semibold text-ctp-text sm:text-sm">{{ thread.sender.name || thread.sender.address }}</span>
       <span v-if="thread.sender.name" class="shrink-0 text-xs text-ctp-subtext0">{{ thread.sender.address }}</span>
-      <span v-if="thread.recipientAddress" class="shrink-0 text-xs text-ctp-subtext0">→ {{ thread.recipientAddress }}</span>
-      <span v-if="hasPendingSend" class="hidden shrink-0 rounded-full bg-ctp-green/15 px-1.5 py-0.5 text-xs text-ctp-green sm:inline">Sent</span>
-      <span v-if="snoozeBadge" class="hidden shrink-0 rounded-full bg-ctp-yellow/15 px-1.5 py-0.5 text-xs text-ctp-yellow sm:inline">{{ snoozeBadge }}</span>
-      <span class="ml-auto hidden shrink-0 text-xs text-ctp-subtext0 sm:inline">{{ timestamp }}</span>
-    </div>
-
-    <!-- Row 2: subject -->
-    <div class="mt-0.5 text-[15px] text-ctp-subtext1 sm:truncate sm:text-sm">{{ thread.subject || thread.summary }}</div>
-
-    <!-- Row 3 (mobile-only): badges + timestamp -->
-    <div class="mt-0.5 flex items-center gap-2 sm:hidden">
-      <span v-if="hasPendingSend" class="shrink-0 rounded-full bg-ctp-green/15 px-1.5 py-0.5 text-xs text-ctp-green">Sent</span>
-      <span v-if="snoozeBadge" class="shrink-0 rounded-full bg-ctp-yellow/15 px-1.5 py-0.5 text-xs text-ctp-yellow">{{ snoozeBadge }}</span>
       <span class="ml-auto shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
     </div>
 
-    <!-- Row 3 (desktop): summary preview if different from subject -->
-    <div v-if="thread.summary && thread.subject" class="mt-0.5 hidden truncate text-xs text-ctp-subtext0 sm:block">{{ thread.summary }}</div>
+    <!-- Row 2: → Alias -->
+    <div v-if="thread.recipientAddress" class="mt-0.5 text-xs text-ctp-subtext0">→ {{ thread.recipientAddress }}</div>
 
-    <!-- Labels (shared) -->
-    <div v-if="visibleLabels(thread.labels).length" class="mt-0.5 flex flex-wrap items-center gap-1.5">
-      <span
-        v-for="label in visibleLabels(thread.labels)"
-        :key="label"
-        class="h-2 w-2 shrink-0 rounded-full"
-        :style="{ backgroundColor: labelColor(label) }"
-      />
+    <!-- Gap -->
+    <div class="mt-2"></div>
+
+    <!-- Row 3: Subject -->
+    <div class="truncate text-[15px] text-ctp-subtext1 sm:text-sm">{{ thread.subject || thread.summary }}</div>
+
+    <!-- Row 4: Summary [BADGES] -->
+    <div class="mt-0.5 flex items-center gap-2">
+      <span v-if="thread.summary && thread.subject" class="min-w-0 truncate text-xs text-ctp-subtext0">{{ thread.summary }}</span>
+      <span v-if="hasPendingSend" class="shrink-0 rounded-full bg-ctp-green/15 px-1.5 py-0.5 text-xs text-ctp-green">Sent</span>
+      <span v-if="snoozeBadge" class="shrink-0 rounded-full bg-ctp-yellow/15 px-1.5 py-0.5 text-xs text-ctp-yellow">{{ snoozeBadge }}</span>
+      <div v-if="visibleLabels(thread.labels).length" class="flex items-center gap-1.5">
+        <span
+          v-for="label in visibleLabels(thread.labels)"
+          :key="label"
+          class="h-2 w-2 shrink-0 rounded-full"
+          :style="{ backgroundColor: labelColor(label) }"
+        />
+      </div>
     </div>
 
     <WorkflowPanel v-if="mergedWorkflowGroup" :workflow-group="mergedWorkflowGroup" compact class="mt-1" />

@@ -3,7 +3,6 @@ import type { Thread } from '@/types/server'
 import { useThreadsStore } from '@/stores/threads'
 import ThreadRowContent from './ThreadRowContent.vue'
 import SwipeableThreadRow from './SwipeableThreadRow.vue'
-import SnoozeMenu from './SnoozeMenu.vue'
 
 const props = defineProps<{ thread: Thread; selected: boolean; focused?: boolean }>()
 const emit = defineEmits<{ 'toggle-select': [id: string] }>()
@@ -13,10 +12,6 @@ const threadsStore = useThreadsStore()
 async function archiveThread(close?: () => void) {
   close?.()
   await threadsStore.archiveThread(props.thread.threadId)
-}
-
-async function snooze(isoTime: string) {
-  await threadsStore.snoozeThread(props.thread.threadId, isoTime)
 }
 </script>
 
@@ -43,20 +38,6 @@ async function snooze(isoTime: string) {
       </div>
 
       <ThreadRowContent :thread="thread" />
-
-      <!-- Archive + Snooze actions (hover, desktop) -->
-      <div class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-        <SnoozeMenu @snooze="snooze" />
-        <button
-          class="flex h-7 items-center gap-1 rounded border border-ctp-surface1 px-2 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
-          title="Archive"
-          @click.prevent="archiveThread()"
-        >
-          <svg class="h-3 w-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path d="M1.5 2h13l-1 2H2.5L1.5 2zm.5 3h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V5zm4 2v5h5V7H6z"/>
-          </svg>
-        </button>
-      </div>
     </div>
 
     <!-- Swipe-to-reveal quick action (mobile) -->
