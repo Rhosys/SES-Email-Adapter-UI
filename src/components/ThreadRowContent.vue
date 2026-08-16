@@ -60,36 +60,30 @@ function labelColor(key: string): string {
 
 <template>
   <RouterLink :to="{ name: 'thread-detail', params: { id: thread.threadId } }" class="min-w-0 flex-1">
-    <!-- Desktop: compact single-line metadata -->
-    <div class="hidden sm:block">
-      <div class="flex items-center gap-x-2">
-        <span class="shrink-0 text-sm font-semibold text-ctp-text">{{ thread.sender.name || thread.sender.address }}</span>
-        <span v-if="thread.sender.name" class="shrink-0 text-xs text-ctp-subtext0">{{ thread.sender.address }}</span>
-        <span v-if="thread.recipientAddress" class="shrink-0 text-xs text-ctp-subtext0">→ {{ thread.recipientAddress }}</span>
-        <span v-if="hasPendingSend" class="shrink-0 rounded-full bg-ctp-green/15 px-1.5 py-0.5 text-xs text-ctp-green">Sent</span>
-        <span v-if="snoozeBadge" class="shrink-0 rounded-full bg-ctp-yellow/15 px-1.5 py-0.5 text-xs text-ctp-yellow">{{ snoozeBadge }}</span>
-        <span class="ml-auto shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
-      </div>
-      <div class="mt-0.5 truncate text-sm text-ctp-subtext1">{{ thread.subject || thread.summary }}</div>
-      <div v-if="thread.summary && thread.subject" class="mt-0.5 truncate text-xs text-ctp-subtext0">{{ thread.summary }}</div>
+    <!-- Row 1: sender identity + addresses + (desktop-only: badges & timestamp) -->
+    <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+      <span class="shrink-0 text-[15px] font-semibold text-ctp-text sm:text-sm">{{ thread.sender.name || thread.sender.address }}</span>
+      <span v-if="thread.sender.name" class="shrink-0 text-xs text-ctp-subtext0">{{ thread.sender.address }}</span>
+      <span v-if="thread.recipientAddress" class="shrink-0 text-xs text-ctp-subtext0">→ {{ thread.recipientAddress }}</span>
+      <span v-if="hasPendingSend" class="hidden shrink-0 rounded-full bg-ctp-green/15 px-1.5 py-0.5 text-xs text-ctp-green sm:inline">Sent</span>
+      <span v-if="snoozeBadge" class="hidden shrink-0 rounded-full bg-ctp-yellow/15 px-1.5 py-0.5 text-xs text-ctp-yellow sm:inline">{{ snoozeBadge }}</span>
+      <span class="ml-auto hidden shrink-0 text-xs text-ctp-subtext0 sm:inline">{{ timestamp }}</span>
     </div>
 
-    <!-- Mobile: stacked organized layout -->
-    <div class="sm:hidden">
-      <div class="flex items-center gap-x-2">
-        <span class="text-[15px] font-semibold text-ctp-text">{{ thread.sender.name || thread.sender.address }}</span>
-        <span v-if="thread.sender.name" class="truncate text-xs text-ctp-subtext0">{{ thread.sender.address }}</span>
-        <span v-if="thread.recipientAddress" class="shrink-0 text-xs text-ctp-subtext0">→ {{ thread.recipientAddress }}</span>
-      </div>
-      <div class="mt-0.5 text-[15px] text-ctp-subtext1">{{ thread.subject || thread.summary }}</div>
-      <div class="mt-0.5 flex items-center gap-2">
-        <span v-if="hasPendingSend" class="shrink-0 rounded-full bg-ctp-green/15 px-1.5 py-0.5 text-xs text-ctp-green">Sent</span>
-        <span v-if="snoozeBadge" class="shrink-0 rounded-full bg-ctp-yellow/15 px-1.5 py-0.5 text-xs text-ctp-yellow">{{ snoozeBadge }}</span>
-        <span class="ml-auto shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
-      </div>
+    <!-- Row 2: subject -->
+    <div class="mt-0.5 text-[15px] text-ctp-subtext1 sm:truncate sm:text-sm">{{ thread.subject || thread.summary }}</div>
+
+    <!-- Row 3 (mobile-only): badges + timestamp -->
+    <div class="mt-0.5 flex items-center gap-2 sm:hidden">
+      <span v-if="hasPendingSend" class="shrink-0 rounded-full bg-ctp-green/15 px-1.5 py-0.5 text-xs text-ctp-green">Sent</span>
+      <span v-if="snoozeBadge" class="shrink-0 rounded-full bg-ctp-yellow/15 px-1.5 py-0.5 text-xs text-ctp-yellow">{{ snoozeBadge }}</span>
+      <span class="ml-auto shrink-0 text-xs text-ctp-subtext0">{{ timestamp }}</span>
     </div>
 
-    <!-- Labels (shared, rendered once) -->
+    <!-- Row 3 (desktop): summary preview if different from subject -->
+    <div v-if="thread.summary && thread.subject" class="mt-0.5 hidden truncate text-xs text-ctp-subtext0 sm:block">{{ thread.summary }}</div>
+
+    <!-- Labels (shared) -->
     <div v-if="visibleLabels(thread.labels).length" class="mt-0.5 flex flex-wrap items-center gap-1.5">
       <span
         v-for="label in visibleLabels(thread.labels)"
