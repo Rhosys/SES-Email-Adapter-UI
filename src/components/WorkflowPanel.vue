@@ -91,7 +91,7 @@ const showUnsubscribeFooter = computed(() =>
         <EventsPanel v-else-if="resolvedGroup!.workflow === 'events'" :data="narrowWorkflowData('events', entry)" />
         <TestPanel v-else-if="resolvedGroup!.workflow === 'test'" :data="narrowWorkflowData('test', entry)" :compact="compact" />
       </template>
-      <div v-if="showUnsubscribeFooter" class="flex items-center justify-between gap-3 border-t border-ctp-surface1 pt-2">
+      <div v-if="showUnsubscribeFooter" class="flex items-center justify-between gap-3">
         <span class="text-xs text-ctp-subtext0">Don't want emails like this?</span>
         <AsyncButton
           :action="unsubscribeAction!"
@@ -121,7 +121,7 @@ const showUnsubscribeFooter = computed(() =>
         <SupportPanel v-else-if="resolvedGroup!.workflow === 'support'" :data="narrowWorkflowData('support', visibleEntries[0].entry)" :compact="compact" />
         <EventsPanel v-else-if="resolvedGroup!.workflow === 'events'" :data="narrowWorkflowData('events', visibleEntries[0].entry)" />
         <TestPanel v-else-if="resolvedGroup!.workflow === 'test'" :data="narrowWorkflowData('test', visibleEntries[0].entry)" :compact="compact" />
-        <div class="flex items-center justify-between gap-3 border-t border-ctp-surface1 pt-2">
+        <div class="flex items-center justify-between gap-3">
           <span class="text-xs text-ctp-subtext0">Don't want emails like this?</span>
           <AsyncButton
             :action="unsubscribeAction!"

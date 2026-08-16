@@ -549,7 +549,7 @@ async function removeLabel(label: string) {
       <!-- Workflow panels (stacked, grouped by type) — the unsubscribe action, when
            available, is attached to the first visible panel only, so it never repeats
            across multiple workflow panels on the same thread. -->
-      <div v-if="hasVisibleWorkflowPanel" class="mb-6 space-y-3">
+      <div v-if="hasVisibleWorkflowPanel" class="mb-3 space-y-3">
         <WorkflowPanel
           v-for="(group, i) in workflowGroups"
           :key="group.workflow"
