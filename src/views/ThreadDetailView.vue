@@ -2,8 +2,8 @@
 import { onMounted, onUnmounted, computed, ref, nextTick, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useSignalsStore } from '@/stores/signals'
-import { useThreadsStore } from '@/stores/threads'
 import { useAccountStore } from '@/stores/account'
+import { useThreadDetailQuery, useArchiveThread, useMoveToInbox, useDeleteThread, useLabelThread, useSnoozeThread, useUnsubscribeThread } from '@/composables/useThreadQueries'
 import { useToast } from '@/composables/useToast'
 import { useDeferredHide } from '@/composables/useDeferredHide'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
@@ -28,12 +28,10 @@ import CopyMenuItem from '@/components/CopyMenuItem.vue'
 import OverflowMenu from '@/components/ui/OverflowMenu.vue'
 import SnoozeMenu from '@/components/SnoozeMenu.vue'
 import SenderInfoPopup from '@/components/SenderInfoPopup.vue'
-import type { Thread } from '@/types/server'
 
 const route = useRoute()
 const router = useRouter()
 const signalsStore = useSignalsStore()
-const threadsStore = useThreadsStore()
 const accountStore = useAccountStore()
 const labelsStore = useLabelsStore()
 const { showUndo } = useToast()
@@ -42,8 +40,14 @@ const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel }
 
 const showSenderPopup = ref(false)
 const senderPopupRef = ref<HTMLElement | null>(null)
-const threadData = ref<Thread | null>(null)
 const updating = ref(false)
+
+const archiveMutation = useArchiveThread()
+const moveToInboxMutation = useMoveToInbox()
+const deleteMutation = useDeleteThread()
+const labelMutation = useLabelThread()
+const snoozeMutation = useSnoozeThread()
+const unsubscribeMutation = useUnsubscribeThread()
 
 function handleSenderPopupClickOutside(e: MouseEvent) {
   if (senderPopupRef.value && !senderPopupRef.value.contains(e.target as Node)) {
@@ -53,8 +57,13 @@ function handleSenderPopupClickOutside(e: MouseEvent) {
 
 const threadId = computed(() => route.params.id as string)
 
+// Thread detail from TanStack Query
+const { thread: threadFromQuery } = useThreadDetailQuery(() => threadId.value)
+
+const thread = computed(() => threadFromQuery.value)
+
 const snoozedAnnotation = computed(() => {
-  const t = threadData.value ?? threadsStore.getThread(threadId.value)
+  const t = thread.value
   if (!t?.followupAt || t.status !== 'active') return null
   const followup = new Date(t.followupAt)
   if (followup.getTime() > Date.now()) return null
@@ -74,12 +83,6 @@ const senderDomain = computed(() => {
   const sender = thread.value?.sender?.address
   const at = sender?.lastIndexOf('@') ?? -1
   return at >= 0 ? sender!.slice(at + 1) : null
-})
-
-// Look up the thread in the threads store first, fall back to locally fetched data
-const thread = computed(() => {
-  const fromStore = threadsStore.threads.find((a) => a.threadId === threadId.value)
-  return fromStore ?? threadData.value
 })
 
 const availableUntil = computed(() => {
@@ -156,9 +159,6 @@ onMounted(async () => {
   // Point the store at this thread so items computed returns cached signals
   signalsStore.currentThreadId = threadId.value
 
-  // Load thread metadata from store (instant if cached)
-  threadData.value = (await threadsStore.getThreadAsync(threadId.value)) ?? null
-
   // If we have cached signals, show them and fetch in background
   const hasCached = signalsStore.items.length > 0
   if (hasCached) {
@@ -197,15 +197,12 @@ async function onSignalReprocessed() {
 }
 
 async function archive() {
-  const result = await threadsStore.archiveThread(threadId.value)
-  if (result.isErr()) return
   const id = threadId.value
   const summary = thread.value?.summary
+  archiveMutation.mutate(id)
   showUndo(
     'Thread archived',
-    async () => {
-      await threadsStore.moveToInbox(id)
-    },
+    () => { moveToInboxMutation.mutate(id) },
     8_000,
     { submessage: summary ? summary.slice(0, 70) : undefined },
   )
@@ -213,14 +210,16 @@ async function archive() {
 }
 
 async function snooze(isoTime: string) {
-  const result = await threadsStore.snoozeThread(threadId.value, isoTime)
-  if (result.isErr()) return
-  showUndo(
-    'Thread snoozed',
-    async () => { await threadsStore.moveToInbox(threadId.value) },
-    8_000,
-  )
-  void router.push('/')
+  snoozeMutation.mutate({ threadId: threadId.value, followupAt: isoTime }, {
+    onSuccess: () => {
+      showUndo(
+        'Thread snoozed',
+        () => { moveToInboxMutation.mutate(threadId.value) },
+        8_000,
+      )
+      void router.push('/')
+    },
+  })
 }
 
 async function unsubscribe() {
@@ -231,11 +230,12 @@ async function unsubscribe() {
     confirmVariant: 'danger',
   })
   if (!confirmed) return
-  const result = await threadsStore.unsubscribeThread(threadId.value)
-  if (result.isErr()) return
-  const url = result.value.url
-  void router.push('/')
-  if (url) window.open(url, '_blank', 'noopener,noreferrer')
+  unsubscribeMutation.mutate(threadId.value, {
+    onSuccess: (data) => {
+      void router.push('/')
+      if (data.url) window.open(data.url, '_blank', 'noopener,noreferrer')
+    },
+  })
 }
 
 const hasUnsubscribe = computed(() =>
@@ -257,7 +257,7 @@ async function deleteThread() {
     id,
     'Thread deleted',
     async () => {
-      await threadsStore.deleteThread(id)
+      deleteMutation.mutate(id)
     },
     8_000,
     { undoLabel: 'Undo' },
@@ -286,7 +286,7 @@ async function blockSender() {
     id,
     'Sender blocked, thread deleted',
     async () => {
-      await threadsStore.deleteThread(id)
+      deleteMutation.mutate(id)
     },
     8_000,
     { undoLabel: 'Undo' },
@@ -316,12 +316,10 @@ const primaryBadgeClass = computed(() => {
   }
 })
 
-async function moveToInbox() {
-  const result = await threadsStore.moveToInbox(threadId.value)
-  if (result.isErr()) return
-  // Keep the local fallback in sync with the store's optimistic update.
-  threadData.value = result.value
-  await signalsStore.fetchAll(threadId.value)
+function moveToInbox() {
+  return moveToInboxMutation.mutateAsync(threadId.value).then(() => {
+    void signalsStore.fetchAll(threadId.value)
+  })
 }
 
 async function scrollToDraft(signalId: string) {
@@ -355,11 +353,7 @@ async function removeLabel(label: string) {
   if (!confirmed) return
   if (!thread.value) return
   const currentLabels = thread.value.labels.filter((l) => l !== label)
-  const result = await threadsStore.labelThread(threadId.value, currentLabels)
-  if (result.isOk()) {
-    threadData.value = result.value
-    await signalsStore.fetchAll(threadId.value)
-  }
+  labelMutation.mutate({ threadId: threadId.value, labels: currentLabels })
 }
 </script>
 

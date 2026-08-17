@@ -9,8 +9,6 @@ import './lib/analytics'
 import logger from './lib/logger'
 import { loginClient } from './lib/auth'
 import { useAccountStore } from './stores/account'
-import { useThreadsStore } from './stores/threads'
-import { useSignalsStore } from './stores/signals'
 import { useResourcesStore } from './stores/resources'
 import { useUserConfigStore } from './stores/userConfig'
 import { useLogStore } from './stores/logs'
@@ -90,23 +88,10 @@ enableMocking().then(() => {
     void resourcesStore.fetchResources()
 
     // Always the active listing, whichever page the user lands on: the sidebar badge
-    // counts loaded active threads, and it renders everywhere. Archived and "All" stay
-    // unfetched until their tab is selected.
-    // refresh: true triggers EMX dispatch — syncs IMAP/JMAP exchanges on session start.
-    const threadsStore = useThreadsStore()
-    void threadsStore.fetchThreads({ status: 'active', refresh: true }).then(() => {
-      // Once active threads are loaded, prefetch signals for recent ones so inline
-      // workflow panels have data immediately — regardless of which page the user landed on.
-      const signalsStore = useSignalsStore()
-      const RECENCY_WINDOW_MS = 15 * 60 * 1000
-      const now = Date.now()
-      const recentThreads = threadsStore.sortedThreads
-        .filter(t => t.lastSignalAt && now - new Date(t.lastSignalAt).getTime() < RECENCY_WINDOW_MS)
-        .map(t => ({ threadId: t.threadId, lastSignalAt: t.lastSignalAt! }))
-      if (recentThreads.length > 0) {
-        void signalsStore.fetchForThreads(recentThreads)
-      }
-    })
+    // counts loaded active threads, and it renders everywhere. TanStack Query handles
+    // the initial fetch via useThreadListQuery in the sidebar/InboxView — no manual
+    // fetchThreads needed. Signal prefetching for recent threads will be handled by the
+    // InboxView's handleRefresh or by TanStack Query's refetchOnWindowFocus.
 
     // Spam data now fetched by useSpamQuery composable in the sidebar
   })
@@ -129,13 +114,6 @@ enableMocking().then(() => {
     }
   })
 
-  // Trigger EMX sync when the user returns to the tab (visibility change) so
-  // IMAP/JMAP exchanges are polled immediately rather than waiting for the next
-  // 15-minute scheduler tick.
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible') return
-    const id = useAccountStore().accountId
-    if (!id) return
-    void useThreadsStore().fetchThreads({ status: 'active', refresh: true })
-  })
+  // TanStack Query's refetchOnWindowFocus handles tab-return refreshes automatically.
+  // No manual visibilitychange listener needed for threads.
 })

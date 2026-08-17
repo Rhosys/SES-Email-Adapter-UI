@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { ok } from 'neverthrow'
+import { QueryClient } from '@tanstack/vue-query'
 import { useDraftsStore } from '@/stores/drafts'
-import { useThreadsStore } from '@/stores/threads'
 import { useSignalsStore } from '@/stores/signals'
 import { useAccountStore } from '@/stores/account'
 import type { Signal, Thread, Account } from '@/types/server'
@@ -15,6 +15,16 @@ vi.mock('@/lib/api', async (importOriginal) => {
       listThreads: vi.fn(),
       listSignals: vi.fn(),
     },
+  }
+})
+
+// Mock useQueryClient to return a test QueryClient
+const testQueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+vi.mock('@tanstack/vue-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/vue-query')>()
+  return {
+    ...actual,
+    useQueryClient: () => testQueryClient,
   }
 })
 
@@ -90,15 +100,13 @@ describe('draftsStore', () => {
   })
 
   it('excludes draft signals belonging to non-active threads', async () => {
-    const threadsStore = useThreadsStore()
     const signalsStore = useSignalsStore()
-    vi.mocked(api.listThreads).mockResolvedValue(
-      ok({
-        threads: [mockThread({ threadId: 'thread_active', status: 'active' }), mockThread({ threadId: 'thread_archived', status: 'archived' })],
-        pagination: { cursor: null },
-      }),
+
+    // Seed the TanStack Query cache with active threads only
+    testQueryClient.setQueryData(
+      ['threads', 'acc_1', { status: 'active' }],
+      { pages: [{ threads: [mockThread({ threadId: 'thread_active', status: 'active' })], pagination: { cursor: null } }], pageParams: [undefined] },
     )
-    await threadsStore.fetchThreads()
 
     vi.mocked(api.listSignals).mockImplementation(async (_account, threadId) =>
       ok({

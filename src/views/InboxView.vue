@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useThreadsStore } from '@/stores/threads'
 import { useSignalsStore } from '@/stores/signals'
+import { useThreadListQuery, useArchiveThread, useBulkArchive, useBulkMoveToInbox, useBulkLabel } from '@/composables/useThreadQueries'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useIsMobile } from '@/composables/useIsMobile'
 import { useDeferredHide } from '@/composables/useDeferredHide'
@@ -17,7 +18,6 @@ import InboxEmpty from '@/components/InboxEmpty.vue'
 import InboxZeroCelebration from '@/components/InboxZeroCelebration.vue'
 import StatsWidget from '@/components/StatsWidget.vue'
 import ResourcesBanner from '@/components/ResourcesBanner.vue'
-import type { FetchThreadsOptions } from '@/stores/threads'
 import type { ThreadStatus } from '@/types/server'
 
 const route = useRoute()
@@ -31,19 +31,7 @@ const isMobile = useIsMobile()
 const RECENCY_WINDOW_MS = 15 * 60 * 1000
 
 const refreshing = ref(false)
-const loading = ref(true)
 const lastRefreshedAt = ref<string | null>(null)
-
-async function fetchRecentSignals() {
-  const now = Date.now()
-  const recentThreads = threadsStore.sortedThreads
-    .filter(t => t.lastSignalAt && now - new Date(t.lastSignalAt).getTime() < RECENCY_WINDOW_MS)
-    .map(t => ({ threadId: t.threadId, lastSignalAt: t.lastSignalAt! }))
-  if (recentThreads.length > 0) {
-    await signalsStore.fetchForThreads(recentThreads)
-  }
-}
-
 
 const VALID_TABS = ['active', 'archived', 'all'] as const
 type TabKey = (typeof VALID_TABS)[number]
@@ -55,59 +43,39 @@ function statusFor(tab: TabKey): ThreadStatus | undefined {
   return tab === 'all' ? undefined : tab
 }
 
-/** The query a tab reads. Filters, when the inbox grows them, belong here too. */
-function queryFor(tab: TabKey): FetchThreadsOptions {
-  return { status: statusFor(tab) }
-}
-
-/**
- * A cursor is a position within one query's results and means nothing to a different
- * query, so cursors are held per query rather than per tab. Today the tab is the whole
- * query, giving one cursor per tab; anything added to `queryFor` — filters, a search
- * term — changes the identity too, so a changed query can never continue paging through
- * the old one's results. A page landing late updates the query that asked for it and no
- * other. Set means that query has more pages.
- */
-const cursors = ref<Record<string, string | undefined>>({})
-
-function cursorKey(query: FetchThreadsOptions) {
-  return JSON.stringify(query)
-}
-
-const hasMore = computed(() => cursors.value[cursorKey(queryFor(activeTab.value))] !== undefined)
-
-const tabThreads = computed(() =>
-  activeTab.value === 'all'
-    ? threadsStore.sortedThreads
-    : threadsStore.threadsWithStatus(activeTab.value),
+// TanStack Query — thread list driven by current tab
+const { query: threadListQuery, threads: allThreads, activeCount, hasMore } = useThreadListQuery(
+  () => statusFor(activeTab.value),
 )
 
+const archiveMutation = useArchiveThread()
+const bulkArchiveMutation = useBulkArchive()
+const bulkMoveToInboxMutation = useBulkMoveToInbox()
+const bulkLabelMutation = useBulkLabel()
+
+const loading = computed(() => threadListQuery.isLoading.value)
+const error = computed(() => threadListQuery.error.value?.message ?? null)
+
 // Filter out threads that are optimistically hidden (deferred delete/block pending)
-const visibleItems = computed(() => tabThreads.value.filter((t) => !hiddenIds.value.has(t.threadId)))
+const visibleItems = computed(() => allThreads.value.filter((t) => !hiddenIds.value.has(t.threadId)))
 
 const allSelected = computed(
   () => visibleItems.value.length > 0 && visibleItems.value.every((t) => threadsStore.selectedIds.has(t.threadId)),
 )
 
-/**
- * Read a tab's listing from the beginning. Selecting a tab always starts a fresh query
- * — the cursor it held is dropped first, so a stale one can never be sent — and the
- * cursor that query returns takes its place.
- */
-async function loadTab(tab: TabKey, refresh = false) {
-  const query = queryFor(tab)
-  const key = cursorKey(query)
-  cursors.value = { ...cursors.value, [key]: undefined }
-  // Skip skeleton if the store already has items for this tab
-  if (tabThreads.value.length > 0) loading.value = false
-  const cursor = await threadsStore.fetchThreads({ ...query, refresh })
-  loading.value = false
-  cursors.value = { ...cursors.value, [key]: cursor }
+async function fetchRecentSignals() {
+  const now = Date.now()
+  const recentThreads = allThreads.value
+    .filter(t => t.lastSignalAt && now - new Date(t.lastSignalAt).getTime() < RECENCY_WINDOW_MS)
+    .map(t => ({ threadId: t.threadId, lastSignalAt: t.lastSignalAt! }))
+  if (recentThreads.length > 0) {
+    await signalsStore.fetchForThreads(recentThreads)
+  }
 }
 
 async function handleRefresh() {
   refreshing.value = true
-  await loadTab(activeTab.value, true)
+  await threadListQuery.refetch()
   await fetchRecentSignals()
   lastRefreshedAt.value = new Date().toLocaleTimeString()
   refreshing.value = false
@@ -144,9 +112,9 @@ function openFocused() {
   void router.push({ name: 'thread-detail', params: { id: focusedThreadId.value } })
 }
 
-async function archiveFocused() {
+function archiveFocused() {
   if (!focusedThreadId.value) return
-  await threadsStore.archiveThread(focusedThreadId.value)
+  archiveMutation.mutate(focusedThreadId.value)
 }
 
 function selectFocused() {
@@ -154,10 +122,9 @@ function selectFocused() {
   threadsStore.toggleSelect(focusedThreadId.value)
 }
 
-onMounted(async () => {
+onMounted(() => {
   const tab = route.query.tab as TabKey | undefined
   if (tab && (VALID_TABS as readonly string[]).includes(tab)) activeTab.value = tab
-  await loadTab(activeTab.value)
 
   onAction('navigate_next', moveNext)
   onAction('navigate_prev', movePrev)
@@ -177,29 +144,28 @@ onUnmounted(() => {
 function handleTabChange(tab: TabKey) {
   activeTab.value = tab
   threadsStore.clearSelection()
-  void loadTab(tab)
   void router.replace({ query: tab === 'active' ? {} : { tab } })
 }
 
-async function handleLoadMore() {
-  const query = queryFor(activeTab.value)
-  const key = cursorKey(query)
-  const cursor = cursors.value[key]
-  if (cursor === undefined || threadsStore.loadingMore) return
-  const next = await threadsStore.fetchThreads({ ...query, cursor })
-  cursors.value = { ...cursors.value, [key]: next }
+function handleLoadMore() {
+  void threadListQuery.fetchNextPage()
 }
 
-async function handleBulkArchive() {
-  await threadsStore.bulkArchive()
+function handleBulkArchive() {
+  const ids = [...threadsStore.selectedIds]
+  threadsStore.clearSelection()
+  return bulkArchiveMutation.mutateAsync(ids)
 }
 
-async function handleBulkMoveToInbox() {
-  await threadsStore.bulkMoveToInbox()
+function handleBulkMoveToInbox() {
+  const ids = [...threadsStore.selectedIds]
+  threadsStore.clearSelection()
+  return bulkMoveToInboxMutation.mutateAsync(ids)
 }
 
-async function handleBulkLabel(label: string) {
-  await threadsStore.bulkLabel(label)
+function handleBulkLabel(label: string) {
+  const ids = [...threadsStore.selectedIds]
+  return bulkLabelMutation.mutateAsync({ threadIds: ids, label, threads: allThreads.value })
 }
 
 // Inbox zero celebration — fires only when active tab transitions from items → 0
@@ -255,12 +221,12 @@ watch(
       <StatsWidget class="hidden sm:block" />
       <ResourcesBanner />
 
-      <InboxError v-if="threadsStore.error" :message="threadsStore.error" />
+      <InboxError v-if="error" :message="error" />
 
       <InboxTabBar
         :active-tab="activeTab"
-        :active-count="threadsStore.activeCount"
-        :active-count-has-more="threadsStore.activeCountHasMore"
+        :active-count="activeCount"
+        :active-count-has-more="hasMore"
         @change="handleTabChange"
       />
 
@@ -340,11 +306,11 @@ watch(
 
       <div v-if="hasMore" class="mt-4 flex justify-center">
         <button
-          :disabled="threadsStore.loadingMore"
+          :disabled="threadListQuery.isFetchingNextPage.value"
           class="rounded bg-ctp-surface0 px-4 py-2 text-sm text-ctp-text hover:bg-ctp-surface1 disabled:opacity-50"
           @click="handleLoadMore"
         >
-          {{ threadsStore.loadingMore ? 'Loading…' : 'Load more' }}
+          {{ threadListQuery.isFetchingNextPage.value ? 'Loading…' : 'Load more' }}
         </button>
       </div>
     </main>

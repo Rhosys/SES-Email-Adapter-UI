@@ -4,7 +4,7 @@ import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useLabelsStore } from '@/stores/labels'
 import { useViewsStore } from '@/stores/views'
 import { useAccountStore } from '@/stores/account'
-import { useThreadsStore } from '@/stores/threads'
+import { useThreadListQuery } from '@/composables/useThreadQueries'
 import { useQuarantineQuery } from '@/composables/useQuarantineQueries'
 import { useDraftsStore } from '@/stores/drafts'
 import { useResourcesStore } from '@/stores/resources'
@@ -21,7 +21,7 @@ const router = useRouter()
 const labelsStore = useLabelsStore()
 const viewsStore = useViewsStore()
 const accountStore = useAccountStore()
-const threadsStore = useThreadsStore()
+const { activeCount: threadActiveCount, hasMore: threadActiveCountHasMore } = useThreadListQuery(() => 'active')
 const { quarantineVisible: qVisible, visibleQuery: qVisibleQuery } = useQuarantineQuery(() => ({
   sender: '',
   after: '',
@@ -129,10 +129,10 @@ const accountSwitcherOpen = ref(false)
           </svg>
           <span class="flex-1">Inbox</span>
           <span
-            v-if="threadsStore.activeCount > 0"
+            v-if="threadActiveCount > 0"
             class="shrink-0 rounded-full bg-ctp-green px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ctp-base"
           >
-            {{ formatBadgeCount(threadsStore.activeCount, threadsStore.activeCountHasMore) }}
+            {{ formatBadgeCount(threadActiveCount, threadActiveCountHasMore) }}
           </span>
         </RouterLink>
 

@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import type { Thread } from '@/types/server'
-import { useThreadsStore } from '@/stores/threads'
+import { useArchiveThread } from '@/composables/useThreadQueries'
 import ThreadRowContent from './ThreadRowContent.vue'
 import SwipeableThreadRow from './SwipeableThreadRow.vue'
 
 const props = defineProps<{ thread: Thread; selected: boolean; focused?: boolean }>()
 const emit = defineEmits<{ 'toggle-select': [id: string] }>()
 
-const threadsStore = useThreadsStore()
+const archiveMutation = useArchiveThread()
 
-async function archiveThread(close?: () => void) {
+function archiveThread(close?: () => void) {
   close?.()
-  await threadsStore.archiveThread(props.thread.threadId)
+  archiveMutation.mutate(props.thread.threadId)
 }
 </script>
 

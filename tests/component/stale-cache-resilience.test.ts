@@ -92,8 +92,9 @@ describe('stale cache resilience — stores survive outdated localStorage shapes
     expect(statsStore.stats.totals.blocked).toBe(0)
   })
 
-  it('threads store handles non-array cache (old shape was maybe an object)', () => {
-    // If someone stored threads as an object instead of array
+  it('threads store is resilient to stale cache (data now in TanStack Query)', () => {
+    // After migration, threads store only holds selection state.
+    // Cache resilience is handled by TanStack Query's IndexedDB persister.
     seedLocalStorage('threads', { threadId: 'old', status: 'active' })
 
     const accountStore = useAccountStore()
@@ -101,9 +102,9 @@ describe('stale cache resilience — stores survive outdated localStorage shapes
 
     const threadsStore = useThreadsStore()
 
-    // activeCount iterates _byAccount[id] with filter — must not crash
-    expect(threadsStore.activeCount).toBe(0)
-    expect(threadsStore.threads).toEqual([])
+    // Selection state starts empty regardless of stale cache
+    expect(threadsStore.selectedIds.size).toBe(0)
+    expect(threadsStore.bulkActionPending).toBe(false)
   })
 
   it('quarantine store is resilient to stale cache (data now in TanStack Query)', () => {

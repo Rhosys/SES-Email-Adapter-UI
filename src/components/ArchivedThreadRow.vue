@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import type { Thread } from '@/types/server'
-import { useThreadsStore } from '@/stores/threads'
+import { useMoveToInbox } from '@/composables/useThreadQueries'
 import ThreadRowContent from './ThreadRowContent.vue'
 import SwipeableThreadRow from './SwipeableThreadRow.vue'
 
 const props = defineProps<{ thread: Thread; selected: boolean; focused?: boolean }>()
 const emit = defineEmits<{ 'toggle-select': [id: string] }>()
 
-const threadsStore = useThreadsStore()
+const moveToInboxMutation = useMoveToInbox()
 
-async function unarchiveThread(close?: () => void) {
+function unarchiveThread(close?: () => void) {
   close?.()
-  await threadsStore.moveToInbox(props.thread.threadId)
+  moveToInboxMutation.mutate(props.thread.threadId)
 }
 </script>
 

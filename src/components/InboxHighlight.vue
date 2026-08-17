@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import { useThreadsStore } from '@/stores/threads'
+import { useThreadListQuery, useArchiveThread } from '@/composables/useThreadQueries'
 import { useSignalsStore } from '@/stores/signals'
 import { useAccountStore } from '@/stores/account'
 import { useClipboard } from '@/composables/useClipboard'
@@ -12,7 +12,8 @@ import WorkflowPanel from './WorkflowPanel.vue'
 
 const RECENCY_WINDOW_MS = 15 * 60 * 1000
 
-const threadsStore = useThreadsStore()
+const { threads: sortedThreads } = useThreadListQuery(() => 'active')
+const archiveMutation = useArchiveThread()
 const signalsStore = useSignalsStore()
 const accountStore = useAccountStore()
 const { copied, copy } = useClipboard()
@@ -30,7 +31,7 @@ onUnmounted(() => clearInterval(countdownTimer))
 // Most recent active thread with a signal in the last 15 minutes
 const highlightThread = computed(() => {
   const currentTime = Date.now()
-  return threadsStore.sortedThreads.find((t) =>
+  return sortedThreads.value.find((t) =>
     t.status === 'active' && t.lastSignalAt && currentTime - new Date(t.lastSignalAt).getTime() < RECENCY_WINDOW_MS,
   ) ?? null
 })
@@ -90,7 +91,7 @@ async function copyAndArchive() {
   if (!authData.value?.code || !highlightThread.value) return
   await copy(authData.value.code)
   archiving.value = true
-  await threadsStore.archiveThread(highlightThread.value.threadId)
+  archiveMutation.mutate(highlightThread.value.threadId)
   archiving.value = false
 }
 

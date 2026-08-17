@@ -1,14 +1,21 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useQueryClient } from '@tanstack/vue-query'
 import { useAccountStore } from '@/stores/account'
-import { useThreadsStore } from '@/stores/threads'
 import { useSignalsStore } from '@/stores/signals'
-import type { Signal } from '@/types/server'
+import { api } from '@/lib/api'
+import { queryKeys } from '@/lib/queryKeys'
+import type { Signal, Thread } from '@/types/server'
 
 const TOP_THREAD_LIMIT = 30
 
 function byCreatedDesc(a: Signal, b: Signal) {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+}
+
+type InfiniteThreadData = {
+  pages: Array<{ threads: Thread[]; pagination: { cursor: string | null } }>
+  pageParams: Array<string | undefined>
 }
 
 // Drafts have no dedicated backend listing endpoint — instead this store
@@ -19,15 +26,25 @@ function byCreatedDesc(a: Signal, b: Signal) {
 // to date by draft create/update/send/discard) is enough.
 export const useDraftsStore = defineStore('drafts', () => {
   const accountStore = useAccountStore()
-  const threadsStore = useThreadsStore()
   const signalsStore = useSignalsStore()
 
   const loading = ref(false)
 
+  /** Read active threads from the TanStack Query cache directly. */
+  function getCachedActiveThreads(): Thread[] {
+    const accountId = accountStore.accountId
+    if (!accountId) return []
+    const queryClient = useQueryClient()
+    const data = queryClient.getQueryData<InfiniteThreadData>(queryKeys.threads.list(accountId, 'active'))
+    if (!data?.pages) return []
+    return data.pages.flatMap(p => p.threads).filter(t => t.status === 'active')
+  }
+
   const activeThreadIds = computed(() => {
+    const threads = getCachedActiveThreads()
     const ids = new Set<string>()
-    for (const thread of threadsStore.threads) {
-      if (thread.status === 'active') ids.add(thread.threadId)
+    for (const thread of threads) {
+      ids.add(thread.threadId)
     }
     return ids
   })
@@ -44,9 +61,14 @@ export const useDraftsStore = defineStore('drafts', () => {
     const id = accountStore.accountId
     if (!id) return
     loading.value = true
-    // Always fetch fresh threads to get current lastSignalAt
-    await threadsStore.fetchThreads({ status: 'active' })
-    const topThreads = threadsStore.activeThreads
+    // Fetch active threads directly from API
+    const result = await api.listThreads(id, { status: 'active', limit: TOP_THREAD_LIMIT })
+    if (result.isErr()) {
+      loading.value = false
+      return
+    }
+    const topThreads = result.value.threads
+      .sort((a, b) => new Date(b.lastSignalAt ?? 0).getTime() - new Date(a.lastSignalAt ?? 0).getTime())
       .slice(0, TOP_THREAD_LIMIT)
       .map((a) => ({ threadId: a.threadId, lastSignalAt: a.lastSignalAt ?? a.createdAt }))
     await signalsStore.fetchForThreads(topThreads)
