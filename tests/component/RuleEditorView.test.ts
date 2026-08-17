@@ -5,7 +5,6 @@ import { ok } from 'neverthrow'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import RuleEditorView from '@/views/RuleEditorView.vue'
 import { useAccountStore } from '@/stores/account'
-import { useLabelsStore } from '@/stores/labels'
 import type { Rule, Account, Label } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
@@ -290,7 +289,6 @@ describe('RuleEditorView — assign_label action', () => {
       ok([mockRule({ actions: [{ type: 'assign_label', value: 'lbl_1' }] })]),
     )
 
-    await useLabelsStore().fetchLabels()
     const wrapper = await mountEditor('/rules/rule_1')
 
     expect(wrapper.text()).toContain('Label')

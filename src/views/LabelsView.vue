@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useLabelsStore } from '@/stores/labels'
-import { useViewsStore } from '@/stores/views'
+import { useLabelsQuery, useCreateLabel, useUpdateLabel, useDeleteLabel } from '@/composables/useLabelsQueries'
+import { useViewsQuery, useCreateView, useUpdateView, useDeleteView } from '@/composables/useViewsQueries'
 import type { Label, View, Workflow } from '@/types/server'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
@@ -10,11 +10,17 @@ import { useConfirmDialog } from '@/composables/useConfirmDialog'
 
 const route = useRoute()
 const router = useRouter()
-const labelsStore = useLabelsStore()
-const viewsStore = useViewsStore()
+const { labels } = useLabelsQuery()
+const { sortedViews: sortedViewsList, query: viewsQuery } = useViewsQuery()
+const createLabelMutation = useCreateLabel()
+const updateLabelMutation = useUpdateLabel()
+const deleteLabelMutation = useDeleteLabel()
+const createViewMutation = useCreateView()
+const updateViewMutation = useUpdateView()
+const deleteViewMutation = useDeleteView()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
-const activeTab = ref<'labels' | 'views'>('labels')
+const activeTab = ref<'labels' | 'views'>((route.query.tab === 'views') ? 'views' : 'labels')
 
 // ─── Label form ───────────────────────────────────────────────────────────────
 const showLabelForm = ref(false)
@@ -68,19 +74,24 @@ async function saveLabel() {
     color: labelColor.value || undefined,
     icon: labelIcon.value.trim() || undefined,
   }
-  if (editingLabel.value) {
-    await labelsStore.updateLabel(editingLabel.value.label, body)
-  } else {
-    await labelsStore.createLabel(body)
+  try {
+    if (editingLabel.value) {
+      await updateLabelMutation.mutateAsync({ labelKey: editingLabel.value.label, body })
+    } else {
+      await createLabelMutation.mutateAsync(body)
+    }
+    cancelLabel()
+  } catch {
+    // Error captured in mutation.error — shown in the error banner
+  } finally {
+    labelPending.value = false
   }
-  labelPending.value = false
-  if (!labelsStore.error) cancelLabel()
 }
 
 async function deleteLabel(label: Label) {
   const confirmed = await confirmAction({ title: 'Delete label', message: `Delete label "${label.name}"?`, confirmLabel: 'Delete', confirmVariant: 'danger' })
   if (!confirmed) return
-  await labelsStore.deleteLabel(label.label)
+  await deleteLabelMutation.mutateAsync(label.label)
 }
 
 // ─── View form ────────────────────────────────────────────────────────────────
@@ -137,37 +148,42 @@ async function saveView() {
     icon: viewIcon.value.trim() || undefined,
     workflow: (viewWorkflow.value || undefined) as Workflow | undefined,
   }
-  if (editingView.value) {
-    await viewsStore.updateView(editingView.value.viewId, body)
-  } else {
-    await viewsStore.createView(body)
+  try {
+    if (editingView.value) {
+      await updateViewMutation.mutateAsync({ viewId: editingView.value.viewId, body })
+    } else {
+      await createViewMutation.mutateAsync(body)
+    }
+    cancelView()
+  } catch {
+    // Error captured in mutation.error — shown in the error banner
+  } finally {
+    viewPending.value = false
   }
-  viewPending.value = false
-  if (!viewsStore.error) cancelView()
 }
 
 async function deleteView(view: View) {
   const confirmed = await confirmAction({ title: 'Delete view', message: `Delete view "${view.name}"?`, confirmLabel: 'Delete', confirmVariant: 'danger' })
   if (!confirmed) return
-  await viewsStore.deleteView(view.viewId)
+  await deleteViewMutation.mutateAsync(view.viewId)
 }
 
-const sortedViews = computed(() => viewsStore.sortedViews)
+const sortedViews = computed(() => sortedViewsList.value)
 
-function clearErrors() {
-  labelsStore.clearError()
-  viewsStore.clearError()
-}
+const mutationError = computed(() => {
+  return createLabelMutation.error.value?.message
+    ?? updateLabelMutation.error.value?.message
+    ?? deleteLabelMutation.error.value?.message
+    ?? createViewMutation.error.value?.message
+    ?? updateViewMutation.error.value?.message
+    ?? deleteViewMutation.error.value?.message
+    ?? null
+})
 
 function selectTab(tab: 'labels' | 'views') {
   activeTab.value = tab
   void router.replace({ query: tab === 'views' ? { tab: 'views' } : {} })
 }
-
-onMounted(async () => {
-  if (route.query.tab === 'views') activeTab.value = 'views'
-  await Promise.all([labelsStore.fetchLabels(), viewsStore.fetchViews()])
-})
 </script>
 
 <template>
@@ -210,11 +226,10 @@ onMounted(async () => {
     <main class="mx-auto max-w-2xl px-4 py-6">
       <!-- Error banner -->
       <div
-        v-if="labelsStore.error || viewsStore.error"
+        v-if="mutationError"
         class="mb-4 rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
       >
-        {{ labelsStore.error || viewsStore.error }}
-        <button class="ml-2 underline" @click="clearErrors">Dismiss</button>
+        {{ mutationError }}
       </div>
 
       <!-- ── Labels tab ─────────────────────────────────────────────────────── -->
@@ -320,7 +335,7 @@ onMounted(async () => {
 
         <!-- Label list -->
         <div
-          v-if="labelsStore.items.length === 0 && !showLabelForm && !labelsStore.error"
+          v-if="labels.length === 0 && !showLabelForm"
           class="py-20 text-center"
         >
           <p class="text-base font-medium text-ctp-text">No labels yet</p>
@@ -330,7 +345,7 @@ onMounted(async () => {
         </div>
         <TransitionGroup v-else name="list" tag="div" class="relative divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0">
           <div
-            v-for="label in labelsStore.items"
+            v-for="label in labels"
             :key="label.label"
             class="flex items-center gap-3 px-4 py-3"
           >
@@ -436,7 +451,7 @@ onMounted(async () => {
 
         <!-- Views list -->
         <div
-          v-if="viewsStore.loading"
+          v-if="viewsQuery.isLoading.value"
           role="status"
           aria-label="Loading saved views…"
           class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"

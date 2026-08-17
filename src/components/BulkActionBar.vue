@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
-import { useLabelsStore } from '@/stores/labels'
+import { useLabelsQuery } from '@/composables/useLabelsQueries'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 const props = defineProps<{
@@ -20,7 +20,7 @@ const emit = defineEmits<{
   (e: 'clear'): void
 }>()
 
-const labelsStore = useLabelsStore()
+const { labels } = useLabelsQuery()
 
 const isEmpty = computed(() => props.count === 0)
 
@@ -30,8 +30,8 @@ const dropdownRef = ref<HTMLElement | null>(null)
 
 const filteredLabels = computed(() => {
   const q = labelInput.value.trim().toLowerCase()
-  if (!q) return labelsStore.items
-  return labelsStore.items.filter((l) => l.name.toLowerCase().includes(q))
+  if (!q) return labels.value
+  return labels.value.filter((l) => l.name.toLowerCase().includes(q))
 })
 
 function handleSelectAll(event: Event) {

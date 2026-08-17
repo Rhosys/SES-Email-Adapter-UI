@@ -14,7 +14,7 @@ import { groupByBodyFingerprint, attachLinkedSignals } from '@/lib/dedup'
 import { aggregateWorkflowPanels } from '@/lib/workflow-aggregator'
 import { groupHasVisibleEntries } from '@/lib/workflow-visibility'
 import { visibleLabels, findLabelMeta } from '@/lib/labels'
-import { useLabelsStore } from '@/stores/labels'
+import { useLabelsQuery } from '@/composables/useLabelsQueries'
 import { api } from '@/lib/api'
 import WorkflowPanel from '@/components/WorkflowPanel.vue'
 import UnsubscribePanel from '@/components/panels/UnsubscribePanel.vue'
@@ -32,7 +32,7 @@ import SenderInfoPopup from '@/components/SenderInfoPopup.vue'
 const route = useRoute()
 const router = useRouter()
 const accountStore = useAccountStore()
-const labelsStore = useLabelsStore()
+const { labels } = useLabelsQuery()
 const { showUndo } = useToast()
 const { hideWithDefer } = useDeferredHide()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
@@ -355,7 +355,7 @@ async function startDraft() {
 }
 
 function labelMeta(label: string) {
-  return findLabelMeta(labelsStore.items, label)
+  return findLabelMeta(labels.value, label)
 }
 
 async function removeLabel(label: string) {

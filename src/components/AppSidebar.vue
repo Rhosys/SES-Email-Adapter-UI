@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
-import { useLabelsStore } from '@/stores/labels'
-import { useViewsStore } from '@/stores/views'
+import { useLabelsQuery } from '@/composables/useLabelsQueries'
+import { useViewsQuery, useReorderViews } from '@/composables/useViewsQueries'
 import { useAccountStore } from '@/stores/account'
 import { useThreadListQuery } from '@/composables/useThreadQueries'
 import { useQuarantineQuery } from '@/composables/useQuarantineQueries'
@@ -18,8 +18,9 @@ defineProps<{ open: boolean }>()
 
 const route = useRoute()
 const router = useRouter()
-const labelsStore = useLabelsStore()
-const viewsStore = useViewsStore()
+const { labels } = useLabelsQuery()
+const { sortedViews, query: viewsQuery } = useViewsQuery()
+const reorderViewsMutation = useReorderViews()
 const accountStore = useAccountStore()
 const { activeCount: threadActiveCount, hasMore: threadActiveCountHasMore } = useThreadListQuery(() => 'active')
 const { quarantineVisible: qVisible, visibleQuery: qVisibleQuery } = useQuarantineQuery(() => ({
@@ -72,7 +73,7 @@ function onDragStart(viewId: string) {
 
 function onDrop(targetId: string) {
   if (!dragSource.value || dragSource.value === targetId) return
-  viewsStore.reorder(dragSource.value, targetId)
+  reorderViewsMutation.mutate({ sourceId: dragSource.value, targetId })
   dragSource.value = null
 }
 
@@ -87,8 +88,7 @@ function navigateToView(v: { workflow?: string; labels?: string[] }) {
   void router.push({ path: '/', query })
 }
 
-const viewsLoaded = computed(() => !viewsStore.loading)
-const sortedViews = computed(() => viewsStore.sortedViews)
+const viewsLoaded = computed(() => !viewsQuery.isLoading.value)
 
 // Account switcher (shown at bottom when multiple accounts)
 const accountSwitcherOpen = ref(false)
@@ -287,9 +287,9 @@ const accountSwitcherOpen = ref(false)
           </svg>
           Labels
         </RouterLink>
-        <div v-if="labelsStore.items.length > 0" class="ml-6 mt-0.5 space-y-0.5">
+        <div v-if="labels.length > 0" class="ml-6 mt-0.5 space-y-0.5">
           <RouterLink
-            v-for="label in labelsStore.items"
+            v-for="label in labels"
             :key="label.label"
             :to="{ path: '/search', query: { label: label.name } }"
             class="flex items-center gap-2 rounded px-2 py-1 text-xs text-ctp-subtext0 hover:bg-ctp-surface0/50 hover:text-ctp-text"

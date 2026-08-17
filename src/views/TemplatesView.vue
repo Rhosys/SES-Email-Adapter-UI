@@ -1,16 +1,26 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import Handlebars from 'handlebars'
 import { marked } from 'marked'
-import { useTemplatesStore } from '@/stores/templates'
+import { useTemplatesQuery, useCreateTemplate, useUpdateTemplate, useDeleteTemplate } from '@/composables/useTemplatesQueries'
 import { useHbsAutocomplete } from '@/composables/useHbsAutocomplete'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import type { EmailTemplate, TemplateFunction } from '@/types/server'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 
-const store = useTemplatesStore()
+const { templates, query: templatesQuery } = useTemplatesQuery()
+const createTemplateMutation = useCreateTemplate()
+const updateTemplateMutation = useUpdateTemplate()
+const deleteTemplateMutation = useDeleteTemplate()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
+
+const mutationError = computed(() => {
+  return createTemplateMutation.error.value?.message
+    ?? updateTemplateMutation.error.value?.message
+    ?? deleteTemplateMutation.error.value?.message
+    ?? null
+})
 
 // ─── Editor state ─────────────────────────────────────────────────────────────
 
@@ -59,7 +69,6 @@ function openEdit(tpl: EmailTemplate) {
 
 function closeEditor() {
   showEditor.value = false
-  store.clearError()
 }
 
 async function save() {
@@ -80,17 +89,24 @@ async function save() {
     body: draftBody.value,
     functions: draftFunctions.value.map((f) => ({ name: f.name.trim(), code: f.code })),
   }
-  const result = editingId.value
-    ? await store.updateTemplate(editingId.value, payload)
-    : await store.createTemplate(payload)
-  saving.value = false
-  if (result.isOk()) closeEditor()
+  try {
+    if (editingId.value) {
+      await updateTemplateMutation.mutateAsync({ templateId: editingId.value, body: payload })
+    } else {
+      await createTemplateMutation.mutateAsync(payload)
+    }
+    closeEditor()
+  } catch {
+    // Error captured in mutation.error — shown in the error banner
+  } finally {
+    saving.value = false
+  }
 }
 
 async function remove(tpl: EmailTemplate) {
   const confirmed = await confirmAction({ title: 'Delete template', message: `Delete "${tpl.name}"? Rules using this template will stop working.`, confirmLabel: 'Delete', confirmVariant: 'danger' })
   if (!confirmed) return
-  await store.deleteTemplate(tpl.templateId)
+  await deleteTemplateMutation.mutateAsync(tpl.templateId)
 }
 
 function openClone(tpl: EmailTemplate) {
@@ -331,10 +347,6 @@ function relTime(iso: string): string {
   if (hrs < 24) return `${hrs}h ago`
   return `${Math.floor(hrs / 24)}d ago`
 }
-
-onMounted(async () => {
-  await store.fetchTemplates()
-})
 </script>
 
 <template>
@@ -359,16 +371,15 @@ onMounted(async () => {
     <main class="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
       <!-- Error -->
       <div
-        v-if="store.error && !showEditor"
+        v-if="mutationError && !showEditor"
         class="mb-4 rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
       >
-        {{ store.error }}
-        <button class="ml-2 underline" @click="store.clearError()">Dismiss</button>
+        {{ mutationError }}
       </div>
 
       <!-- Loading -->
       <div
-        v-if="store.loading"
+        v-if="templatesQuery.isLoading.value"
         role="status"
         aria-label="Loading templates…"
         class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
@@ -384,7 +395,7 @@ onMounted(async () => {
       </div>
 
       <!-- Empty -->
-      <div v-else-if="!showEditor && store.templates.length === 0" class="py-20 text-center">
+      <div v-else-if="!showEditor && templates.length === 0" class="py-20 text-center">
         <p class="text-base font-medium text-ctp-text">No templates yet</p>
         <p class="mx-auto mt-2 max-w-sm text-sm text-ctp-subtext0">
           Create a template once, reuse it across as many rules as you like — for auto-replies or
@@ -400,11 +411,11 @@ onMounted(async () => {
 
       <!-- Template list -->
       <div
-        v-else-if="!showEditor && store.templates.length > 0"
+        v-else-if="!showEditor && templates.length > 0"
         class="divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"
       >
         <div
-          v-for="tpl in store.templates"
+          v-for="tpl in templates"
           :key="tpl.templateId"
           class="flex items-start justify-between gap-4 px-4 py-3"
         >
@@ -456,10 +467,10 @@ onMounted(async () => {
         </div>
 
         <div
-          v-if="store.error"
+          v-if="mutationError"
           class="rounded border border-ctp-red bg-ctp-red/10 px-3 py-2 text-xs text-ctp-red"
         >
-          {{ store.error }}
+          {{ mutationError }}
         </div>
 
         <!-- Name -->

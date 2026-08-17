@@ -2,7 +2,7 @@
 import { inject, watch, onMounted, ref } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useSearch } from '@/composables/useSearch'
-import { useLabelsStore } from '@/stores/labels'
+import { useLabelsQuery } from '@/composables/useLabelsQueries'
 import { visibleLabels, findLabelMeta } from '@/lib/labels'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
 import { NOW_KEY } from '@/composables/useRelativeTime'
@@ -12,10 +12,10 @@ const now = inject(NOW_KEY)
 
 const route = useRoute()
 const router = useRouter()
-const labelsStore = useLabelsStore()
+const { labels } = useLabelsQuery()
 
 function labelMeta(label: string) {
-  return findLabelMeta(labelsStore.items, label)
+  return findLabelMeta(labels.value, label)
 }
 
 const { query, results, loading, searched, error, onPaste } = useSearch({ mode: 'full' })

@@ -3,9 +3,9 @@ import { ref, computed, onMounted, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useRulesQuery, useCreateRule, useUpdateRule } from '@/composables/useRulesQueries'
-import { useLabelsStore } from '@/stores/labels'
+import { useLabelsQuery } from '@/composables/useLabelsQueries'
 import { useQuarantineQuery, useAllowQuarantinedSignal, useRejectQuarantinedSignal } from '@/composables/useQuarantineQueries'
-import { useTemplatesStore } from '@/stores/templates'
+import { useTemplatesQuery } from '@/composables/useTemplatesQueries'
 import { api } from '@/lib/api'
 import type {
   ConditionField,
@@ -34,11 +34,11 @@ const accountStore = useAccountStore()
 const { rules } = useRulesQuery()
 const createRuleMutation = useCreateRule()
 const updateRuleMutation = useUpdateRule()
-const labelsStore = useLabelsStore()
+const { labels } = useLabelsQuery()
 const { quarantineVisible: qVis, quarantineHidden: qHid } = useQuarantineQuery(() => ({ sender: '', after: '', before: '' }))
 const allowMutation = useAllowQuarantinedSignal()
 const rejectMutation = useRejectQuarantinedSignal()
-const templatesStore = useTemplatesStore()
+const { templates } = useTemplatesQuery()
 
 const jsAc = useJsAutocomplete()
 
@@ -302,8 +302,6 @@ async function save() {
 
 onMounted(async () => {
   await Promise.all([
-    labelsStore.fetchLabels(),
-    templatesStore.fetchTemplates(),
     (async () => {
       if (!accountStore.accountId) return
       const result = await api.listForwardingAddresses(accountStore.accountId)
@@ -680,7 +678,7 @@ watch(signalAction, (val) => {
                 @change="updateAction(idx, { value: ($event.target as HTMLSelectElement).value })"
               >
                 <option value="">Pick label…</option>
-                <option v-for="l in labelsStore.items" :key="l.label" :value="l.label">
+                <option v-for="l in labels" :key="l.label" :value="l.label">
                   {{ l.name }}
                 </option>
               </select>
@@ -760,7 +758,7 @@ watch(signalAction, (val) => {
                 @change="updateAction(idx, { value: ($event.target as HTMLSelectElement).value || undefined })"
               >
                 <option value="">— Select template —</option>
-                <option v-for="tpl in templatesStore.templates" :key="tpl.templateId" :value="tpl.templateId">
+                <option v-for="tpl in templates" :key="tpl.templateId" :value="tpl.templateId">
                   {{ tpl.name }}
                 </option>
               </select>

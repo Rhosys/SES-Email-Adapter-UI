@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 import type { Thread } from '@/types/server'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
-import { useLabelsStore } from '@/stores/labels'
+import { useLabelsQuery } from '@/composables/useLabelsQueries'
 import { useSignalsStore } from '@/stores/signals'
 import { visibleLabels, findLabelMeta } from '@/lib/labels'
 import { aggregateWorkflowPanels } from '@/lib/workflow-aggregator'
@@ -17,7 +17,7 @@ const RECENCY_WINDOW_MS = 15 * 60 * 1000
 const props = defineProps<{ thread: Thread }>()
 
 const now = inject(NOW_KEY)
-const labelsStore = useLabelsStore()
+const { labels } = useLabelsQuery()
 const signalsStore = useSignalsStore()
 
 const timestamp = computed(() =>
@@ -54,7 +54,7 @@ const mergedWorkflowGroup = computed((): WorkflowGroup | null => {
 })
 
 function labelColor(key: string): string {
-  return findLabelMeta(labelsStore.items, key)?.color ?? '#cba6f7'
+  return findLabelMeta(labels.value, key)?.color ?? '#cba6f7'
 }
 </script>
 

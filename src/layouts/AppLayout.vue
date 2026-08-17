@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useLabelsStore } from '@/stores/labels'
-import { useViewsStore } from '@/stores/views'
+import { useLabelsQuery } from '@/composables/useLabelsQueries'
+import { useViewsQuery } from '@/composables/useViewsQueries'
 import type { Thread, Rule, EmailTemplate } from '@/types/server'
 import AppSidebar from '@/components/AppSidebar.vue'
 import AppNavbar from '@/components/AppNavbar.vue'
@@ -23,8 +23,8 @@ import { settingsTabLabel, resolveSettingsTab } from '@/lib/settingsTabs'
 
 useRelativeTime()
 
-const labelsStore = useLabelsStore()
-const viewsStore = useViewsStore()
+useLabelsQuery()
+useViewsQuery()
 const router = useRouter()
 const route = useRoute()
 
@@ -226,8 +226,6 @@ function focusSearch() {
 }
 
 onMounted(async () => {
-  await Promise.all([labelsStore.fetchLabels(), viewsStore.fetchViews()])
-
   // Initialize global keyboard shortcut listener
   initShortcuts()
   onAction('shortcut_help', () => {
