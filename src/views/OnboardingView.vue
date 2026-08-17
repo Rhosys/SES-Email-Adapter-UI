@@ -330,7 +330,7 @@ function connectWs(accountId: string) {
       ? base.replace('https://', 'wss://')
       : base.replace('http://', 'ws://')
   })()
-  const wsUrl = `${wsBase}/accounts/${accountId}/signals/stream`
+  const wsUrl = `${wsBase}/api/accounts/${accountId}/signals/stream`
   logger.info({ title: 'Onboarding: connecting WebSocket', url: wsUrl })
   try {
     ws = new WebSocket(wsUrl)

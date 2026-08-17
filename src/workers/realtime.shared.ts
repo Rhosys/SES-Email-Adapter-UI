@@ -39,7 +39,7 @@ function connect(): void {
   if (!currentAccountId || !currentToken) return
   if (ws !== null && ws.readyState !== WebSocket.CLOSED) return
 
-  const url = `${WS_BASE}/accounts/${currentAccountId}?token=${encodeURIComponent(currentToken)}`
+  const url = `${WS_BASE}/api/accounts/${currentAccountId}?token=${encodeURIComponent(currentToken)}`
   ws = new WebSocket(url)
 
   ws.onopen = () => {
@@ -66,8 +66,9 @@ function connect(): void {
     }
   }
 
-  ws.onclose = () => {
+  ws.onclose = (e: CloseEvent) => {
     clearKeepAlive()
+    console.warn('[realtime worker] WebSocket closed', { code: e.code, reason: e.reason, wasClean: e.wasClean })
     broadcast({ type: 'status', connected: false })
     scheduleReconnect()
   }
