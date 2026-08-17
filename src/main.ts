@@ -9,7 +9,6 @@ import './lib/analytics'
 import logger from './lib/logger'
 import { loginClient } from './lib/auth'
 import { useAccountStore } from './stores/account'
-import { useQuarantineStore } from './stores/quarantine'
 import { useThreadsStore } from './stores/threads'
 import { useSignalsStore } from './stores/signals'
 import { useResourcesStore } from './stores/resources'
@@ -87,9 +86,6 @@ enableMocking().then(() => {
   // Once the account is resolved, prime all sidebar badge counters so they reflect
   // reality on first paint — regardless of which page the user navigates to first.
   accountStore.waitForFetch().then(() => {
-    const quarantineStore = useQuarantineStore()
-    void quarantineStore.fetchSignals()
-
     const resourcesStore = useResourcesStore()
     void resourcesStore.fetchResources()
 

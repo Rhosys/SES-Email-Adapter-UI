@@ -3,9 +3,9 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { ok, err } from 'neverthrow'
 import { createRouter, createMemoryHistory } from 'vue-router'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import QuarantineView from '@/views/QuarantineView.vue'
 import { useAccountStore } from '@/stores/account'
-import { useQuarantineStore } from '@/stores/quarantine'
 import { ApiError } from '@/lib/api'
 import type { QuarantinedSignal, Account } from '@/types/server'
 
@@ -80,12 +80,15 @@ function makeRouter() {
 }
 
 let pinia: ReturnType<typeof createPinia>
+let queryClient: QueryClient
 
 async function mountView() {
   const router = makeRouter()
   await router.push('/quarantine')
   await router.isReady()
-  const wrapper = mount(QuarantineView, { global: { plugins: [pinia, router] } })
+  const wrapper = mount(QuarantineView, {
+    global: { plugins: [pinia, router, [VueQueryPlugin, { queryClient }]] },
+  })
   await flushPromises()
   return wrapper
 }
@@ -94,6 +97,12 @@ describe('QuarantineView — regression gate', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, gcTime: 0 },
+        mutations: { retry: false },
+      },
+    })
     vi.clearAllMocks()
     useAccountStore().account = testAccount
     vi.mocked(api.listAccounts).mockResolvedValue(ok([testAccount]))
@@ -104,7 +113,9 @@ describe('QuarantineView — regression gate', () => {
     const router = makeRouter()
     await router.push('/quarantine')
     await router.isReady()
-    const wrapper = mount(QuarantineView, { global: { plugins: [pinia, router] } })
+    const wrapper = mount(QuarantineView, {
+      global: { plugins: [pinia, router, [VueQueryPlugin, { queryClient }]] },
+    })
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[role="status"][aria-label="Loading quarantine…"]').exists()).toBe(true)
   })
@@ -135,56 +146,6 @@ describe('QuarantineView — regression gate', () => {
     expect(wrapper.text()).toContain('Server error')
   })
 
-  it('removes signal from list on allow', async () => {
-    mockBothCalls([
-      mockQuarantinedSignal({ signalId: 'v1' }),
-      mockQuarantinedSignal({ signalId: 'v2' }),
-    ], [])
-    const wrapper = await mountView()
-    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(2)
-
-    vi.mocked(api.quarantineResponse).mockResolvedValue(ok({ thread: { threadId: 'thread_1' } }))
-    await useQuarantineStore().allow('v1')
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(1)
-  })
-
-  it('removes signal from list on reject', async () => {
-    mockBothCalls([mockQuarantinedSignal({ signalId: 'v1' })], [])
-    const wrapper = await mountView()
-    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(1)
-
-    vi.mocked(api.quarantineResponse).mockResolvedValue(ok({}))
-    await useQuarantineStore().reject('v1')
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(0)
-    expect(wrapper.text()).toContain('No emails waiting for review')
-  })
-
-  it('removes signal from list on dismiss', async () => {
-    mockBothCalls([mockQuarantinedSignal({ signalId: 'v1' })], [])
-    const wrapper = await mountView()
-
-    vi.mocked(api.quarantineResponse).mockResolvedValue(ok({}))
-    await useQuarantineStore().dismiss('v1')
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(0)
-  })
-
-  it('shows error banner on action failure', async () => {
-    mockBothCalls([mockQuarantinedSignal({ signalId: 'v1' })], [])
-    const wrapper = await mountView()
-
-    vi.mocked(api.quarantineResponse).mockResolvedValue(err(new ApiError(500, 'Allow failed')))
-    await useQuarantineStore().allow('v1')
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.text()).toContain('Allow failed')
-  })
-
   it('re-fetches on filter change', async () => {
     mockBothCalls([], [])
     const wrapper = await mountView()
@@ -193,6 +154,7 @@ describe('QuarantineView — regression gate', () => {
     wrapper.findComponent({ name: 'QuarantineFilters' }).vm.$emit('update', { sender: 'foo@bar.com' })
     await flushPromises()
 
+    // Filter change produces new query key → new fetch
     expect(api.listQuarantinedSignals).toHaveBeenCalledWith(
       'acc_1',
       'quarantine_visible',

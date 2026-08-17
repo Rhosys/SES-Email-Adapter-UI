@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
-import { useQuarantineStore } from '@/stores/quarantine'
+import { useQuarantineQuery } from '@/composables/useQuarantineQueries'
 
 defineProps<{ tab: 'active' | 'archived' | 'all'; refreshing?: boolean; lastRefreshedAt?: string | null }>()
 defineEmits<{ refresh: [] }>()
 
-const quarantineStore = useQuarantineStore()
+const { quarantineVisible } = useQuarantineQuery(() => ({
+  sender: '',
+  after: '',
+  before: '',
+}))
 
 const messages = {
   active: {
@@ -32,11 +36,11 @@ const messages = {
     <p class="mx-auto mt-2 max-w-sm text-sm text-ctp-subtext0">{{ messages[tab].secondary }}</p>
 
     <RouterLink
-      v-if="tab === 'active' && quarantineStore.visibleCount > 0"
+      v-if="tab === 'active' && quarantineVisible.length > 0"
       :to="{ name: 'quarantine' }"
       class="mx-auto mt-4 inline-flex items-center gap-1.5 rounded-full border border-ctp-peach/40 bg-ctp-peach/10 px-3 py-1.5 text-sm text-ctp-peach transition-colors hover:bg-ctp-peach/20"
     >
-      {{ quarantineStore.visibleCount }} email{{ quarantineStore.visibleCount === 1 ? '' : 's' }} waiting for your
+      {{ quarantineVisible.length }} email{{ quarantineVisible.length === 1 ? '' : 's' }} waiting for your
       review in quarantine →
     </RouterLink>
 

@@ -28,11 +28,19 @@ vi.mock('@/lib/api', async (importOriginal) => {
 
 vi.mock('@/stores/quarantine', () => ({
   useQuarantineStore: () => ({
-    quarantineVisible: [],
-    quarantineHidden: [],
-    allow: vi.fn(),
-    reject: vi.fn(),
+    actionPending: new Set(),
   }),
+}))
+
+vi.mock('@/composables/useQuarantineQueries', () => ({
+  useQuarantineQuery: () => ({
+    quarantineVisible: { value: [] },
+    quarantineHidden: { value: [] },
+    visibleQuery: { isLoading: { value: false }, data: { value: null } },
+    hiddenQuery: { isLoading: { value: false }, data: { value: null } },
+  }),
+  useAllowQuarantinedSignal: () => ({ mutateAsync: vi.fn().mockResolvedValue({}) }),
+  useRejectQuarantinedSignal: () => ({ mutateAsync: vi.fn().mockResolvedValue({}) }),
 }))
 
 import { api } from '@/lib/api'

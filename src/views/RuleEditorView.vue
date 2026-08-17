@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useRulesStore } from '@/stores/rules'
 import { useLabelsStore } from '@/stores/labels'
-import { useQuarantineStore } from '@/stores/quarantine'
+import { useQuarantineQuery, useAllowQuarantinedSignal, useRejectQuarantinedSignal } from '@/composables/useQuarantineQueries'
 import { useTemplatesStore } from '@/stores/templates'
 import { api } from '@/lib/api'
 import type {
@@ -33,7 +33,9 @@ const router = useRouter()
 const accountStore = useAccountStore()
 const rulesStore = useRulesStore()
 const labelsStore = useLabelsStore()
-const quarantineStore = useQuarantineStore()
+const { quarantineVisible: qVis, quarantineHidden: qHid } = useQuarantineQuery(() => ({ sender: '', after: '', before: '' }))
+const allowMutation = useAllowQuarantinedSignal()
+const rejectMutation = useRejectQuarantinedSignal()
 const templatesStore = useTemplatesStore()
 
 const jsAc = useJsAutocomplete()
@@ -276,13 +278,13 @@ async function save() {
 
   if (signalId.value && signalAction.value) {
     if (signalAction.value === 'allow') {
-      const threadId = await quarantineStore.allow(signalId.value)
-      if (threadId) {
-        void router.push({ name: 'thread-detail', params: { id: threadId } })
+      const result = await allowMutation.mutateAsync(signalId.value)
+      if (result.thread?.threadId) {
+        void router.push({ name: 'thread-detail', params: { id: result.thread.threadId } })
         return
       }
     } else {
-      await quarantineStore.reject(signalId.value)
+      await rejectMutation.mutateAsync(signalId.value)
     }
     void router.push('/quarantine')
   } else {
@@ -326,7 +328,7 @@ onMounted(async () => {
       actions.value = [{ type: signalAction.value === 'allow' ? 'approve_sender' : 'block_hidden' }]
     }
     if (signalId.value) {
-      const signal = [...quarantineStore.quarantineVisible, ...quarantineStore.quarantineHidden].find((s) => s.signalId === signalId.value)
+      const signal = [...qVis.value, ...qHid.value].find((s) => s.signalId === signalId.value)
       if (signal && signal.type === 'email' && 'from' in signal.data) {
         const fromAddr = signal.data.from.address
         groups.value = [

@@ -5,7 +5,7 @@ import { useLabelsStore } from '@/stores/labels'
 import { useViewsStore } from '@/stores/views'
 import { useAccountStore } from '@/stores/account'
 import { useThreadsStore } from '@/stores/threads'
-import { useQuarantineStore } from '@/stores/quarantine'
+import { useQuarantineQuery } from '@/composables/useQuarantineQueries'
 import { useDraftsStore } from '@/stores/drafts'
 import { useResourcesStore } from '@/stores/resources'
 import { isAdminUser } from '@/stores/admin'
@@ -22,7 +22,11 @@ const labelsStore = useLabelsStore()
 const viewsStore = useViewsStore()
 const accountStore = useAccountStore()
 const threadsStore = useThreadsStore()
-const quarantineStore = useQuarantineStore()
+const { quarantineVisible: qVisible, visibleQuery: qVisibleQuery } = useQuarantineQuery(() => ({
+  sender: '',
+  after: '',
+  before: '',
+}))
 const draftsStore = useDraftsStore()
 const resourcesStore = useResourcesStore()
 
@@ -41,9 +45,9 @@ const spamBlockedCountHasMore = computed(() =>
   (spamHiddenQuery.hasNextPage?.value ?? false) || (spamRejectQuery.hasNextPage?.value ?? false),
 )
 
-// Notification badges — counts are now computed from persisted _byAccount data,
-// so no explicit fetch is needed. The quarantine store hydrates from localStorage
-// and the counts derive reactively. `formatBadgeCount` is shared with InboxTabBar.
+// Quarantine badge — derive count from TanStack Query cache via the composable.
+const quarantineVisibleCount = computed(() => qVisible.value.length)
+const quarantineVisibleCountHasMore = computed(() => qVisibleQuery.hasNextPage?.value ?? false)
 
 // ── User identity for mobile profile row ──────────────────────────────────────
 const identity = useIdentity()
@@ -150,10 +154,10 @@ const accountSwitcherOpen = ref(false)
           </svg>
           <span class="flex-1">Quarantine</span>
           <span
-            v-if="quarantineStore.visibleCount > 0"
+            v-if="quarantineVisibleCount > 0"
             class="shrink-0 rounded-full bg-ctp-peach px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ctp-base"
           >
-            {{ formatBadgeCount(quarantineStore.visibleCount, quarantineStore.visibleCountHasMore) }}
+            {{ formatBadgeCount(quarantineVisibleCount, quarantineVisibleCountHasMore) }}
           </span>
         </RouterLink>
 

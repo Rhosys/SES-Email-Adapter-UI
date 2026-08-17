@@ -1,23 +1,17 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuarantineStore } from '@/stores/quarantine'
+import { useQuarantineQuery } from '@/composables/useQuarantineQueries'
 import { useRelativeTime } from '@/composables/useRelativeTime'
 import QuarantineFilters from '@/components/QuarantineFilters.vue'
 import QuarantineRow from '@/components/QuarantineRow.vue'
-import type { QuarantineFilters as Filters } from '@/stores/quarantine'
+import type { QuarantineFilters as Filters } from '@/composables/useQuarantineQueries'
 
 const route = useRoute()
 const router = useRouter()
 const store = useQuarantineStore()
 useRelativeTime()
-
-const loading = ref(true)
-const loadingMore = ref(false)
-
-const hasData = computed(
-  () => store.quarantineVisible.length > 0 || store.quarantineHidden.length > 0,
-)
 
 const filters = ref<Filters>(filtersFromQuery())
 
@@ -30,30 +24,34 @@ function filtersFromQuery(): Filters {
   }
 }
 
-async function doFetch() {
-  if (hasData.value) loading.value = false
-  await store.fetchSignals(filters.value)
-  loading.value = false
-}
+const { visibleQuery, hiddenQuery, quarantineVisible, quarantineHidden } = useQuarantineQuery(() => filters.value)
 
-onMounted(async () => {
-  await doFetch()
-})
+const isLoading = computed(() => visibleQuery.isLoading.value || hiddenQuery.isLoading.value)
+const error = computed(() => visibleQuery.error.value ?? hiddenQuery.error.value)
+const hasData = computed(() => quarantineVisible.value.length > 0 || quarantineHidden.value.length > 0)
+const hasMore = computed(() =>
+  (visibleQuery.hasNextPage?.value ?? false) || (hiddenQuery.hasNextPage?.value ?? false),
+)
 
-async function onUpdateFilters(next: Partial<Filters>) {
+const loadingMore = ref(false)
+
+function onUpdateFilters(next: Partial<Filters>) {
   filters.value = { ...filters.value, ...next }
   const query: Record<string, string> = {}
   if (filters.value.sender) query.sender = filters.value.sender
   if (filters.value.after) query.after = filters.value.after
   if (filters.value.before) query.before = filters.value.before
   void router.replace({ query })
-  await doFetch()
 }
 
 async function loadMore() {
   if (loadingMore.value) return
   loadingMore.value = true
-  await store.fetchMore(filters.value)
+  if (visibleQuery.hasNextPage?.value) {
+    await visibleQuery.fetchNextPage()
+  } else if (hiddenQuery.hasNextPage?.value) {
+    await hiddenQuery.fetchNextPage()
+  }
   loadingMore.value = false
 }
 </script>
@@ -72,28 +70,28 @@ async function loadMore() {
     <main class="mx-auto max-w-4xl">
       <!-- Error -->
       <div
-        v-if="store.error"
+        v-if="error"
         class="mx-4 mt-4 rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
       >
-        {{ store.error }}
-        <button class="ml-2 underline" @click="store.clearError()">Dismiss</button>
+        {{ error.message }}
+        <button class="ml-2 underline" @click="visibleQuery.refetch(); hiddenQuery.refetch()">Retry</button>
       </div>
 
       <!-- Data -->
       <template v-if="hasData">
         <!-- Needs review (quarantine_visible) -->
-        <section v-if="store.quarantineVisible.length > 0" aria-label="Needs review">
+        <section v-if="quarantineVisible.length > 0" aria-label="Needs review">
           <div
             class="flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-ctp-subtext0"
           >
             <span>Needs review</span>
             <span class="rounded-full bg-ctp-peach/20 px-1.5 py-0.5 text-ctp-peach">
-              {{ store.quarantineVisible.length }}
+              {{ quarantineVisible.length }}
             </span>
           </div>
           <TransitionGroup name="list" tag="div" role="list" aria-label="Emails needing review" class="relative">
             <QuarantineRow
-              v-for="signal in store.quarantineVisible"
+              v-for="signal in quarantineVisible"
               :key="signal.signalId"
               :signal="signal"
               :pending="store.actionPending.has(signal.signalId)"
@@ -103,8 +101,8 @@ async function loadMore() {
 
         <!-- Silently held (quarantine_hidden) -->
         <section
-          v-if="store.quarantineHidden.length > 0"
-          :class="{ 'mt-6': store.quarantineVisible.length > 0 }"
+          v-if="quarantineHidden.length > 0"
+          :class="{ 'mt-6': quarantineVisible.length > 0 }"
           aria-label="Silently held"
         >
           <div
@@ -112,7 +110,7 @@ async function loadMore() {
           >
             <span>Silently held</span>
             <span class="rounded-full bg-ctp-surface1 px-1.5 py-0.5 text-ctp-subtext0">
-              {{ store.quarantineHidden.length }}
+              {{ quarantineHidden.length }}
             </span>
             <span class="font-normal normal-case text-ctp-subtext0">
               — accepted by your server but not delivered
@@ -124,7 +122,7 @@ async function loadMore() {
           </p>
           <TransitionGroup name="list" tag="div" role="list" aria-label="Silently held emails" class="relative">
             <QuarantineRow
-              v-for="signal in store.quarantineHidden"
+              v-for="signal in quarantineHidden"
               :key="signal.signalId"
               :signal="signal"
               :pending="store.actionPending.has(signal.signalId)"
@@ -133,7 +131,7 @@ async function loadMore() {
         </section>
 
         <!-- Load more -->
-        <div v-if="store.hasMore" class="flex justify-center py-6">
+        <div v-if="hasMore" class="flex justify-center py-6">
           <button
             :disabled="loadingMore"
             class="rounded bg-ctp-surface0 px-4 py-2 text-sm text-ctp-text hover:bg-ctp-surface1 disabled:opacity-50"
@@ -146,7 +144,7 @@ async function loadMore() {
 
       <!-- Skeleton -->
       <div
-        v-else-if="loading"
+        v-else-if="isLoading"
         role="status"
         aria-label="Loading quarantine…"
         class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"

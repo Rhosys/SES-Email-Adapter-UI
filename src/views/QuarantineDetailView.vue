@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useQuarantineStore } from '@/stores/quarantine'
+import { useQuarantineQuery, useAllowQuarantinedSignal, useRejectQuarantinedSignal, useDismissQuarantinedSignal } from '@/composables/useQuarantineQueries'
 import { useRulesStore } from '@/stores/rules'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { conditionSummary } from '@/lib/rule-display'
@@ -19,20 +20,33 @@ const rulesStore = useRulesStore()
 const accountStore = useAccountStore()
 
 const signalId = computed(() => route.params.id as string)
-const loading = ref(true)
-const notFound = ref(false)
 const showSenderPopup = ref(false)
-const updating = ref(false)
+
+// Query all quarantine signals (no filter — detail view needs access to all)
+const { quarantineVisible, quarantineHidden, visibleQuery, hiddenQuery } = useQuarantineQuery(() => ({
+  sender: '',
+  after: '',
+  before: '',
+}))
+
+const isLoading = computed(() => visibleQuery.isLoading.value || hiddenQuery.isLoading.value)
+const isFetching = computed(() => visibleQuery.isFetching.value || hiddenQuery.isFetching.value)
 
 const signal = computed(() =>
-  [...quarantineStore.quarantineVisible, ...quarantineStore.quarantineHidden].find(
+  [...quarantineVisible.value, ...quarantineHidden.value].find(
     (s) => s.signalId === signalId.value,
   ) ?? null,
 )
 
+const notFound = computed(() => !isLoading.value && !signal.value)
+
 const inboundData = computed(() => (signal.value && isInboundEmailSignal(signal.value) ? signal.value.data : null))
 const matchedRules = computed(() => inboundData.value?.matchedRules ?? [])
 const pending = computed(() => (signal.value ? quarantineStore.actionPending.has(signal.value.signalId) : false))
+
+const allowMutation = useAllowQuarantinedSignal()
+const rejectMutation = useRejectQuarantinedSignal()
+const dismissMutation = useDismissQuarantinedSignal()
 
 const expandedRuleIds = ref<Set<string>>(new Set())
 function toggleRule(ruleId: string) {
@@ -46,41 +60,30 @@ function ruleFor(ruleId: string) {
   return rulesStore.items.find((r) => r.ruleId === ruleId)
 }
 
-onMounted(async () => {
-  if (signal.value) {
-    // Signal already cached — show immediately, refresh in background
-    loading.value = false
-    updating.value = true
-    await Promise.all([quarantineStore.fetchSignals(), rulesStore.fetchRules()])
-    updating.value = false
-    notFound.value = !signal.value
-  } else {
-    loading.value = true
-    await quarantineStore.fetchSignals()
-    await rulesStore.fetchRules()
-    loading.value = false
-    notFound.value = !signal.value
-  }
-})
-
 async function allow() {
   if (!signal.value) return
-  const threadId = await quarantineStore.allow(signal.value.signalId)
-  if (threadId) {
-    void router.push({ name: 'thread-detail', params: { id: threadId } })
+  quarantineStore.actionPending = new Set([...quarantineStore.actionPending, signal.value.signalId])
+  const result = await allowMutation.mutateAsync(signal.value.signalId)
+  quarantineStore.actionPending = new Set([...quarantineStore.actionPending].filter((x) => x !== signal.value!.signalId))
+  if (result.thread?.threadId) {
+    void router.push({ name: 'thread-detail', params: { id: result.thread.threadId } })
   }
 }
 
 async function reject() {
   if (!signal.value) return
-  const ok = await quarantineStore.reject(signal.value.signalId)
-  if (ok) void router.push('/quarantine')
+  quarantineStore.actionPending = new Set([...quarantineStore.actionPending, signal.value.signalId])
+  await rejectMutation.mutateAsync(signal.value.signalId)
+  quarantineStore.actionPending = new Set([...quarantineStore.actionPending].filter((x) => x !== signal.value!.signalId))
+  void router.push('/quarantine')
 }
 
 async function dismiss() {
   if (!signal.value) return
-  const ok = await quarantineStore.dismiss(signal.value.signalId)
-  if (ok) void router.push('/quarantine')
+  quarantineStore.actionPending = new Set([...quarantineStore.actionPending, signal.value.signalId])
+  await dismissMutation.mutateAsync(signal.value.signalId)
+  quarantineStore.actionPending = new Set([...quarantineStore.actionPending].filter((x) => x !== signal.value!.signalId))
+  void router.push('/quarantine')
 }
 
 const showReplyBlockedDialog = ref(false)
@@ -89,7 +92,8 @@ function onReplyAttempt() {
 }
 
 function onSignalReprocessed() {
-  void quarantineStore.fetchSignals()
+  void visibleQuery.refetch()
+  void hiddenQuery.refetch()
 }
 </script>
 
@@ -104,7 +108,7 @@ function onSignalReprocessed() {
 
     <!-- Loading -->
     <div
-      v-if="loading"
+      v-if="isLoading"
       role="status"
       aria-label="Loading quarantined email…"
       class="animate-pulse"
@@ -138,7 +142,7 @@ function onSignalReprocessed() {
       <div class="mb-6">
         <div class="flex items-center gap-2">
           <StatusBadge :status="signal.status" />
-          <span v-if="updating" class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-ctp-blue/15 px-2 py-0.5 text-xs font-medium text-ctp-blue">
+          <span v-if="isFetching && !isLoading" class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-ctp-blue/15 px-2 py-0.5 text-xs font-medium text-ctp-blue">
             <svg class="h-3 w-3 animate-spin" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2" stroke-dasharray="28" stroke-dashoffset="8" stroke-linecap="round" />
             </svg>

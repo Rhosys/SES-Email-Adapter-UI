@@ -106,30 +106,14 @@ describe('stale cache resilience — stores survive outdated localStorage shapes
     expect(threadsStore.threads).toEqual([])
   })
 
-  it('quarantine store handles cache missing visible/hidden keys', () => {
-    // Old shape might have been a flat array
-    seedLocalStorage('quarantine', [{ signalId: 'old' }])
-
+  it('quarantine store is resilient to stale cache (data now in TanStack Query)', () => {
+    // After migration, quarantine store only holds actionPending.
+    // Cache resilience is handled by TanStack Query's IndexedDB persister.
     const accountStore = useAccountStore()
     accountStore.account = { accountId: ACCOUNT_ID, name: 'Test' } as Account
 
     const quarantineStore = useQuarantineStore()
-
-    expect(quarantineStore.visibleCount).toBe(0)
-    expect(quarantineStore.quarantineVisible).toEqual([])
-    expect(quarantineStore.quarantineHidden).toEqual([])
-  })
-
-  it('quarantine store handles cache with null visible', () => {
-    seedLocalStorage('quarantine', { visible: null, hidden: null })
-
-    const accountStore = useAccountStore()
-    accountStore.account = { accountId: ACCOUNT_ID, name: 'Test' } as Account
-
-    const quarantineStore = useQuarantineStore()
-
-    expect(quarantineStore.visibleCount).toBe(0)
-    expect(quarantineStore.quarantineVisible).toEqual([])
+    expect(quarantineStore.actionPending.size).toBe(0)
   })
 
   it('StatsWidget renders without crash when cache has stale data', async () => {
