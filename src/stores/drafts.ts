@@ -81,6 +81,13 @@ export const useDraftsStore = defineStore('drafts', () => {
       loading.value = false
       return
     }
+
+    // Populate the thread list cache so getCachedActiveThreads() can read it
+    queryClient.setQueryData(queryKeys.threads.list(id, 'active'), {
+      pages: [{ threads: result.value.threads, pagination: result.value.pagination }],
+      pageParams: [undefined],
+    })
+
     const topThreads = result.value.threads
       .sort((a, b) => new Date(b.lastSignalAt ?? 0).getTime() - new Date(a.lastSignalAt ?? 0).getTime())
       .slice(0, TOP_THREAD_LIMIT)

@@ -221,6 +221,8 @@ describe('ThreadDetailView — reply reuses existing draft', () => {
     const thread = makeThread()
     const wrapper = await mountView(thread, [mockEmailSignal()])
     vi.mocked(api.createDraftSignal).mockResolvedValue(ok(mockDraftSignal()))
+    // After draft creation, the query refetches — include the draft in subsequent responses
+    vi.mocked(api.listSignals).mockResolvedValue(ok({ signals: [mockEmailSignal(), mockDraftSignal()], pagination: { cursor: null } }))
 
     const replyButton = wrapper.findAll('button').find((b) => b.text().includes('Reply'))!
     await replyButton.trigger('click')

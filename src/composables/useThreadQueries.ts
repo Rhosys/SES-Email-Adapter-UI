@@ -43,7 +43,10 @@ export function useThreadListQuery(status: () => ThreadStatus | undefined) {
 
   const threads = computed<Thread[]>(() => {
     const all = query.data.value?.pages.flatMap(p => p.threads) ?? []
-    return all.filter(isVisible).sort(byLastSignalDesc)
+    const requestedStatus = status()
+    return all
+      .filter((t) => isVisible(t) && (!requestedStatus || t.status === requestedStatus))
+      .sort(byLastSignalDesc)
   })
 
   const activeCount = computed(() => threads.value.filter(t => t.status === 'active').length)

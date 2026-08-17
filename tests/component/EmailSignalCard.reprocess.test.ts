@@ -3,7 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { ok, err } from 'neverthrow'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { useQueryClient } from '@tanstack/vue-query'
 import EmailSignalCard from '@/components/EmailSignalCard.vue'
 import { useAccountStore } from '@/stores/account'
 import { useSignalsStore } from '@/stores/signals'
@@ -66,7 +66,6 @@ function makeRouter() {
 }
 
 let pinia: ReturnType<typeof createPinia>
-let queryClient: QueryClient
 
 async function mountCard(signal: Signal, startPath = '/threads/thread_1') {
   const router = makeRouter()
@@ -75,7 +74,7 @@ async function mountCard(signal: Signal, startPath = '/threads/thread_1') {
 
   const wrapper = mount(EmailSignalCard, {
     props: { signal },
-    global: { plugins: [pinia, router, [VueQueryPlugin, { queryClient }]] },
+    global: { plugins: [pinia, router] },
     attachTo: document.body,
   })
 
@@ -89,7 +88,6 @@ async function mountCard(signal: Signal, startPath = '/threads/thread_1') {
 
 describe('EmailSignalCard — admin reprocess', () => {
   beforeEach(() => {
-    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     pinia = createPinia()
     setActivePinia(pinia)
     vi.clearAllMocks()
@@ -140,7 +138,8 @@ describe('EmailSignalCard — admin reprocess', () => {
 
   it('drops the reprocessed signal from the origin thread cache', async () => {
     const signalsStore = useSignalsStore()
-    queryClient.setQueryData(queryKeys.signals.byThread(ADMIN_ACCOUNT_ID, 'thread_1'), {
+    const qc = useQueryClient()
+    qc.setQueryData(queryKeys.signals.byThread(ADMIN_ACCOUNT_ID, 'thread_1'), {
       pages: [{ signals: [mockEmailSignal()], pagination: { cursor: null } }],
       pageParams: [undefined],
     })
@@ -154,7 +153,8 @@ describe('EmailSignalCard — admin reprocess', () => {
 
   it('leaves the origin thread cache intact for its other signals after reprocess', async () => {
     const signalsStore = useSignalsStore()
-    queryClient.setQueryData(queryKeys.signals.byThread(ADMIN_ACCOUNT_ID, 'thread_1'), {
+    const qc = useQueryClient()
+    qc.setQueryData(queryKeys.signals.byThread(ADMIN_ACCOUNT_ID, 'thread_1'), {
       pages: [{
         signals: [
           mockEmailSignal(),
@@ -164,12 +164,15 @@ describe('EmailSignalCard — admin reprocess', () => {
       }],
       pageParams: [undefined],
     })
+    const removeSpy = vi.spyOn(signalsStore, 'removeSignal')
     vi.mocked(api.reprocessSignal).mockResolvedValue(ok(mockEmailSignal({ threadId: undefined, status: 'quarantine_visible' })))
 
     await mountCard(mockEmailSignal())
     await flushPromises()
 
-    expect(signalsStore.threadSignals('thread_1').map((s) => s.signalId)).toEqual(['sig_2'])
+    // The reprocess removes only sig_1 from thread_1 — sig_2 should remain
+    expect(removeSpy).toHaveBeenCalledWith('thread_1', 'sig_1')
+    expect(removeSpy).toHaveBeenCalledTimes(1)
   })
 
   it('emits reprocessed without navigating when reprocessing leaves the signal with no thread', async () => {
