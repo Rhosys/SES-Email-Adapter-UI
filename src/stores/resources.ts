@@ -79,12 +79,16 @@ export const useResourcesStore = defineStore('resources', () => {
 
   // Fetches every resource regardless of status, for the full Resources view
   // where users browse and toggle both active and completed items.
+  // Scoped to future + past 7 days to keep the result set relevant.
   async function fetchAllResources() {
     const id = accountStore.accountId
     if (!id) return
     loading.value = true
     error.value = null
-    const result = await api.listResources(id, { limit: 100 })
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    const dateFrom = dayKey(sevenDaysAgo)
+    const result = await api.listResources(id, { dateFrom, limit: 100 })
     loading.value = false
     if (result.isErr()) {
       if ((_byAccount.value[id] ?? []).length > 0) {

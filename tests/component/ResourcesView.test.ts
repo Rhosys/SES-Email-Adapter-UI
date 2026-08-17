@@ -68,7 +68,7 @@ describe('ResourcesView', () => {
   it('fetches all resources regardless of status', async () => {
     vi.mocked(api.listResources).mockResolvedValue(ok({ resources: [], pagination: { cursor: null } }))
     await mountView()
-    expect(api.listResources).toHaveBeenCalledWith('acc_1', { limit: 100 })
+    expect(api.listResources).toHaveBeenCalledWith('acc_1', expect.objectContaining({ dateFrom: expect.any(String), limit: 100 }))
   })
 
   it('renders the empty state when there are no resources', async () => {
