@@ -1,5 +1,5 @@
 import { LoginClient } from '@authress/login'
-import { clearAllPersistedCache } from '@/plugins/persistent-store'
+import { queryClient } from '@/lib/queryClient'
 
 export const loginClient = new LoginClient({
   authressApiUrl: (import.meta.env.VITE_AUTHRESS_LOGIN_URL as string) ?? 'https://login.rhosys.cloud',
@@ -7,11 +7,10 @@ export const loginClient = new LoginClient({
 })
 
 /**
- * Sign the user out. Clears all persisted per-account store caches (threads, signals,
- * drafts, …) first so the next login can't re-hydrate another user's — or stale —
- * data, then hands off to the Authress logout redirect.
+ * Sign the user out. Clears the TanStack Query cache so the next login starts
+ * from a clean slate, then hands off to the Authress logout redirect.
  */
 export function logout(redirectUrl: string): Promise<void> {
-  clearAllPersistedCache()
+  queryClient.clear()
   return loginClient.logout(redirectUrl)
 }

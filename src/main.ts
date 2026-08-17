@@ -12,7 +12,6 @@ import { useAccountStore } from './stores/account'
 import { useUserConfigStore } from './stores/userConfig'
 import { useLogStore } from './stores/logs'
 import { useIdentity } from './composables/useIdentity'
-import { persistentStorePlugin } from '@/plugins/persistent-store'
 import buildInfo from '@/lib/buildInfo'
 
 function printBanner() {
@@ -46,7 +45,6 @@ async function enableMocking() {
 
 enableMocking().then(() => {
   const pinia = createPinia()
-  pinia.use(persistentStorePlugin)
   const app = createApp(App)
 
   app.config.errorHandler = (err, _instance, info) => {
@@ -79,12 +77,6 @@ enableMocking().then(() => {
   // after it. Guards await this same promise (waitForFetch) rather than initiating their own.
   const accountStore = useAccountStore()
   accountStore.startFetch()
-
-  // Once the account is resolved, TanStack Query composables in the sidebar and
-  // views automatically fetch their data. No manual resource priming needed.
-  accountStore.waitForFetch().then(() => {
-    // Spam data now fetched by useSpamQuery composable in the sidebar
-  })
 
   // Identity and user-config reads decode the session token, so they still wait for it.
   loginClient.waitForUserSession().then(() => {

@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import { persistentStorePlugin } from '@/plugins/persistent-store'
 import { useAccountStore } from '@/stores/account'
 import { useThreadsStore } from '@/stores/threads'
 import { useQuarantineStore } from '@/stores/quarantine'
@@ -44,7 +43,6 @@ describe('stale cache resilience — stores survive outdated localStorage shapes
   beforeEach(() => {
     localStorage.clear()
     const pinia = createPinia()
-    pinia.use(persistentStorePlugin)
     setActivePinia(pinia)
   })
 

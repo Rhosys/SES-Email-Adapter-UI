@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { ok, err, type Result } from 'neverthrow'
 import { api, ApiError } from '@/lib/api'
-import { removeAllForAccount } from '@/plugins/persistent-store'
 import logger from '@/lib/logger'
 import type { Account } from '@/types/server'
 
@@ -12,10 +11,7 @@ const TAB_KEY = 'ses:tabAccountId'
 const LAST_KEY = 'ses:lastAccountId'
 
 // Cached accounts list, so a returning user can render the shell optimistically
-// before the /accounts revalidation completes. Uses the `ses:v1:` prefix so sign-out's
-// clearAllPersistedCache() wipes it too; the 3-segment key is deliberately shorter than
-// the per-account cache keys, so fetchAccount's stale-account cleanup (which requires a
-// 4th segment) never mistakes it for a revoked account.
+// before the /accounts revalidation completes.
 const ACCOUNTS_CACHE_KEY = 'ses:v1:accounts'
 const ACCOUNTS_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -82,29 +78,6 @@ export const useAccountStore = defineStore('account', () => {
       return
     }
     accounts.value = result.value
-
-    // Clean up localStorage cache for accounts the user no longer has access to
-    try {
-      const validIds = new Set(result.value.map((a) => a.accountId))
-      const cachedAccountIds = new Set<string>()
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (key?.startsWith('ses:v1:')) {
-          const parts = key.split(':')
-          if (parts.length >= 4) {
-            cachedAccountIds.add(parts[2])
-          }
-        }
-      }
-      for (const cachedId of cachedAccountIds) {
-        if (!validIds.has(cachedId)) {
-          removeAllForAccount(cachedId)
-          logger.info({ title: 'Removed cache for revoked account', accountId: cachedId })
-        }
-      }
-    } catch (e) {
-      logger.warn({ title: 'Failed to clean up stale account cache', error: e })
-    }
 
     account.value = pickPreferred(accounts.value, fromAccountId)
 
