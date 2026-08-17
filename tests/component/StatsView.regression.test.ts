@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
-import { ok, err } from 'neverthrow'
+import { ok } from 'neverthrow'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import StatsView from '@/views/StatsView.vue'
 import { useAccountStore } from '@/stores/account'
 import { ApiError } from '@/lib/api'
@@ -41,9 +42,10 @@ const mockStats: StatsResponse = {
 }
 
 let pinia: ReturnType<typeof createPinia>
+let queryClient: QueryClient
 
 async function mountView() {
-  const wrapper = mount(StatsView, { global: { plugins: [pinia] } })
+  const wrapper = mount(StatsView, { global: { plugins: [pinia, [VueQueryPlugin, { queryClient }]] } })
   await flushPromises()
   return wrapper
 }
@@ -52,6 +54,9 @@ describe('StatsView — regression gate', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    })
     vi.clearAllMocks()
     useAccountStore().account = testAccount
     vi.mocked(api.listAccounts).mockResolvedValue(ok([testAccount]))
@@ -59,7 +64,7 @@ describe('StatsView — regression gate', () => {
 
   it('shows loading skeleton before stats arrive', async () => {
     vi.mocked(api.getStats).mockReturnValue(new Promise(() => {}))
-    const wrapper = mount(StatsView, { global: { plugins: [pinia] } })
+    const wrapper = mount(StatsView, { global: { plugins: [pinia, [VueQueryPlugin, { queryClient }]] } })
     await wrapper.vm.$nextTick()
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.animate-pulse').exists()).toBe(true)
@@ -79,7 +84,7 @@ describe('StatsView — regression gate', () => {
   })
 
   it('shows error state on fetch failure with retry button', async () => {
-    vi.mocked(api.getStats).mockResolvedValue(err(new ApiError(500, 'Stats unavailable')))
+    vi.mocked(api.getStats).mockRejectedValue(new ApiError(500, 'Stats unavailable'))
     const wrapper = await mountView()
     await wrapper.vm.$nextTick()
 

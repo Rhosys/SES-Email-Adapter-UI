@@ -1,10 +1,12 @@
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { api } from '@/lib/api'
+import { computed } from 'vue'
+import { useQuery } from '@tanstack/vue-query'
 import { useAccountStore } from '@/stores/account'
+import { api } from '@/lib/api'
+import { queryKeys } from '@/lib/queryKeys'
+import { unwrap } from '@/lib/queryFns'
 import type { StatsDailyBucket, StatsResponse } from '@/types/server'
 
-const EMPTY_TOTALS: StatsResponse["totals"] = { allowed: 0, quarantined: 0, blocked: 0, aliases: 0 }
+const EMPTY_TOTALS: StatsResponse['totals'] = { allowed: 0, quarantined: 0, blocked: 0, aliases: 0 }
 
 const EMPTY_STATS: StatsResponse = {
   totals: EMPTY_TOTALS,
@@ -52,17 +54,19 @@ function padMonthly(buckets: StatsDailyBucket[], createdAt: string): StatsDailyB
   return padded
 }
 
-export const useStatsStore = defineStore('stats', () => {
+export function useStatsQuery() {
   const accountStore = useAccountStore()
+  const accountId = computed(() => accountStore.accountId)
 
-  const _byAccount = ref<Record<string, StatsResponse>>({})
-  const error = ref<string | null>(null)
+  const query = useQuery({
+    queryKey: computed(() => queryKeys.stats(accountId.value!)),
+    queryFn: async () => unwrap(await api.getStats(accountId.value!)),
+    enabled: computed(() => !!accountId.value),
+  })
 
-  // Always populated — EMPTY_STATS until the first fetch resolves, then the cached response.
-  // Pads daily/monthly from account creation date so charts always render a line.
+  // Pad daily/monthly from account creation date so charts always render a line
   const stats = computed<StatsResponse>(() => {
-    const id = accountStore.accountId
-    const raw = id ? _byAccount.value[id] : undefined
+    const raw = query.data.value
     if (!raw) return EMPTY_STATS
 
     const createdAt = accountStore.account?.createdAt
@@ -76,21 +80,11 @@ export const useStatsStore = defineStore('stats', () => {
     }
   })
 
-  async function fetchStats() {
-    const id = accountStore.accountId
-    if (!id) return
-    error.value = null
-    const result = await api.getStats(id)
-    if (result.isErr()) {
-      error.value = result.error.message
-      return
-    }
-    _byAccount.value = { ..._byAccount.value, [id]: result.value }
+  return {
+    stats,
+    data: query.data,
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
   }
-
-  return { stats, error, fetchStats }
-}, {
-  persist: {
-    accountKeyedRef: '_byAccount',
-  },
-})
+}

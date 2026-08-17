@@ -5,11 +5,11 @@ import { use } from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import { useStatsStore } from '@/stores/stats'
+import { useStatsQuery } from '@/composables/useStatsQuery'
 
 use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
-const statsStore = useStatsStore()
+const { stats, error, refetch } = useStatsQuery()
 
 // Defer chart rendering until after DOM layout is complete
 const domReady = ref(false)
@@ -17,13 +17,12 @@ const domReady = ref(false)
 onMounted(async () => {
   await nextTick()
   domReady.value = true
-  void statsStore.fetchStats()
 })
 
-const totals = computed(() => statsStore.stats.totals)
+const totals = computed(() => stats.value.totals)
 
 const dailyAreaOption = computed(() => {
-  const daily = statsStore.stats.daily
+  const daily = stats.value.daily
   const dates = daily.map((d) => d.date)
   return {
     tooltip: { trigger: 'axis' as const, confine: true },
@@ -86,7 +85,7 @@ const dailyAreaOption = computed(() => {
 })
 
 const monthlyBarOption = computed(() => {
-  const monthly = statsStore.stats.monthly
+  const monthly = stats.value.monthly
   const dates = monthly.map((d) => d.date)
   return {
     tooltip: { trigger: 'axis' as const, confine: true },
@@ -148,8 +147,8 @@ const monthlyBarOption = computed(() => {
   }
 })
 
-const hasDaily = computed(() => domReady.value && statsStore.stats.daily.length > 0)
-const hasMonthly = computed(() => domReady.value && statsStore.stats.monthly.length > 0)
+const hasDaily = computed(() => domReady.value && stats.value.daily.length > 0)
+const hasMonthly = computed(() => domReady.value && stats.value.monthly.length > 0)
 </script>
 
 <template>
@@ -157,7 +156,7 @@ const hasMonthly = computed(() => domReady.value && statsStore.stats.monthly.len
     <h1 class="hidden text-lg font-semibold text-ctp-text sm:block">Stats</h1>
 
     <!-- Loading skeleton -->
-    <div v-if="!hasDaily && !statsStore.error" class="mt-6 space-y-4">
+    <div v-if="!hasDaily && !error" class="mt-6 space-y-4">
       <div class="flex gap-6">
         <div v-for="i in 3" :key="i" class="h-16 w-32 animate-pulse rounded-lg bg-ctp-surface0" />
       </div>
@@ -166,11 +165,11 @@ const hasMonthly = computed(() => domReady.value && statsStore.stats.monthly.len
     </div>
 
     <!-- Error state -->
-    <div v-if="statsStore.error" class="mt-6 flex flex-col items-center gap-4 rounded-lg border border-ctp-surface0 bg-ctp-mantle p-8">
-      <p class="text-sm text-ctp-red">{{ statsStore.error }}</p>
+    <div v-if="error" class="mt-6 flex flex-col items-center gap-4 rounded-lg border border-ctp-surface0 bg-ctp-mantle p-8">
+      <p class="text-sm text-ctp-red">{{ error.message }}</p>
       <button
         class="rounded-md bg-ctp-blue px-4 py-2 text-sm font-medium text-ctp-base transition-colors hover:bg-ctp-sapphire"
-        @click="statsStore.fetchStats"
+        @click="refetch()"
       >
         Retry
       </button>
@@ -205,14 +204,14 @@ const hasMonthly = computed(() => domReady.value && statsStore.stats.monthly.len
       <!-- Daily stacked area chart -->
       <div class="rounded-lg border border-ctp-surface0 bg-ctp-mantle p-4">
         <h2 class="mb-3 text-sm font-medium text-ctp-subtext0">Daily (last 365 days)</h2>
-        <VChart v-if="hasDaily" :key="'daily-' + statsStore.stats.daily.length" :option="dailyAreaOption" :autoresize="true" style="height: 320px; width: 100%" />
+        <VChart v-if="hasDaily" :key="'daily-' + stats.daily.length" :option="dailyAreaOption" :autoresize="true" style="height: 320px; width: 100%" />
         <p v-else class="py-12 text-center text-sm text-ctp-subtext0">No daily data available</p>
       </div>
 
       <!-- Monthly bars chart -->
       <div v-if="hasMonthly" class="rounded-lg border border-ctp-surface0 bg-ctp-mantle p-4">
         <h2 class="mb-3 text-sm font-medium text-ctp-subtext0">Monthly</h2>
-        <VChart :key="'monthly-' + statsStore.stats.monthly.length" :option="monthlyBarOption" :autoresize="true" style="height: 192px; width: 100%" />
+        <VChart :key="'monthly-' + stats.monthly.length" :option="monthlyBarOption" :autoresize="true" style="height: 192px; width: 100%" />
       </div>
     </div>
   </div>

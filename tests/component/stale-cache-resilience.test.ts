@@ -4,7 +4,6 @@ import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { persistentStorePlugin } from '@/plugins/persistent-store'
 import { useAccountStore } from '@/stores/account'
-import { useStatsStore } from '@/stores/stats'
 import { useThreadsStore } from '@/stores/threads'
 import { useQuarantineStore } from '@/stores/quarantine'
 import StatsWidget from '@/components/StatsWidget.vue'
@@ -47,49 +46,6 @@ describe('stale cache resilience — stores survive outdated localStorage shapes
     const pinia = createPinia()
     pinia.use(persistentStorePlugin)
     setActivePinia(pinia)
-  })
-
-  it('stats store handles cache missing totals (old schema without totals)', () => {
-    // Simulate an old cache entry that has no "totals" key
-    seedLocalStorage('stats', { someOldField: 42 })
-
-    const accountStore = useAccountStore()
-    accountStore.account = { accountId: ACCOUNT_ID, name: 'Test' } as Account
-
-    const statsStore = useStatsStore()
-
-    // Must not throw — totals should fall back to zeros
-    expect(statsStore.stats.totals.allowed).toBe(0)
-    expect(statsStore.stats.totals.quarantined).toBe(0)
-    expect(statsStore.stats.totals.blocked).toBe(0)
-    expect(statsStore.stats.daily).toEqual([])
-    expect(statsStore.stats.monthly).toEqual([])
-  })
-
-  it('stats store handles cache with null totals', () => {
-    seedLocalStorage('stats', { totals: null, daily: null, monthly: null })
-
-    const accountStore = useAccountStore()
-    accountStore.account = { accountId: ACCOUNT_ID, name: 'Test' } as Account
-
-    const statsStore = useStatsStore()
-
-    expect(statsStore.stats.totals.allowed).toBe(0)
-    expect(statsStore.stats.daily).toEqual([])
-    expect(statsStore.stats.monthly).toEqual([])
-  })
-
-  it('stats store handles completely empty object from cache', () => {
-    seedLocalStorage('stats', {})
-
-    const accountStore = useAccountStore()
-    accountStore.account = { accountId: ACCOUNT_ID, name: 'Test' } as Account
-
-    const statsStore = useStatsStore()
-
-    expect(statsStore.stats.totals.allowed).toBe(0)
-    expect(statsStore.stats.totals.quarantined).toBe(0)
-    expect(statsStore.stats.totals.blocked).toBe(0)
   })
 
   it('threads store is resilient to stale cache (data now in TanStack Query)', () => {

@@ -7,23 +7,22 @@ import { PieChart, LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useUiStore } from '@/stores/ui'
-import { useStatsStore } from '@/stores/stats'
+import { useStatsQuery } from '@/composables/useStatsQuery'
 
 use([PieChart, LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
 const uiStore = useUiStore()
-const statsStore = useStatsStore()
+const { stats } = useStatsQuery()
 
 const domReady = ref(false)
 
 onMounted(async () => {
   await nextTick()
   domReady.value = true
-  void statsStore.fetchStats()
 })
 
 const donutOption = computed(() => {
-  const totals = statsStore.stats.totals
+  const totals = stats.value.totals
   return {
     tooltip: { trigger: 'item' as const, confine: true },
     series: [
@@ -43,7 +42,7 @@ const donutOption = computed(() => {
 })
 
 const areaOption = computed(() => {
-  const daily = statsStore.stats.daily
+  const daily = stats.value.daily
   const dates = daily.map((d) => d.date)
   return {
     grid: { top: 4, right: 4, bottom: 4, left: 4 },
@@ -88,8 +87,7 @@ const areaOption = computed(() => {
   }
 })
 
-const totals = computed(() => statsStore.stats.totals)
-const stats = computed(() => statsStore.stats)
+const totals = computed(() => stats.value.totals)
 
 function toggleExpanded() {
   uiStore.statsWidgetExpanded = !uiStore.statsWidgetExpanded
