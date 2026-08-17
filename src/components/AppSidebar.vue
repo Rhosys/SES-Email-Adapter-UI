@@ -339,6 +339,22 @@ const accountSwitcherOpen = ref(false)
       </RouterLink>
 
       <RouterLink
+        :to="{ name: 'stats' }"
+        class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
+        :class="
+          isActive('/stats')
+            ? 'bg-ctp-surface0 text-ctp-text font-medium'
+            : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
+        "
+      >
+        <!-- Bar chart icon -->
+        <svg class="h-5 w-5 sm:h-4 sm:w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M1 13.5a.5.5 0 01.5-.5H2v-6a.5.5 0 01.5-.5h2a.5.5 0 01.5.5v6h1V3.5a.5.5 0 01.5-.5h2a.5.5 0 01.5.5V13h1V7.5a.5.5 0 01.5-.5h2a.5.5 0 01.5.5v5.5h.5a.5.5 0 010 1h-14a.5.5 0 01-.5-.5z" />
+        </svg>
+        Stats
+      </RouterLink>
+
+      <RouterLink
         v-if="isAdmin"
         to="/admin"
         class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base sm:gap-2 sm:py-2 sm:text-sm transition-colors"
@@ -423,23 +439,6 @@ const accountSwitcherOpen = ref(false)
       <div v-if="accountSwitcherOpen" role="presentation" class="fixed inset-0 z-40" @click="accountSwitcherOpen = false" />
     </div>
 
-    <!-- Mobile-only: Stats (visible only below sm; desktop reaches stats via the StatsWidget in the inbox) -->
-    <div class="border-t border-ctp-surface0 px-2 py-2 sm:hidden">
-      <RouterLink
-        :to="{ name: 'stats' }"
-        class="flex items-center gap-2.5 rounded-lg px-3 py-3 text-base transition-colors"
-        :class="
-          isActive('/stats')
-            ? 'bg-ctp-surface0 text-ctp-text font-medium'
-            : 'text-ctp-subtext1 hover:bg-ctp-surface0/50 hover:text-ctp-text'
-        "
-      >
-        <!-- Bar chart icon -->
-        <svg class="h-5 w-5 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-          <path d="M1 13.5a.5.5 0 01.5-.5H2v-6a.5.5 0 01.5-.5h2a.5.5 0 01.5.5v6h1V3.5a.5.5 0 01.5-.5h2a.5.5 0 01.5.5V13h1V7.5a.5.5 0 01.5-.5h2a.5.5 0 01.5.5v5.5h.5a.5.5 0 010 1h-14a.5.5 0 01-.5-.5z" />
-        </svg>
-        <span class="flex-1">Stats</span>
-      </RouterLink>
-    </div>
+
   </aside>
 </template>
