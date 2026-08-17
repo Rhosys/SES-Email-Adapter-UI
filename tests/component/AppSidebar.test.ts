@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { ok } from 'neverthrow'
 import { createRouter, createMemoryHistory } from 'vue-router'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import AppSidebar from '@/components/AppSidebar.vue'
 import { useAccountStore } from '@/stores/account'
 import { useDraftsStore } from '@/stores/drafts'
@@ -15,6 +16,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
     api: {
       listThreads: vi.fn(),
       listSignals: vi.fn(),
+      listBlockedSignals: vi.fn(),
     },
   }
 })
@@ -80,9 +82,12 @@ async function mountSidebar() {
   const router = makeRouter()
   await router.push('/')
   await router.isReady()
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  })
   return mount(AppSidebar, {
     props: { open: true },
-    global: { plugins: [router] },
+    global: { plugins: [router, [VueQueryPlugin, { queryClient }]] },
   })
 }
 
@@ -92,6 +97,7 @@ describe('AppSidebar — draft count badge', () => {
     vi.clearAllMocks()
     const accountStore = useAccountStore()
     accountStore.account = { accountId: 'acc_1', name: 'Test' } as Account
+    vi.mocked(api.listBlockedSignals).mockResolvedValue(ok({ signals: [], pagination: { cursor: null } }))
   })
 
   it('hides the draft badge when there are no drafts', async () => {
@@ -132,6 +138,7 @@ describe('AppSidebar — Settings/Admin pinned outside the scrollable nav', () =
     accountStore.account = { accountId: 'acc_1', name: 'Test' } as Account
     vi.mocked(api.listThreads).mockResolvedValue(ok({ threads: [], pagination: { cursor: null } }))
     vi.mocked(api.listSignals).mockResolvedValue(ok({ signals: [], pagination: { cursor: null } }))
+    vi.mocked(api.listBlockedSignals).mockResolvedValue(ok({ signals: [], pagination: { cursor: null } }))
   })
 
   // Regression guard for the "growth separator": Settings/Admin must live in a

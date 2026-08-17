@@ -1,23 +1,16 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSpamStore } from '@/stores/spam'
+import { useSpamQuery, type SpamFilters } from '@/composables/useSpamQueries'
 import { useRelativeTime } from '@/composables/useRelativeTime'
 import QuarantineFilters from '@/components/QuarantineFilters.vue'
 import QuarantineRow from '@/components/QuarantineRow.vue'
-import type { SpamFilters } from '@/stores/spam'
 
 const route = useRoute()
 const router = useRouter()
 const store = useSpamStore()
 useRelativeTime()
-
-const loading = ref(true)
-const loadingMore = ref(false)
-
-const hasData = computed(
-  () => store.blockHidden.length > 0 || store.blockReject.length > 0,
-)
 
 const filters = ref<SpamFilters>(filtersFromQuery())
 
@@ -31,31 +24,34 @@ function filtersFromQuery(): SpamFilters {
   }
 }
 
-async function doFetch() {
-  if (hasData.value) loading.value = false
-  await store.fetchSignals(filters.value)
-  loading.value = false
-}
+const { hiddenQuery, rejectQuery, blockHidden, blockReject } = useSpamQuery(() => filters.value)
 
-onMounted(async () => {
-  await doFetch()
-})
+const isLoading = computed(() => hiddenQuery.isLoading.value || rejectQuery.isLoading.value)
+const error = computed(() => hiddenQuery.error.value ?? rejectQuery.error.value)
+const hasData = computed(() => blockHidden.value.length > 0 || blockReject.value.length > 0)
+const hasMore = computed(() =>
+  (hiddenQuery.hasNextPage?.value ?? false) || (rejectQuery.hasNextPage?.value ?? false),
+)
+const loadingMore = computed(() =>
+  hiddenQuery.isFetchingNextPage.value || rejectQuery.isFetchingNextPage.value,
+)
 
-async function onUpdateFilters(next: Partial<SpamFilters>) {
+function onUpdateFilters(next: Partial<SpamFilters>) {
   filters.value = { ...filters.value, ...next }
   const query: Record<string, string> = {}
   if (filters.value.sender) query.sender = filters.value.sender
   if (filters.value.after) query.after = filters.value.after
   if (filters.value.before) query.before = filters.value.before
   void router.replace({ query })
-  await doFetch()
 }
 
 async function loadMore() {
   if (loadingMore.value) return
-  loadingMore.value = true
-  await store.fetchMore(filters.value)
-  loadingMore.value = false
+  if (hiddenQuery.hasNextPage?.value) {
+    await hiddenQuery.fetchNextPage()
+  } else if (rejectQuery.hasNextPage?.value) {
+    await rejectQuery.fetchNextPage()
+  }
 }
 </script>
 
@@ -73,23 +69,23 @@ async function loadMore() {
     <main class="mx-auto max-w-4xl">
       <!-- Error -->
       <div
-        v-if="store.error"
+        v-if="error"
         class="mx-4 mt-4 rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
       >
-        {{ store.error }}
+        {{ error.message }}
         <button class="ml-2 underline" @click="store.clearError()">Dismiss</button>
       </div>
 
       <!-- Data -->
       <template v-if="hasData">
         <!-- Silently blocked (block_hidden) -->
-        <section v-if="store.blockHidden.length > 0" aria-label="Silently blocked">
+        <section v-if="blockHidden.length > 0" aria-label="Silently blocked">
           <div
             class="flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-ctp-subtext0"
           >
             <span>Silently blocked</span>
             <span class="rounded-full bg-ctp-surface1 px-1.5 py-0.5 text-ctp-subtext0">
-              {{ store.blockHidden.length }}
+              {{ blockHidden.length }}
             </span>
             <span class="font-normal normal-case text-ctp-subtext0">
               — accepted but silently discarded
@@ -97,7 +93,7 @@ async function loadMore() {
           </div>
           <TransitionGroup name="list" tag="div" role="list" aria-label="Silently blocked emails" class="relative">
             <QuarantineRow
-              v-for="signal in store.blockHidden"
+              v-for="signal in blockHidden"
               :key="signal.signalId"
               :signal="signal"
               :pending="store.actionPending.has(signal.signalId)"
@@ -108,8 +104,8 @@ async function loadMore() {
 
         <!-- Rejected (block_reject) -->
         <section
-          v-if="store.blockReject.length > 0"
-          :class="{ 'mt-6': store.blockHidden.length > 0 }"
+          v-if="blockReject.length > 0"
+          :class="{ 'mt-6': blockHidden.length > 0 }"
           aria-label="Rejected"
         >
           <div
@@ -117,7 +113,7 @@ async function loadMore() {
           >
             <span>Rejected</span>
             <span class="rounded-full bg-ctp-red/20 px-1.5 py-0.5 text-ctp-red">
-              {{ store.blockReject.length }}
+              {{ blockReject.length }}
             </span>
             <span class="font-normal normal-case text-ctp-subtext0">
               — sender received a bounce notification
@@ -125,7 +121,7 @@ async function loadMore() {
           </div>
           <TransitionGroup name="list" tag="div" role="list" aria-label="Rejected emails" class="relative">
             <QuarantineRow
-              v-for="signal in store.blockReject"
+              v-for="signal in blockReject"
               :key="signal.signalId"
               :signal="signal"
               :pending="store.actionPending.has(signal.signalId)"
@@ -135,7 +131,7 @@ async function loadMore() {
         </section>
 
         <!-- Load more -->
-        <div v-if="store.hasMore" class="flex justify-center py-6">
+        <div v-if="hasMore" class="flex justify-center py-6">
           <button
             :disabled="loadingMore"
             class="rounded bg-ctp-surface0 px-4 py-2 text-sm text-ctp-text hover:bg-ctp-surface1 disabled:opacity-50"
@@ -148,7 +144,7 @@ async function loadMore() {
 
       <!-- Skeleton -->
       <div
-        v-else-if="loading"
+        v-else-if="isLoading"
         role="status"
         aria-label="Loading blocked emails…"
         class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"

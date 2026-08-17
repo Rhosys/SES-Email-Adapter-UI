@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { useSpamStore } from '@/stores/spam'
+import { useSpamQuery, useDeleteSpamSignal } from '@/composables/useSpamQueries'
 import { useRulesStore } from '@/stores/rules'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { conditionSummary } from '@/lib/rule-display'
@@ -16,19 +16,27 @@ import { useAccountStore } from '@/stores/account'
 
 const route = useRoute()
 const router = useRouter()
-const spamStore = useSpamStore()
 const rulesStore = useRulesStore()
 const accountStore = useAccountStore()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
 const signalId = computed(() => route.params.id as string)
-const loading = ref(true)
+const loading = ref(false)
 const notFound = ref(false)
 const showSenderPopup = ref(false)
 const updating = ref(false)
 
+// Default 14-day window matches SpamView
+const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+const { blockHidden, blockReject, hiddenQuery, rejectQuery } = useSpamQuery(() => ({
+  sender: '',
+  after: fourteenDaysAgo,
+  before: '',
+}))
+const deleteSpam = useDeleteSpamSignal()
+
 const signal = computed(() =>
-  [...spamStore.blockHidden, ...spamStore.blockReject].find(
+  [...blockHidden.value, ...blockReject.value].find(
     (s) => s.signalId === signalId.value,
   ) ?? null,
 )
@@ -50,23 +58,26 @@ function ruleFor(ruleId: string) {
 
 onMounted(async () => {
   if (signal.value) {
-    // Signal already cached — show immediately, refresh in background
-    loading.value = false
-    updating.value = true
-    await Promise.all([spamStore.fetchSignals(), rulesStore.fetchRules()])
+    // Signal already cached — TanStack Query handles background refresh
+    updating.value = hiddenQuery.isFetching.value || rejectQuery.isFetching.value
+    await rulesStore.fetchRules()
     updating.value = false
     notFound.value = !signal.value
   } else {
     loading.value = true
-    await spamStore.fetchSignals()
-    await rulesStore.fetchRules()
+    // Wait for initial data load from TanStack Query
+    await Promise.all([
+      hiddenQuery.suspense?.(),
+      rejectQuery.suspense?.(),
+      rulesStore.fetchRules(),
+    ].filter(Boolean))
     loading.value = false
     notFound.value = !signal.value
   }
 })
 
 function onSignalReprocessed() {
-  void spamStore.fetchSignals()
+  // TanStack Query will refetch automatically via invalidation
 }
 
 const noticeOpen = ref(false)
@@ -84,19 +95,24 @@ async function onDelete() {
   if (!confirmed) return
 
   deleting.value = true
-  const error = await spamStore.deleteSignal(signal.value.signalId)
-  deleting.value = false
-  if (error?.status === 404) {
-    notice.value = {
-      title: "Couldn\u2019t delete this email",
-      message:
-        "The server couldn\u2019t delete this blocked email. This action may not be available yet, or the email may have already been removed.\n\nBlocked emails are cleared automatically once they pass your account\u2019s retention window \u2014 so there\u2019s nothing you need to do to keep the list tidy. To stop similar emails in future, adjust the matching rule or the sender\u2019s policy.",
+  try {
+    await deleteSpam.mutateAsync(signal.value.signalId)
+    void router.push('/spam')
+  } catch (e: unknown) {
+    const error = e as { status?: number }
+    if (error?.status === 404) {
+      notice.value = {
+        title: "Couldn\u2019t delete this email",
+        message:
+          "The server couldn\u2019t delete this blocked email. This action may not be available yet, or the email may have already been removed.\n\nBlocked emails are cleared automatically once they pass your account\u2019s retention window \u2014 so there\u2019s nothing you need to do to keep the list tidy. To stop similar emails in future, adjust the matching rule or the sender\u2019s policy.",
+      }
+      noticeOpen.value = true
+      return
     }
-    noticeOpen.value = true
-    void spamStore.fetchSignals()
-    return
+    throw e
+  } finally {
+    deleting.value = false
   }
-  void router.push('/spam')
 }
 </script>
 

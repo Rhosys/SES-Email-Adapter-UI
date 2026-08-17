@@ -6,11 +6,11 @@ import { useViewsStore } from '@/stores/views'
 import { useAccountStore } from '@/stores/account'
 import { useThreadsStore } from '@/stores/threads'
 import { useQuarantineStore } from '@/stores/quarantine'
-import { useSpamStore } from '@/stores/spam'
 import { useDraftsStore } from '@/stores/drafts'
 import { useResourcesStore } from '@/stores/resources'
 import { isAdminUser } from '@/stores/admin'
 import { useIdentity } from '@/composables/useIdentity'
+import { useSpamQuery } from '@/composables/useSpamQueries'
 import { formatBadgeCount } from '@/lib/badge'
 import UserAvatarIcon from '@/components/UserAvatarIcon.vue'
 
@@ -23,11 +23,23 @@ const viewsStore = useViewsStore()
 const accountStore = useAccountStore()
 const threadsStore = useThreadsStore()
 const quarantineStore = useQuarantineStore()
-const spamStore = useSpamStore()
 const draftsStore = useDraftsStore()
 const resourcesStore = useResourcesStore()
 
 const isAdmin = computed(() => isAdminUser())
+
+// Spam badge — derive count from TanStack Query cache via the composable.
+// Uses a 14-day window matching the default SpamView filter.
+const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+const { blockHidden: spamHidden, blockReject: spamReject, hiddenQuery: spamHiddenQuery, rejectQuery: spamRejectQuery } = useSpamQuery(() => ({
+  sender: '',
+  after: fourteenDaysAgo,
+  before: '',
+}))
+const spamBlockedCount = computed(() => spamHidden.value.length + spamReject.value.length)
+const spamBlockedCountHasMore = computed(() =>
+  (spamHiddenQuery.hasNextPage?.value ?? false) || (spamRejectQuery.hasNextPage?.value ?? false),
+)
 
 // Notification badges — counts are now computed from persisted _byAccount data,
 // so no explicit fetch is needed. The quarantine store hydrates from localStorage
@@ -161,10 +173,10 @@ const accountSwitcherOpen = ref(false)
           </svg>
           <span class="flex-1">Spam</span>
           <span
-            v-if="spamStore.blockedCount > 0"
+            v-if="spamBlockedCount > 0"
             class="shrink-0 rounded-full bg-ctp-red px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ctp-base"
           >
-            {{ formatBadgeCount(spamStore.blockedCount, spamStore.blockedCountHasMore) }}
+            {{ formatBadgeCount(spamBlockedCount, spamBlockedCountHasMore) }}
           </span>
         </RouterLink>
 

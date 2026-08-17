@@ -9,12 +9,10 @@ import './lib/analytics'
 import logger from './lib/logger'
 import { loginClient } from './lib/auth'
 import { useAccountStore } from './stores/account'
-import { useSpamStore } from './stores/spam'
 import { useQuarantineStore } from './stores/quarantine'
 import { useThreadsStore } from './stores/threads'
 import { useSignalsStore } from './stores/signals'
 import { useResourcesStore } from './stores/resources'
-import { isAdminUser } from './stores/admin'
 import { useUserConfigStore } from './stores/userConfig'
 import { useLogStore } from './stores/logs'
 import { useIdentity } from './composables/useIdentity'
@@ -114,10 +112,7 @@ enableMocking().then(() => {
       }
     })
 
-    if (isAdminUser()) {
-      const spamStore = useSpamStore()
-      void spamStore.fetchSignals()
-    }
+    // Spam data now fetched by useSpamQuery composable in the sidebar
   })
 
   // Identity and user-config reads decode the session token, so they still wait for it.
