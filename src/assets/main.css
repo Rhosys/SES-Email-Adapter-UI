@@ -183,10 +183,25 @@
   }
 }
 
+/* WebKit/Chromium scrollbar — mauve accent thumb */
+#main-content::-webkit-scrollbar {
+  width: 8px;
+}
+#main-content::-webkit-scrollbar-track {
+  background: var(--color-base);
+}
+#main-content::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--color-mauve) 40%, var(--color-surface1));
+  border-radius: 4px;
+}
+#main-content::-webkit-scrollbar-thumb:hover {
+  background: var(--color-mauve);
+}
+
 @supports (-moz-appearance: none) {
-  html {
-    scrollbar-width: auto;
-    scrollbar-color: var(--color-overlay0) var(--color-base);
+  #main-content {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--color-mauve) 40%, var(--color-surface1)) var(--color-base);
   }
 }
 
