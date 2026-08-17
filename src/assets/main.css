@@ -184,22 +184,23 @@
 }
 
 /* WebKit/Chromium scrollbar — mauve accent thumb */
-#main-content::-webkit-scrollbar {
+*::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
-#main-content::-webkit-scrollbar-track {
+*::-webkit-scrollbar-track {
   background: var(--color-base);
 }
-#main-content::-webkit-scrollbar-thumb {
+*::-webkit-scrollbar-thumb {
   background: color-mix(in oklch, var(--color-mauve) 40%, var(--color-surface1));
   border-radius: 4px;
 }
-#main-content::-webkit-scrollbar-thumb:hover {
+*::-webkit-scrollbar-thumb:hover {
   background: var(--color-mauve);
 }
 
 @supports (-moz-appearance: none) {
-  #main-content {
+  * {
     scrollbar-width: thin;
     scrollbar-color: color-mix(in oklch, var(--color-mauve) 40%, var(--color-surface1)) var(--color-base);
   }

@@ -600,7 +600,14 @@ async function loadForwarding() {
   forwardingLoading.value = true
   const result = await api.listForwardingAddresses(accountStore.accountId)
   forwardingLoading.value = false
-  if (result.isOk()) forwarding.value = result.value
+  if (result.isOk()) {
+    forwarding.value = result.value
+    // Eagerly default digest target so it's ready before the user enables digest
+    if (!digestForwardingTargetId.value) {
+      const firstVerified = result.value.find((f) => f.status === 'verified')
+      if (firstVerified) digestForwardingTargetId.value = firstVerified.target
+    }
+  }
 }
 
 async function removeForwarding(target: string) {
@@ -1035,6 +1042,11 @@ const digestSelectValue = computed({
   },
 })
 
+function toggleDigest() {
+  digestFrequency.value = digestFrequency.value ? null : 'weekly'
+  void saveDigest()
+}
+
 async function saveDigest() {
   if (!accountStore.accountId) return
   digestPending.value = true
@@ -1106,7 +1118,6 @@ onMounted(async () => {
   const verifyAddress = route.query.verifyAddress as string | undefined
   const token = route.query.token as string | undefined
   if (verifyAddress && token && accountStore.accountId) {
-    await loadForwarding()
     const result = await api.verifyForwardingAddress(accountStore.accountId, verifyAddress, token)
     if (result.isOk()) {
       verifySuccess.value = `${verifyAddress} verified successfully`
@@ -1339,7 +1350,7 @@ useGestureHandler(settingsContentRef, {
                 :aria-label="digestFrequency ? 'Disable digest' : 'Enable digest'"
                 class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
                 :class="digestFrequency !== null ? 'bg-ctp-mauve' : 'bg-ctp-surface1'"
-                @click="digestFrequency = digestFrequency ? null : 'daily'; saveDigest()"
+                @click="toggleDigest()"
               >
                 <span
                   class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
