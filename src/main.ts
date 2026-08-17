@@ -1,7 +1,9 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import { VueQueryPlugin } from '@tanstack/vue-query'
 import App from './App.vue'
 import { router } from './router'
+import { queryClient } from './lib/queryClient'
 import './assets/main.css'
 import './lib/analytics'
 import logger from './lib/logger'
@@ -67,7 +69,7 @@ enableMocking().then(() => {
 
   window.addEventListener('beforeunload', () => logger.flushOnUnload())
 
-  app.use(pinia).use(router).mount('#app')
+  app.use(pinia).use(VueQueryPlugin, { queryClient }).use(router).mount('#app')
 
   // Mirror recent logs into a persistent store for on-device investigation.
   // Wired eagerly (not gated on auth) so early-boot logs are captured too.
