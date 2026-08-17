@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
-import { useRulesStore } from '@/stores/rules'
+import { useRulesQuery, useCreateRule, useUpdateRule } from '@/composables/useRulesQueries'
 import { useLabelsStore } from '@/stores/labels'
 import { useQuarantineQuery, useAllowQuarantinedSignal, useRejectQuarantinedSignal } from '@/composables/useQuarantineQueries'
 import { useTemplatesStore } from '@/stores/templates'
@@ -31,7 +31,9 @@ import { useJsAutocomplete } from '@/composables/useJsAutocomplete'
 const route = useRoute()
 const router = useRouter()
 const accountStore = useAccountStore()
-const rulesStore = useRulesStore()
+const { rules } = useRulesQuery()
+const createRuleMutation = useCreateRule()
+const updateRuleMutation = useUpdateRule()
 const labelsStore = useLabelsStore()
 const { quarantineVisible: qVis, quarantineHidden: qHid } = useQuarantineQuery(() => ({ sender: '', after: '', before: '' }))
 const allowMutation = useAllowQuarantinedSignal()
@@ -270,11 +272,15 @@ async function save() {
     actions: actions.value,
   }
 
-  const saved = isEditing.value
-    ? await rulesStore.updateRule(ruleId.value!, body)
-    : await rulesStore.createRule(body)
-
-  if (saved.isErr()) return
+  try {
+    if (isEditing.value) {
+      await updateRuleMutation.mutateAsync({ ruleId: ruleId.value!, body })
+    } else {
+      await createRuleMutation.mutateAsync(body)
+    }
+  } catch {
+    return
+  }
 
   if (signalId.value && signalAction.value) {
     if (signalAction.value === 'allow') {
@@ -306,8 +312,7 @@ onMounted(async () => {
   ])
 
   if (isEditing.value) {
-    if (rulesStore.items.length === 0) await rulesStore.fetchRules()
-    const existing = rulesStore.items.find((r) => r.ruleId === ruleId.value)
+    const existing = rules.value.find((r) => r.ruleId === ruleId.value)
     if (existing?.system) {
       void router.replace('/rules')
       return
@@ -395,12 +400,11 @@ watch(signalAction, (val) => {
       <template v-else>
       <!-- Error -->
       <div
-        v-if="rulesStore.error"
+        v-if="createRuleMutation.error.value || updateRuleMutation.error.value"
         role="alert"
         class="mb-4 rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
       >
-        {{ rulesStore.error }}
-        <button class="ml-2 underline" @click="rulesStore.clearError()">Dismiss</button>
+        {{ (createRuleMutation.error.value ?? updateRuleMutation.error.value)?.message }}
       </div>
 
       <!-- Name -->

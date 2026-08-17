@@ -5,7 +5,7 @@ import type { Attachment, Signal } from '@/types/server'
 import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
 import { useAccountStore } from '@/stores/account'
 import { isAdminUser } from '@/stores/admin'
-import { useRulesStore } from '@/stores/rules'
+import { useRulesQuery } from '@/composables/useRulesQueries'
 import { useSignalsStore } from '@/stores/signals'
 import { api } from '@/lib/api'
 import ActionBadge from '@/components/ActionBadge.vue'
@@ -17,7 +17,7 @@ const emit = defineEmits<{ reply: []; reprocessed: [] }>()
 
 const router = useRouter()
 const accountStore = useAccountStore()
-const rulesStore = useRulesStore()
+const { rules: rulesList } = useRulesQuery()
 const signalsStore = useSignalsStore()
 const expanded = ref(props.defaultExpanded)
 const reprocessing = ref(false)
@@ -30,7 +30,7 @@ const signalMatchedRules = computed(() => {
 })
 
 function ruleFor(ruleId: string) {
-  return rulesStore.items.find((r) => r.ruleId === ruleId)
+  return rulesList.value.find((r) => r.ruleId === ruleId)
 }
 
 function showMatchedRules() {

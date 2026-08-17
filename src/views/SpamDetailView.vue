@@ -2,7 +2,7 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useSpamQuery, useDeleteSpamSignal } from '@/composables/useSpamQueries'
-import { useRulesStore } from '@/stores/rules'
+import { useRulesQuery } from '@/composables/useRulesQueries'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { conditionSummary } from '@/lib/rule-display'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
@@ -16,7 +16,7 @@ import { useAccountStore } from '@/stores/account'
 
 const route = useRoute()
 const router = useRouter()
-const rulesStore = useRulesStore()
+const { rules: rulesList } = useRulesQuery()
 const accountStore = useAccountStore()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
@@ -53,14 +53,13 @@ function toggleRule(ruleId: string) {
 }
 
 function ruleFor(ruleId: string) {
-  return rulesStore.items.find((r) => r.ruleId === ruleId)
+  return rulesList.value.find((r) => r.ruleId === ruleId)
 }
 
 onMounted(async () => {
   if (signal.value) {
     // Signal already cached — TanStack Query handles background refresh
     updating.value = hiddenQuery.isFetching.value || rejectQuery.isFetching.value
-    await rulesStore.fetchRules()
     updating.value = false
     notFound.value = !signal.value
   } else {
@@ -69,7 +68,6 @@ onMounted(async () => {
     await Promise.all([
       hiddenQuery.suspense?.(),
       rejectQuery.suspense?.(),
-      rulesStore.fetchRules(),
     ].filter(Boolean))
     loading.value = false
     notFound.value = !signal.value

@@ -4,7 +4,6 @@ import { setActivePinia, createPinia } from 'pinia'
 import { ok } from 'neverthrow'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import RuleEditorView from '@/views/RuleEditorView.vue'
-import { useRulesStore } from '@/stores/rules'
 import { useAccountStore } from '@/stores/account'
 import { useLabelsStore } from '@/stores/labels'
 import type { Rule, Account, Label } from '@/types/server'
@@ -225,14 +224,12 @@ describe('RuleEditorView — edit existing rule', () => {
 
   it('renders "Edit rule" heading when editing', async () => {
     vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
-    await useRulesStore().fetchRules()
     const wrapper = await mountEditor('/rules/rule_1')
     expect(wrapper.text()).toContain('Edit rule')
   })
 
   it('pre-fills name from existing rule', async () => {
     vi.mocked(api.listRules).mockResolvedValue(ok([mockRule({ name: 'Existing Rule' })]))
-    await useRulesStore().fetchRules()
     const wrapper = await mountEditor('/rules/rule_1')
     const nameInput = wrapper.find('input[placeholder="e.g. Block marketing emails"]')
       .element as HTMLInputElement
@@ -241,7 +238,6 @@ describe('RuleEditorView — edit existing rule', () => {
 
   it('shows "Save changes" button when editing', async () => {
     vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
-    await useRulesStore().fetchRules()
     const wrapper = await mountEditor('/rules/rule_1')
     expect(wrapper.text()).toContain('Save changes')
   })
@@ -249,7 +245,6 @@ describe('RuleEditorView — edit existing rule', () => {
   it('calls updateRule (not createRule) on save', async () => {
     vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
     vi.mocked(api.updateRule).mockResolvedValue(ok(mockRule({ name: 'Updated' })))
-    await useRulesStore().fetchRules()
     const wrapper = await mountEditor('/rules/rule_1')
 
     const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Save changes')
@@ -262,14 +257,12 @@ describe('RuleEditorView — edit existing rule', () => {
 
   it('pre-fills disabled status from existing rule', async () => {
     vi.mocked(api.listRules).mockResolvedValue(ok([mockRule({ status: 'disabled' })]))
-    await useRulesStore().fetchRules()
     const wrapper = await mountEditor('/rules/rule_1')
     expect(wrapper.text()).toContain('Disabled')
   })
 
   it('pre-fills condition from existing rule', async () => {
     vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
-    await useRulesStore().fetchRules()
     const wrapper = await mountEditor('/rules/rule_1')
     const valueInput = wrapper.find('input[placeholder="value"]').element as HTMLInputElement
     expect(valueInput.value).toBe('spam@evil.com')
@@ -297,7 +290,6 @@ describe('RuleEditorView — assign_label action', () => {
       ok([mockRule({ actions: [{ type: 'assign_label', value: 'lbl_1' }] })]),
     )
 
-    await useRulesStore().fetchRules()
     await useLabelsStore().fetchLabels()
     const wrapper = await mountEditor('/rules/rule_1')
 

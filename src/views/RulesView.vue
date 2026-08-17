@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { useRulesStore } from '@/stores/rules'
+import { useRulesQuery, useUpdateRule, useDeleteRule, useMoveRule, useReorderRules } from '@/composables/useRulesQueries'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useIsMobile } from '@/composables/useIsMobile'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
@@ -10,16 +10,13 @@ import ActionBadge from '@/components/ActionBadge.vue'
 import { conditionSummary } from '@/lib/rule-display'
 import type { Rule } from '@/types/server'
 
-const rulesStore = useRulesStore()
+const { query: rulesQuery, rules } = useRulesQuery()
+const updateRuleMutation = useUpdateRule()
+const deleteRuleMutation = useDeleteRule()
+const moveRuleMutation = useMoveRule()
+const reorderMutation = useReorderRules()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 const isMobile = useIsMobile()
-
-// One ordered list, system and user rules interleaved by priorityOrder (the
-// store already sorts this way) — a single row layout for every rule, since
-// the backend now accepts priorityOrder overrides for system rules too, not
-// just status. Edit/Delete are still user-rule-only (system rule conditions
-// and actions are immutable server-side).
-const rules = computed(() => rulesStore.items)
 
 async function deleteRule(rule: Rule) {
   const confirmed = await confirmAction({
@@ -29,20 +26,28 @@ async function deleteRule(rule: Rule) {
     confirmVariant: 'danger',
   })
   if (!confirmed) return
-  await rulesStore.deleteRule(rule.ruleId)
+  deleteRuleMutation.mutate(rule.ruleId)
 }
 
-async function toggleRule(rule: Rule) {
+function toggleRule(rule: Rule) {
   const newStatus = rule.status === 'enabled' ? 'disabled' : 'enabled'
-  await rulesStore.updateRule(rule.ruleId, { status: newStatus })
+  updateRuleMutation.mutate({ ruleId: rule.ruleId, body: { status: newStatus } })
 }
 
-async function moveUp(rule: Rule) {
-  await rulesStore.moveRule(rule.ruleId, -1)
+function moveUp(rule: Rule) {
+  const sorted = [...rules.value]
+  const idx = sorted.findIndex((r) => r.ruleId === rule.ruleId)
+  if (idx <= 0) return
+  const b = sorted[idx - 1]
+  moveRuleMutation.mutate({ ruleId: rule.ruleId, direction: -1, aId: rule.ruleId, bId: b.ruleId, aPriority: rule.priorityOrder, bPriority: b.priorityOrder })
 }
 
-async function moveDown(rule: Rule) {
-  await rulesStore.moveRule(rule.ruleId, 1)
+function moveDown(rule: Rule) {
+  const sorted = [...rules.value]
+  const idx = sorted.findIndex((r) => r.ruleId === rule.ruleId)
+  if (idx < 0 || idx >= sorted.length - 1) return
+  const b = sorted[idx + 1]
+  moveRuleMutation.mutate({ ruleId: rule.ruleId, direction: 1, aId: rule.ruleId, bId: b.ruleId, aPriority: rule.priorityOrder, bPriority: b.priorityOrder })
 }
 
 // ─── Drag and drop ────────────────────────────────────────────────────────────
@@ -59,12 +64,12 @@ function onDragOver(e: DragEvent, ruleId: string) {
   dragOverId.value = ruleId
 }
 
-async function onDrop(targetId: string) {
+function onDrop(targetId: string) {
   const sourceId = draggingId.value
   draggingId.value = null
   dragOverId.value = null
   if (sourceId && sourceId !== targetId) {
-    await rulesStore.reorderRule(sourceId, targetId)
+    reorderMutation.mutate({ dragId: sourceId, targetId })
   }
 }
 
@@ -72,10 +77,6 @@ function onDragEnd() {
   draggingId.value = null
   dragOverId.value = null
 }
-
-onMounted(async () => {
-  await rulesStore.fetchRules()
-})
 </script>
 
 <template>
@@ -100,16 +101,15 @@ onMounted(async () => {
     <main class="mx-auto max-w-3xl px-4 py-6">
       <!-- Error -->
       <div
-        v-if="rulesStore.error"
+        v-if="rulesQuery.error.value"
         class="mb-4 rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
       >
-        {{ rulesStore.error }}
-        <button class="ml-2 underline" @click="rulesStore.clearError()">Dismiss</button>
+        {{ rulesQuery.error.value?.message }}
       </div>
 
       <!-- Loading -->
       <div
-        v-if="rulesStore.loading"
+        v-if="rulesQuery.isLoading.value"
         role="status"
         aria-label="Loading rules…"
         class="animate-pulse divide-y divide-ctp-surface0 rounded-lg border border-ctp-surface0"

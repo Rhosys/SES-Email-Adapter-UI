@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useQuarantineStore } from '@/stores/quarantine'
 import { useQuarantineQuery, useAllowQuarantinedSignal, useRejectQuarantinedSignal, useDismissQuarantinedSignal } from '@/composables/useQuarantineQueries'
-import { useRulesStore } from '@/stores/rules'
+import { useRulesQuery } from '@/composables/useRulesQueries'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { conditionSummary } from '@/lib/rule-display'
 import SignalRenderer from '@/components/SignalRenderer.vue'
@@ -16,7 +16,7 @@ import { useAccountStore } from '@/stores/account'
 const route = useRoute()
 const router = useRouter()
 const quarantineStore = useQuarantineStore()
-const rulesStore = useRulesStore()
+const { rules: rulesList } = useRulesQuery()
 const accountStore = useAccountStore()
 
 const signalId = computed(() => route.params.id as string)
@@ -57,7 +57,7 @@ function toggleRule(ruleId: string) {
 }
 
 function ruleFor(ruleId: string) {
-  return rulesStore.items.find((r) => r.ruleId === ruleId)
+  return rulesList.value.find((r) => r.ruleId === ruleId)
 }
 
 async function allow() {

@@ -3,7 +3,6 @@ import { mount, RouterLinkStub, flushPromises, DOMWrapper } from '@vue/test-util
 import { setActivePinia, createPinia } from 'pinia'
 import { ok, err } from 'neverthrow'
 import RulesView from '@/views/RulesView.vue'
-import { useRulesStore } from '@/stores/rules'
 import { useAccountStore } from '@/stores/account'
 import type { Rule, Account } from '@/types/server'
 import { ApiError } from '@/lib/api'
@@ -106,22 +105,11 @@ describe('RulesView', () => {
     expect(wrapper.text()).toContain('Every email handled on autopilot')
   })
 
-  it('shows error banner when store has error', async () => {
+  it('shows error banner when query fails', async () => {
+    vi.mocked(api.listRules).mockResolvedValue(err(new ApiError(500, 'Something went wrong')))
     const wrapper = mountView()
     await flushPromises()
-    useRulesStore().error = 'Something went wrong'
-    await wrapper.vm.$nextTick()
     expect(wrapper.text()).toContain('Something went wrong')
-  })
-
-  it('dismiss clears error', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-    const store = useRulesStore()
-    store.error = 'Something went wrong'
-    await wrapper.vm.$nextTick()
-    await wrapper.find('button.underline').trigger('click')
-    expect(store.error).toBeNull()
   })
 
   it('shows error banner on fetch failure', async () => {
@@ -162,6 +150,7 @@ describe('RulesView', () => {
     await flushPromises()
     const upButtons = wrapper.findAll('button[aria-label="Move rule up"]')
     await upButtons[1].trigger('click')
+    await flushPromises()
     expect(api.updateRule).toHaveBeenCalled()
   })
 
@@ -251,6 +240,7 @@ describe('RulesView', () => {
     const wrapper = mountView()
     await flushPromises()
     await wrapper.get('button[aria-label="Disable System rule"]').trigger('click')
+    await flushPromises()
     expect(api.updateRule).toHaveBeenCalledWith('acc_1', 'sys1', { status: 'disabled' })
   })
 
@@ -276,6 +266,7 @@ describe('RulesView', () => {
     await flushPromises()
     const upButtons = wrapper.findAll('button[aria-label="Move rule up"]')
     await upButtons[1].trigger('click')
+    await flushPromises()
     expect(api.updateRule).toHaveBeenCalled()
   })
 
