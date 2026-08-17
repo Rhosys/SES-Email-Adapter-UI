@@ -2,8 +2,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useThreadsStore } from '@/stores/threads'
-import { useSignalsStore } from '@/stores/signals'
 import { useThreadListQuery, useArchiveThread, useBulkArchive, useBulkMoveToInbox, useBulkLabel } from '@/composables/useThreadQueries'
+import { usePrefetchThreadSignals } from '@/composables/useSignalQueries'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useIsMobile } from '@/composables/useIsMobile'
 import { useDeferredHide } from '@/composables/useDeferredHide'
@@ -23,7 +23,7 @@ import type { ThreadStatus } from '@/types/server'
 const route = useRoute()
 const router = useRouter()
 const threadsStore = useThreadsStore()
-const signalsStore = useSignalsStore()
+const { prefetch: prefetchSignals } = usePrefetchThreadSignals()
 const { onAction, offAction } = useKeyboardShortcuts()
 const { hiddenIds } = useDeferredHide()
 const isMobile = useIsMobile()
@@ -69,7 +69,7 @@ async function fetchRecentSignals() {
     .filter(t => t.lastSignalAt && now - new Date(t.lastSignalAt).getTime() < RECENCY_WINDOW_MS)
     .map(t => ({ threadId: t.threadId, lastSignalAt: t.lastSignalAt! }))
   if (recentThreads.length > 0) {
-    await signalsStore.fetchForThreads(recentThreads)
+    await prefetchSignals(recentThreads)
   }
 }
 

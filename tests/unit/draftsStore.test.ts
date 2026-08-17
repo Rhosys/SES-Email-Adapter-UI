@@ -3,8 +3,8 @@ import { setActivePinia, createPinia } from 'pinia'
 import { ok } from 'neverthrow'
 import { QueryClient } from '@tanstack/vue-query'
 import { useDraftsStore } from '@/stores/drafts'
-import { useSignalsStore } from '@/stores/signals'
 import { useAccountStore } from '@/stores/account'
+import { queryKeys } from '@/lib/queryKeys'
 import type { Signal, Thread, Account } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
@@ -70,6 +70,7 @@ function mockDraft(overrides: Partial<Signal> & { signalId?: string } = {}): Sig
 
 describe('draftsStore', () => {
   beforeEach(() => {
+    testQueryClient.clear()
     setActivePinia(createPinia())
     vi.clearAllMocks()
     const accountStore = useAccountStore()
@@ -91,6 +92,12 @@ describe('draftsStore', () => {
       ok({ signals: [mockDraft({ signalId: 'd1' })], pagination: { cursor: null } }),
     )
 
+    // Seed the threads query cache so activeThreadIds computed works
+    testQueryClient.setQueryData(
+      queryKeys.threads.list('acc_1', 'active'),
+      { pages: [{ threads: [mockThread({ threadId: 'thread_1' })], pagination: { cursor: null } }], pageParams: [undefined] },
+    )
+
     const store = useDraftsStore()
     await store.refreshTopThreads()
 
@@ -100,24 +107,21 @@ describe('draftsStore', () => {
   })
 
   it('excludes draft signals belonging to non-active threads', async () => {
-    const signalsStore = useSignalsStore()
-
     // Seed the TanStack Query cache with active threads only
     testQueryClient.setQueryData(
       ['threads', 'acc_1', { status: 'active' }],
       { pages: [{ threads: [mockThread({ threadId: 'thread_active', status: 'active' })], pagination: { cursor: null } }], pageParams: [undefined] },
     )
 
-    vi.mocked(api.listSignals).mockImplementation(async (_account, threadId) =>
-      ok({
-        signals: [mockDraft({ signalId: `draft_${threadId}`, threadId })],
-        pagination: { cursor: null },
-      }),
+    // Seed signal caches for both threads
+    testQueryClient.setQueryData(
+      queryKeys.signals.byThread('acc_1', 'thread_active'),
+      { pages: [{ signals: [mockDraft({ signalId: 'draft_thread_active', threadId: 'thread_active' })], pagination: { cursor: null } }], pageParams: [undefined] },
     )
-    await signalsStore.fetchForThreads([
-      { threadId: 'thread_active', lastSignalAt: '2099-01-01T00:00:00Z' },
-      { threadId: 'thread_archived', lastSignalAt: '2099-01-01T00:00:00Z' },
-    ])
+    testQueryClient.setQueryData(
+      queryKeys.signals.byThread('acc_1', 'thread_archived'),
+      { pages: [{ signals: [mockDraft({ signalId: 'draft_thread_archived', threadId: 'thread_archived' })], pagination: { cursor: null } }], pageParams: [undefined] },
+    )
 
     const store = useDraftsStore()
     expect(store.drafts.map((s) => s.signalId)).toEqual(['draft_thread_active'])
@@ -133,6 +137,13 @@ describe('draftsStore', () => {
         pagination: { cursor: null },
       }),
     )
+
+    // Seed the threads query cache so activeThreadIds computed works
+    testQueryClient.setQueryData(
+      queryKeys.threads.list('acc_1', 'active'),
+      { pages: [{ threads: [mockThread({ threadId: 'thread_1' })], pagination: { cursor: null } }], pageParams: [undefined] },
+    )
+
     const store = useDraftsStore()
     await store.refreshTopThreads()
     expect(store.draftCount).toBe(2)

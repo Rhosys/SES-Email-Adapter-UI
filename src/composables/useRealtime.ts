@@ -1,7 +1,6 @@
 import { watch } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { useAccountStore } from '@/stores/account'
-import { useSignalsStore } from '@/stores/signals'
 import { queryKeys } from '@/lib/queryKeys'
 import { loginClient } from '@/lib/auth'
 import { notify } from '@/lib/notifications'
@@ -37,7 +36,6 @@ function fireNotification(event: SignalCreatedEvent) {
 export function useRealtime() {
   const accountStore = useAccountStore()
   const queryClient = useQueryClient()
-  const signalsStore = useSignalsStore()
 
   function handleEvent(event: RealtimeEvent) {
     const accountId = accountStore.accountId
@@ -47,19 +45,15 @@ export function useRealtime() {
       case 'signal:created':
         // Invalidate thread list queries so badge counts and lists refresh
         void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
-        // If the detail view for this thread is open, pull the updated signals
-        if (signalsStore.currentThreadId === event.threadId) {
-          void signalsStore.fetchAll(event.threadId)
-        }
+        // Invalidate signals for this thread so the detail view updates
+        void queryClient.invalidateQueries({ queryKey: queryKeys.signals.byThread(accountId, event.threadId) })
         fireNotification(event)
         break
       case 'thread:updated':
         // Invalidate thread queries
         void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
-        // If the detail view for this thread is open, refresh it too
-        if (signalsStore.currentThreadId === event.threadId) {
-          void signalsStore.fetchAll(event.threadId)
-        }
+        // Invalidate signals for this thread
+        void queryClient.invalidateQueries({ queryKey: queryKeys.signals.byThread(accountId, event.threadId) })
         break
     }
   }

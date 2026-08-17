@@ -1,28 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { ok, err } from 'neverthrow'
+import { QueryClient } from '@tanstack/vue-query'
 import { useSignalsStore } from '@/stores/signals'
 import { useAccountStore } from '@/stores/account'
-import type { Signal, Account, Pagination } from '@/types/server'
+import { queryKeys } from '@/lib/queryKeys'
+import type { Signal, Account } from '@/types/server'
 
-vi.mock('@/lib/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/api')>()
+// Mock useQueryClient to return a test QueryClient
+const testQueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+vi.mock('@tanstack/vue-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/vue-query')>()
   return {
     ...actual,
-    api: {
-      listSignals: vi.fn(),
-      patchThread: vi.fn(),
-      createDraftSignal: vi.fn(),
-    },
+    useQueryClient: () => testQueryClient,
   }
 })
-
-vi.mock('@/lib/logger', () => ({
-  default: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn(), log: vi.fn(), critical: vi.fn(), track: vi.fn() },
-}))
-
-import { api, ApiError } from '@/lib/api'
-import logger from '@/lib/logger'
 
 function mockSignal(overrides: Partial<Signal> = {}): Signal {
   return {
@@ -49,135 +41,73 @@ function mockSignal(overrides: Partial<Signal> = {}): Signal {
   } as Signal
 }
 
-function mockSignalList(items: Signal[], pagination: Pagination = { cursor: null }) {
-  return { signals: items, pagination }
-}
-
-describe('signalsStore', () => {
+describe('signalsStore (query cache facade)', () => {
   beforeEach(() => {
+    testQueryClient.clear()
     setActivePinia(createPinia())
-    vi.clearAllMocks()
+
     const accountStore = useAccountStore()
     accountStore.account = { accountId: 'acc_1', name: 'Test' } as Account
   })
 
-  it('fetchAll populates items', async () => {
-    vi.mocked(api.listSignals).mockResolvedValue(ok(mockSignalList([mockSignal()])))
+  it('threadSignals returns signals from the query cache', () => {
+    const sig = mockSignal()
+    testQueryClient.setQueryData(queryKeys.signals.byThread('acc_1', 'thread_1'), {
+      pages: [{ signals: [sig], pagination: { cursor: null } }],
+      pageParams: [undefined],
+    })
 
     const store = useSignalsStore()
-    await store.fetchAll('thread_1')
-
-    expect(store.items).toHaveLength(1)
-    expect(store.loading).toBe(false)
-    expect(store.error).toBeNull()
+    expect(store.threadSignals('thread_1')).toHaveLength(1)
+    expect(store.threadSignals('thread_1')[0].signalId).toBe('sig_1')
   })
 
-  it('sets error when signals fetch fails', async () => {
-    vi.mocked(api.listSignals).mockResolvedValue(err(new ApiError(500, 'Server error')))
+  it('threadSignals returns empty array for uncached thread', () => {
+    const store = useSignalsStore()
+    expect(store.threadSignals('thread_unknown')).toEqual([])
+  })
+
+  it('updateSignal patches a cached signal in place', () => {
+    const sig = mockSignal()
+    testQueryClient.setQueryData(queryKeys.signals.byThread('acc_1', 'thread_1'), {
+      pages: [{ signals: [sig], pagination: { cursor: null } }],
+      pageParams: [undefined],
+    })
 
     const store = useSignalsStore()
-    await store.fetchAll('thread_1')
+    const updated = mockSignal({ signalId: 'sig_1', status: 'draft' })
+    store.updateSignal('thread_1', updated)
 
-    expect(store.error).toBe('Server error')
+    expect(store.threadSignals('thread_1')[0].status).toBe('draft')
   })
 
-  it('latestSignal is the first item (newest first)', async () => {
+  it('removeSignal removes a signal from the cache', () => {
     const sig1 = mockSignal({ signalId: 'sig_1' })
     const sig2 = mockSignal({ signalId: 'sig_2' })
-    // API returns oldest first; store reverses
-    vi.mocked(api.listSignals).mockResolvedValue(ok(mockSignalList([sig1, sig2])))
+    testQueryClient.setQueryData(queryKeys.signals.byThread('acc_1', 'thread_1'), {
+      pages: [{ signals: [sig1, sig2], pagination: { cursor: null } }],
+      pageParams: [undefined],
+    })
 
     const store = useSignalsStore()
-    await store.fetchAll('thread_1')
+    store.removeSignal('thread_1', 'sig_1')
 
-    expect(store.latestSignal?.signalId).toBe('sig_2')
+    const remaining = store.threadSignals('thread_1')
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0].signalId).toBe('sig_2')
   })
 
-  it('hasMore is true when nextCursor is set', async () => {
-    vi.mocked(api.listSignals).mockResolvedValue(
-      ok(mockSignalList([mockSignal()], { cursor: 'cursor_abc' })),
-    )
+  it('allSignals aggregates signals across all cached threads', () => {
+    testQueryClient.setQueryData(queryKeys.signals.byThread('acc_1', 'thread_1'), {
+      pages: [{ signals: [mockSignal({ signalId: 'sig_1' })], pagination: { cursor: null } }],
+      pageParams: [undefined],
+    })
+    testQueryClient.setQueryData(queryKeys.signals.byThread('acc_1', 'thread_2'), {
+      pages: [{ signals: [mockSignal({ signalId: 'sig_2', threadId: 'thread_2' })], pagination: { cursor: null } }],
+      pageParams: [undefined],
+    })
 
     const store = useSignalsStore()
-    await store.fetchAll('thread_1')
-
-    expect(store.hasMore).toBe(true)
-  })
-
-  it('createDraft prepends the new draft (newest first)', async () => {
-    const existing = mockSignal({ signalId: 'sig_1' })
-    vi.mocked(api.listSignals).mockResolvedValue(ok(mockSignalList([existing])))
-
-    const store = useSignalsStore()
-    await store.fetchAll('thread_1')
-
-    const draft = mockSignal({ signalId: 'sig_draft', status: 'draft' })
-    vi.mocked(api.createDraftSignal).mockResolvedValue(ok(draft))
-
-    await store.createDraft('thread_1')
-
-    expect(store.items.map((s) => s.signalId)).toEqual(['sig_draft', 'sig_1'])
-    expect(store.latestSignal?.signalId).toBe('sig_draft')
-  })
-
-  it('reset clears all state', async () => {
-    vi.mocked(api.listSignals).mockResolvedValue(ok(mockSignalList([mockSignal()])))
-
-    const store = useSignalsStore()
-    await store.fetchAll('thread_1')
-    store.reset()
-
-    expect(store.items).toHaveLength(0)
-    expect(store.error).toBeNull()
-  })
-})
-
-describe('stale-while-revalidate', { timeout: 5000 }, () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.clearAllMocks()
-    const accountStore = useAccountStore()
-    accountStore.account = { accountId: 'acc_1', name: 'Test' } as Account
-  })
-
-  it('fetchAll with cached data does not show loading state', async () => {
-    const store = useSignalsStore()
-    store.$patch({ _byAccount: { acc_1: { thread_1: [mockSignal()] } } })
-
-    vi.mocked(api.listSignals).mockResolvedValue(ok(mockSignalList([mockSignal()])))
-    await store.fetchAll('thread_1')
-
-    expect(store.loading).toBe(false)
-  })
-
-  it('fetchAll merges fresh signals with cached (deduplicates by signalId)', async () => {
-    const sigA = mockSignal({ signalId: 'sig_A', createdAt: '2025-01-01T10:00:00Z' })
-    const sigB = mockSignal({ signalId: 'sig_B', createdAt: '2025-01-01T11:00:00Z' })
-    const sigC = mockSignal({ signalId: 'sig_C', createdAt: '2025-01-01T12:00:00Z' })
-
-    const store = useSignalsStore()
-    store.$patch({ _byAccount: { acc_1: { thread_1: [sigA, sigB] } } })
-
-    // API returns [sig_B, sig_C] (oldest first — store reverses to [sig_C, sig_B])
-    vi.mocked(api.listSignals).mockResolvedValue(ok(mockSignalList([sigB, sigC])))
-    await store.fetchAll('thread_1')
-
-    // Fresh first (reversed): [sig_C, sig_B], then older cached not in fresh: [sig_A]
-    expect(store.items.map((s) => s.signalId)).toEqual(['sig_C', 'sig_B', 'sig_A'])
-  })
-
-  it('fetchAll failure with cached data retains cache and logs warning', async () => {
-    const store = useSignalsStore()
-    store.$patch({ _byAccount: { acc_1: { thread_1: [mockSignal({ signalId: 'sig_cached' })] } } })
-
-    vi.mocked(api.listSignals).mockResolvedValue(err(new ApiError(500, 'Server error')))
-    await store.fetchAll('thread_1')
-
-    expect(store.items).toHaveLength(1)
-    expect(store.items[0].signalId).toBe('sig_cached')
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Signals fetch failed with cache available' }),
-    )
-    expect(store.error).toBeNull()
+    expect(store.allSignals).toHaveLength(2)
   })
 })

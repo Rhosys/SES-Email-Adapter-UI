@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, computed, ref, nextTick, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { useSignalsStore } from '@/stores/signals'
 import { useAccountStore } from '@/stores/account'
 import { useThreadDetailQuery, useArchiveThread, useMoveToInbox, useDeleteThread, useLabelThread, useSnoozeThread, useUnsubscribeThread } from '@/composables/useThreadQueries'
+import { useSignalListQuery, useCreateDraft as useCreateDraftMutation } from '@/composables/useSignalQueries'
 import { useToast } from '@/composables/useToast'
 import { useDeferredHide } from '@/composables/useDeferredHide'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
@@ -31,7 +31,6 @@ import SenderInfoPopup from '@/components/SenderInfoPopup.vue'
 
 const route = useRoute()
 const router = useRouter()
-const signalsStore = useSignalsStore()
 const accountStore = useAccountStore()
 const labelsStore = useLabelsStore()
 const { showUndo } = useToast()
@@ -49,13 +48,17 @@ const labelMutation = useLabelThread()
 const snoozeMutation = useSnoozeThread()
 const unsubscribeMutation = useUnsubscribeThread()
 
+const threadId = computed(() => route.params.id as string)
+
+// Signals from TanStack Query
+const { query: signalQuery, signals: signalItems, hasMore, latestSignal } = useSignalListQuery(() => threadId.value)
+const createDraftMutation = useCreateDraftMutation()
+
 function handleSenderPopupClickOutside(e: MouseEvent) {
   if (senderPopupRef.value && !senderPopupRef.value.contains(e.target as Node)) {
     showSenderPopup.value = false
   }
 }
-
-const threadId = computed(() => route.params.id as string)
 
 // Thread detail from TanStack Query
 const { thread: threadFromQuery } = useThreadDetailQuery(() => threadId.value)
@@ -70,7 +73,7 @@ const snoozedAnnotation = computed(() => {
   return `This thread was snoozed and resurfaced at ${followup.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
 })
 
-const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalsStore.items)))
+const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalItems.value)))
 
 const workflowGroups = computed(() => aggregateWorkflowPanels(dedupedSignals.value))
 
@@ -136,7 +139,7 @@ function scrollToPreserved() {
   if (!topVisibleSignalId || !signalListRef.value) return
 
   // Only auto-scroll if the preserved signal arrived within the last 30 minutes
-  const signal = signalsStore.items.find(s => s.signalId === topVisibleSignalId)
+  const signal = signalItems.value.find(s => s.signalId === topVisibleSignalId)
   if (signal) {
     const ts = isInboundEmailSignal(signal) ? signal.data.receivedAt : signal.createdAt
     if (DateTime.fromISO(ts).diffNow().negate().as('minutes') > 30) return
@@ -151,29 +154,12 @@ function scrollToPreserved() {
 watch(dedupedSignals, async () => {
   await nextTick()
   observeSignals()
+  scrollToPreserved()
 }, { flush: 'post' })
 
-onMounted(async () => {
+onMounted(() => {
   document.addEventListener('click', handleSenderPopupClickOutside)
-
-  // Point the store at this thread so items computed returns cached signals
-  signalsStore.currentThreadId = threadId.value
-
-  // If we have cached signals, show them and fetch in background
-  const hasCached = signalsStore.items.length > 0
-  if (hasCached) {
-    updating.value = true
-    await nextTick()
-    observeSignals()
-    await signalsStore.fetchAll(threadId.value)
-    updating.value = false
-    await nextTick()
-    scrollToPreserved()
-  } else {
-    await signalsStore.fetchAll(threadId.value)
-    await nextTick()
-    observeSignals()
-  }
+  nextTick().then(() => observeSignals())
 })
 
 onUnmounted(() => {
@@ -182,16 +168,16 @@ onUnmounted(() => {
 })
 
 function onDraftDiscard() {
-  void signalsStore.fetchAll(threadId.value)
+  void signalQuery.refetch()
 }
 
 function onDraftSent() {
-  void signalsStore.fetchAll(threadId.value)
+  void signalQuery.refetch()
 }
 
 async function onSignalReprocessed() {
-  await signalsStore.fetchAll(threadId.value)
-  if (signalsStore.items.length === 0) {
+  await signalQuery.refetch()
+  if (signalItems.value.length === 0) {
     void router.push('/')
   }
 }
@@ -239,7 +225,7 @@ async function unsubscribe() {
 }
 
 const hasUnsubscribe = computed(() =>
-  signalsStore.items.some((s) => isInboundEmailSignal(s) && s.data.unsubscribe),
+  signalItems.value.some((s) => isInboundEmailSignal(s) && s.data.unsubscribe),
 )
 
 const canUnsubscribe = computed(() => hasUnsubscribe.value && thread.value?.status === 'active')
@@ -295,14 +281,14 @@ async function blockSender() {
 }
 
 async function loadMore() {
-  await signalsStore.fetchMore(threadId.value)
+  await signalQuery.fetchNextPage()
 }
 
 const primaryBadgeLabel = computed(() => {
   if (!thread.value) return ''
   if (thread.value.status === 'deleted') return 'Deleted'
-  const latestSignal = signalsStore.latestSignal
-  if (latestSignal && isInboundEmailSignal(latestSignal) && latestSignal.data.workflow === 'conversation' && latestSignal.data.workflowData && 'requiresReply' in latestSignal.data.workflowData && latestSignal.data.workflowData.requiresReply) return 'Reply Needed'
+  const latest = latestSignal.value
+  if (latest && isInboundEmailSignal(latest) && latest.data.workflow === 'conversation' && latest.data.workflowData && 'requiresReply' in latest.data.workflowData && latest.data.workflowData.requiresReply) return 'Reply Needed'
   if (thread.value.status === 'archived') return 'Archived'
   return 'Active'
 })
@@ -318,7 +304,7 @@ const primaryBadgeClass = computed(() => {
 
 function moveToInbox() {
   return moveToInboxMutation.mutateAsync(threadId.value).then(() => {
-    void signalsStore.fetchAll(threadId.value)
+    void signalQuery.refetch()
   })
 }
 
@@ -328,15 +314,44 @@ async function scrollToDraft(signalId: string) {
 }
 
 async function startDraft() {
-  const existingDraft = signalsStore.items.find((s) => s.status === 'draft')
+  const existingDraft = signalItems.value.find((s) => s.status === 'draft')
   if (existingDraft) {
     await scrollToDraft(existingDraft.signalId)
     return
   }
-  const result = await signalsStore.createDraft(threadId.value)
-  if (result.isOk()) {
-    await scrollToDraft(result.value.signalId)
+
+  // Derive reply context from existing signals
+  const existing = signalItems.value
+  const replyTo = existing.find((s) => s.status !== 'draft') ?? existing[0]
+
+  let fromAddress = ''
+  let toAddresses: { address: string }[] = []
+  let replySubject = ''
+
+  if (replyTo && replyTo.type === 'email' && 'recipientAddress' in replyTo.data) {
+    const data = replyTo.data as { from: { address: string }; to: { address: string }[]; cc: { address: string }[]; recipientAddress: string; subject: string }
+    const alias = data.recipientAddress?.toLowerCase() ?? ''
+    fromAddress = data.recipientAddress ?? ''
+    const allRecipients = [
+      { address: data.from.address },
+      ...data.to,
+      ...data.cc,
+    ]
+    const seen = new Set<string>()
+    toAddresses = allRecipients.filter((a) => {
+      const lower = a.address.toLowerCase()
+      if (lower === alias || seen.has(lower)) return false
+      seen.add(lower)
+      return true
+    })
+    const subj = data.subject ?? ''
+    replySubject = /^re:\s/i.test(subj) ? subj : `Re: ${subj}`
   }
+
+  createDraftMutation.mutate(
+    { threadId: threadId.value, body: { from: { address: fromAddress }, to: toAddresses, subject: replySubject } },
+    { onSuccess: (newSignal) => { void scrollToDraft(newSignal.signalId) } },
+  )
 }
 
 function labelMeta(label: string) {
@@ -425,7 +440,7 @@ async function removeLabel(label: string) {
 
     <!-- Loading -->
     <div
-      v-if="signalsStore.loading"
+      v-if="signalQuery.isLoading.value"
       role="status"
       aria-label="Loading thread…"
       class="animate-pulse"
@@ -450,11 +465,11 @@ async function removeLabel(label: string) {
 
     <!-- Error -->
     <div
-      v-else-if="signalsStore.error"
+      v-else-if="signalQuery.error.value"
       role="alert"
       class="rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
     >
-      {{ signalsStore.error }}
+      {{ signalQuery.error.value?.message }}
     </div>
 
     <template v-else-if="thread">
@@ -495,7 +510,7 @@ async function removeLabel(label: string) {
             class="rounded-full px-2 py-0.5 text-xs font-medium"
             :class="primaryBadgeClass"
           >
-            {{ dedupedSignals.length }}{{ signalsStore.hasMore ? '+' : '' }} Signal{{ dedupedSignals.length === 1 && !signalsStore.hasMore ? '' : 's' }}
+            {{ dedupedSignals.length }}{{ hasMore ? '+' : '' }} Signal{{ dedupedSignals.length === 1 && !hasMore ? '' : 's' }}
           </span>
           <button
             v-for="label in visibleLabels(thread.labels)"
@@ -599,13 +614,13 @@ async function removeLabel(label: string) {
       </div>
 
       <!-- Load earlier (older) signals — they sort to the bottom -->
-      <div v-if="signalsStore.hasMore" class="mt-4">
+      <div v-if="hasMore" class="mt-4">
         <button
           class="text-sm text-ctp-subtext0 hover:text-ctp-text"
-          :disabled="signalsStore.loadingMore"
+          :disabled="signalQuery.isFetchingNextPage.value"
           @click="loadMore"
         >
-          {{ signalsStore.loadingMore ? 'Loading…' : 'Load earlier messages' }}
+          {{ signalQuery.isFetchingNextPage.value ? 'Loading…' : 'Load earlier messages' }}
         </button>
       </div>
     </template>
