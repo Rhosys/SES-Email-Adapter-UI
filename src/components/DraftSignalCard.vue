@@ -5,7 +5,7 @@ import { marked } from 'marked'
 import { useAccountStore } from '@/stores/account'
 import { useSignalsStore } from '@/stores/signals'
 import { useUserConfigStore } from '@/stores/userConfig'
-import { useSenderIdentitiesStore } from '@/stores/senderIdentities'
+import { useSenderIdentitiesQuery } from '@/composables/useSenderIdentitiesQuery'
 import { api } from '@/lib/api'
 import { useToast } from '@/composables/useToast'
 import { useDeferredHide } from '@/composables/useDeferredHide'
@@ -19,7 +19,7 @@ const emit = defineEmits<{ discard: []; sent: [] }>()
 const accountStore = useAccountStore()
 const signalsStore = useSignalsStore()
 const userConfigStore = useUserConfigStore()
-const senderIdentities = useSenderIdentitiesStore()
+const senderIdentities = useSenderIdentitiesQuery()
 const router = useRouter()
 const { deferAction, undo: undoToast } = useToast()
 const { hideWithDefer } = useDeferredHide()
@@ -72,13 +72,13 @@ const sendState = ref<'idle' | 'sending' | 'cancellable'>('idle')
 const toastId = ref<string | null>(null)
 const error = ref<string | null>(null)
 
-const verifiedDomains = computed(() => senderIdentities.domains.filter((d) => d.senderSetupComplete))
+const verifiedDomains = computed(() => senderIdentities.domains.value.filter((d) => d.senderSetupComplete))
 
 // Connected mailboxes are whole addresses on domains we don't own, whatever the
 // platform — they can't be built from a local part plus one of our domains, so
 // they're offered verbatim.
 const mailboxOptions = computed(() =>
-  senderIdentities.exchanges.filter((e) => e.status === 'active' && e.emailAddress).map((e) => e.emailAddress),
+  senderIdentities.exchanges.value.filter((e) => e.status === 'active' && e.emailAddress).map((e) => e.emailAddress),
 )
 
 // Aliases are only suggested for the domain being composed on — the full account-wide
@@ -86,7 +86,7 @@ const mailboxOptions = computed(() =>
 const aliasSuggestions = computed(() => {
   const domain = selectedDomain.value.toLowerCase()
   if (!domain) return []
-  return senderIdentities.aliases
+  return senderIdentities.aliases.value
     .filter((a) => domainOf(a.alias) === domain)
     .map((a) => splitAddress(a.alias)[0])
 })
@@ -100,16 +100,13 @@ const editedAddress = computed(() => {
   return localPart.value && selectedDomain.value ? `${localPart.value}@${selectedDomain.value}` : ''
 })
 
-// Warms the shared sender-identities store as soon as the card exists, in the
-// background — this never blocks the fixed From display above, and it's shared
-// across every draft card, so by the time a pencil is clicked the data has
-// usually already arrived (or come straight from the persisted cache).
-senderIdentities.ensureLoaded()
+// TanStack Query handles fetching automatically when the composable is used.
+// No explicit ensureLoaded needed — the query fires as soon as accountId resolves.
 
 // If the editor is opened before that fetch resolves, pick up the result the
 // moment it lands rather than leaving the editor stuck on "Loading addresses…".
 watch(
-  () => senderIdentities.hasData,
+  () => senderIdentities.hasData.value,
   (loaded) => {
     if (loaded && editingFrom.value) selectCurrentIdentity()
   },
@@ -118,8 +115,7 @@ watch(
 /** Opens the sender editor, pointing it at the current address once identities are available. */
 function startEditingFrom() {
   editingFrom.value = true
-  senderIdentities.ensureLoaded()
-  if (senderIdentities.hasData) selectCurrentIdentity()
+  if (senderIdentities.hasData.value) selectCurrentIdentity()
 }
 
 /**
@@ -372,9 +368,9 @@ async function discard() {
 
         <!-- Only the true cold-start (no cache, first fetch still in flight) blocks here.
              Once identities have loaded once this session, a later background refresh
-             (senderIdentities.loading) never re-shows this — the list underneath just
+             never re-shows this — the list underneath just
              updates in place. -->
-        <div v-else-if="!senderIdentities.hasData" class="text-xs text-ctp-subtext0">Loading addresses…</div>
+        <div v-else-if="!senderIdentities.hasData.value" class="text-xs text-ctp-subtext0">Loading addresses…</div>
 
         <template v-else>
           <div

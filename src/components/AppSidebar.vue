@@ -7,7 +7,7 @@ import { useAccountStore } from '@/stores/account'
 import { useThreadListQuery } from '@/composables/useThreadQueries'
 import { useQuarantineQuery } from '@/composables/useQuarantineQueries'
 import { useDraftsStore } from '@/stores/drafts'
-import { useResourcesStore } from '@/stores/resources'
+import { useActiveResourcesQuery } from '@/composables/useResourceQueries'
 import { isAdminUser } from '@/stores/admin'
 import { useIdentity } from '@/composables/useIdentity'
 import { useSpamQuery } from '@/composables/useSpamQueries'
@@ -29,7 +29,7 @@ const { quarantineVisible: qVisible, visibleQuery: qVisibleQuery } = useQuaranti
   before: '',
 }))
 const draftsStore = useDraftsStore()
-const resourcesStore = useResourcesStore()
+const { activeResources } = useActiveResourcesQuery()
 
 const isAdmin = computed(() => isAdminUser())
 
@@ -317,10 +317,10 @@ const accountSwitcherOpen = ref(false)
           </svg>
           <span class="flex-1">Resources</span>
           <span
-            v-if="resourcesStore.activeResources.length > 0"
+            v-if="activeResources.length > 0"
             class="shrink-0 rounded-full bg-ctp-sapphire px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ctp-base"
           >
-            {{ formatBadgeCount(resourcesStore.activeResources.length, false) }}
+            {{ formatBadgeCount(activeResources.length, false) }}
           </span>
         </RouterLink>
       </div>

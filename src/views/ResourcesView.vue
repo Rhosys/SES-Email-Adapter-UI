@@ -1,15 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { useResourcesStore } from '@/stores/resources'
+import { computed } from 'vue'
+import { useAllResourcesQuery, useSetResourceStatus } from '@/composables/useResourceQueries'
 import ResourcePanel from '@/components/ResourcePanel.vue'
 import { dayKey } from '@/lib/resourceDate'
 import type { ResourceStatus } from '@/types/server'
 
-const resourcesStore = useResourcesStore()
-
-onMounted(() => {
-  void resourcesStore.fetchAllResources()
-})
+const { query, resources } = useAllResourcesQuery()
+const setStatus = useSetResourceStatus()
 
 // Show all future resources + anything from the past 7 days (active or completed)
 const visibleResources = computed(() => {
@@ -17,11 +14,11 @@ const visibleResources = computed(() => {
   const sevenDaysAgo = new Date(now)
   sevenDaysAgo.setDate(now.getDate() - 7)
   const cutoff = dayKey(sevenDaysAgo)
-  return resourcesStore.items.filter((r) => dayKey(r.displayDate ?? r.expectedResolutionDate) >= cutoff)
+  return resources.value.filter((r) => dayKey(r.displayDate ?? r.expectedResolutionDate) >= cutoff)
 })
 
 function handleToggle(resourceId: string, newStatus: ResourceStatus) {
-  void resourcesStore.setResourceStatus(resourceId, newStatus)
+  setStatus.mutate({ resourceId, status: newStatus })
 }
 </script>
 
@@ -36,14 +33,14 @@ function handleToggle(resourceId: string, newStatus: ResourceStatus) {
 
     <main class="mx-auto max-w-3xl px-4 py-4">
       <div
-        v-if="resourcesStore.error"
+        v-if="query.error.value"
         class="mb-4 rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
       >
-        {{ resourcesStore.error }}
+        {{ query.error.value?.message }}
       </div>
 
       <div
-        v-if="!resourcesStore.loading && visibleResources.length === 0"
+        v-if="!query.isLoading.value && visibleResources.length === 0"
         class="py-20 text-center text-ctp-subtext0"
       >
         <p class="text-base font-medium text-ctp-text">No resources here</p>

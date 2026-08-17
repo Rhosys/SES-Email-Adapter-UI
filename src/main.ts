@@ -9,7 +9,6 @@ import './lib/analytics'
 import logger from './lib/logger'
 import { loginClient } from './lib/auth'
 import { useAccountStore } from './stores/account'
-import { useResourcesStore } from './stores/resources'
 import { useUserConfigStore } from './stores/userConfig'
 import { useLogStore } from './stores/logs'
 import { useIdentity } from './composables/useIdentity'
@@ -81,18 +80,9 @@ enableMocking().then(() => {
   const accountStore = useAccountStore()
   accountStore.startFetch()
 
-  // Once the account is resolved, prime all sidebar badge counters so they reflect
-  // reality on first paint — regardless of which page the user navigates to first.
+  // Once the account is resolved, TanStack Query composables in the sidebar and
+  // views automatically fetch their data. No manual resource priming needed.
   accountStore.waitForFetch().then(() => {
-    const resourcesStore = useResourcesStore()
-    void resourcesStore.fetchResources()
-
-    // Always the active listing, whichever page the user lands on: the sidebar badge
-    // counts loaded active threads, and it renders everywhere. TanStack Query handles
-    // the initial fetch via useThreadListQuery in the sidebar/InboxView — no manual
-    // fetchThreads needed. Signal prefetching for recent threads will be handled by the
-    // InboxView's handleRefresh or by TanStack Query's refetchOnWindowFocus.
-
     // Spam data now fetched by useSpamQuery composable in the sidebar
   })
 

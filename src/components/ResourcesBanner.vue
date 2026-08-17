@@ -1,24 +1,21 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { useResourcesStore } from '@/stores/resources'
+import { ref } from 'vue'
+import { useActiveResourcesQuery, useSetResourceStatus } from '@/composables/useResourceQueries'
 import ResourcePanel from '@/components/ResourcePanel.vue'
 import type { ResourceStatus } from '@/types/server'
 
-const resourcesStore = useResourcesStore()
+const { activeResources, hasResources } = useActiveResourcesQuery()
+const setStatus = useSetResourceStatus()
 const expanded = ref(true)
 
-onMounted(() => {
-  void resourcesStore.fetchResources()
-})
-
 function handleToggle(resourceId: string, newStatus: ResourceStatus) {
-  void resourcesStore.setResourceStatus(resourceId, newStatus)
+  setStatus.mutate({ resourceId, status: newStatus })
 }
 </script>
 
 <template>
   <div
-    v-if="resourcesStore.hasResources"
+    v-if="hasResources"
     class="resources-banner mb-4 rounded-lg border border-ctp-surface0 bg-ctp-mantle transition-colors hover:border-ctp-surface1"
   >
     <button
@@ -31,7 +28,7 @@ function handleToggle(resourceId: string, newStatus: ResourceStatus) {
       <span class="flex items-center gap-2 text-xs font-medium text-ctp-subtext0 transition-colors hover:text-ctp-text">
         Upcoming
         <span class="rounded-full bg-ctp-mauve/20 px-1.5 py-0.5 text-[10px] font-semibold text-ctp-mauve">
-          {{ resourcesStore.activeResources.length }}
+          {{ activeResources.length }}
         </span>
       </span>
       <svg
@@ -47,7 +44,7 @@ function handleToggle(resourceId: string, newStatus: ResourceStatus) {
 
     <div v-if="expanded" class="px-3 pb-3">
       <ResourcePanel
-        :resources="resourcesStore.activeResources"
+        :resources="activeResources"
         show-thread-link
         @toggle-status="handleToggle"
       />
