@@ -50,9 +50,7 @@ export function useRealtime() {
         fireNotification(event)
         break
       case 'thread:updated':
-        // Invalidate thread queries
-        void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
-        // Invalidate signals for this thread
+        void queryClient.invalidateQueries({ queryKey: queryKeys.threads.detail(accountId, event.threadId) })
         void queryClient.invalidateQueries({ queryKey: queryKeys.signals.byThread(accountId, event.threadId) })
         break
     }
