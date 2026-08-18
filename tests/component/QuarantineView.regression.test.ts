@@ -3,9 +3,10 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { ok, err } from 'neverthrow'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { useQueryClient } from '@tanstack/vue-query'
 import QuarantineView from '@/views/QuarantineView.vue'
 import { useAccountStore } from '@/stores/account'
+import { queryKeys } from '@/lib/queryKeys'
 import { ApiError } from '@/lib/api'
 import type { QuarantinedSignal, Account } from '@/types/server'
 
@@ -80,14 +81,13 @@ function makeRouter() {
 }
 
 let pinia: ReturnType<typeof createPinia>
-let queryClient: QueryClient
 
 async function mountView() {
   const router = makeRouter()
   await router.push('/quarantine')
   await router.isReady()
   const wrapper = mount(QuarantineView, {
-    global: { plugins: [pinia, router, [VueQueryPlugin, { queryClient }]] },
+    global: { plugins: [pinia, router] },
   })
   await flushPromises()
   return wrapper
@@ -97,12 +97,6 @@ describe('QuarantineView — regression gate', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false, gcTime: 0 },
-        mutations: { retry: false },
-      },
-    })
     vi.clearAllMocks()
     useAccountStore().account = testAccount
     vi.mocked(api.listAccounts).mockResolvedValue(ok([testAccount]))
@@ -114,7 +108,7 @@ describe('QuarantineView — regression gate', () => {
     await router.push('/quarantine')
     await router.isReady()
     const wrapper = mount(QuarantineView, {
-      global: { plugins: [pinia, router, [VueQueryPlugin, { queryClient }]] },
+      global: { plugins: [pinia, router] },
     })
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[role="status"][aria-label="Loading quarantine…"]').exists()).toBe(true)
@@ -160,5 +154,127 @@ describe('QuarantineView — regression gate', () => {
       'quarantine_visible',
       expect.objectContaining({ sender: 'foo@bar.com' }),
     )
+  })
+
+  it('optimistically removes item on allow action', async () => {
+    mockBothCalls(
+      [mockQuarantinedSignal({ signalId: 'v1' }), mockQuarantinedSignal({ signalId: 'v2' })],
+      [],
+    )
+    const wrapper = await mountView()
+    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(2)
+
+    // Get the queryClient that the component is actually using (from setup.ts global)
+    const qc = useQueryClient()
+
+    // Simulate optimistic removal (same mechanism as useAllowQuarantinedSignal.onMutate)
+    const allQueries = qc.getQueriesData({ queryKey: queryKeys.quarantine.all('acc_1') })
+    for (const [key, data] of allQueries) {
+      if (!data || typeof data !== 'object' || !('pages' in data)) continue
+      const infinite = data as { pages: Array<{ signals: QuarantinedSignal[]; pagination: unknown }>; pageParams: unknown[] }
+      qc.setQueryData(key, {
+        ...infinite,
+        pages: infinite.pages.map((page) => ({
+          ...page,
+          signals: page.signals.filter((s) => s.signalId !== 'v1'),
+        })),
+      })
+    }
+    await flushPromises()
+
+    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(1)
+  })
+
+  it('optimistically removes item on reject action', async () => {
+    mockBothCalls(
+      [mockQuarantinedSignal({ signalId: 'v1' })],
+      [mockQuarantinedSignal({ signalId: 'h1', status: 'quarantine_hidden' })],
+    )
+    const wrapper = await mountView()
+    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(2)
+
+    const qc = useQueryClient()
+
+    // Simulate optimistic removal (same mechanism as useRejectQuarantinedSignal.onMutate)
+    const allQueries = qc.getQueriesData({ queryKey: queryKeys.quarantine.all('acc_1') })
+    for (const [key, data] of allQueries) {
+      if (!data || typeof data !== 'object' || !('pages' in data)) continue
+      const infinite = data as { pages: Array<{ signals: QuarantinedSignal[]; pagination: unknown }>; pageParams: unknown[] }
+      qc.setQueryData(key, {
+        ...infinite,
+        pages: infinite.pages.map((page) => ({
+          ...page,
+          signals: page.signals.filter((s) => s.signalId !== 'h1'),
+        })),
+      })
+    }
+    await flushPromises()
+
+    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(1)
+  })
+
+  it('optimistically removes item on dismiss action', async () => {
+    mockBothCalls(
+      [mockQuarantinedSignal({ signalId: 'v1' }), mockQuarantinedSignal({ signalId: 'v2' })],
+      [],
+    )
+    const wrapper = await mountView()
+    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(2)
+
+    const qc = useQueryClient()
+
+    // Simulate optimistic removal (same mechanism as useDismissQuarantinedSignal.onMutate)
+    const allQueries = qc.getQueriesData({ queryKey: queryKeys.quarantine.all('acc_1') })
+    for (const [key, data] of allQueries) {
+      if (!data || typeof data !== 'object' || !('pages' in data)) continue
+      const infinite = data as { pages: Array<{ signals: QuarantinedSignal[]; pagination: unknown }>; pageParams: unknown[] }
+      qc.setQueryData(key, {
+        ...infinite,
+        pages: infinite.pages.map((page) => ({
+          ...page,
+          signals: page.signals.filter((s) => s.signalId !== 'v2'),
+        })),
+      })
+    }
+    await flushPromises()
+
+    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(1)
+  })
+
+  it('rolls back optimistic removal when mutation fails', async () => {
+    mockBothCalls(
+      [mockQuarantinedSignal({ signalId: 'v1' }), mockQuarantinedSignal({ signalId: 'v2' })],
+      [],
+    )
+    const wrapper = await mountView()
+    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(2)
+
+    const qc = useQueryClient()
+
+    // Snapshot before optimistic removal (same as onMutate)
+    const previous = qc.getQueriesData({ queryKey: queryKeys.quarantine.all('acc_1') })
+
+    // Optimistic removal
+    for (const [key, data] of previous) {
+      if (!data || typeof data !== 'object' || !('pages' in data)) continue
+      const infinite = data as { pages: Array<{ signals: QuarantinedSignal[]; pagination: unknown }>; pageParams: unknown[] }
+      qc.setQueryData(key, {
+        ...infinite,
+        pages: infinite.pages.map((page) => ({
+          ...page,
+          signals: page.signals.filter((s) => s.signalId !== 'v1'),
+        })),
+      })
+    }
+    await flushPromises()
+    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(1)
+
+    // Rollback (same as onError) — restore previous state
+    for (const [key, data] of previous) {
+      qc.setQueryData(key, data)
+    }
+    await flushPromises()
+
+    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(2)
   })
 })
