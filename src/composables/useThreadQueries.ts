@@ -1,28 +1,10 @@
 import { computed } from 'vue'
-import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/queryKeys'
 import { unwrap } from '@/lib/queryFns'
 import type { Thread, ThreadStatus } from '@/types/server'
-
-const PAGE_SIZE = 50
-
-// Threads with no meaningful lastSignalAt are hidden from all listings
-const SIGNAL_CUTOFF = '2000-01-01T00:00:00.000Z'
-
-function isVisible(t: Thread): boolean {
-  return t.lastSignalAt != null && t.lastSignalAt > SIGNAL_CUTOFF
-}
-
-function byLastSignalDesc(a: Thread, b: Thread) {
-  return new Date(b.lastSignalAt ?? 0).getTime() - new Date(a.lastSignalAt ?? 0).getTime()
-}
-
-type InfiniteThreadData = {
-  pages: Array<{ threads: Thread[]; pagination: { cursor: string | null } }>
-  pageParams: Array<string | undefined>
-}
 
 export function useThreadListQuery(status: () => ThreadStatus | undefined) {
   const accountStore = useAccountStore()
@@ -34,148 +16,186 @@ export function useThreadListQuery(status: () => ThreadStatus | undefined) {
       unwrap(await api.listThreads(accountId.value!, {
         status: status(),
         cursor: pageParam,
-        limit: PAGE_SIZE,
+        limit: 50,
       })),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.pagination.cursor ?? undefined,
     enabled: computed(() => !!accountId.value),
+    persister: undefined,
   })
 
-  const threads = computed<Thread[]>(() => {
-    const all = query.data.value?.pages.flatMap(p => p.threads) ?? []
-    const requestedStatus = status()
-    return all
-      .filter((t) => isVisible(t) && (!requestedStatus || t.status === requestedStatus))
-      .sort(byLastSignalDesc)
-  })
+  const threads = computed<Thread[]>(() =>
+    query.data.value?.pages.flatMap(p => p.threads) ?? [],
+  )
 
-  const activeCount = computed(() => threads.value.filter(t => t.status === 'active').length)
+  const activeCount = computed(() => threads.value.length)
   const hasMore = computed(() => query.hasNextPage?.value ?? false)
 
   return { query, threads, activeCount, hasMore }
 }
 
-export function useThreadDetailQuery(threadId: () => string | null | undefined) {
+export function useThreadDetailQuery(threadId: () => string | undefined) {
   const accountStore = useAccountStore()
   const accountId = computed(() => accountStore.accountId)
 
-  const query = useQuery({
+  const detailQuery = useQuery({
     queryKey: computed(() => queryKeys.threads.detail(accountId.value!, threadId()!)),
-    queryFn: async () => unwrap(await api.getThread(accountId.value!, threadId()!)),
+    queryFn: async () =>
+      unwrap(await api.getThread(accountId.value!, threadId()!)),
     enabled: computed(() => !!accountId.value && !!threadId()),
+    persister: undefined,
   })
 
-  return { query, thread: computed(() => query.data.value ?? null) }
+  const thread = computed(() => detailQuery.data.value)
+
+  return { ...detailQuery, thread }
+}
+
+// Shared helper for status mutations (archive, move-to-inbox, delete)
+function useThreadStatusMutation(targetStatus: ThreadStatus) {
+  const queryClient = useQueryClient()
+  const accountStore = useAccountStore()
+
+  return useMutation({
+    mutationFn: async (threadId: string) =>
+      unwrap(await api.patchThread(accountStore.accountId!, threadId, { status: targetStatus })),
+    onMutate: async (threadId) => {
+      const accountId = accountStore.accountId!
+      await queryClient.cancelQueries({ queryKey: queryKeys.threads.all(accountId) })
+      const previous = queryClient.getQueriesData({ queryKey: queryKeys.threads.all(accountId) })
+      // Optimistic removal from the source list
+      queryClient.setQueriesData(
+        { queryKey: queryKeys.threads.all(accountId) },
+        (old: unknown) => {
+          const data = old as { pages?: Array<{ threads: Thread[]; pagination: { cursor: string | null } }> } | undefined
+          if (!data?.pages) return old
+          return {
+            ...data,
+            pages: data.pages.map((page) => ({
+              ...page,
+              threads: page.threads.filter((t) => t.threadId !== threadId),
+            })),
+          }
+        },
+      )
+      return { previous }
+    },
+    onError: (_err, _threadId, context) => {
+      if (context?.previous) {
+        for (const [key, data] of context.previous) {
+          queryClient.setQueryData(key, data)
+        }
+      }
+    },
+    onSettled: () => {
+      const accountId = accountStore.accountId!
+      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
+    },
+  })
+}
+
+// Shared helper for bulk status mutations
+function useBulkThreadStatusMutation(targetStatus: ThreadStatus) {
+  const queryClient = useQueryClient()
+  const accountStore = useAccountStore()
+
+  return useMutation({
+    mutationFn: async (threadIds: string[]) => {
+      const accountId = accountStore.accountId!
+      await Promise.all(
+        threadIds.map((id) => api.patchThread(accountId, id, { status: targetStatus }).then(unwrap)),
+      )
+    },
+    onMutate: async (threadIds) => {
+      const accountId = accountStore.accountId!
+      const idsSet = new Set(threadIds)
+      await queryClient.cancelQueries({ queryKey: queryKeys.threads.all(accountId) })
+      const previous = queryClient.getQueriesData({ queryKey: queryKeys.threads.all(accountId) })
+      queryClient.setQueriesData(
+        { queryKey: queryKeys.threads.all(accountId) },
+        (old: unknown) => {
+          const data = old as { pages?: Array<{ threads: Thread[]; pagination: { cursor: string | null } }> } | undefined
+          if (!data?.pages) return old
+          return {
+            ...data,
+            pages: data.pages.map((page) => ({
+              ...page,
+              threads: page.threads.filter((t) => !idsSet.has(t.threadId)),
+            })),
+          }
+        },
+      )
+      return { previous }
+    },
+    onError: (_err, _threadIds, context) => {
+      if (context?.previous) {
+        for (const [key, data] of context.previous) {
+          queryClient.setQueryData(key, data)
+        }
+      }
+    },
+    onSettled: () => {
+      const accountId = accountStore.accountId!
+      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
+    },
+  })
 }
 
 export function useArchiveThread() {
-  const queryClient = useQueryClient()
-  const accountStore = useAccountStore()
-
-  return useMutation({
-    mutationFn: async (threadId: string) =>
-      unwrap(await api.patchThread(accountStore.accountId!, threadId, { status: 'archived' })),
-    onMutate: async (threadId) => {
-      const accountId = accountStore.accountId!
-      await queryClient.cancelQueries({ queryKey: queryKeys.threads.all(accountId) })
-      const previous = queryClient.getQueriesData({ queryKey: queryKeys.threads.all(accountId) })
-      queryClient.setQueriesData(
-        { queryKey: queryKeys.threads.all(accountId) },
-        (old: unknown) => {
-          const data = old as InfiniteThreadData | undefined
-          if (!data?.pages) return old
-          return {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              threads: page.threads.map((t) =>
-                t.threadId === threadId ? { ...t, status: 'archived' as ThreadStatus } : t,
-              ),
-            })),
-          }
-        },
-      )
-      return { previous }
-    },
-    onError: (_err, _threadId, context) => {
-      if (context?.previous) {
-        for (const [key, data] of context.previous) {
-          queryClient.setQueryData(key, data)
-        }
-      }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
-    },
-  })
+  return useThreadStatusMutation('archived')
 }
 
 export function useMoveToInbox() {
-  const queryClient = useQueryClient()
-  const accountStore = useAccountStore()
-
-  return useMutation({
-    mutationFn: async (threadId: string) =>
-      unwrap(await api.patchThread(accountStore.accountId!, threadId, { status: 'active' })),
-    onMutate: async (threadId) => {
-      const accountId = accountStore.accountId!
-      await queryClient.cancelQueries({ queryKey: queryKeys.threads.all(accountId) })
-      const previous = queryClient.getQueriesData({ queryKey: queryKeys.threads.all(accountId) })
-      queryClient.setQueriesData(
-        { queryKey: queryKeys.threads.all(accountId) },
-        (old: unknown) => {
-          const data = old as InfiniteThreadData | undefined
-          if (!data?.pages) return old
-          return {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              threads: page.threads.map((t) =>
-                t.threadId === threadId ? { ...t, status: 'active' as ThreadStatus } : t,
-              ),
-            })),
-          }
-        },
-      )
-      return { previous }
-    },
-    onError: (_err, _threadId, context) => {
-      if (context?.previous) {
-        for (const [key, data] of context.previous) {
-          queryClient.setQueryData(key, data)
-        }
-      }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
-    },
-  })
+  return useThreadStatusMutation('active')
 }
 
 export function useDeleteThread() {
+  return useThreadStatusMutation('deleted')
+}
+
+export function useBulkArchive() {
+  return useBulkThreadStatusMutation('archived')
+}
+
+export function useBulkMoveToInbox() {
+  return useBulkThreadStatusMutation('active')
+}
+
+export function useBulkLabel() {
   const queryClient = useQueryClient()
   const accountStore = useAccountStore()
 
   return useMutation({
-    mutationFn: async (threadId: string) =>
-      unwrap(await api.patchThread(accountStore.accountId!, threadId, { status: 'deleted' })),
-    onMutate: async (threadId) => {
+    mutationFn: async ({ threadIds, label, threads }: { threadIds: string[]; label: string; threads: Thread[] }) => {
+      const accountId = accountStore.accountId!
+      await Promise.all(
+        threadIds.map((id) => {
+          const existing = threads.find((t) => t.threadId === id)
+          const currentLabels = existing?.labels ?? []
+          const newLabels = currentLabels.includes(label) ? currentLabels : [...currentLabels, label]
+          return api.patchThread(accountId, id, { labels: newLabels }).then(unwrap)
+        }),
+      )
+    },
+    onMutate: async ({ threadIds, label }) => {
       const accountId = accountStore.accountId!
       await queryClient.cancelQueries({ queryKey: queryKeys.threads.all(accountId) })
       const previous = queryClient.getQueriesData({ queryKey: queryKeys.threads.all(accountId) })
+      // Optimistic update: add label to matching threads
       queryClient.setQueriesData(
         { queryKey: queryKeys.threads.all(accountId) },
         (old: unknown) => {
-          const data = old as InfiniteThreadData | undefined
+          const data = old as { pages?: Array<{ threads: Thread[]; pagination: { cursor: string | null } }> } | undefined
           if (!data?.pages) return old
+          const idsSet = new Set(threadIds)
           return {
             ...data,
             pages: data.pages.map((page) => ({
               ...page,
               threads: page.threads.map((t) =>
-                t.threadId === threadId ? { ...t, status: 'deleted' as ThreadStatus } : t,
+                idsSet.has(t.threadId) && !t.labels.includes(label)
+                  ? { ...t, labels: [...t.labels, label] }
+                  : t,
               ),
             })),
           }
@@ -183,7 +203,7 @@ export function useDeleteThread() {
       )
       return { previous }
     },
-    onError: (_err, _threadId, context) => {
+    onError: (_err, _vars, context) => {
       if (context?.previous) {
         for (const [key, data] of context.previous) {
           queryClient.setQueryData(key, data)
@@ -206,40 +226,22 @@ export function useLabelThread() {
       unwrap(await api.patchThread(accountStore.accountId!, threadId, { labels })),
     onMutate: async ({ threadId, labels }) => {
       const accountId = accountStore.accountId!
-      await queryClient.cancelQueries({ queryKey: queryKeys.threads.all(accountId) })
-      const previous = queryClient.getQueriesData({ queryKey: queryKeys.threads.all(accountId) })
-      queryClient.setQueriesData(
-        { queryKey: queryKeys.threads.all(accountId) },
-        (old: unknown) => {
-          const data = old as InfiniteThreadData | undefined
-          if (!data?.pages) return old
-          return {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              threads: page.threads.map((t) =>
-                t.threadId === threadId ? { ...t, labels } : t,
-              ),
-            })),
-          }
-        },
-      )
-      // Also update the detail cache
-      queryClient.setQueryData(
-        queryKeys.threads.detail(accountId, threadId),
-        (old: Thread | undefined) => old ? { ...old, labels } : old,
-      )
-      return { previous }
+      const detailKey = queryKeys.threads.detail(accountId, threadId)
+      await queryClient.cancelQueries({ queryKey: detailKey })
+      const previousDetail = queryClient.getQueryData<Thread>(detailKey)
+      if (previousDetail) {
+        queryClient.setQueryData<Thread>(detailKey, { ...previousDetail, labels })
+      }
+      return { previousDetail, detailKey }
     },
     onError: (_err, _vars, context) => {
-      if (context?.previous) {
-        for (const [key, data] of context.previous) {
-          queryClient.setQueryData(key, data)
-        }
+      if (context?.previousDetail) {
+        queryClient.setQueryData(context.detailKey, context.previousDetail)
       }
     },
-    onSettled: () => {
+    onSettled: (_data, _err, { threadId }) => {
       const accountId = accountStore.accountId!
+      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.detail(accountId, threadId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
     },
   })
@@ -251,10 +253,25 @@ export function useSnoozeThread() {
 
   return useMutation({
     mutationFn: async ({ threadId, followupAt }: { threadId: string; followupAt: string }) =>
-      unwrap(await api.patchThread(accountStore.accountId!, threadId, { status: 'archived', followupAt })),
-    // No optimistic update — snooze can be rejected by the server (invalid followupAt)
-    onSettled: () => {
+      unwrap(await api.patchThread(accountStore.accountId!, threadId, { followupAt })),
+    onMutate: async ({ threadId, followupAt }) => {
       const accountId = accountStore.accountId!
+      const detailKey = queryKeys.threads.detail(accountId, threadId)
+      await queryClient.cancelQueries({ queryKey: detailKey })
+      const previousDetail = queryClient.getQueryData<Thread>(detailKey)
+      if (previousDetail) {
+        queryClient.setQueryData<Thread>(detailKey, { ...previousDetail, followupAt })
+      }
+      return { previousDetail, detailKey }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousDetail) {
+        queryClient.setQueryData(context.detailKey, context.previousDetail)
+      }
+    },
+    onSettled: (_data, _err, { threadId }) => {
+      const accountId = accountStore.accountId!
+      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.detail(accountId, threadId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
     },
   })
@@ -267,215 +284,9 @@ export function useUnsubscribeThread() {
   return useMutation({
     mutationFn: async (threadId: string) =>
       unwrap(await api.unsubscribeThread(accountStore.accountId!, threadId)),
-    onMutate: async (threadId) => {
+    onSettled: (_data, _err, threadId) => {
       const accountId = accountStore.accountId!
-      await queryClient.cancelQueries({ queryKey: queryKeys.threads.all(accountId) })
-      const previous = queryClient.getQueriesData({ queryKey: queryKeys.threads.all(accountId) })
-      queryClient.setQueriesData(
-        { queryKey: queryKeys.threads.all(accountId) },
-        (old: unknown) => {
-          const data = old as InfiniteThreadData | undefined
-          if (!data?.pages) return old
-          return {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              threads: page.threads.map((t) =>
-                t.threadId === threadId ? { ...t, status: 'archived' as ThreadStatus } : t,
-              ),
-            })),
-          }
-        },
-      )
-      return { previous }
-    },
-    onError: (_err, _threadId, context) => {
-      if (context?.previous) {
-        for (const [key, data] of context.previous) {
-          queryClient.setQueryData(key, data)
-        }
-      }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
-    },
-  })
-}
-
-export function useBulkArchive() {
-  const queryClient = useQueryClient()
-  const accountStore = useAccountStore()
-
-  return useMutation({
-    mutationFn: async (threadIds: string[]) => {
-      const accountId = accountStore.accountId!
-      const results = await Promise.all(
-        threadIds.map((id) => api.patchThread(accountId, id, { status: 'archived' })),
-      )
-      const failed = results.filter((r) => r.isErr())
-      if (failed.length > 0) throw new Error(`Failed to archive ${failed.length} thread(s)`)
-      return results.map((r) => r._unsafeUnwrap())
-    },
-    onMutate: async (threadIds) => {
-      const accountId = accountStore.accountId!
-      await queryClient.cancelQueries({ queryKey: queryKeys.threads.all(accountId) })
-      const previous = queryClient.getQueriesData({ queryKey: queryKeys.threads.all(accountId) })
-      queryClient.setQueriesData(
-        { queryKey: queryKeys.threads.all(accountId) },
-        (old: unknown) => {
-          const data = old as InfiniteThreadData | undefined
-          if (!data?.pages) return old
-          const ids = new Set(threadIds)
-          return {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              threads: page.threads.map((t) =>
-                ids.has(t.threadId) ? { ...t, status: 'archived' as ThreadStatus } : t,
-              ),
-            })),
-          }
-        },
-      )
-      return { previous }
-    },
-    onError: (_err, _threadIds, context) => {
-      if (context?.previous) {
-        for (const [key, data] of context.previous) {
-          queryClient.setQueryData(key, data)
-        }
-      }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
-    },
-  })
-}
-
-export function useBulkMoveToInbox() {
-  const queryClient = useQueryClient()
-  const accountStore = useAccountStore()
-
-  return useMutation({
-    mutationFn: async (threadIds: string[]) => {
-      const accountId = accountStore.accountId!
-      const results = await Promise.all(
-        threadIds.map((id) => api.patchThread(accountId, id, { status: 'active' })),
-      )
-      const failed = results.filter((r) => r.isErr())
-      if (failed.length > 0) throw new Error(`Failed to move ${failed.length} thread(s) to inbox`)
-      return results.map((r) => r._unsafeUnwrap())
-    },
-    onMutate: async (threadIds) => {
-      const accountId = accountStore.accountId!
-      await queryClient.cancelQueries({ queryKey: queryKeys.threads.all(accountId) })
-      const previous = queryClient.getQueriesData({ queryKey: queryKeys.threads.all(accountId) })
-      queryClient.setQueriesData(
-        { queryKey: queryKeys.threads.all(accountId) },
-        (old: unknown) => {
-          const data = old as InfiniteThreadData | undefined
-          if (!data?.pages) return old
-          const ids = new Set(threadIds)
-          return {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              threads: page.threads.map((t) =>
-                ids.has(t.threadId) ? { ...t, status: 'active' as ThreadStatus } : t,
-              ),
-            })),
-          }
-        },
-      )
-      return { previous }
-    },
-    onError: (_err, _threadIds, context) => {
-      if (context?.previous) {
-        for (const [key, data] of context.previous) {
-          queryClient.setQueryData(key, data)
-        }
-      }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
-    },
-  })
-}
-
-export function useBulkDelete() {
-  const queryClient = useQueryClient()
-  const accountStore = useAccountStore()
-
-  return useMutation({
-    mutationFn: async (threadIds: string[]) => {
-      const accountId = accountStore.accountId!
-      const results = await Promise.all(
-        threadIds.map((id) => api.patchThread(accountId, id, { status: 'deleted' })),
-      )
-      const failed = results.filter((r) => r.isErr())
-      if (failed.length > 0) throw new Error(`Failed to delete ${failed.length} thread(s)`)
-      return results.map((r) => r._unsafeUnwrap())
-    },
-    onMutate: async (threadIds) => {
-      const accountId = accountStore.accountId!
-      await queryClient.cancelQueries({ queryKey: queryKeys.threads.all(accountId) })
-      const previous = queryClient.getQueriesData({ queryKey: queryKeys.threads.all(accountId) })
-      queryClient.setQueriesData(
-        { queryKey: queryKeys.threads.all(accountId) },
-        (old: unknown) => {
-          const data = old as InfiniteThreadData | undefined
-          if (!data?.pages) return old
-          const ids = new Set(threadIds)
-          return {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              threads: page.threads.map((t) =>
-                ids.has(t.threadId) ? { ...t, status: 'deleted' as ThreadStatus } : t,
-              ),
-            })),
-          }
-        },
-      )
-      return { previous }
-    },
-    onError: (_err, _threadIds, context) => {
-      if (context?.previous) {
-        for (const [key, data] of context.previous) {
-          queryClient.setQueryData(key, data)
-        }
-      }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
-    },
-  })
-}
-
-export function useBulkLabel() {
-  const queryClient = useQueryClient()
-  const accountStore = useAccountStore()
-
-  return useMutation({
-    mutationFn: async ({ threadIds, label, threads }: { threadIds: string[]; label: string; threads: Thread[] }) => {
-      const accountId = accountStore.accountId!
-      const results = await Promise.all(
-        threadIds.map((id) => {
-          const thread = threads.find((t) => t.threadId === id)
-          const labels = thread ? [...new Set([...thread.labels, label])] : [label]
-          return api.patchThread(accountId, id, { labels })
-        }),
-      )
-      const failed = results.filter((r) => r.isErr())
-      if (failed.length > 0) throw new Error(`Failed to label ${failed.length} thread(s)`)
-      return results.map((r) => r._unsafeUnwrap())
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
+      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.detail(accountId, threadId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
     },
   })
