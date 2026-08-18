@@ -56,4 +56,4 @@ export const queryClient = new QueryClient({
   }),
 })
 
-broadcastQueryClient({ queryClient, broadcastChannel: 'ses-query-sync' })
+try { broadcastQueryClient({ queryClient, broadcastChannel: 'ses-query-sync' }) } catch { /* BroadcastChannel unavailable — single-tab mode */ }
