@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import type { QuarantineFilters } from '@/stores/quarantine'
+import type { QuarantineFilters } from '@/composables/useQuarantineQueries'
 
 const props = defineProps<{ filters: QuarantineFilters }>()
 const emit = defineEmits<{ (e: 'update', filters: Partial<QuarantineFilters>): void }>()

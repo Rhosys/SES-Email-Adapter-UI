@@ -33,7 +33,9 @@ const hasMore = computed(() =>
   (visibleQuery.hasNextPage?.value ?? false) || (hiddenQuery.hasNextPage?.value ?? false),
 )
 
-const loadingMore = ref(false)
+const loadingMore = computed(() =>
+  visibleQuery.isFetchingNextPage.value || hiddenQuery.isFetchingNextPage.value,
+)
 
 function onUpdateFilters(next: Partial<Filters>) {
   filters.value = { ...filters.value, ...next }
@@ -46,13 +48,11 @@ function onUpdateFilters(next: Partial<Filters>) {
 
 async function loadMore() {
   if (loadingMore.value) return
-  loadingMore.value = true
   if (visibleQuery.hasNextPage?.value) {
     await visibleQuery.fetchNextPage()
   } else if (hiddenQuery.hasNextPage?.value) {
     await hiddenQuery.fetchNextPage()
   }
-  loadingMore.value = false
 }
 </script>
 
