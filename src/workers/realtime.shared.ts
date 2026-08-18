@@ -39,7 +39,7 @@ function connect(): void {
   if (!currentAccountId || !currentToken) return
   if (ws !== null && ws.readyState !== WebSocket.CLOSED) return
 
-  const url = `${WS_BASE}/api/accounts/${currentAccountId}?token=${encodeURIComponent(currentToken)}`
+  const url = `${WS_BASE}/api/accounts/${currentAccountId}?token=${encodeURIComponent(currentToken)}&accountId=${currentAccountId}`
   ws = new WebSocket(url)
 
   ws.onopen = () => {
