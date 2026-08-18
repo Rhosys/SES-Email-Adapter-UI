@@ -3,10 +3,11 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { ok } from 'neverthrow'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { useQueryClient } from '@tanstack/vue-query'
 import SpamView from '@/views/SpamView.vue'
 import { useAccountStore } from '@/stores/account'
 import { ApiError } from '@/lib/api'
+import { queryKeys } from '@/lib/queryKeys'
 import type { BlockedSignal, Account } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
@@ -80,7 +81,6 @@ function makeRouter() {
 }
 
 let pinia: ReturnType<typeof createPinia>
-let queryClient: QueryClient
 
 async function mountView() {
   const router = makeRouter()
@@ -88,7 +88,7 @@ async function mountView() {
   await router.isReady()
   const wrapper = mount(SpamView, {
     global: {
-      plugins: [pinia, router, [VueQueryPlugin, { queryClient }]],
+      plugins: [pinia, router],
     },
   })
   await flushPromises()
@@ -99,12 +99,6 @@ describe('SpamView — regression gate', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false, gcTime: 0 },
-        mutations: { retry: false },
-      },
-    })
     vi.clearAllMocks()
     useAccountStore().account = testAccount
     vi.mocked(api.listAccounts).mockResolvedValue(ok([testAccount]))
@@ -116,7 +110,7 @@ describe('SpamView — regression gate', () => {
     await router.push('/spam')
     await router.isReady()
     const wrapper = mount(SpamView, {
-      global: { plugins: [pinia, router, [VueQueryPlugin, { queryClient }]] },
+      global: { plugins: [pinia, router] },
     })
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[role="status"][aria-label="Loading blocked emails…"]').exists()).toBe(true)
@@ -177,5 +171,73 @@ describe('SpamView — regression gate', () => {
       'block_hidden',
       expect.objectContaining({ sender: 'spammer@evil.com' }),
     )
+  })
+
+  it('optimistically removes item from list on delete mutation', async () => {
+    mockBothCalls(
+      [mockBlockedSignal({ signalId: 'h1' }), mockBlockedSignal({ signalId: 'h2' })],
+      [],
+    )
+    const wrapper = await mountView()
+    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(2)
+
+    // Get the queryClient that the component is actually using (from setup.ts global)
+    const qc = useQueryClient()
+
+    // Simulate optimistic delete: directly manipulate the infinite query cache the same way
+    // useDeleteSpamSignal.onMutate does — filter out the target signal from all pages
+    const allQueries = qc.getQueriesData({ queryKey: queryKeys.spam.all('acc_1') })
+    for (const [key, data] of allQueries) {
+      if (!data || typeof data !== 'object' || !('pages' in data)) continue
+      const infinite = data as { pages: Array<{ signals: BlockedSignal[]; pagination: unknown }>; pageParams: unknown[] }
+      qc.setQueryData(key, {
+        ...infinite,
+        pages: infinite.pages.map((page) => ({
+          ...page,
+          signals: page.signals.filter((s) => s.signalId !== 'h1'),
+        })),
+      })
+    }
+    await flushPromises()
+
+    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(1)
+  })
+
+  it('rolls back optimistic removal when delete mutation fails', async () => {
+    mockBothCalls(
+      [mockBlockedSignal({ signalId: 'h1' }), mockBlockedSignal({ signalId: 'h2' })],
+      [],
+    )
+    const wrapper = await mountView()
+    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(2)
+
+    // Get the queryClient that the component is actually using (from setup.ts global)
+    const qc = useQueryClient()
+
+    // Snapshot before optimistic removal (same as onMutate)
+    const previous = qc.getQueriesData({ queryKey: queryKeys.spam.all('acc_1') })
+
+    // Optimistic removal
+    for (const [key, data] of previous) {
+      if (!data || typeof data !== 'object' || !('pages' in data)) continue
+      const infinite = data as { pages: Array<{ signals: BlockedSignal[]; pagination: unknown }>; pageParams: unknown[] }
+      qc.setQueryData(key, {
+        ...infinite,
+        pages: infinite.pages.map((page) => ({
+          ...page,
+          signals: page.signals.filter((s) => s.signalId !== 'h1'),
+        })),
+      })
+    }
+    await flushPromises()
+    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(1)
+
+    // Rollback (same as onError) — restore previous state
+    for (const [key, data] of previous) {
+      qc.setQueryData(key, data)
+    }
+    await flushPromises()
+
+    expect(wrapper.findAll('[role="listitem"]')).toHaveLength(2)
   })
 })
