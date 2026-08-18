@@ -16,7 +16,6 @@ export function useStatsQuery() {
     queryKey: computed(() => queryKeys.stats(accountId.value!)),
     queryFn: async () => unwrap(await api.getStats(accountId.value!)),
     enabled: computed(() => !!accountId.value),
-    persister: undefined,
   })
 
   const stats = computed<StatsResponse>(() => query.data.value ?? emptyStats)

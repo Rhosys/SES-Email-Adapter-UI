@@ -6,6 +6,11 @@ import { queryKeys } from '@/lib/queryKeys'
 import { unwrap } from '@/lib/queryFns'
 import type { Thread, ThreadStatus } from '@/types/server'
 
+type InfiniteThreadData = {
+  pages: Array<{ threads: Thread[]; pagination: { cursor: string | null } }>
+  pageParams: Array<string | undefined>
+}
+
 export function useThreadListQuery(status: () => ThreadStatus | undefined) {
   const accountStore = useAccountStore()
   const accountId = computed(() => accountStore.accountId)
@@ -21,7 +26,6 @@ export function useThreadListQuery(status: () => ThreadStatus | undefined) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.pagination.cursor ?? undefined,
     enabled: computed(() => !!accountId.value),
-    persister: undefined,
   })
 
   const threads = computed<Thread[]>(() =>
@@ -43,7 +47,6 @@ export function useThreadDetailQuery(threadId: () => string | undefined) {
     queryFn: async () =>
       unwrap(await api.getThread(accountId.value!, threadId()!)),
     enabled: computed(() => !!accountId.value && !!threadId()),
-    persister: undefined,
   })
 
   const thread = computed(() => detailQuery.data.value)
@@ -290,4 +293,31 @@ export function useUnsubscribeThread() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
     },
   })
+}
+
+export function usePrefetchActiveThreads() {
+  const queryClient = useQueryClient()
+  const accountStore = useAccountStore()
+
+  async function prefetch() {
+    const accountId = accountStore.accountId
+    if (!accountId) return
+
+    const pages: InfiniteThreadData['pages'] = []
+    let cursor: string | undefined
+
+    for (let i = 0; i < 3; i++) {
+      const page = await unwrap(await api.listThreads(accountId, { status: 'active', limit: 50, cursor }))
+      pages.push(page)
+      cursor = page.pagination.cursor ?? undefined
+      if (!cursor) break
+    }
+
+    queryClient.setQueryData<InfiniteThreadData>(
+      queryKeys.threads.list(accountId, 'active'),
+      { pages, pageParams: [undefined, ...pages.slice(0, -1).map(p => p.pagination.cursor ?? undefined)] },
+    )
+  }
+
+  return { prefetch }
 }

@@ -13,6 +13,7 @@ import FeatureTour from '@/components/FeatureTour.vue'
 import OnboardingCoach from '@/components/OnboardingCoach.vue'
 import ShortcutHelpOverlay from '@/components/ShortcutHelpOverlay.vue'
 import { useRealtime } from '@/composables/useRealtime'
+import { usePrefetchActiveThreads } from '@/composables/useThreadQueries'
 import { useOnboardingCoach } from '@/composables/useOnboardingCoach'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useRelativeTime } from '@/composables/useRelativeTime'
@@ -49,6 +50,7 @@ function handleMobileBack() {
 const { coachVisible } = useOnboardingCoach()
 const { init: initShortcuts, onAction, setBlocked, shortcutHelpOpen } = useKeyboardShortcuts()
 useRealtime()
+const { prefetch: prefetchActiveThreads } = usePrefetchActiveThreads()
 
 const { query: searchQuery, results, loading, searched, onPaste: handlePaste } = useSearch({ mode: 'typeahead' })
 const inputFocused = ref(false)
@@ -238,6 +240,8 @@ onMounted(async () => {
   onAction('go_rules', () => void router.push({ name: 'rules' }))
   onAction('go_settings', () => void router.push('/settings/profile'))
   onAction('go_profile', () => void router.push('/settings/profile'))
+
+  void prefetchActiveThreads()
 })
 </script>
 

@@ -8,7 +8,7 @@ import buildInfo from '@/lib/buildInfo'
 
 const { persisterFn } = experimental_createQueryPersister({
   storage: { getItem: get, setItem: set, removeItem: del },
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   prefix: `ses:${buildInfo.version.buildCommit}:`,
   buster: buildInfo.version.buildCommit,
 })

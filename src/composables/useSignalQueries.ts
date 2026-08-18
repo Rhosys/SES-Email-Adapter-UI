@@ -22,7 +22,6 @@ export function useSignalListQuery(threadId: () => string | undefined) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.pagination.cursor ?? undefined,
     enabled: computed(() => !!accountId.value && !!threadId()),
-    persister: undefined,
   })
 
   const signals = computed<Signal[]>(() =>

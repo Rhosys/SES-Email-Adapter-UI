@@ -42,16 +42,11 @@ export function useRealtime() {
     if (!accountId) return
 
     switch (event.type) {
-      case 'signal:created':
-        // Invalidate thread list queries so badge counts and lists refresh
-        void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
-        // Invalidate signals for this thread so the detail view updates
-        void queryClient.invalidateQueries({ queryKey: queryKeys.signals.byThread(accountId, event.threadId) })
-        fireNotification(event)
-        break
       case 'thread:updated':
+        void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
         void queryClient.invalidateQueries({ queryKey: queryKeys.threads.detail(accountId, event.threadId) })
         void queryClient.invalidateQueries({ queryKey: queryKeys.signals.byThread(accountId, event.threadId) })
+        if ('urgency' in event) fireNotification(event)
         break
     }
   }

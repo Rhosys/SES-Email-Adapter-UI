@@ -29,7 +29,6 @@ export function useQuarantineQuery(filters: () => QuarantineFilters) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.pagination.cursor ?? undefined,
     enabled: computed(() => !!accountId.value),
-    persister: undefined,
   })
 
   const hiddenQuery = useInfiniteQuery({
@@ -45,7 +44,6 @@ export function useQuarantineQuery(filters: () => QuarantineFilters) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.pagination.cursor ?? undefined,
     enabled: computed(() => !!accountId.value),
-    persister: undefined,
   })
 
   const quarantineVisible = computed<QuarantinedSignal[]>(() =>
