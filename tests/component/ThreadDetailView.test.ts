@@ -7,6 +7,7 @@ import ThreadDetailView from '@/views/ThreadDetailView.vue'
 import { useAccountStore } from '@/stores/account'
 import { useToast } from '@/composables/useToast'
 import type { Thread, Signal, Workflow } from '@/types/server'
+import type { ApiError } from '@/lib/api'
 
 Element.prototype.scrollIntoView = vi.fn()
 
@@ -821,7 +822,7 @@ describe('ThreadDetailView — RSVP action', () => {
   it('shows error text when RSVP fails', async () => {
     const { err } = await import('neverthrow')
     const apiError = { status: 500, message: 'Internal server error', code: 'SERVER_ERROR' }
-    vi.mocked(api.rsvpSignal).mockResolvedValue(err(apiError as any))
+    vi.mocked(api.rsvpSignal).mockResolvedValue(err(apiError as unknown as ApiError))
 
     const wrapper = await mountView(makeThread(), [makeCalendarEventSignal()])
 
