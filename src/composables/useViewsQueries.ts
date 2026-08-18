@@ -16,10 +16,11 @@ export function useViewsQuery() {
     enabled: computed(() => !!accountId.value),
   })
 
-  const views = computed<View[]>(() => query.data.value ?? [])
-  const sortedViews = computed(() => [...views.value].sort((a, b) => a.position - b.position))
+  const views = computed<View[]>(() =>
+    [...(query.data.value ?? [])].sort((a, b) => a.position - b.position),
+  )
 
-  return { query, views, sortedViews }
+  return { query, views, sortedViews: views }
 }
 
 export function useCreateView() {
@@ -66,6 +67,57 @@ export function useUpdateView() {
   })
 }
 
+export function useReorderViews() {
+  const queryClient = useQueryClient()
+  const accountStore = useAccountStore()
+
+  return useMutation({
+    mutationFn: async ({ sourceId, targetId }: { sourceId: string; targetId: string }) => {
+      const accountId = accountStore.accountId!
+      const views = queryClient.getQueryData<View[]>(queryKeys.views.all(accountId)) ?? []
+      const sourceView = views.find((v) => v.viewId === sourceId)
+      const targetView = views.find((v) => v.viewId === targetId)
+      if (!sourceView || !targetView) return
+
+      const [resA, resB] = await Promise.all([
+        api.updateView(accountId, sourceId, { position: targetView.position }),
+        api.updateView(accountId, targetId, { position: sourceView.position }),
+      ])
+      unwrap(resA)
+      unwrap(resB)
+    },
+    onMutate: async ({ sourceId, targetId }) => {
+      const accountId = accountStore.accountId!
+      await queryClient.cancelQueries({ queryKey: queryKeys.views.all(accountId) })
+      const previous = queryClient.getQueryData<View[]>(queryKeys.views.all(accountId))
+      queryClient.setQueryData<View[]>(queryKeys.views.all(accountId), (old) => {
+        if (!old) return old
+        const sourceView = old.find((v) => v.viewId === sourceId)
+        const targetView = old.find((v) => v.viewId === targetId)
+        if (!sourceView || !targetView) return old
+        const sourcePos = sourceView.position
+        const targetPos = targetView.position
+        return old.map((v) => {
+          if (v.viewId === sourceId) return { ...v, position: targetPos }
+          if (v.viewId === targetId) return { ...v, position: sourcePos }
+          return v
+        })
+      })
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        const accountId = accountStore.accountId!
+        queryClient.setQueryData(queryKeys.views.all(accountId), context.previous)
+      }
+    },
+    onSettled: () => {
+      const accountId = accountStore.accountId!
+      void queryClient.invalidateQueries({ queryKey: queryKeys.views.all(accountId) })
+    },
+  })
+}
+
 export function useDeleteView() {
   const queryClient = useQueryClient()
   const accountStore = useAccountStore()
@@ -84,56 +136,6 @@ export function useDeleteView() {
       return { previous }
     },
     onError: (_err, _viewId, context) => {
-      if (context?.previous) {
-        const accountId = accountStore.accountId!
-        queryClient.setQueryData(queryKeys.views.all(accountId), context.previous)
-      }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.views.all(accountId) })
-    },
-  })
-}
-
-export function useReorderViews() {
-  const queryClient = useQueryClient()
-  const accountStore = useAccountStore()
-
-  return useMutation({
-    mutationFn: async ({ sourceId, targetId }: { sourceId: string; targetId: string }) => {
-      const accountId = accountStore.accountId!
-      const views = queryClient.getQueryData<View[]>(queryKeys.views.all(accountId)) ?? []
-      const src = views.find((v) => v.viewId === sourceId)
-      const tgt = views.find((v) => v.viewId === targetId)
-      if (!src || !tgt) return
-
-      const [resA, resB] = await Promise.all([
-        api.updateView(accountId, sourceId, { position: tgt.position }),
-        api.updateView(accountId, targetId, { position: src.position }),
-      ])
-      unwrap(resA)
-      unwrap(resB)
-    },
-    onMutate: async ({ sourceId, targetId }) => {
-      const accountId = accountStore.accountId!
-      await queryClient.cancelQueries({ queryKey: queryKeys.views.all(accountId) })
-      const previous = queryClient.getQueryData<View[]>(queryKeys.views.all(accountId))
-      queryClient.setQueryData<View[]>(queryKeys.views.all(accountId), (old) => {
-        if (!old) return old
-        const src = old.find((v) => v.viewId === sourceId)
-        const tgt = old.find((v) => v.viewId === targetId)
-        if (!src || !tgt) return old
-        const srcPos = src.position
-        return old.map((v) => {
-          if (v.viewId === sourceId) return { ...v, position: tgt.position }
-          if (v.viewId === targetId) return { ...v, position: srcPos }
-          return v
-        })
-      })
-      return { previous }
-    },
-    onError: (_err, _vars, context) => {
       if (context?.previous) {
         const accountId = accountStore.accountId!
         queryClient.setQueryData(queryKeys.views.all(accountId), context.previous)

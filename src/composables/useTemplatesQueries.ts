@@ -6,13 +6,6 @@ import { queryKeys } from '@/lib/queryKeys'
 import { unwrap } from '@/lib/queryFns'
 import type { EmailTemplate, TemplateFunction } from '@/types/server'
 
-interface TemplateBody {
-  name: string
-  subject: string
-  body: string
-  functions: TemplateFunction[]
-}
-
 export function useTemplatesQuery() {
   const accountStore = useAccountStore()
   const accountId = computed(() => accountStore.accountId)
@@ -33,7 +26,7 @@ export function useCreateTemplate() {
   const accountStore = useAccountStore()
 
   return useMutation({
-    mutationFn: async (body: TemplateBody) =>
+    mutationFn: async (body: { name: string; subject: string; body: string; functions?: TemplateFunction[] }) =>
       unwrap(await api.createTemplate(accountStore.accountId!, body)),
     onSettled: () => {
       const accountId = accountStore.accountId!
@@ -47,7 +40,7 @@ export function useUpdateTemplate() {
   const accountStore = useAccountStore()
 
   return useMutation({
-    mutationFn: async ({ templateId, body }: { templateId: string; body: TemplateBody }) =>
+    mutationFn: async ({ templateId, body }: { templateId: string; body: { name: string; subject: string; body: string; functions?: TemplateFunction[] } }) =>
       unwrap(await api.updateTemplate(accountStore.accountId!, templateId, body)),
     onMutate: async ({ templateId, body }) => {
       const accountId = accountStore.accountId!

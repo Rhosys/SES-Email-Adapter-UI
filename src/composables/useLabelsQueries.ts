@@ -70,19 +70,19 @@ export function useDeleteLabel() {
   const accountStore = useAccountStore()
 
   return useMutation({
-    mutationFn: async (labelKey: string) =>
-      unwrap(await api.deleteLabel(accountStore.accountId!, labelKey)),
-    onMutate: async (labelKey) => {
+    mutationFn: async (labelId: string) =>
+      unwrap(await api.deleteLabel(accountStore.accountId!, labelId)),
+    onMutate: async (labelId) => {
       const accountId = accountStore.accountId!
       await queryClient.cancelQueries({ queryKey: queryKeys.labels.all(accountId) })
       const previous = queryClient.getQueryData<Label[]>(queryKeys.labels.all(accountId))
       queryClient.setQueryData<Label[]>(queryKeys.labels.all(accountId), (old) => {
         if (!old) return old
-        return old.filter((l) => l.label !== labelKey)
+        return old.filter((l) => l.label !== labelId)
       })
       return { previous }
     },
-    onError: (_err, _labelKey, context) => {
+    onError: (_err, _labelId, context) => {
       if (context?.previous) {
         const accountId = accountStore.accountId!
         queryClient.setQueryData(queryKeys.labels.all(accountId), context.previous)
