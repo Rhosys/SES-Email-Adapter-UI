@@ -29,6 +29,7 @@ export function useSpamQuery(filters: () => SpamFilters) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.pagination.cursor ?? undefined,
     enabled: computed(() => !!accountId.value),
+    persister: undefined,
   })
 
   const rejectQuery = useInfiniteQuery({
@@ -44,6 +45,7 @@ export function useSpamQuery(filters: () => SpamFilters) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.pagination.cursor ?? undefined,
     enabled: computed(() => !!accountId.value),
+    persister: undefined,
   })
 
   const blockHidden = computed<BlockedSignal[]>(() =>
