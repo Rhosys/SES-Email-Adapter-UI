@@ -29,6 +29,7 @@ export function useQuarantineQuery(filters: () => QuarantineFilters) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.pagination.cursor ?? undefined,
     enabled: computed(() => !!accountId.value),
+    persister: undefined,
   })
 
   const hiddenQuery = useInfiniteQuery({
@@ -44,6 +45,7 @@ export function useQuarantineQuery(filters: () => QuarantineFilters) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.pagination.cursor ?? undefined,
     enabled: computed(() => !!accountId.value),
+    persister: undefined,
   })
 
   const quarantineVisible = computed<QuarantinedSignal[]>(() =>
@@ -57,13 +59,16 @@ export function useQuarantineQuery(filters: () => QuarantineFilters) {
   return { visibleQuery, hiddenQuery, quarantineVisible, quarantineHidden }
 }
 
-export function useAllowQuarantinedSignal() {
+type QuarantineResponseResult = { thread?: { threadId: string }; signal?: unknown } & Record<string, unknown>
+
+function useQuarantineMutation(action: (accountId: string, signalId: string) => Promise<QuarantineResponseResult>) {
   const queryClient = useQueryClient()
   const accountStore = useAccountStore()
 
   return useMutation({
-    mutationFn: async (signalId: string) =>
-      unwrap(await api.quarantineResponse(accountStore.accountId!, signalId, 'active')),
+    mutationFn: async (signalId: string) => {
+      return action(accountStore.accountId!, signalId)
+    },
     onMutate: async (signalId) => {
       const accountId = accountStore.accountId!
       await queryClient.cancelQueries({ queryKey: queryKeys.quarantine.all(accountId) })
@@ -94,90 +99,25 @@ export function useAllowQuarantinedSignal() {
     onSettled: () => {
       const accountId = accountStore.accountId!
       void queryClient.invalidateQueries({ queryKey: queryKeys.quarantine.all(accountId) })
-      // Cross-invalidation: allowed signal becomes a thread
       void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
     },
   })
 }
 
-export function useRejectQuarantinedSignal() {
-  const queryClient = useQueryClient()
-  const accountStore = useAccountStore()
+export function useAllowQuarantinedSignal() {
+  return useQuarantineMutation(async (accountId, signalId) =>
+    unwrap(await api.quarantineResponse(accountId, signalId, 'active')),
+  )
+}
 
-  return useMutation({
-    mutationFn: async (signalId: string) =>
-      unwrap(await api.quarantineResponse(accountStore.accountId!, signalId, 'block_hidden')),
-    onMutate: async (signalId) => {
-      const accountId = accountStore.accountId!
-      await queryClient.cancelQueries({ queryKey: queryKeys.quarantine.all(accountId) })
-      const previous = queryClient.getQueriesData({ queryKey: queryKeys.quarantine.all(accountId) })
-      queryClient.setQueriesData(
-        { queryKey: queryKeys.quarantine.all(accountId) },
-        (old: unknown) => {
-          const data = old as { pages?: Array<{ signals: QuarantinedSignal[]; pagination: { cursor: string | null } }> } | undefined
-          if (!data?.pages) return old
-          return {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              signals: page.signals.filter((s) => s.signalId !== signalId),
-            })),
-          }
-        },
-      )
-      return { previous }
-    },
-    onError: (_err, _signalId, context) => {
-      if (context?.previous) {
-        for (const [key, data] of context.previous) {
-          queryClient.setQueryData(key, data)
-        }
-      }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.quarantine.all(accountId) })
-    },
-  })
+export function useRejectQuarantinedSignal() {
+  return useQuarantineMutation(async (accountId, signalId) =>
+    unwrap(await api.quarantineResponse(accountId, signalId, 'block_reject')),
+  )
 }
 
 export function useDismissQuarantinedSignal() {
-  const queryClient = useQueryClient()
-  const accountStore = useAccountStore()
-
-  return useMutation({
-    mutationFn: async (signalId: string) =>
-      unwrap(await api.quarantineResponse(accountStore.accountId!, signalId, 'dismiss')),
-    onMutate: async (signalId) => {
-      const accountId = accountStore.accountId!
-      await queryClient.cancelQueries({ queryKey: queryKeys.quarantine.all(accountId) })
-      const previous = queryClient.getQueriesData({ queryKey: queryKeys.quarantine.all(accountId) })
-      queryClient.setQueriesData(
-        { queryKey: queryKeys.quarantine.all(accountId) },
-        (old: unknown) => {
-          const data = old as { pages?: Array<{ signals: QuarantinedSignal[]; pagination: { cursor: string | null } }> } | undefined
-          if (!data?.pages) return old
-          return {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              signals: page.signals.filter((s) => s.signalId !== signalId),
-            })),
-          }
-        },
-      )
-      return { previous }
-    },
-    onError: (_err, _signalId, context) => {
-      if (context?.previous) {
-        for (const [key, data] of context.previous) {
-          queryClient.setQueryData(key, data)
-        }
-      }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.quarantine.all(accountId) })
-    },
-  })
+  return useQuarantineMutation(async (accountId, signalId) =>
+    unwrap(await api.quarantineResponse(accountId, signalId, 'dismiss')),
+  )
 }
