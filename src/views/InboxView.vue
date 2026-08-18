@@ -44,9 +44,13 @@ function statusFor(tab: TabKey): ThreadStatus | undefined {
 }
 
 // TanStack Query — thread list driven by current tab
-const { query: threadListQuery, threads: allThreads, activeCount, hasMore } = useThreadListQuery(
+const { query: threadListQuery, threads: allThreads, hasMore } = useThreadListQuery(
   () => statusFor(activeTab.value),
 )
+
+// Dedicated active-thread count for the badge (tab-independent). TanStack Query
+// deduplicates: when the active tab is 'active', both share the same cache entry.
+const { activeCount: badgeActiveCount, hasMore: badgeHasMore } = useThreadListQuery(() => 'active')
 
 const archiveMutation = useArchiveThread()
 const bulkArchiveMutation = useBulkArchive()
@@ -225,8 +229,8 @@ watch(
 
       <InboxTabBar
         :active-tab="activeTab"
-        :active-count="activeCount"
-        :active-count-has-more="hasMore"
+        :active-count="badgeActiveCount"
+        :active-count-has-more="badgeHasMore"
         @change="handleTabChange"
       />
 

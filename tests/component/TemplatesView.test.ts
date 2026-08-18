@@ -13,12 +13,12 @@ class MockWorker {
   onerror: (() => void) | null = null
   postMessage(data: unknown) {
     mockWorkerPostMessage(data)
-    // Simulate async response with errors for the validation case
-    setTimeout(() => {
+    // Simulate async response via microtask so flushPromises() drains it
+    queueMicrotask(() => {
       if (this.onmessage && mockWorkerResponse) {
         this.onmessage(new MessageEvent('message', { data: mockWorkerResponse }))
       }
-    }, 0)
+    })
   }
   terminate() {}
 }

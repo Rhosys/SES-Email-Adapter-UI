@@ -29,7 +29,12 @@ export function useThreadListQuery(status: () => ThreadStatus | undefined) {
   })
 
   const threads = computed<Thread[]>(() =>
-    query.data.value?.pages.flatMap(p => p.threads) ?? [],
+    query.data.value?.pages.flatMap(p => p.threads).filter(t => {
+      // Filter out sentinel/ghost threads: null lastSignalAt means signals were
+      // reprocessed away; dates before Y2K are DB placeholders (epoch, etc.)
+      if (!t.lastSignalAt) return false
+      return new Date(t.lastSignalAt).getTime() > new Date('2000-01-01').getTime()
+    }) ?? [],
   )
 
   const activeCount = computed(() => threads.value.length)
