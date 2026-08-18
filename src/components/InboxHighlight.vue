@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useThreadListQuery, useArchiveThread } from '@/composables/useThreadQueries'
-import { useSignalsStore } from '@/stores/signals'
+import { useSignalCacheHelpers } from '@/composables/useSignalQueries'
 import { useAccountStore } from '@/stores/account'
 import { useClipboard } from '@/composables/useClipboard'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
@@ -14,7 +14,7 @@ const RECENCY_WINDOW_MS = 15 * 60 * 1000
 
 const { threads: sortedThreads } = useThreadListQuery(() => 'active')
 const archiveMutation = useArchiveThread()
-const signalsStore = useSignalsStore()
+const { threadSignals } = useSignalCacheHelpers()
 const accountStore = useAccountStore()
 const { copied, copy } = useClipboard()
 
@@ -100,7 +100,7 @@ async function fetchSignalForThread(threadId: string) {
   if (!accountId) return
 
   // Check if signals are already cached for this thread
-  const cached = signalsStore.threadSignals(threadId)
+  const cached = threadSignals(threadId)
   if (cached.length > 0) {
     latestSignal.value = cached[0]!
     return

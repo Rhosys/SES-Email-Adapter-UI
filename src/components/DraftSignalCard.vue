@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { marked } from 'marked'
 import { useAccountStore } from '@/stores/account'
-import { useSignalsStore } from '@/stores/signals'
+import { useSignalCacheHelpers } from '@/composables/useSignalQueries'
 import { useUserConfigStore } from '@/stores/userConfig'
 import { useSenderIdentitiesQuery } from '@/composables/useSenderIdentitiesQuery'
 import { api } from '@/lib/api'
@@ -17,7 +17,7 @@ const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ discard: []; sent: [] }>()
 
 const accountStore = useAccountStore()
-const signalsStore = useSignalsStore()
+const { threadSignals, updateSignal, removeSignal } = useSignalCacheHelpers()
 const userConfigStore = useUserConfigStore()
 const senderIdentities = useSenderIdentitiesQuery()
 const router = useRouter()
@@ -50,7 +50,7 @@ const seededFrom = (() => {
   if (seeded) return seeded
   const threadId = props.signal.threadId
   if (!threadId) return ''
-  const inbound = signalsStore.threadSignals(threadId).find(isInboundEmailSignal)
+  const inbound = threadSignals(threadId).find(isInboundEmailSignal)
   return inbound?.data.recipientAddress ?? ''
 })()
 
@@ -221,7 +221,7 @@ async function persistDraft() {
     return
   }
   persisted = pending
-  if (props.signal.threadId) signalsStore.updateSignal(props.signal.threadId, result.value)
+  if (props.signal.threadId) updateSignal(props.signal.threadId, result.value)
 }
 
 async function sendAndArchive() {
@@ -243,7 +243,7 @@ async function sendAndArchive() {
     async () => {
       const result = await api.sendSignal(accountId, sigThreadId, signalId)
       if (result.isOk()) {
-        signalsStore.updateSignal(sigThreadId, result.value)
+        updateSignal(sigThreadId, result.value)
         await api.patchThread(accountId, sigThreadId, { status: 'archived' })
       }
       sendState.value = 'idle'
@@ -278,7 +278,7 @@ async function sendAndWait() {
     async () => {
       const result = await api.sendSignal(accountId, sigThreadId, signalId)
       if (result.isOk()) {
-        signalsStore.updateSignal(sigThreadId, result.value)
+        updateSignal(sigThreadId, result.value)
         await api.patchThread(accountId, sigThreadId, { followupAt })
       }
       sendState.value = 'idle'
@@ -303,7 +303,7 @@ async function discard() {
   const result = await api.deleteDraftSignal(accountStore.accountId, props.signal.threadId, props.signal.signalId)
   // Remove from local cache on success or 404 (already gone on server)
   if (result.isOk() || result.error.status === 404) {
-    if (props.signal.threadId) signalsStore.removeSignal(props.signal.threadId, props.signal.signalId)
+    if (props.signal.threadId) removeSignal(props.signal.threadId, props.signal.signalId)
   }
   emit('discard')
 }

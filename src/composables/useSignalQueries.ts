@@ -175,3 +175,71 @@ export function usePrefetchThreadSignals() {
 
   return { prefetch }
 }
+
+/**
+ * Direct query-cache helpers for components that need to read/mutate signal
+ * data outside of a reactive useInfiniteQuery context (e.g. ThreadRowContent,
+ * PendingSendCard, DraftSignalCard, EmailSignalCard, InboxHighlight).
+ */
+export function useSignalCacheHelpers() {
+  const queryClient = useQueryClient()
+  const accountStore = useAccountStore()
+
+  function threadSignals(threadId: string): Signal[] {
+    const accountId = accountStore.accountId
+    if (!accountId) return []
+    const data = queryClient.getQueryData<InfiniteSignalData>(
+      queryKeys.signals.byThread(accountId, threadId),
+    )
+    return data?.pages.flatMap(p => p.signals) ?? []
+  }
+
+  function allSignals(): Signal[] {
+    const accountId = accountStore.accountId
+    if (!accountId) return []
+    const queries = queryClient.getQueriesData<InfiniteSignalData>({
+      queryKey: queryKeys.signals.all(accountId),
+    })
+    return queries.flatMap(([, data]) => data?.pages.flatMap(p => p.signals) ?? [])
+  }
+
+  function updateSignal(threadId: string, signal: Signal) {
+    const accountId = accountStore.accountId
+    if (!accountId) return
+    queryClient.setQueryData<InfiniteSignalData>(
+      queryKeys.signals.byThread(accountId, threadId),
+      (old) => {
+        if (!old?.pages) return old
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            signals: page.signals.map((s) =>
+              s.signalId === signal.signalId ? signal : s,
+            ),
+          })),
+        }
+      },
+    )
+  }
+
+  function removeSignal(threadId: string, signalId: string) {
+    const accountId = accountStore.accountId
+    if (!accountId) return
+    queryClient.setQueryData<InfiniteSignalData>(
+      queryKeys.signals.byThread(accountId, threadId),
+      (old) => {
+        if (!old?.pages) return old
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            signals: page.signals.filter((s) => s.signalId !== signalId),
+          })),
+        }
+      },
+    )
+  }
+
+  return { threadSignals, allSignals, updateSignal, removeSignal }
+}

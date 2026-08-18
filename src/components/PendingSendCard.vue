@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useAccountStore } from '@/stores/account'
-import { useSignalsStore } from '@/stores/signals'
+import { useSignalCacheHelpers } from '@/composables/useSignalQueries'
 import { api } from '@/lib/api'
 import { isOutboundEmailSignal } from '@/lib/signal-guards'
 import { usePendingSendCountdown } from '@/composables/usePendingSend'
@@ -11,7 +11,7 @@ const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ cancelled: [] }>()
 
 const accountStore = useAccountStore()
-const signalsStore = useSignalsStore()
+const { updateSignal } = useSignalCacheHelpers()
 
 const { cancellable, remainingSeconds } = usePendingSendCountdown(props.signal)
 
@@ -23,7 +23,7 @@ async function cancelSend() {
   if (!accountStore.accountId || !props.signal.threadId) return
   const result = await api.patchSignal(accountStore.accountId, props.signal.threadId, props.signal.signalId, { status: 'draft' })
   if (result.isOk() && props.signal.threadId) {
-    signalsStore.updateSignal(props.signal.threadId, result.value)
+    updateSignal(props.signal.threadId, result.value)
   }
   emit('cancelled')
 }

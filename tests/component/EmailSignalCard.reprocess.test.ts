@@ -6,7 +6,6 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import { useQueryClient } from '@tanstack/vue-query'
 import EmailSignalCard from '@/components/EmailSignalCard.vue'
 import { useAccountStore } from '@/stores/account'
-import { useSignalsStore } from '@/stores/signals'
 import { queryKeys } from '@/lib/queryKeys'
 import { ApiError } from '@/lib/api'
 import type { Result } from 'neverthrow'
@@ -137,7 +136,6 @@ describe('EmailSignalCard — admin reprocess', () => {
   })
 
   it('drops the reprocessed signal from the origin thread cache', async () => {
-    const signalsStore = useSignalsStore()
     const qc = useQueryClient()
     qc.setQueryData(queryKeys.signals.byThread(ADMIN_ACCOUNT_ID, 'thread_1'), {
       pages: [{ signals: [mockEmailSignal()], pagination: { cursor: null } }],
@@ -148,12 +146,16 @@ describe('EmailSignalCard — admin reprocess', () => {
     await mountCard(mockEmailSignal())
     await flushPromises()
 
-    expect(signalsStore.threadSignals('thread_1')).toHaveLength(0)
+    type InfiniteData = { pages: Array<{ signals: Signal[] }> }
+    const data = qc.getQueryData<InfiniteData>(queryKeys.signals.byThread(ADMIN_ACCOUNT_ID, 'thread_1'))
+    const remaining = data?.pages.flatMap(p => p.signals) ?? []
+    expect(remaining).toHaveLength(0)
   })
 
   it('leaves the origin thread cache intact for its other signals after reprocess', async () => {
-    const signalsStore = useSignalsStore()
     const qc = useQueryClient()
+    // Prevent GC from clearing the cache entry before we can assert
+    qc.setDefaultOptions({ queries: { gcTime: Infinity } })
     qc.setQueryData(queryKeys.signals.byThread(ADMIN_ACCOUNT_ID, 'thread_1'), {
       pages: [{
         signals: [
@@ -164,15 +166,17 @@ describe('EmailSignalCard — admin reprocess', () => {
       }],
       pageParams: [undefined],
     })
-    const removeSpy = vi.spyOn(signalsStore, 'removeSignal')
     vi.mocked(api.reprocessSignal).mockResolvedValue(ok(mockEmailSignal({ threadId: undefined, status: 'quarantine_visible' })))
 
     await mountCard(mockEmailSignal())
     await flushPromises()
 
     // The reprocess removes only sig_1 from thread_1 — sig_2 should remain
-    expect(removeSpy).toHaveBeenCalledWith('thread_1', 'sig_1')
-    expect(removeSpy).toHaveBeenCalledTimes(1)
+    type InfiniteData = { pages: Array<{ signals: Signal[] }> }
+    const data = qc.getQueryData<InfiniteData>(queryKeys.signals.byThread(ADMIN_ACCOUNT_ID, 'thread_1'))
+    const remaining = data?.pages.flatMap(p => p.signals) ?? []
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0].signalId).toBe('sig_2')
   })
 
   it('emits reprocessed without navigating when reprocessing leaves the signal with no thread', async () => {

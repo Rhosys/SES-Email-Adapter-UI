@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { QueryClient } from '@tanstack/vue-query'
-import { useSignalsStore } from '@/stores/signals'
+import { useSignalCacheHelpers } from '@/composables/useSignalQueries'
 import { useAccountStore } from '@/stores/account'
 import { queryKeys } from '@/lib/queryKeys'
 import type { Signal, Account } from '@/types/server'
@@ -41,7 +41,7 @@ function mockSignal(overrides: Partial<Signal> = {}): Signal {
   } as Signal
 }
 
-describe('signalsStore (query cache facade)', () => {
+describe('useSignalCacheHelpers (query cache helpers)', () => {
   beforeEach(() => {
     testQueryClient.clear()
     setActivePinia(createPinia())
@@ -57,14 +57,14 @@ describe('signalsStore (query cache facade)', () => {
       pageParams: [undefined],
     })
 
-    const store = useSignalsStore()
-    expect(store.threadSignals('thread_1')).toHaveLength(1)
-    expect(store.threadSignals('thread_1')[0].signalId).toBe('sig_1')
+    const { threadSignals } = useSignalCacheHelpers()
+    expect(threadSignals('thread_1')).toHaveLength(1)
+    expect(threadSignals('thread_1')[0].signalId).toBe('sig_1')
   })
 
   it('threadSignals returns empty array for uncached thread', () => {
-    const store = useSignalsStore()
-    expect(store.threadSignals('thread_unknown')).toEqual([])
+    const { threadSignals } = useSignalCacheHelpers()
+    expect(threadSignals('thread_unknown')).toEqual([])
   })
 
   it('updateSignal patches a cached signal in place', () => {
@@ -74,11 +74,11 @@ describe('signalsStore (query cache facade)', () => {
       pageParams: [undefined],
     })
 
-    const store = useSignalsStore()
+    const { threadSignals, updateSignal } = useSignalCacheHelpers()
     const updated = mockSignal({ signalId: 'sig_1', status: 'draft' })
-    store.updateSignal('thread_1', updated)
+    updateSignal('thread_1', updated)
 
-    expect(store.threadSignals('thread_1')[0].status).toBe('draft')
+    expect(threadSignals('thread_1')[0].status).toBe('draft')
   })
 
   it('removeSignal removes a signal from the cache', () => {
@@ -89,10 +89,10 @@ describe('signalsStore (query cache facade)', () => {
       pageParams: [undefined],
     })
 
-    const store = useSignalsStore()
-    store.removeSignal('thread_1', 'sig_1')
+    const { threadSignals, removeSignal } = useSignalCacheHelpers()
+    removeSignal('thread_1', 'sig_1')
 
-    const remaining = store.threadSignals('thread_1')
+    const remaining = threadSignals('thread_1')
     expect(remaining).toHaveLength(1)
     expect(remaining[0].signalId).toBe('sig_2')
   })
@@ -107,7 +107,7 @@ describe('signalsStore (query cache facade)', () => {
       pageParams: [undefined],
     })
 
-    const store = useSignalsStore()
-    expect(store.allSignals).toHaveLength(2)
+    const { allSignals } = useSignalCacheHelpers()
+    expect(allSignals()).toHaveLength(2)
   })
 })

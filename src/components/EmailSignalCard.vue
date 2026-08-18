@@ -6,7 +6,7 @@ import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
 import { useAccountStore } from '@/stores/account'
 import { isAdminUser } from '@/stores/admin'
 import { useRulesQuery } from '@/composables/useRulesQueries'
-import { useSignalsStore } from '@/stores/signals'
+import { useSignalCacheHelpers } from '@/composables/useSignalQueries'
 import { api } from '@/lib/api'
 import ActionBadge from '@/components/ActionBadge.vue'
 import CopyMenuItem from '@/components/CopyMenuItem.vue'
@@ -18,7 +18,7 @@ const emit = defineEmits<{ reply: []; reprocessed: [] }>()
 const router = useRouter()
 const accountStore = useAccountStore()
 const { rules: rulesList } = useRulesQuery()
-const signalsStore = useSignalsStore()
+const { removeSignal } = useSignalCacheHelpers()
 const expanded = ref(props.defaultExpanded)
 const reprocessing = ref(false)
 const reprocessError = ref<string | null>(null)
@@ -243,7 +243,7 @@ async function reprocessSignal() {
   // with no signals (null lastSignalAt) are hidden by the threads store itself.
   function detachFromOriginThread() {
     if (!originThreadId) return
-    signalsStore.removeSignal(originThreadId, props.signal.signalId)
+    removeSignal(originThreadId, props.signal.signalId)
   }
 
   // Blocked / reported signals don't belong to any thread or quarantine screen the

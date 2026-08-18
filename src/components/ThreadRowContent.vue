@@ -5,7 +5,7 @@ import type { Thread } from '@/types/server'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
 import { useLabelsQuery } from '@/composables/useLabelsQueries'
-import { useSignalsStore } from '@/stores/signals'
+import { useSignalCacheHelpers } from '@/composables/useSignalQueries'
 import { visibleLabels, findLabelMeta } from '@/lib/labels'
 import { aggregateWorkflowPanels } from '@/lib/workflow-aggregator'
 import type { WorkflowGroup } from '@/lib/workflow-aggregator'
@@ -18,14 +18,14 @@ const props = defineProps<{ thread: Thread }>()
 
 const now = inject(NOW_KEY)
 const { labels } = useLabelsQuery()
-const signalsStore = useSignalsStore()
+const { threadSignals, allSignals } = useSignalCacheHelpers()
 
 const timestamp = computed(() =>
   now ? formatRelativeTime(props.thread.lastSignalAt ?? props.thread.createdAt, now.value) : '',
 )
 
 const hasPendingSend = computed(() =>
-  signalsStore.allSignals.some(s => s.status === 'pending_send' && s.threadId === props.thread.threadId)
+  allSignals().some(s => s.status === 'pending_send' && s.threadId === props.thread.threadId)
 )
 
 const isRecent = computed(() => {
@@ -44,7 +44,7 @@ const snoozeBadge = computed(() => {
 
 const mergedWorkflowGroup = computed((): WorkflowGroup | null => {
   if (!isRecent.value) return null
-  const signals = signalsStore.threadSignals(props.thread.threadId)
+  const signals = threadSignals(props.thread.threadId)
   if (signals.length === 0) return null
   const deduped = attachLinkedSignals(groupByBodyFingerprint(signals))
   const groups = aggregateWorkflowPanels(deduped)
