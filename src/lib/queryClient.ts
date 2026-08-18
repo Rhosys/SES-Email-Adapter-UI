@@ -39,6 +39,7 @@ export const queryClient = new QueryClient({
         code: 'query.failed',
         queryKey: query.queryKey,
         error,
+        failureCount: query.state.fetchFailureCount,
         status: query.state.status,
       })
     },
