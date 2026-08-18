@@ -95,6 +95,86 @@ async function mountView(templates: EmailTemplate[] = []) {
   return wrapper
 }
 
+describe('TemplatesView — regression gate CRUD', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    vi.clearAllMocks()
+    useAccountStore().account = testAccount
+    vi.mocked(api.listAccounts).mockResolvedValue(ok([testAccount]))
+    mockWorkerResponse = { outputs: {}, errors: {} }
+  })
+
+  it('shows loading skeleton before templates arrive', async () => {
+    vi.mocked(api.listTemplates).mockReturnValue(new Promise(() => {}))
+    const wrapper = mount(TemplatesView, { global: { plugins: [pinia] } })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[role="status"][aria-label="Loading templates…"]').exists()).toBe(true)
+  })
+
+  it('shows empty state when no templates exist', async () => {
+    const wrapper = await mountView([])
+    expect(wrapper.text()).toContain('No templates yet')
+  })
+
+  it('renders template names after load', async () => {
+    const wrapper = await mountView([mockTemplate(), mockTemplate({ templateId: 'tpl_2', name: 'Follow-up' })])
+    expect(wrapper.text()).toContain('Welcome Email')
+    expect(wrapper.text()).toContain('Follow-up')
+  })
+
+  it('creates a new template via the form', async () => {
+    vi.mocked(api.createTemplate).mockResolvedValue(ok(mockTemplate({ templateId: 'tpl_new', name: 'New One' })))
+    const wrapper = await mountView([])
+
+    await wrapper.findAll('button').find(b => b.text().includes('New template'))!.trigger('click')
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('#template-name').setValue('New One')
+    await wrapper.find('#template-subject').setValue('Subject line')
+    await wrapper.vm.$nextTick()
+
+    const createBtn = wrapper.findAll('button').find(b => b.text() === 'Create template')!
+    await createBtn.trigger('click')
+    await flushPromises()
+
+    expect(api.createTemplate).toHaveBeenCalledWith('acc_1', expect.objectContaining({ name: 'New One', subject: 'Subject line' }))
+  })
+
+  it('updates an existing template via the edit form', async () => {
+    vi.mocked(api.updateTemplate).mockResolvedValue(ok(mockTemplate({ name: 'Updated' })))
+    const wrapper = await mountView([mockTemplate()])
+
+    const editBtn = wrapper.findAll('button').find(b => b.text() === 'Edit')!
+    await editBtn.trigger('click')
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('#template-name').setValue('Updated')
+    await wrapper.vm.$nextTick()
+
+    const saveBtn = wrapper.findAll('button').find(b => b.text() === 'Save changes')!
+    await saveBtn.trigger('click')
+    await flushPromises()
+
+    expect(api.updateTemplate).toHaveBeenCalledWith('acc_1', 'tpl_1', expect.objectContaining({ name: 'Updated' }))
+  })
+
+  it('deletes a template after confirmation', async () => {
+    vi.mocked(api.deleteTemplate).mockResolvedValue(ok(undefined as void))
+    const wrapper = await mountView([mockTemplate()])
+
+    const deleteBtn = wrapper.findAll('button').find(b => b.text() === 'Delete')!
+    await deleteBtn.trigger('click')
+    await flushPromises()
+
+    const confirmBtn = wrapper.findAll('button').find(b => b.text() === 'Delete' && b.classes().some(c => c.includes('bg-ctp')))
+    await confirmBtn!.trigger('click')
+    await flushPromises()
+
+    expect(api.deleteTemplate).toHaveBeenCalledWith('acc_1', 'tpl_1')
+  })
+})
+
 describe('TemplatesView — error indicator', () => {
   beforeEach(() => {
     pinia = createPinia()

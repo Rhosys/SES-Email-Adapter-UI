@@ -67,6 +67,13 @@ describe('RulesView', () => {
     vi.mocked(api.listRules).mockResolvedValue(ok([]))
   })
 
+  it('shows loading skeleton before data arrives', async () => {
+    vi.mocked(api.listRules).mockReturnValue(new Promise(() => {}))
+    const wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[role="status"][aria-label="Loading rules…"]').exists()).toBe(true)
+  })
+
   it('renders rule name', async () => {
     vi.mocked(api.listRules).mockResolvedValue(ok([mockRule()]))
     const wrapper = mountView()

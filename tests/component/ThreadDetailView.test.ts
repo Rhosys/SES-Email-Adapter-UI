@@ -20,6 +20,10 @@ vi.mock('@/lib/api', async (importOriginal) => {
       patchThread: vi.fn(),
       listAccounts: vi.fn(),
       createDraftSignal: vi.fn(),
+      sendSignal: vi.fn(),
+      rsvpSignal: vi.fn(),
+      deleteDraftSignal: vi.fn(),
+      updateDraftSignal: vi.fn(),
       listDomains: vi.fn(),
       listAliases: vi.fn(),
       listExternalExchanges: vi.fn(),
@@ -448,5 +452,388 @@ describe('ThreadDetailView — copy thread ID (mobile menu)', () => {
 
     expect(writeText).toHaveBeenCalledWith('thread_1')
     expect(useToast().toasts.value.some((t) => t.message === 'Thread ID copied')).toBe(true)
+  })
+})
+
+
+describe('ThreadDetailView — signal list loading', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    vi.clearAllMocks()
+
+    const accountStore = useAccountStore()
+    accountStore.account = {
+      accountId: 'acc_1',
+      name: 'Test',
+      filtering: { defaultUnknownSenderPolicy: 'quarantine_visible' },
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-01T00:00:00Z',
+    }
+    vi.mocked(api.listAccounts).mockResolvedValue(ok([accountStore.account]))
+  })
+
+  it('shows loading skeleton while signals are being fetched', async () => {
+    // Never resolving promise — simulates in-flight request
+    vi.mocked(api.getThread).mockResolvedValue(ok(makeThread()))
+    vi.mocked(api.listSignals).mockReturnValue(new Promise(() => {}))
+    vi.mocked(api.listResourcesByThread).mockResolvedValue(ok({ resources: [], pagination: { cursor: null } }))
+
+    const router = makeRouter()
+    await router.push('/threads/thread_1')
+    await router.isReady()
+
+    const wrapper = mount(ThreadDetailView, {
+      global: { plugins: [pinia, router] },
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    const skeleton = wrapper.find('[role="status"][aria-label="Loading thread…"]')
+    expect(skeleton.exists()).toBe(true)
+    expect(skeleton.classes()).toContain('animate-pulse')
+  })
+
+  it('hides skeleton and renders signals once loaded', async () => {
+    const wrapper = await mountView(makeThread(), [mockEmailSignal()])
+
+    expect(wrapper.find('[role="status"][aria-label="Loading thread…"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Test subject')
+  })
+
+  it('shows error banner when signal fetch fails', async () => {
+    vi.mocked(api.getThread).mockResolvedValue(ok(makeThread()))
+    vi.mocked(api.listSignals).mockRejectedValue(new Error('Network failed'))
+    vi.mocked(api.listResourcesByThread).mockResolvedValue(ok({ resources: [], pagination: { cursor: null } }))
+
+    const router = makeRouter()
+    await router.push('/threads/thread_1')
+    await router.isReady()
+
+    const wrapper = mount(ThreadDetailView, {
+      global: { plugins: [pinia, router] },
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    const alert = wrapper.find('[role="alert"]')
+    expect(alert.exists()).toBe(true)
+    expect(alert.text()).toContain('Network failed')
+  })
+})
+
+describe('ThreadDetailView — pagination', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    vi.clearAllMocks()
+
+    const accountStore = useAccountStore()
+    accountStore.account = {
+      accountId: 'acc_1',
+      name: 'Test',
+      filtering: { defaultUnknownSenderPolicy: 'quarantine_visible' },
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-01T00:00:00Z',
+    }
+    vi.mocked(api.listAccounts).mockResolvedValue(ok([accountStore.account]))
+  })
+
+  it('shows "Load earlier messages" button when there are more signals', async () => {
+    vi.mocked(api.getThread).mockResolvedValue(ok(makeThread()))
+    vi.mocked(api.listSignals).mockResolvedValue(ok({
+      signals: [mockEmailSignal()],
+      pagination: { cursor: 'next_cursor_token' },
+    }))
+    vi.mocked(api.listResourcesByThread).mockResolvedValue(ok({ resources: [], pagination: { cursor: null } }))
+
+    const router = makeRouter()
+    await router.push('/threads/thread_1')
+    await router.isReady()
+
+    const wrapper = mount(ThreadDetailView, {
+      global: { plugins: [pinia, router] },
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    const loadMoreBtn = wrapper.findAll('button').find(b => b.text().includes('Load earlier messages'))
+    expect(loadMoreBtn).toBeTruthy()
+  })
+
+  it('does not show "Load earlier messages" when there is no cursor', async () => {
+    const wrapper = await mountView(makeThread(), [mockEmailSignal()])
+
+    const loadMoreBtn = wrapper.findAll('button').find(b => b.text().includes('Load earlier messages'))
+    expect(loadMoreBtn).toBeUndefined()
+  })
+
+  it('fetches next page when "Load earlier messages" is clicked', async () => {
+    const sig2 = { ...mockEmailSignal(), signalId: 'sig_2', createdAt: '2024-12-01T12:00:00Z', data: { ...mockEmailSignal().data, receivedAt: '2024-12-01T12:00:00Z', subject: 'Older subject', body: 'A completely different body so dedup keeps it separate' } } as Signal
+    vi.mocked(api.getThread).mockResolvedValue(ok(makeThread()))
+    vi.mocked(api.listSignals)
+      .mockResolvedValueOnce(ok({ signals: [mockEmailSignal()], pagination: { cursor: 'page2' } }))
+      .mockResolvedValueOnce(ok({ signals: [sig2], pagination: { cursor: null } }))
+    vi.mocked(api.listResourcesByThread).mockResolvedValue(ok({ resources: [], pagination: { cursor: null } }))
+
+    const router = makeRouter()
+    await router.push('/threads/thread_1')
+    await router.isReady()
+
+    const wrapper = mount(ThreadDetailView, {
+      global: { plugins: [pinia, router] },
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    const loadMoreBtn = wrapper.findAll('button').find(b => b.text().includes('Load earlier messages'))!
+    await loadMoreBtn.trigger('click')
+    await flushPromises()
+
+    // Second call made with cursor, both signals now visible
+    expect(api.listSignals).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('Older subject')
+  })
+
+  it('shows signal count with "+" suffix when pagination has more', async () => {
+    vi.mocked(api.getThread).mockResolvedValue(ok(makeThread()))
+    vi.mocked(api.listSignals).mockResolvedValue(ok({
+      signals: [mockEmailSignal()],
+      pagination: { cursor: 'more' },
+    }))
+    vi.mocked(api.listResourcesByThread).mockResolvedValue(ok({ resources: [], pagination: { cursor: null } }))
+
+    const router = makeRouter()
+    await router.push('/threads/thread_1')
+    await router.isReady()
+
+    const wrapper = mount(ThreadDetailView, {
+      global: { plugins: [pinia, router] },
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    const badge = wrapper.findAll('span').find(s => /^\d+\+? Signals?$/.test(s.text().trim()))
+    expect(badge).toBeTruthy()
+    expect(badge!.text().trim()).toBe('1+ Signals')
+  })
+})
+
+describe('ThreadDetailView — draft create', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    vi.clearAllMocks()
+
+    const accountStore = useAccountStore()
+    accountStore.account = {
+      accountId: 'acc_1',
+      name: 'Test',
+      filtering: { defaultUnknownSenderPolicy: 'quarantine_visible' },
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-01T00:00:00Z',
+    }
+    vi.mocked(api.listAccounts).mockResolvedValue(ok([accountStore.account]))
+    vi.mocked(api.listDomains).mockResolvedValue(ok([]))
+    vi.mocked(api.listAliases).mockResolvedValue(ok([]))
+    vi.mocked(api.listExternalExchanges).mockResolvedValue(ok([]))
+  })
+
+  it('calls createDraftSignal with reply context when reply is clicked', async () => {
+    const draft = mockDraftSignal()
+    vi.mocked(api.createDraftSignal).mockResolvedValue(ok(draft))
+    vi.mocked(api.updateDraftSignal).mockResolvedValue(ok(draft))
+
+    const wrapper = await mountView(makeThread(), [mockEmailSignal()])
+
+    // After creation, include the draft in subsequent responses
+    vi.mocked(api.listSignals).mockResolvedValue(ok({ signals: [mockEmailSignal(), draft], pagination: { cursor: null } }))
+
+    const replyButton = wrapper.findAll('button').find(b => b.text().includes('Reply'))!
+    await replyButton.trigger('click')
+    await flushPromises()
+
+    expect(api.createDraftSignal).toHaveBeenCalledWith('acc_1', 'thread_1', expect.objectContaining({
+      from: { address: 'inbox@example.com' },
+      to: [{ address: 'sender@example.com' }],
+      subject: 'Re: Test subject',
+    }))
+  })
+
+  it('renders the DraftSignalCard with "Draft" badge after creation', async () => {
+    const draft = mockDraftSignal()
+    vi.mocked(api.createDraftSignal).mockResolvedValue(ok(draft))
+    vi.mocked(api.updateDraftSignal).mockResolvedValue(ok(draft))
+
+    const wrapper = await mountView(makeThread(), [mockEmailSignal()])
+    vi.mocked(api.listSignals).mockResolvedValue(ok({ signals: [mockEmailSignal(), draft], pagination: { cursor: null } }))
+
+    const replyButton = wrapper.findAll('button').find(b => b.text().includes('Reply'))!
+    await replyButton.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Draft')
+  })
+})
+
+describe('ThreadDetailView — send action', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    vi.clearAllMocks()
+
+    const accountStore = useAccountStore()
+    accountStore.account = {
+      accountId: 'acc_1',
+      name: 'Test',
+      filtering: { defaultUnknownSenderPolicy: 'quarantine_visible' },
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-01T00:00:00Z',
+    }
+    vi.mocked(api.listAccounts).mockResolvedValue(ok([accountStore.account]))
+    vi.mocked(api.listDomains).mockResolvedValue(ok([]))
+    vi.mocked(api.listAliases).mockResolvedValue(ok([]))
+    vi.mocked(api.listExternalExchanges).mockResolvedValue(ok([]))
+  })
+
+  it('shows "Send + Archive" button in draft card when draft has required fields', async () => {
+    const draft = mockDraftSignal({
+      data: {
+        from: { address: 'me@example.com' },
+        to: [{ address: 'sender@example.com' }],
+        cc: [],
+        bcc: [],
+        subject: 'Re: Test subject',
+        body: 'Hello back',
+        attachments: [],
+        sendInitiatedAt: '',
+      },
+    }) as Signal
+    vi.mocked(api.updateDraftSignal).mockResolvedValue(ok(draft))
+
+    const wrapper = await mountView(makeThread(), [mockEmailSignal(), draft])
+
+    const sendButton = wrapper.findAll('button').find(b => b.text().includes('Send + Archive'))
+    expect(sendButton).toBeTruthy()
+    expect(sendButton!.attributes('disabled')).toBeUndefined()
+  })
+
+  it('disables send buttons when draft body is empty', async () => {
+    const draft = mockDraftSignal({
+      data: {
+        from: { address: 'me@example.com' },
+        to: [{ address: 'sender@example.com' }],
+        cc: [],
+        bcc: [],
+        subject: 'Re: Test subject',
+        body: '',
+        attachments: [],
+        sendInitiatedAt: '',
+      },
+    }) as Signal
+    vi.mocked(api.updateDraftSignal).mockResolvedValue(ok(draft))
+
+    const wrapper = await mountView(makeThread(), [mockEmailSignal(), draft])
+
+    const sendButton = wrapper.findAll('button').find(b => b.text().includes('Send + Archive'))
+    expect(sendButton).toBeTruthy()
+    // disabled attribute renders as empty string when present
+    expect(sendButton!.attributes('disabled')).toBeDefined()
+  })
+})
+
+describe('ThreadDetailView — RSVP action', () => {
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    vi.clearAllMocks()
+
+    const accountStore = useAccountStore()
+    accountStore.account = {
+      accountId: 'acc_1',
+      name: 'Test',
+      filtering: { defaultUnknownSenderPolicy: 'quarantine_visible' },
+      createdAt: '2025-01-01T00:00:00Z',
+      updatedAt: '2025-01-01T00:00:00Z',
+    }
+    vi.mocked(api.listAccounts).mockResolvedValue(ok([accountStore.account]))
+  })
+
+  function makeCalendarEventSignal(): Signal {
+    return {
+      signalId: 'sig_cal_1',
+      threadId: 'thread_1',
+      type: 'calendar_event',
+      source: 'system',
+      status: 'active',
+      createdAt: '2025-06-10T10:00:00Z',
+      data: {
+        title: 'Team Standup',
+        startTime: '2025-06-12T09:00:00Z',
+        endTime: '2025-06-12T09:30:00Z',
+        location: 'Zoom',
+        organizer: 'boss@example.com',
+        organizerName: 'Boss',
+        attendees: [
+          { address: 'me@example.com', name: 'Me' },
+        ],
+        linkedSignalId: 'sig_linked',
+      },
+    } as Signal
+  }
+
+  it('renders Accept, Tentative, Decline buttons for a calendar event signal', async () => {
+    const wrapper = await mountView(makeThread(), [makeCalendarEventSignal()])
+
+    expect(wrapper.text()).toContain('Accept')
+    expect(wrapper.text()).toContain('Tentative')
+    expect(wrapper.text()).toContain('Decline')
+  })
+
+  it('calls rsvpSignal API and shows confirmation text on Accept', async () => {
+    const updatedSignal = { ...makeCalendarEventSignal(), status: 'active' } as Signal
+    vi.mocked(api.rsvpSignal).mockResolvedValue(ok(updatedSignal))
+
+    const wrapper = await mountView(makeThread(), [makeCalendarEventSignal()])
+
+    const acceptButton = wrapper.findAll('button').find(b => b.text().trim() === 'Accept')!
+    await acceptButton.trigger('click')
+    await flushPromises()
+
+    expect(api.rsvpSignal).toHaveBeenCalledWith('acc_1', 'thread_1', 'sig_cal_1', 'accepted')
+    expect(wrapper.text()).toContain('accepted')
+  })
+
+  it('calls rsvpSignal with "declined" when Decline is clicked', async () => {
+    const updatedSignal = { ...makeCalendarEventSignal(), status: 'active' } as Signal
+    vi.mocked(api.rsvpSignal).mockResolvedValue(ok(updatedSignal))
+
+    const wrapper = await mountView(makeThread(), [makeCalendarEventSignal()])
+
+    const declineButton = wrapper.findAll('button').find(b => b.text().trim() === 'Decline')!
+    await declineButton.trigger('click')
+    await flushPromises()
+
+    expect(api.rsvpSignal).toHaveBeenCalledWith('acc_1', 'thread_1', 'sig_cal_1', 'declined')
+    expect(wrapper.text()).toContain('declined')
+  })
+
+  it('shows error text when RSVP fails', async () => {
+    const { err } = await import('neverthrow')
+    const apiError = { status: 500, message: 'Internal server error', code: 'SERVER_ERROR' }
+    vi.mocked(api.rsvpSignal).mockResolvedValue(err(apiError as any))
+
+    const wrapper = await mountView(makeThread(), [makeCalendarEventSignal()])
+
+    // CalendarEventCard re-throws on error for AsyncButton state tracking — suppress in test
+    const onUnhandled = vi.fn()
+    process.on('unhandledRejection', onUnhandled)
+
+    const acceptButton = wrapper.findAll('button').find(b => b.text().trim() === 'Accept')!
+    await acceptButton.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Internal server error')
+    process.off('unhandledRejection', onUnhandled)
   })
 })

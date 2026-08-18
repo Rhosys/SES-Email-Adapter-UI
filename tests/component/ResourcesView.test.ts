@@ -117,4 +117,18 @@ describe('ResourcesView', () => {
 
     expect(api.patchResource).toHaveBeenCalledWith('acc_1', 'res_1', { status: 'complete' })
   })
+
+  it('toggles a completed resource back to active via Mark active button', async () => {
+    vi.mocked(api.listResources).mockResolvedValue(
+      ok({ resources: [mockResource({ status: 'complete' })], pagination: { cursor: null } }),
+    )
+    vi.mocked(api.patchResource).mockResolvedValue(ok(mockResource({ status: 'active' })))
+    const wrapper = await mountView()
+
+    const toggleButton = wrapper.findAll('button').find((b) => b.text() === 'Mark active')!
+    await toggleButton.trigger('click')
+    await flushPromises()
+
+    expect(api.patchResource).toHaveBeenCalledWith('acc_1', 'res_1', { status: 'active' })
+  })
 })

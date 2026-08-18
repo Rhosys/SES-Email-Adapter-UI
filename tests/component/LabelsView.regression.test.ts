@@ -125,6 +125,24 @@ describe('LabelsView — regression gate', () => {
     expect(wrapper.text()).toContain('Create failed')
   })
 
+  it('updates an existing label via the edit form', async () => {
+    vi.mocked(api.updateLabel).mockResolvedValue(ok(mockLabel({ name: 'Updated' })))
+    const wrapper = await mountView([mockLabel()])
+
+    const editBtn = wrapper.findAll('button').find(b => b.text() === 'Edit')!
+    await editBtn.trigger('click')
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('#label-name').setValue('Updated')
+    await wrapper.vm.$nextTick()
+
+    const saveBtn = wrapper.findAll('button').find(b => b.text() === 'Save')!
+    await saveBtn.trigger('click')
+    await flushPromises()
+
+    expect(api.updateLabel).toHaveBeenCalledWith('acc_1', 'lbl_1', expect.objectContaining({ name: 'Updated' }))
+  })
+
   it('deletes a label after confirmation', async () => {
     vi.mocked(api.deleteLabel).mockResolvedValue(ok(undefined as void))
     const wrapper = await mountView([mockLabel()])
