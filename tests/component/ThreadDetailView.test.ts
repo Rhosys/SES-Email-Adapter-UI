@@ -658,6 +658,7 @@ describe('ThreadDetailView — draft create', () => {
       from: { address: 'inbox@example.com' },
       to: [{ address: 'sender@example.com' }],
       subject: 'Re: Test subject',
+      linkedSignalId: 'sig_1',
     }))
   })
 

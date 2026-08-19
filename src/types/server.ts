@@ -796,6 +796,9 @@ export interface CreateDraftSignalBody {
   to: EmailAddress[]
   subject: string
   textBody?: string
+  // The specific signal this draft is replying to — sourced for the In-Reply-To/References
+  // headers on send. Omit for a thread-level or from-scratch compose with nothing to link.
+  linkedSignalId?: string
 }
 
 export interface UpdateDraftSignalBody {
