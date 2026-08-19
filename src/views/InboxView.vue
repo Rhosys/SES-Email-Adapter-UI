@@ -44,7 +44,7 @@ function statusFor(tab: TabKey): ThreadStatus | undefined {
 }
 
 // TanStack Query — thread list driven by current tab
-const { query: threadListQuery, threads: allThreads, hasMore } = useThreadListQuery(
+const { query: threadListQuery, threads: allThreads, hasMore, requestRefresh } = useThreadListQuery(
   () => statusFor(activeTab.value),
 )
 
@@ -79,7 +79,7 @@ async function fetchRecentSignals() {
 
 async function handleRefresh() {
   refreshing.value = true
-  await threadListQuery.refetch()
+  await requestRefresh()
   await fetchRecentSignals()
   lastRefreshedAt.value = new Date().toLocaleTimeString()
   refreshing.value = false
