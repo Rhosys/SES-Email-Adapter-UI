@@ -215,7 +215,9 @@ describe('InboxView — regression gate', () => {
     if (refreshBtn) {
       await refreshBtn.trigger('click')
       await flushPromises()
-      expect(api.listThreads).toHaveBeenCalled()
+      // The backend treats a present `refresh` value as a signal to wake the IMAP/JMAP IDLE
+      // listener for the account (see threadsApi.ts) — the button is a no-op without it.
+      expect(api.listThreads).toHaveBeenCalledWith('acc_1', expect.objectContaining({ refresh: expect.any(String) }))
     }
   })
 })

@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
@@ -15,18 +15,34 @@ export function useThreadListQuery(status: () => ThreadStatus | undefined) {
   const accountStore = useAccountStore()
   const accountId = computed(() => accountStore.accountId)
 
+  // Sent as `refresh` on the query's very first fetch (covers a page load/reload) and again
+  // whenever requestRefresh() runs (the inbox's Refresh button) — the backend treats a present
+  // `refresh` value as a signal to wake the IMAP/JMAP IDLE listener for the account, on top of
+  // whatever TanStack Query itself decides to (re)fetch. Consumed after one fetch so routine
+  // refetches (pagination, window focus, mutation-triggered invalidation) don't keep re-sending it.
+  const pendingRefresh = ref<string | undefined>(new Date().toISOString())
+
   const query = useInfiniteQuery({
     queryKey: computed(() => queryKeys.threads.list(accountId.value!, status())),
-    queryFn: async ({ pageParam }) =>
-      unwrap(await api.listThreads(accountId.value!, {
+    queryFn: async ({ pageParam }) => {
+      const refresh = pendingRefresh.value
+      pendingRefresh.value = undefined
+      return unwrap(await api.listThreads(accountId.value!, {
         status: status(),
         cursor: pageParam,
         limit: 50,
-      })),
+        ...(refresh ? { refresh } : {}),
+      }))
+    },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.pagination.cursor ?? undefined,
     enabled: computed(() => !!accountId.value),
   })
+
+  function requestRefresh() {
+    pendingRefresh.value = new Date().toISOString()
+    return query.refetch()
+  }
 
   const threads = computed<Thread[]>(() =>
     query.data.value?.pages.flatMap(p => p.threads).filter(t => {
@@ -40,7 +56,7 @@ export function useThreadListQuery(status: () => ThreadStatus | undefined) {
   const activeCount = computed(() => threads.value.length)
   const hasMore = computed(() => query.hasNextPage?.value ?? false)
 
-  return { query, threads, activeCount, hasMore }
+  return { query, threads, activeCount, hasMore, requestRefresh }
 }
 
 export function useThreadDetailQuery(threadId: () => string | undefined) {
