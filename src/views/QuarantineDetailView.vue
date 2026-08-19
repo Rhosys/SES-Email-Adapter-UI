@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { useQuarantineStore } from '@/stores/quarantine'
 import { useQuarantineQuery, useAllowQuarantinedSignal, useRejectQuarantinedSignal, useDismissQuarantinedSignal } from '@/composables/useQuarantineQueries'
 import { useRulesQuery } from '@/composables/useRulesQueries'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
@@ -15,7 +14,6 @@ import { useAccountStore } from '@/stores/account'
 
 const route = useRoute()
 const router = useRouter()
-const quarantineStore = useQuarantineStore()
 const { rules: rulesList } = useRulesQuery()
 const accountStore = useAccountStore()
 
@@ -42,11 +40,13 @@ const notFound = computed(() => !isLoading.value && !signal.value)
 
 const inboundData = computed(() => (signal.value && isInboundEmailSignal(signal.value) ? signal.value.data : null))
 const matchedRules = computed(() => inboundData.value?.matchedRules ?? [])
-const pending = computed(() => (signal.value ? quarantineStore.actionPending.has(signal.value.signalId) : false))
 
 const allowMutation = useAllowQuarantinedSignal()
 const rejectMutation = useRejectQuarantinedSignal()
 const dismissMutation = useDismissQuarantinedSignal()
+// Disable all three actions while any one is in flight — each mutation already tracks its own
+// pending state, so there's no need to hand-roll a separate pending flag.
+const pending = computed(() => allowMutation.isPending.value || rejectMutation.isPending.value || dismissMutation.isPending.value)
 
 const expandedRuleIds = ref<Set<string>>(new Set())
 function toggleRule(ruleId: string) {
@@ -62,9 +62,7 @@ function ruleFor(ruleId: string) {
 
 async function allow() {
   if (!signal.value) return
-  quarantineStore.actionPending = new Set([...quarantineStore.actionPending, signal.value.signalId])
   const result = await allowMutation.mutateAsync(signal.value.signalId)
-  quarantineStore.actionPending = new Set([...quarantineStore.actionPending].filter((x) => x !== signal.value!.signalId))
   if (result.thread?.threadId) {
     void router.push({ name: 'thread-detail', params: { id: result.thread.threadId } })
   }
@@ -72,17 +70,13 @@ async function allow() {
 
 async function reject() {
   if (!signal.value) return
-  quarantineStore.actionPending = new Set([...quarantineStore.actionPending, signal.value.signalId])
   await rejectMutation.mutateAsync(signal.value.signalId)
-  quarantineStore.actionPending = new Set([...quarantineStore.actionPending].filter((x) => x !== signal.value!.signalId))
   void router.push('/quarantine')
 }
 
 async function dismiss() {
   if (!signal.value) return
-  quarantineStore.actionPending = new Set([...quarantineStore.actionPending, signal.value.signalId])
   await dismissMutation.mutateAsync(signal.value.signalId)
-  quarantineStore.actionPending = new Set([...quarantineStore.actionPending].filter((x) => x !== signal.value!.signalId))
   void router.push('/quarantine')
 }
 
