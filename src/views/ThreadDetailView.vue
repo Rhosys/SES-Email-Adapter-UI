@@ -349,7 +349,15 @@ async function startDraft() {
   }
 
   createDraftMutation.mutate(
-    { threadId: threadId.value, body: { from: { address: fromAddress }, to: toAddresses, subject: replySubject } },
+    {
+      threadId: threadId.value,
+      body: {
+        from: { address: fromAddress },
+        to: toAddresses,
+        subject: replySubject,
+        ...(replyTo ? { linkedSignalId: replyTo.signalId } : {}),
+      },
+    },
     { onSuccess: (newSignal) => { void scrollToDraft(newSignal.signalId) } },
   )
 }
