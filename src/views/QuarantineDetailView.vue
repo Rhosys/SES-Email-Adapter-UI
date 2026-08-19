@@ -62,9 +62,14 @@ function ruleFor(ruleId: string) {
 
 async function allow() {
   if (!signal.value) return
-  quarantineStore.actionPending = new Set([...quarantineStore.actionPending, signal.value.signalId])
-  const result = await allowMutation.mutateAsync(signal.value.signalId)
-  quarantineStore.actionPending = new Set([...quarantineStore.actionPending].filter((x) => x !== signal.value!.signalId))
+  // Capture the id up front — the mutation's onMutate optimistically strips this signal from the
+  // quarantine query cache as soon as mutateAsync is called, so `signal` (looked up by id in that
+  // same cache) can go null before the await below resolves. Re-reading signal.value afterward
+  // would throw and abort before the navigation ever runs.
+  const id = signal.value.signalId
+  quarantineStore.actionPending = new Set([...quarantineStore.actionPending, id])
+  const result = await allowMutation.mutateAsync(id)
+  quarantineStore.actionPending = new Set([...quarantineStore.actionPending].filter((x) => x !== id))
   if (result.thread?.threadId) {
     void router.push({ name: 'thread-detail', params: { id: result.thread.threadId } })
   }
@@ -72,17 +77,19 @@ async function allow() {
 
 async function reject() {
   if (!signal.value) return
-  quarantineStore.actionPending = new Set([...quarantineStore.actionPending, signal.value.signalId])
-  await rejectMutation.mutateAsync(signal.value.signalId)
-  quarantineStore.actionPending = new Set([...quarantineStore.actionPending].filter((x) => x !== signal.value!.signalId))
+  const id = signal.value.signalId
+  quarantineStore.actionPending = new Set([...quarantineStore.actionPending, id])
+  await rejectMutation.mutateAsync(id)
+  quarantineStore.actionPending = new Set([...quarantineStore.actionPending].filter((x) => x !== id))
   void router.push('/quarantine')
 }
 
 async function dismiss() {
   if (!signal.value) return
-  quarantineStore.actionPending = new Set([...quarantineStore.actionPending, signal.value.signalId])
-  await dismissMutation.mutateAsync(signal.value.signalId)
-  quarantineStore.actionPending = new Set([...quarantineStore.actionPending].filter((x) => x !== signal.value!.signalId))
+  const id = signal.value.signalId
+  quarantineStore.actionPending = new Set([...quarantineStore.actionPending, id])
+  await dismissMutation.mutateAsync(id)
+  quarantineStore.actionPending = new Set([...quarantineStore.actionPending].filter((x) => x !== id))
   void router.push('/quarantine')
 }
 
