@@ -63,6 +63,7 @@ function makeRouter() {
     routes: [
       { path: '/quarantine', component: { template: '<div>quarantine list</div>' } },
       { path: '/quarantine/:id', name: 'quarantine-detail', component: QuarantineDetailView },
+      { path: '/threads/:id', name: 'thread-detail', component: { template: '<div>thread</div>' } },
     ],
   })
 }
@@ -120,5 +121,18 @@ describe('QuarantineDetailView — regression gate', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.path).toBe('/quarantine')
+  })
+
+  it('navigates to the new thread page after allow', async () => {
+    const signal = mockQuarantinedSignal()
+    vi.mocked(api.quarantineResponse).mockResolvedValue(ok({ thread: { threadId: 'thread_42' } }))
+    const { wrapper, router } = await mountView(signal)
+
+    const allowBtn = wrapper.findAll('button').find((b) => b.text().includes('Allow'))!
+    await allowBtn.trigger('click')
+    await flushPromises()
+
+    expect(api.quarantineResponse).toHaveBeenCalledWith('acc_1', 'sig_1', 'active')
+    expect(router.currentRoute.value.path).toBe('/threads/thread_42')
   })
 })
