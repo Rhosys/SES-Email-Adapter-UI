@@ -42,6 +42,8 @@ const snoozeBadge = computed(() => {
   return `Snoozed until ${followup.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
 })
 
+const signalCount = computed(() => threadSignals(props.thread.threadId).length)
+
 const mergedWorkflowGroup = computed((): WorkflowGroup | null => {
   if (!isRecent.value) return null
   const signals = threadSignals(props.thread.threadId)
@@ -91,6 +93,18 @@ function labelColor(key: string): string {
           :aria-label="`Label: ${label}`"
         />
       </div>
+    </div>
+
+    <!-- Row 5: Signal count dots (from cache) -->
+    <div v-if="signalCount > 1" class="mt-1 flex items-center gap-1">
+      <span
+        v-for="n in Math.min(signalCount, 10)"
+        :key="n"
+        class="h-1.5 w-1.5 shrink-0 rounded-full bg-ctp-green/70"
+        role="img"
+        :aria-label="n === 1 ? `${signalCount} signals in thread` : undefined"
+      />
+      <span v-if="signalCount > 10" class="text-[10px] text-ctp-subtext0">+{{ signalCount - 10 }}</span>
     </div>
 
     <WorkflowPanel v-if="mergedWorkflowGroup" :workflow-group="mergedWorkflowGroup" compact class="mt-1" />
