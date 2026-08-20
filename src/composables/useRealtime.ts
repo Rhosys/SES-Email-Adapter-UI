@@ -75,8 +75,12 @@ export function useRealtime() {
             logger.warn({ title: 'Realtime: disconnected', code: msg.code, reason: msg.reason || '(none)', wasClean: msg.wasClean, hint: msg.hint })
           }
         } else if (msg.type === 'event' && msg.data) {
-          logger.info({ title: 'Realtime: event received', eventType: msg.data.type, data: msg.data })
-          handleEvent(msg.data)
+          if ((msg.data as { type: string }).type === 'connected') {
+            logger.info({ title: 'Realtime: server confirmed connection', connectionId: (msg.data as { connectionId?: string }).connectionId, timestamp: (msg.data as { timestamp?: string }).timestamp })
+          } else {
+            logger.info({ title: 'Realtime: event received', eventType: msg.data.type, data: msg.data })
+            handleEvent(msg.data)
+          }
         }
       }
       worker.port.start()
