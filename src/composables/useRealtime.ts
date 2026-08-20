@@ -66,9 +66,13 @@ export function useRealtime() {
         { type: 'module', name: 'ses-realtime' },
       )
       worker.port.onmessage = (e: MessageEvent) => {
-        const msg = e.data as { type: string; connected?: boolean; data?: RealtimeEvent }
+        const msg = e.data as { type: string; connected?: boolean; code?: number; reason?: string; wasClean?: boolean; hint?: string; data?: RealtimeEvent }
         if (msg.type === 'status') {
-          logger.info({ title: 'Realtime: connection status', connected: msg.connected })
+          if (msg.connected) {
+            logger.info({ title: 'Realtime: connected' })
+          } else {
+            logger.warn({ title: 'Realtime: disconnected', code: msg.code, reason: msg.reason || '(none)', wasClean: msg.wasClean, hint: msg.hint })
+          }
         } else if (msg.type === 'event' && msg.data) {
           logger.info({ title: 'Realtime: event received', eventType: msg.data.type, data: msg.data })
           handleEvent(msg.data)
