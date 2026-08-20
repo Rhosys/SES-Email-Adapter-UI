@@ -72,7 +72,7 @@ export function useRealtime() {
           if (msg.connected) {
             logger.info({ title: 'Realtime: connected' })
           } else {
-            logger.warn({ title: 'Realtime: disconnected', code: msg.code, reason: msg.reason || '(none)', wasClean: msg.wasClean, hint: msg.hint })
+            logger.info({ title: 'Realtime: disconnected', code: msg.code, reason: msg.reason, wasClean: msg.wasClean, hint: msg.hint })
           }
         } else if (msg.type === 'event' && msg.data) {
           if ((msg.data as { type: string }).type === 'connected') {
