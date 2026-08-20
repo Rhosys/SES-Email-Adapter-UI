@@ -10,6 +10,7 @@ import type { RealtimeEvent, SignalCreatedEvent } from '@/types/realtime'
 
 // Module-level singleton — one SharedWorker port for the whole page lifetime.
 let worker: SharedWorker | null = null
+let tokenInterval: ReturnType<typeof setInterval> | null = null
 
 // critical / high / normal → notify; low / silent → skip
 function shouldNotify(urgency: ThreadUrgency): boolean {
@@ -83,6 +84,15 @@ export function useRealtime() {
 
     logger.info({ title: 'Realtime: activating websocket', accountId })
     worker.port.postMessage({ type: 'init', accountId, token })
+
+    // Push a fresh token to the worker every 30s so reconnects use a valid JWT
+    if (!tokenInterval) {
+      tokenInterval = setInterval(() => {
+        loginClient.ensureToken().then(t => {
+          if (t && worker) worker.port.postMessage({ type: 'token', token: t })
+        }).catch(() => { /* token unavailable — worker keeps last known */ })
+      }, 30_000)
+    }
   }
 
   watch(
