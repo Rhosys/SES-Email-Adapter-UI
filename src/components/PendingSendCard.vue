@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useAccountStore } from '@/stores/account'
-import { useSignalCacheHelpers } from '@/composables/useSignalQueries'
+import { useSignalStoreMutator } from '@/composables/useSignalQueries'
 import { api } from '@/lib/api'
 import { isOutboundEmailSignal } from '@/lib/signal-guards'
 import { usePendingSendCountdown } from '@/composables/usePendingSend'
@@ -11,7 +11,7 @@ const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ cancelled: [] }>()
 
 const accountStore = useAccountStore()
-const { updateSignal } = useSignalCacheHelpers()
+const { updateSignal } = useSignalStoreMutator()
 
 const { cancellable, remainingSeconds } = usePendingSendCountdown(props.signal)
 

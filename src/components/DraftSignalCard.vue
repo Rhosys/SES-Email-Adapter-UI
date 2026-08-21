@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { marked } from 'marked'
 import { useAccountStore } from '@/stores/account'
-import { useSignalCacheHelpers } from '@/composables/useSignalQueries'
+import { useSignalListQuery, useSignalStoreMutator } from '@/composables/useSignalQueries'
 import { useUserConfigStore } from '@/stores/userConfig'
 import { useSenderIdentitiesQuery } from '@/composables/useSenderIdentitiesQuery'
 import { api } from '@/lib/api'
@@ -17,7 +17,8 @@ const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ discard: []; sent: [] }>()
 
 const accountStore = useAccountStore()
-const { threadSignals, updateSignal, removeSignal } = useSignalCacheHelpers()
+const { signals: threadSignals } = useSignalListQuery(() => props.signal.threadId)
+const { updateSignal, removeSignal } = useSignalStoreMutator()
 const userConfigStore = useUserConfigStore()
 const senderIdentities = useSenderIdentitiesQuery()
 const router = useRouter()
@@ -48,9 +49,7 @@ const emailData = isEmailSignal(props.signal) ? props.signal.data : null
 const seededFrom = (() => {
   const seeded = emailData?.from?.address
   if (seeded) return seeded
-  const threadId = props.signal.threadId
-  if (!threadId) return ''
-  const inbound = threadSignals(threadId).find(isInboundEmailSignal)
+  const inbound = threadSignals.value.find(isInboundEmailSignal)
   return inbound?.data.recipientAddress ?? ''
 })()
 

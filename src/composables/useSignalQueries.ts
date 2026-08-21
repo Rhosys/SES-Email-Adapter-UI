@@ -176,31 +176,15 @@ export function usePrefetchThreadSignals() {
 }
 
 /**
- * Direct query-cache helpers for components that need to read/mutate signal
- * data outside of a reactive useInfiniteQuery context (e.g. ThreadRowContent,
- * PendingSendCard, DraftSignalCard, EmailSignalCard, InboxHighlight).
+ * Optimistic cache mutators for signal data. Used by components that need to
+ * update or remove a signal in the TanStack Query cache without waiting for
+ * a refetch (e.g. PendingSendCard, DraftSignalCard, EmailSignalCard).
+ *
+ * For reactive signal reads, use `useSignalListQuery(threadId)` directly.
  */
-export function useSignalCacheHelpers() {
+export function useSignalStoreMutator() {
   const queryClient = useQueryClient()
   const accountStore = useAccountStore()
-
-  function threadSignals(threadId: string): Signal[] {
-    const accountId = accountStore.accountId
-    if (!accountId) return []
-    const data = queryClient.getQueryData<InfiniteSignalData>(
-      queryKeys.signals.byThread(accountId, threadId),
-    )
-    return data?.pages.flatMap(p => p.signals) ?? []
-  }
-
-  function allSignals(): Signal[] {
-    const accountId = accountStore.accountId
-    if (!accountId) return []
-    const queries = queryClient.getQueriesData<InfiniteSignalData>({
-      queryKey: queryKeys.signals.all(accountId),
-    })
-    return queries.flatMap(([, data]) => data?.pages.flatMap(p => p.signals) ?? [])
-  }
 
   function updateSignal(threadId: string, signal: Signal) {
     const accountId = accountStore.accountId
@@ -240,5 +224,5 @@ export function useSignalCacheHelpers() {
     )
   }
 
-  return { threadSignals, allSignals, updateSignal, removeSignal }
+  return { updateSignal, removeSignal }
 }

@@ -1,24 +1,19 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useThreadListQuery, useArchiveThread } from '@/composables/useThreadQueries'
-import { useSignalCacheHelpers } from '@/composables/useSignalQueries'
-import { useAccountStore } from '@/stores/account'
+import { useSignalListQuery } from '@/composables/useSignalQueries'
 import { useClipboard } from '@/composables/useClipboard'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
-import { api } from '@/lib/api'
-import type { Signal, AuthData, Workflow, WorkflowData } from '@/types/server'
+import type { AuthData, Workflow, WorkflowData } from '@/types/server'
 import WorkflowPanel from './WorkflowPanel.vue'
 
 const RECENCY_WINDOW_MS = 15 * 60 * 1000
 
 const { threads: sortedThreads } = useThreadListQuery(() => 'active')
 const archiveMutation = useArchiveThread()
-const { threadSignals } = useSignalCacheHelpers()
-const accountStore = useAccountStore()
 const { copied, copy } = useClipboard()
 
-const latestSignal = ref<Signal | null>(null)
 const archiving = ref(false)
 const now = ref(Date.now())
 let countdownTimer: ReturnType<typeof setInterval>
@@ -35,6 +30,9 @@ const highlightThread = computed(() => {
     t.status === 'active' && t.lastSignalAt && currentTime - new Date(t.lastSignalAt).getTime() < RECENCY_WINDOW_MS,
   ) ?? null
 })
+
+// Reactive signal list for the highlighted thread
+const { latestSignal } = useSignalListQuery(() => highlightThread.value?.threadId)
 
 const inboundData = computed(() => {
   if (!latestSignal.value || !isInboundEmailSignal(latestSignal.value)) return null
@@ -94,39 +92,6 @@ async function copyAndArchive() {
   archiveMutation.mutate(highlightThread.value.threadId)
   archiving.value = false
 }
-
-async function fetchSignalForThread(threadId: string) {
-  const accountId = accountStore.accountId
-  if (!accountId) return
-
-  // Check if signals are already cached for this thread
-  const cached = threadSignals(threadId)
-  if (cached.length > 0) {
-    latestSignal.value = cached[0]!
-    return
-  }
-
-  // Fetch the latest signal only
-  const result = await api.listSignals(accountId, threadId, { limit: 1 })
-  if (result.isOk() && result.value.signals.length > 0) {
-    latestSignal.value = result.value.signals[0]!
-  }
-}
-
-onMounted(() => {
-  if (highlightThread.value) {
-    void fetchSignalForThread(highlightThread.value.threadId)
-  }
-})
-
-// React to thread list changes (e.g. new thread arrives via realtime)
-watch(highlightThread, (thread) => {
-  if (thread) {
-    void fetchSignalForThread(thread.threadId)
-  } else {
-    latestSignal.value = null
-  }
-})
 
 defineExpose({ visible })
 </script>

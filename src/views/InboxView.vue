@@ -67,7 +67,11 @@ const allSelected = computed(
   () => visibleItems.value.length > 0 && visibleItems.value.every((t) => threadsStore.selectedIds.has(t.threadId)),
 )
 
-async function fetchRecentSignals() {
+async function handleRefresh() {
+  refreshing.value = true
+  await requestRefresh()
+  // Prewarm signal cache for recent threads so dots appear without waiting for
+  // each row's individual useSignalListQuery to refetch.
   const now = Date.now()
   const recentThreads = allThreads.value
     .filter(t => t.lastSignalAt && now - new Date(t.lastSignalAt).getTime() < RECENCY_WINDOW_MS)
@@ -75,12 +79,6 @@ async function fetchRecentSignals() {
   if (recentThreads.length > 0) {
     await prefetchSignals(recentThreads)
   }
-}
-
-async function handleRefresh() {
-  refreshing.value = true
-  await requestRefresh()
-  await fetchRecentSignals()
   lastRefreshedAt.value = new Date().toLocaleTimeString()
   refreshing.value = false
 }

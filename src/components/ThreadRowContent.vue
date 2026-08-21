@@ -5,7 +5,7 @@ import type { Thread } from '@/types/server'
 import { NOW_KEY } from '@/composables/useRelativeTime'
 import { formatRelativeTime } from '@/composables/useFormattedTime'
 import { useLabelsQuery } from '@/composables/useLabelsQueries'
-import { useSignalCacheHelpers } from '@/composables/useSignalQueries'
+import { useSignalListQuery } from '@/composables/useSignalQueries'
 import { visibleLabels, findLabelMeta } from '@/lib/labels'
 import { aggregateWorkflowPanels } from '@/lib/workflow-aggregator'
 import type { WorkflowGroup } from '@/lib/workflow-aggregator'
@@ -18,14 +18,14 @@ const props = defineProps<{ thread: Thread }>()
 
 const now = inject(NOW_KEY)
 const { labels } = useLabelsQuery()
-const { threadSignals, allSignals } = useSignalCacheHelpers()
+const { signals } = useSignalListQuery(() => props.thread.threadId)
 
 const timestamp = computed(() =>
   now ? formatRelativeTime(props.thread.lastSignalAt ?? props.thread.createdAt, now.value) : '',
 )
 
 const hasPendingSend = computed(() =>
-  allSignals().some(s => s.status === 'pending_send' && s.threadId === props.thread.threadId)
+  signals.value.some(s => s.status === 'pending_send')
 )
 
 const isRecent = computed(() => {
@@ -42,13 +42,12 @@ const snoozeBadge = computed(() => {
   return `Snoozed until ${followup.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
 })
 
-const signalCount = computed(() => threadSignals(props.thread.threadId).length)
+const signalCount = computed(() => signals.value.length)
 
 const mergedWorkflowGroup = computed((): WorkflowGroup | null => {
   if (!isRecent.value) return null
-  const signals = threadSignals(props.thread.threadId)
-  if (signals.length === 0) return null
-  const deduped = attachLinkedSignals(groupByBodyFingerprint(signals))
+  if (signals.value.length === 0) return null
+  const deduped = attachLinkedSignals(groupByBodyFingerprint(signals.value))
   const groups = aggregateWorkflowPanels(deduped)
   const group = groups[0]
   if (!group || group.entries.length === 0) return null

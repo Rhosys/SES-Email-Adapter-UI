@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { QueryClient } from '@tanstack/vue-query'
-import { useSignalCacheHelpers } from '@/composables/useSignalQueries'
+import { useSignalStoreMutator } from '@/composables/useSignalQueries'
 import { useAccountStore } from '@/stores/account'
 import { queryKeys } from '@/lib/queryKeys'
 import type { Signal, Account } from '@/types/server'
@@ -41,30 +41,18 @@ function mockSignal(overrides: Partial<Signal> = {}): Signal {
   } as Signal
 }
 
-describe('useSignalCacheHelpers (query cache helpers)', () => {
+type InfiniteSignalData = {
+  pages: Array<{ signals: Signal[]; pagination: { cursor: string | null } }>
+  pageParams: Array<string | undefined>
+}
+
+describe('useSignalStoreMutator', () => {
   beforeEach(() => {
     testQueryClient.clear()
     setActivePinia(createPinia())
 
     const accountStore = useAccountStore()
     accountStore.account = { accountId: 'acc_1', name: 'Test' } as Account
-  })
-
-  it('threadSignals returns signals from the query cache', () => {
-    const sig = mockSignal()
-    testQueryClient.setQueryData(queryKeys.signals.byThread('acc_1', 'thread_1'), {
-      pages: [{ signals: [sig], pagination: { cursor: null } }],
-      pageParams: [undefined],
-    })
-
-    const { threadSignals } = useSignalCacheHelpers()
-    expect(threadSignals('thread_1')).toHaveLength(1)
-    expect(threadSignals('thread_1')[0].signalId).toBe('sig_1')
-  })
-
-  it('threadSignals returns empty array for uncached thread', () => {
-    const { threadSignals } = useSignalCacheHelpers()
-    expect(threadSignals('thread_unknown')).toEqual([])
   })
 
   it('updateSignal patches a cached signal in place', () => {
@@ -74,11 +62,12 @@ describe('useSignalCacheHelpers (query cache helpers)', () => {
       pageParams: [undefined],
     })
 
-    const { threadSignals, updateSignal } = useSignalCacheHelpers()
+    const { updateSignal } = useSignalStoreMutator()
     const updated = mockSignal({ signalId: 'sig_1', status: 'draft' })
     updateSignal('thread_1', updated)
 
-    expect(threadSignals('thread_1')[0].status).toBe('draft')
+    const data = testQueryClient.getQueryData<InfiniteSignalData>(queryKeys.signals.byThread('acc_1', 'thread_1'))
+    expect(data?.pages[0].signals[0].status).toBe('draft')
   })
 
   it('removeSignal removes a signal from the cache', () => {
@@ -89,25 +78,33 @@ describe('useSignalCacheHelpers (query cache helpers)', () => {
       pageParams: [undefined],
     })
 
-    const { threadSignals, removeSignal } = useSignalCacheHelpers()
+    const { removeSignal } = useSignalStoreMutator()
     removeSignal('thread_1', 'sig_1')
 
-    const remaining = threadSignals('thread_1')
-    expect(remaining).toHaveLength(1)
-    expect(remaining[0].signalId).toBe('sig_2')
+    const data = testQueryClient.getQueryData<InfiniteSignalData>(queryKeys.signals.byThread('acc_1', 'thread_1'))
+    expect(data?.pages[0].signals).toHaveLength(1)
+    expect(data?.pages[0].signals[0].signalId).toBe('sig_2')
   })
 
-  it('allSignals aggregates signals across all cached threads', () => {
-    testQueryClient.setQueryData(queryKeys.signals.byThread('acc_1', 'thread_1'), {
-      pages: [{ signals: [mockSignal({ signalId: 'sig_1' })], pagination: { cursor: null } }],
-      pageParams: [undefined],
-    })
-    testQueryClient.setQueryData(queryKeys.signals.byThread('acc_1', 'thread_2'), {
-      pages: [{ signals: [mockSignal({ signalId: 'sig_2', threadId: 'thread_2' })], pagination: { cursor: null } }],
-      pageParams: [undefined],
-    })
+  it('updateSignal is a no-op when accountId is missing', () => {
+    const accountStore = useAccountStore()
+    accountStore.account = null as unknown as Account
 
-    const { allSignals } = useSignalCacheHelpers()
-    expect(allSignals()).toHaveLength(2)
+    const { updateSignal } = useSignalStoreMutator()
+    updateSignal('thread_1', mockSignal())
+
+    const data = testQueryClient.getQueryData<InfiniteSignalData>(queryKeys.signals.byThread('acc_1', 'thread_1'))
+    expect(data).toBeUndefined()
+  })
+
+  it('removeSignal is a no-op when accountId is missing', () => {
+    const accountStore = useAccountStore()
+    accountStore.account = null as unknown as Account
+
+    const { removeSignal } = useSignalStoreMutator()
+    removeSignal('thread_1', 'sig_1')
+
+    const data = testQueryClient.getQueryData<InfiniteSignalData>(queryKeys.signals.byThread('acc_1', 'thread_1'))
+    expect(data).toBeUndefined()
   })
 })
