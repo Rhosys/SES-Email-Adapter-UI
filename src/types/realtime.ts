@@ -9,7 +9,7 @@ import type { ThreadUrgency } from './server'
 export interface SignalCreatedEvent {
   type: 'thread:updated'
   threadId: string
-  signalId: string
+  signalId?: string
   urgency: ThreadUrgency   // urgency of the thread after this signal lands
   from: { address: string; name?: string }
   subject: string
