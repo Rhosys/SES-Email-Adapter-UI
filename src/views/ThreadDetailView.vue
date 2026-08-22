@@ -69,8 +69,11 @@ const snoozedAnnotation = computed(() => {
   const t = thread.value
   if (!t?.followupAt || t.status !== 'active') return null
   const followup = new Date(t.followupAt)
-  if (followup.getTime() > Date.now()) return null
-  return `This thread was snoozed and resurfaced at ${followup.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+  const formatted = followup.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  if (followup.getTime() > Date.now()) {
+    return `This thread is snoozed and will resurface at ${formatted}`
+  }
+  return `This thread was snoozed and resurfaced at ${formatted}`
 })
 
 const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalItems.value)))

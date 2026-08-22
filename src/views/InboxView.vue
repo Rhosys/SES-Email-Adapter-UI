@@ -30,8 +30,11 @@ const isMobile = useIsMobile()
 
 const RECENCY_WINDOW_MS = 15 * 60 * 1000
 
-const refreshing = ref(false)
 const lastRefreshedAt = ref<string | null>(null)
+
+function formatCheckedTime(): string {
+  return new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+}
 
 const VALID_TABS = ['active', 'archived', 'all'] as const
 type TabKey = (typeof VALID_TABS)[number]
@@ -58,6 +61,7 @@ const bulkMoveToInboxMutation = useBulkMoveToInbox()
 const bulkLabelMutation = useBulkLabel()
 
 const loading = computed(() => threadListQuery.isLoading.value)
+const refreshing = computed(() => threadListQuery.isFetching.value)
 const error = computed(() => threadListQuery.error.value?.message ?? null)
 
 // Filter out threads that are optimistically hidden (deferred delete/block pending)
@@ -68,7 +72,6 @@ const allSelected = computed(
 )
 
 async function handleRefresh() {
-  refreshing.value = true
   await requestRefresh()
   // Prewarm signal cache for recent threads so dots appear without waiting for
   // each row's individual useSignalListQuery to refetch.
@@ -79,9 +82,17 @@ async function handleRefresh() {
   if (recentThreads.length > 0) {
     await prefetchSignals(recentThreads)
   }
-  lastRefreshedAt.value = new Date().toLocaleTimeString()
-  refreshing.value = false
 }
+
+// Update lastRefreshedAt whenever fetching completes (initial load, manual refresh, window focus, realtime, etc.)
+watch(
+  () => threadListQuery.isFetching.value,
+  (fetching, wasFetching) => {
+    if (wasFetching && !fetching) {
+      lastRefreshedAt.value = formatCheckedTime()
+    }
+  },
+)
 
 // Keyboard-navigable cursor through the thread list
 const focusedThreadId = ref<string | null>(null)
