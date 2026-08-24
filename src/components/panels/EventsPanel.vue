@@ -4,7 +4,7 @@ import type { EventsData } from '@/types/server'
 import { useClipboard } from '@/composables/useClipboard'
 import { formatResourceDate, dayKey } from '@/lib/resourceDate'
 
-const props = defineProps<{ data: EventsData }>()
+const props = defineProps<{ data: EventsData; compact?: boolean }>()
 const { copied, copy } = useClipboard()
 
 const typeLabel: Record<EventsData['eventType'], string> = {
@@ -40,7 +40,26 @@ const eventDateLabel = computed(() => {
 </script>
 
 <template>
-  <div class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
+  <!-- Compact: single row for inbox thread list -->
+  <div v-if="compact" class="flex items-center gap-2 text-xs">
+    <span class="shrink-0 text-ctp-subtext0">🎟️</span>
+    <span class="shrink-0 font-medium text-ctp-text">{{ data.eventName }}</span>
+    <span v-if="eventDateLabel" class="shrink-0" :class="eventDateLabel.urgent ? 'font-medium text-ctp-peach' : 'text-ctp-subtext0'">{{ eventDateLabel.text }}</span>
+    <span v-if="data.ticketReference" class="shrink-0 font-mono text-ctp-subtext0">{{ data.ticketReference }}</span>
+    <a
+      v-if="data.ticketUrl"
+      :href="data.ticketUrl"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="ml-auto shrink-0 text-ctp-blue hover:underline"
+      @click.stop
+    >
+      View ticket →
+    </a>
+  </div>
+
+  <!-- Full: detail view card -->
+  <div v-else class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
     <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
       <div>
         <span class="text-sm font-medium text-ctp-text">{{ data.eventName }}</span>
@@ -94,7 +113,7 @@ const eventDateLabel = computed(() => {
       rel="noopener noreferrer"
       class="mt-2 inline-block rounded border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-text hover:bg-ctp-surface1"
     >
-      View tickets →
+      View ticket →
     </a>
   </div>
 </template>

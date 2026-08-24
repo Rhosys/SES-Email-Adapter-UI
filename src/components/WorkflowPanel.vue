@@ -88,7 +88,7 @@ const showUnsubscribeFooter = computed(() =>
         <HealthcarePanel v-else-if="resolvedGroup!.workflow === 'healthcare'" :data="narrowWorkflowData('healthcare', entry)" :compact="compact" />
         <JobPanel v-else-if="resolvedGroup!.workflow === 'job'" :data="narrowWorkflowData('job', entry)" :actions="actionsForEntry(idx)" :compact="compact" />
         <SupportPanel v-else-if="resolvedGroup!.workflow === 'support'" :data="narrowWorkflowData('support', entry)" :compact="compact" />
-        <EventsPanel v-else-if="resolvedGroup!.workflow === 'events'" :data="narrowWorkflowData('events', entry)" />
+        <EventsPanel v-else-if="resolvedGroup!.workflow === 'events'" :data="narrowWorkflowData('events', entry)" :compact="compact" />
         <TestPanel v-else-if="resolvedGroup!.workflow === 'test'" :data="narrowWorkflowData('test', entry)" :compact="compact" />
       </template>
       <div v-if="showUnsubscribeFooter" class="flex items-center justify-between gap-3">
@@ -119,7 +119,7 @@ const showUnsubscribeFooter = computed(() =>
         <HealthcarePanel v-else-if="resolvedGroup!.workflow === 'healthcare'" :data="narrowWorkflowData('healthcare', visibleEntries[0].entry)" :compact="compact" />
         <JobPanel v-else-if="resolvedGroup!.workflow === 'job'" :data="narrowWorkflowData('job', visibleEntries[0].entry)" :actions="entryActions" :compact="compact" />
         <SupportPanel v-else-if="resolvedGroup!.workflow === 'support'" :data="narrowWorkflowData('support', visibleEntries[0].entry)" :compact="compact" />
-        <EventsPanel v-else-if="resolvedGroup!.workflow === 'events'" :data="narrowWorkflowData('events', visibleEntries[0].entry)" />
+        <EventsPanel v-else-if="resolvedGroup!.workflow === 'events'" :data="narrowWorkflowData('events', visibleEntries[0].entry)" :compact="compact" />
         <TestPanel v-else-if="resolvedGroup!.workflow === 'test'" :data="narrowWorkflowData('test', visibleEntries[0].entry)" :compact="compact" />
         <div class="flex items-center justify-between gap-3">
           <span class="text-xs text-ctp-subtext0">Don't want emails like this?</span>
@@ -148,7 +148,7 @@ const showUnsubscribeFooter = computed(() =>
         <HealthcarePanel v-else-if="resolvedGroup!.workflow === 'healthcare'" :data="narrowWorkflowData('healthcare', visibleEntries[0].entry)" :compact="compact" />
         <JobPanel v-else-if="resolvedGroup!.workflow === 'job'" :data="narrowWorkflowData('job', visibleEntries[0].entry)" :actions="entryActions" :compact="compact" />
         <SupportPanel v-else-if="resolvedGroup!.workflow === 'support'" :data="narrowWorkflowData('support', visibleEntries[0].entry)" :compact="compact" />
-        <EventsPanel v-else-if="resolvedGroup!.workflow === 'events'" :data="narrowWorkflowData('events', visibleEntries[0].entry)" />
+        <EventsPanel v-else-if="resolvedGroup!.workflow === 'events'" :data="narrowWorkflowData('events', visibleEntries[0].entry)" :compact="compact" />
         <TestPanel v-else-if="resolvedGroup!.workflow === 'test'" :data="narrowWorkflowData('test', visibleEntries[0].entry)" :compact="compact" />
       </template>
     </template>
