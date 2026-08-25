@@ -4,6 +4,12 @@ import type { JobData, SignalAction } from '@/types/server'
 
 const props = defineProps<{ data: JobData; actions: SignalAction[]; compact?: boolean }>()
 
+const primaryAction = computed(() => (props.data.actionUrl ? { url: props.data.actionUrl, text: null } : null) ?? props.actions[0] ?? null)
+const allActions = computed(() => {
+  if (!props.data.actionUrl) return props.actions
+  return props.actions.filter(a => a.url !== props.data.actionUrl)
+})
+
 type JobStage = 'submitted' | 'reviewing' | 'interview' | 'offer' | 'rejected'
 const stages: JobStage[] = ['submitted', 'reviewing', 'interview', 'offer', 'rejected']
 
@@ -63,14 +69,14 @@ const interviewLabel = computed(() => {
     <span v-if="currentStage" class="shrink-0" :class="stageClass[currentStage]">{{ stageLabel[currentStage] }}</span>
     <span v-if="interviewLabel" class="shrink-0 text-ctp-peach">{{ interviewLabel }}</span>
     <a
-      v-if="actions.length"
-      :href="actions[0]!.url"
+      v-if="primaryAction"
+      :href="primaryAction.url"
       target="_blank"
       rel="noopener noreferrer"
       class="ml-auto shrink-0 text-ctp-blue hover:underline"
       @click.stop
     >
-      {{ actions[0]!.text ?? 'View →' }}
+      {{ primaryAction.text ?? 'View →' }}
     </a>
   </div>
 
@@ -119,9 +125,18 @@ const interviewLabel = computed(() => {
       Interview: {{ interviewLabel }}
     </p>
 
-    <div v-if="actions.length" class="mt-3 flex flex-col gap-1">
+    <div v-if="primaryAction || allActions.length" class="mt-3 flex flex-col gap-1">
       <a
-        v-for="action in actions"
+        v-if="primaryAction"
+        :href="primaryAction.url"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-xs text-ctp-blue hover:underline"
+      >
+        {{ primaryAction.text ?? 'View application →' }}
+      </a>
+      <a
+        v-for="action in allActions"
         :key="action.url"
         :href="action.url"
         target="_blank"

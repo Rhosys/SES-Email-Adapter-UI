@@ -1,7 +1,15 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { AlertData, SignalAction } from '@/types/server'
 
-defineProps<{ data: AlertData; actions: SignalAction[]; compact?: boolean }>()
+const props = defineProps<{ data: AlertData; actions: SignalAction[]; compact?: boolean }>()
+
+const primaryAction = computed(() => (props.data.actionUrl ? { url: props.data.actionUrl, text: null } : null) ?? props.actions[0] ?? null)
+const allActions = computed(() => {
+  if (!props.data.actionUrl) return props.actions
+  // actionUrl is rendered as primary — show remaining actions as secondary
+  return props.actions.filter(a => a.url !== props.data.actionUrl)
+})
 
 const alertTypeLabel: Record<AlertData['alertType'], string> = {
   suspicious_login: 'Suspicious login detected',
@@ -59,14 +67,14 @@ const severityClass = (severity?: AlertData['severity']) => {
       {{ data.severity }}
     </span>
     <a
-      v-if="data.requiresAction && actions.length"
-      :href="actions[0]!.url"
+      v-if="data.requiresAction && primaryAction"
+      :href="primaryAction.url"
       target="_blank"
       rel="noopener noreferrer"
       class="ml-auto shrink-0 rounded bg-ctp-red px-2 py-0.5 text-xs font-medium text-ctp-base hover:opacity-90"
       @click.stop
     >
-      {{ actions[0]!.text ?? 'Investigate →' }}
+      {{ primaryAction.text ?? 'Investigate →' }}
     </a>
   </div>
 
@@ -127,9 +135,18 @@ const severityClass = (severity?: AlertData['severity']) => {
     </div>
 
     <!-- Actions -->
-    <div v-if="data.requiresAction && actions.length" class="flex gap-2">
+    <div v-if="data.requiresAction && (primaryAction || allActions.length)" class="flex gap-2">
       <a
-        v-for="action in actions"
+        v-if="primaryAction"
+        :href="primaryAction.url"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="rounded bg-ctp-red px-3 py-1.5 text-xs font-medium text-ctp-base hover:opacity-90"
+      >
+        {{ primaryAction.text ?? 'Investigate →' }}
+      </a>
+      <a
+        v-for="action in allActions"
         :key="action.url"
         :href="action.url"
         target="_blank"

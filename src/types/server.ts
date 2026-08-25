@@ -440,6 +440,7 @@ export interface AlertData {
   service: string
   severity?: 'info' | 'warning' | 'critical'
   requiresAction: boolean
+  actionUrl?: string
   ipAddress?: string
   location?: string
   deviceName?: string
@@ -481,6 +482,7 @@ export interface JobData {
   salary?: string
   interviewDate?: string
   applicationStatus?: 'submitted' | 'reviewing' | 'interview' | 'offer' | 'rejected'
+  actionUrl?: string
 }
 
 export interface SupportData {

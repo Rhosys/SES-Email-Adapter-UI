@@ -6,7 +6,7 @@ import { useClipboard } from '@/composables/useClipboard'
 
 const props = defineProps<{ data: AuthData; actions: SignalAction[]; receivedAt: string; compact?: boolean }>()
 
-const action = computed(() => props.actions[0] ?? (props.data.actionUrl ? { url: props.data.actionUrl, text: null } : null))
+const action = computed(() => (props.data.actionUrl ? { url: props.data.actionUrl, text: null } : null) ?? props.actions[0] ?? null)
 
 const authTypeLabel: Record<AuthData['authType'], string> = {
   two_factor: 'Two-factor code',
