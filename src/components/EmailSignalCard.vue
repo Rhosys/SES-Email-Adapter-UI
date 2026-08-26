@@ -11,6 +11,7 @@ import { api } from '@/lib/api'
 import ActionBadge from '@/components/ActionBadge.vue'
 import CopyMenuItem from '@/components/CopyMenuItem.vue'
 import OverflowMenu from '@/components/ui/OverflowMenu.vue'
+import JsonView from '@/components/ui/JsonView.vue'
 
 const props = withDefaults(defineProps<{ signal: Signal; defaultExpanded?: boolean }>(), { defaultExpanded: true })
 const emit = defineEmits<{ reply: []; reprocessed: [] }>()
@@ -126,7 +127,8 @@ const subjectLine = computed(() => {
   return props.signal.data.subject
 })
 
-const signalObjectJson = ref('')
+const signalObjectData = ref<Signal | null>(null)
+const signalObjectJson = computed(() => (signalObjectData.value ? JSON.stringify(signalObjectData.value, null, 2) : ''))
 const showSignalObjectModal = ref(false)
 const showOriginalModal = ref(false)
 const showMatchedRulesModal = ref(false)
@@ -148,14 +150,14 @@ function viewSignalObject() {
   showSignalObjectModal.value = true
   signalObjectError.value = null
 
-  if (signalObjectJson.value) return
+  if (signalObjectData.value) return
 
   const threadId = props.signal.threadId ?? (props.signal.status === 'block_hidden' || props.signal.status === 'block_reject' ? 'BLOCKED' : 'QUARANTINED')
   signalObjectLoading.value = true
   void api.getSignal(accountStore.accountId, threadId, props.signal.signalId).then((result) => {
     signalObjectLoading.value = false
     if (result.isOk()) {
-      signalObjectJson.value = JSON.stringify(result.value, null, 2)
+      signalObjectData.value = result.value
     } else {
       signalObjectError.value = result.error.message
     }
@@ -535,7 +537,7 @@ const iframeStyle = {
         <div v-else-if="signalObjectError" class="p-4">
           <span class="text-sm text-ctp-red">{{ signalObjectError }}</span>
         </div>
-        <pre v-else class="overflow-auto rounded-lg bg-ctp-base p-3 font-mono text-xs text-ctp-text break-all whitespace-pre-wrap">{{ signalObjectJson }}</pre>
+        <JsonView v-else :data="signalObjectData" />
       </div>
     </div>
   </Teleport>

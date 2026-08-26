@@ -5,6 +5,7 @@ import { useAccountStore } from '@/stores/account'
 import { useLogStore } from '@/stores/logs'
 import { getUndoExpiresAt } from '@/composables/usePendingSend'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
+import JsonView from '@/components/ui/JsonView.vue'
 import BuildInfo from '@/components/BuildInfo.vue'
 import type { Thread, Signal, HealthCheckValidation, HealthCheckStatus } from '@/types/server'
 
@@ -319,7 +320,7 @@ async function lookup() {
     <!-- Thread JSON -->
     <section v-if="displayedThread">
       <h3 class="mb-2 text-sm font-medium text-ctp-subtext1">Thread</h3>
-      <pre class="overflow-x-auto rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4 text-xs text-ctp-text">{{ JSON.stringify(displayedThread, null, 2) }}</pre>
+      <JsonView :data="displayedThread" />
     </section>
     <section v-else-if="displayedSignal && !displayedSignal.threadId">
       <h3 class="mb-2 text-sm font-medium text-ctp-subtext1">Thread</h3>
@@ -364,7 +365,7 @@ async function lookup() {
         </AsyncButton>
       </div>
 
-      <pre class="overflow-x-auto rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4 text-xs text-ctp-text">{{ JSON.stringify(displayedSignal, null, 2) }}</pre>
+      <JsonView :data="displayedSignal" />
     </section>
 
     <!-- Raw email -->
