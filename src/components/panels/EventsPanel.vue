@@ -7,14 +7,6 @@ import { formatResourceDate, dayKey } from '@/lib/resourceDate'
 const props = defineProps<{ data: EventsData; compact?: boolean }>()
 const { copied, copy } = useClipboard()
 
-const typeLabel: Record<EventsData['eventType'], string> = {
-  ticket_confirmation: 'Ticket confirmed',
-  reminder: 'Reminder',
-  update: 'Update',
-  cancellation: 'Cancelled',
-  venue_change: 'Venue changed',
-}
-
 const formattedAmount = computed(() => {
   if (!props.data.totalAmount) return null
   const num = parseFloat(props.data.totalAmount)
@@ -63,7 +55,6 @@ const eventDateLabel = computed(() => {
     <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
       <div>
         <span class="text-sm font-medium text-ctp-text">{{ data.eventName }}</span>
-        <span class="ml-2 text-xs text-ctp-subtext0">{{ typeLabel[data.eventType] }}</span>
       </div>
 
       <div v-if="data.ticketReference" class="flex items-center gap-1">
