@@ -70,14 +70,60 @@ function renderNodeValue(opt: { node: NodeDataType; defaultValue: unknown }): un
 <style scoped>
 .json-view :deep(.vjs-tree) {
   font-family: inherit;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: var(--ctp-text);
   background: transparent;
+}
+.json-view :deep(.vjs-tree-node) {
+  line-height: 28px;
+  border-radius: 6px;
+}
+.json-view :deep(.vjs-tree-node.has-carets) {
+  padding-left: 26px;
+}
+.json-view :deep(.vjs-tree-node.has-carets.has-selector),
+.json-view :deep(.vjs-tree-node.has-selector) {
+  padding-left: 40px;
 }
 .json-view :deep(.vjs-tree-node:hover),
 .json-view :deep(.vjs-tree-node.is-highlight) {
   background-color: var(--ctp-surface0);
 }
+
+/* Expand/collapse caret: the library renders a tiny absolutely-positioned
+   icon, so enlarge its hit area with padding + a matching negative margin
+   (safe because it's out of flow) rather than reflowing the row. */
+.json-view :deep(.vjs-carets) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  margin: -8px;
+  border-radius: 6px;
+  color: var(--ctp-subtext0);
+}
+.json-view :deep(.vjs-carets svg) {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+.json-view :deep(.vjs-carets:hover) {
+  background-color: var(--ctp-surface1);
+  color: var(--ctp-text);
+}
+
+/* Collapsed {…}/[…] summary is also a toggle — give it a visible, larger
+   click target instead of bare tiny text. */
+.json-view :deep(.vjs-tree-brackets) {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--ctp-subtext0);
+}
+.json-view :deep(.vjs-tree-brackets:hover) {
+  background-color: var(--ctp-surface1);
+  color: var(--ctp-text);
+}
+
 .json-view :deep(.vjs-key) {
   color: var(--ctp-subtext1);
 }
@@ -96,10 +142,16 @@ function renderNodeValue(opt: { node: NodeDataType; defaultValue: unknown }): un
   color: var(--ctp-overlay0);
 }
 .json-view :deep(.json-view-truncated) {
+  display: inline-block;
   cursor: pointer;
+  padding: 4px 8px;
+  margin: -4px 0;
+  border-radius: 4px;
   color: var(--ctp-peach);
+  background-color: var(--ctp-surface0);
 }
 .json-view :deep(.json-view-truncated:hover) {
+  background-color: var(--ctp-surface1);
   text-decoration: underline;
 }
 </style>
