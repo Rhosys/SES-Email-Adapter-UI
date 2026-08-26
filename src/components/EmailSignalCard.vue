@@ -8,7 +8,6 @@ import { isAdminUser } from '@/stores/admin'
 import { useRulesQuery } from '@/composables/useRulesQueries'
 import { useSignalStoreMutator } from '@/composables/useSignalQueries'
 import { api } from '@/lib/api'
-import { stripAttachmentsFromRawEmail } from '@/lib/stripAttachments'
 import ActionBadge from '@/components/ActionBadge.vue'
 import CopyMenuItem from '@/components/CopyMenuItem.vue'
 import OverflowMenu from '@/components/ui/OverflowMenu.vue'
@@ -143,10 +142,6 @@ const hasOriginalEmail = computed(() => {
   const s = props.signal.status
   return s !== 'report_violation'
 })
-
-// Attachment bodies (base64) are stripped for display — Copy and Download still
-// use the untouched originalEmailSource so the .eml stays a faithful reproduction.
-const displayedOriginalEmail = computed(() => stripAttachmentsFromRawEmail(originalEmailSource.value))
 
 function viewSignalObject() {
   if (!accountStore.accountId) return
@@ -592,7 +587,7 @@ const iframeStyle = {
         <div v-else-if="originalError" class="p-4">
           <span class="text-sm text-ctp-red">{{ originalError }}</span>
         </div>
-        <pre v-else class="max-h-[80vh] overflow-auto p-4 font-mono text-xs text-ctp-text break-all whitespace-pre-wrap">{{ displayedOriginalEmail }}</pre>
+        <pre v-else class="max-h-[80vh] overflow-auto p-4 font-mono text-xs text-ctp-text break-all whitespace-pre-wrap">{{ originalEmailSource }}</pre>
       </div>
     </div>
   </Teleport>
