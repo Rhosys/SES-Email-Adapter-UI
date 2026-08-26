@@ -146,7 +146,7 @@ const originalEmailDisplay = computed(() => {
   let counter = 0
   return originalEmailSource.value.replace(
     /(Content-Transfer-Encoding:\s*base64\s*\r?\n\r?\n)([\s\S]*?)(?=\r?\n--)/gi,
-    (_match, headers: string, _payload: string) => {
+    (_match, headers: string) => {
       counter++
       return `${headers}[[ ATTACHMENT #${counter} ]]\n`
     },
