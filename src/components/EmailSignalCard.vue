@@ -137,6 +137,21 @@ const originalCopied = ref(false)
 const originalEmailSource = ref('')
 const originalLoading = ref(false)
 const originalError = ref<string | null>(null)
+
+// Strip base64 attachment payloads for display — replaces long encoded blocks
+// with numbered placeholders so the modal stays readable. The full unmodified
+// source is preserved in originalEmailSource for download/copy.
+const originalEmailDisplay = computed(() => {
+  if (!originalEmailSource.value) return ''
+  let counter = 0
+  return originalEmailSource.value.replace(
+    /(Content-Transfer-Encoding:\s*base64\s*\r?\n\r?\n)([\s\S]*?)(?=\r?\n--)/gi,
+    (_match, headers: string, _payload: string) => {
+      counter++
+      return `${headers}[[ ATTACHMENT #${counter} ]]\n`
+    },
+  )
+})
 const signalObjectLoading = ref(false)
 const signalObjectError = ref<string | null>(null)
 
@@ -599,7 +614,7 @@ const iframeStyle = {
         <div v-else-if="originalError" class="p-4">
           <span class="text-sm text-ctp-red">{{ originalError }}</span>
         </div>
-        <pre v-else class="max-h-[80vh] overflow-auto p-4 font-mono text-xs text-ctp-text break-all whitespace-pre-wrap">{{ originalEmailSource }}</pre>
+        <pre v-else class="max-h-[80vh] overflow-auto p-4 font-mono text-xs text-ctp-text break-all whitespace-pre-wrap">{{ originalEmailDisplay }}</pre>
       </div>
     </div>
   </Teleport>
