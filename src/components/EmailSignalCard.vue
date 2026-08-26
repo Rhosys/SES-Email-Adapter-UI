@@ -522,13 +522,21 @@ const iframeStyle = {
   <!-- Signal object modal -->
   <Teleport to="body">
     <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -->
-    <div v-if="showSignalObjectModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80" @click.self="showSignalObjectModal = false">
-      <div class="relative max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl border border-ctp-surface1 bg-ctp-mantle p-4 shadow-2xl">
-        <div class="mb-3 flex items-center justify-between">
+    <div v-if="showSignalObjectModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-ctp-base/80 p-2 sm:p-4" @click.self="showSignalObjectModal = false">
+      <div class="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-ctp-surface1 bg-ctp-mantle shadow-2xl">
+        <div class="flex items-center justify-between border-b border-ctp-surface0 bg-ctp-mantle px-4 py-3">
           <h3 class="text-sm font-semibold text-ctp-text">Signal object</h3>
-          <div class="flex items-center gap-3">
-            <button v-if="signalObjectJson" class="text-xs text-ctp-subtext0 hover:text-ctp-mauve" @click="copySignalObject">{{ signalObjectCopied ? '✓ Copied' : 'Copy' }}</button>
-            <button class="text-xs text-ctp-subtext0 hover:text-ctp-text" @click="showSignalObjectModal = false">Close</button>
+          <div class="flex items-center gap-2">
+            <button
+              v-if="signalObjectJson"
+              class="rounded-md px-3 py-2 text-xs text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-mauve"
+              @click="copySignalObject"
+            >
+              {{ signalObjectCopied ? '✓ Copied' : 'Copy' }}
+            </button>
+            <button class="rounded-md px-3 py-2 text-xs text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text" @click="showSignalObjectModal = false">
+              Close
+            </button>
           </div>
         </div>
         <div v-if="signalObjectLoading" class="flex items-center justify-center p-8">
@@ -537,7 +545,9 @@ const iframeStyle = {
         <div v-else-if="signalObjectError" class="p-4">
           <span class="text-sm text-ctp-red">{{ signalObjectError }}</span>
         </div>
-        <JsonView v-else :data="signalObjectData" />
+        <div v-else class="overflow-auto p-4">
+          <JsonView :data="signalObjectData" />
+        </div>
       </div>
     </div>
   </Teleport>
