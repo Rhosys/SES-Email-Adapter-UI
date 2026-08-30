@@ -47,6 +47,12 @@ const dueDateLabel = computed(() => {
     return { text: `Due in ${diff} day${diff === 1 ? '' : 's'}`, urgent: true, overdue: false }
   return { text: `Due ${d.toLocaleDateString()}`, urgent: false, overdue: false }
 })
+
+const formattedDate = computed(() => {
+  const d = new Date(props.data.date)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleDateString()
+})
 </script>
 
 <template>
@@ -57,6 +63,7 @@ const dueDateLabel = computed(() => {
     <span class="shrink-0 text-ctp-subtext0">{{ typeLabel[data.paymentType] }}</span>
     <span v-if="formattedAmount" class="shrink-0 font-medium" :class="data.paymentType === 'refund' ? 'text-ctp-green' : 'text-ctp-text'">{{ formattedAmount }}</span>
     <span v-if="dueDateLabel" class="shrink-0" :class="dueDateLabel.urgent ? 'text-ctp-red' : 'text-ctp-subtext0'">{{ dueDateLabel.text }}</span>
+    <span v-if="formattedDate && !dueDateLabel" class="shrink-0 text-ctp-subtext0">{{ formattedDate }}</span>
     <a
       v-if="data.managementUrl && isActionRequired"
       :href="data.managementUrl"
@@ -144,6 +151,10 @@ const dueDateLabel = computed(() => {
       :class="dueDateLabel.urgent ? 'font-medium text-ctp-red' : 'text-ctp-subtext0'"
     >
       {{ dueDateLabel.text }}
+    </p>
+
+    <p v-if="formattedDate && !dueDateLabel" class="mt-2 text-xs text-ctp-subtext0">
+      Paid on {{ formattedDate }}
     </p>
 
     <div v-if="data.accountLastFour" class="mt-1 text-xs text-ctp-subtext0">

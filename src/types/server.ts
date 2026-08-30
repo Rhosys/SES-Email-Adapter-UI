@@ -426,6 +426,7 @@ export interface TravelData {
 export interface PaymentsData {
   paymentType: 'invoice' | 'receipt' | 'subscription_renewal' | 'payment_failed' | 'plan_changed' | 'tax' | 'wire_transfer' | 'refund' | 'statement' | 'other'
   vendor: string
+  date: string
   amount?: string
   currency?: string
   dueDate?: string
