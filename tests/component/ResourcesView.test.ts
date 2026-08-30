@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { ok } from 'neverthrow'
@@ -16,16 +16,21 @@ vi.mock('@/lib/api', () => ({
 
 import { api } from '@/lib/api'
 
+// Pin the clock so date-relative filtering in useAllResourcesQuery and
+// ResourcesView.visibleResources never drifts. All mock dates are relative
+// to this anchor.
+const NOW = new Date('2026-06-15T12:00:00Z')
+
 function mockResource(overrides: Partial<Resource> = {}): Resource {
   return {
     resourceId: 'res_1',
     threadId: 'thread_1',
     workflow: 'package',
     status: 'active',
-    expectedResolutionDate: '2027-06-15',
+    expectedResolutionDate: '2026-06-20',
     assets: [],
-    createdAt: '2026-08-01T00:00:00Z',
-    updatedAt: '2026-08-01T00:00:00Z',
+    createdAt: '2026-06-01T00:00:00Z',
+    updatedAt: '2026-06-01T00:00:00Z',
     ...overrides,
   }
 }
@@ -53,6 +58,8 @@ async function mountView() {
 
 describe('ResourcesView', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
     setActivePinia(createPinia())
     vi.clearAllMocks()
     const accountStore = useAccountStore()
@@ -63,6 +70,10 @@ describe('ResourcesView', () => {
       createdAt: '2025-01-01T00:00:00Z',
       updatedAt: '2025-01-01T00:00:00Z',
     }
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('fetches all resources regardless of status', async () => {
