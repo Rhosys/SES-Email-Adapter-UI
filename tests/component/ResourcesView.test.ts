@@ -22,7 +22,7 @@ function mockResource(overrides: Partial<Resource> = {}): Resource {
     threadId: 'thread_1',
     workflow: 'package',
     status: 'active',
-    expectedResolutionDate: '2026-08-20',
+    expectedResolutionDate: '2027-06-15',
     assets: [],
     createdAt: '2026-08-01T00:00:00Z',
     updatedAt: '2026-08-01T00:00:00Z',
