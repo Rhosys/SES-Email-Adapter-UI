@@ -36,17 +36,19 @@ const signal = computed(() =>
   ) ?? null,
 )
 
-const notFound = computed(() => !isLoading.value && !signal.value)
-
 const inboundData = computed(() => (signal.value && isInboundEmailSignal(signal.value) ? signal.value.data : null))
 const matchedRules = computed(() => inboundData.value?.matchedRules ?? [])
 
 const allowMutation = useAllowQuarantinedSignal()
 const rejectMutation = useRejectQuarantinedSignal()
 const dismissMutation = useDismissQuarantinedSignal()
-// Disable all three actions while any one is in flight — each mutation already tracks its own
-// pending state, so there's no need to hand-roll a separate pending flag.
-const pending = computed(() => allowMutation.isPending.value || rejectMutation.isPending.value || dismissMutation.isPending.value)
+// Stays true from the moment an action starts until we've navigated away, covering the gap
+// between mutation success (signal drops out of the cache) and the redirect completing —
+// otherwise the "no longer in quarantine" message flashes during that gap.
+const actionInFlight = ref(false)
+const pending = computed(() => actionInFlight.value || allowMutation.isPending.value || rejectMutation.isPending.value || dismissMutation.isPending.value)
+
+const notFound = computed(() => !isLoading.value && !signal.value && !pending.value)
 
 const expandedRuleIds = ref<Set<string>>(new Set())
 function toggleRule(ruleId: string) {
@@ -62,22 +64,42 @@ function ruleFor(ruleId: string) {
 
 async function allow() {
   if (!signal.value) return
-  const result = await allowMutation.mutateAsync(signal.value.signalId)
-  if (result.thread?.threadId) {
-    void router.push({ name: 'thread-detail', params: { id: result.thread.threadId } })
+  actionInFlight.value = true
+  try {
+    const result = await allowMutation.mutateAsync(signal.value.signalId)
+    if (result.thread?.threadId) {
+      void router.push({ name: 'thread-detail', params: { id: result.thread.threadId } })
+    } else {
+      actionInFlight.value = false
+    }
+  } catch (e) {
+    actionInFlight.value = false
+    throw e
   }
 }
 
 async function reject() {
   if (!signal.value) return
-  await rejectMutation.mutateAsync(signal.value.signalId)
-  void router.push('/quarantine')
+  actionInFlight.value = true
+  try {
+    await rejectMutation.mutateAsync(signal.value.signalId)
+    void router.push('/quarantine')
+  } catch (e) {
+    actionInFlight.value = false
+    throw e
+  }
 }
 
 async function dismiss() {
   if (!signal.value) return
-  await dismissMutation.mutateAsync(signal.value.signalId)
-  void router.push('/quarantine')
+  actionInFlight.value = true
+  try {
+    await dismissMutation.mutateAsync(signal.value.signalId)
+    void router.push('/quarantine')
+  } catch (e) {
+    actionInFlight.value = false
+    throw e
+  }
 }
 
 const showReplyBlockedDialog = ref(false)
