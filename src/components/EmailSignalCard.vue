@@ -149,6 +149,7 @@ const originalCopied = ref(false)
 const originalEmailSource = ref('')
 const originalLoading = ref(false)
 const originalError = ref<string | null>(null)
+const downloadPending = ref(false)
 
 // Strip base64 attachment payloads for display — replaces long encoded blocks
 // with numbered placeholders so the modal stays readable. The full unmodified
@@ -200,12 +201,12 @@ function viewOriginalEmail() {
   if (!accountStore.accountId) return
   const threadId = props.signal.threadId ?? (props.signal.status === 'block_hidden' || props.signal.status === 'block_reject' ? 'BLOCKED' : 'QUARANTINED')
   originalLoading.value = true
-  void api.getRawEmail(accountStore.accountId, threadId, props.signal.signalId).then((result) => {
+  void api.getRawEmailForDisplay(accountStore.accountId, threadId, props.signal.signalId).then((result) => {
     originalLoading.value = false
     if (result.isOk()) {
       originalEmailSource.value = result.value
     } else {
-      originalError.value = result.error.message
+      originalError.value = 'This email cannot be rendered at the moment.'
     }
   })
 }
@@ -226,10 +227,21 @@ function copyOriginalHtml() {
   })
 }
 
-function downloadOriginalEmail() {
-  if (!originalEmailSource.value) return
-  const blob = new Blob([originalEmailSource.value], { type: 'message/rfc822' })
-  const url = URL.createObjectURL(blob)
+// Downloads the TRUE original email (not the stripped display copy). Fetches its own bytes
+// via ?type=original, independent of whether the view modal was opened. The display copy shown
+// in the modal is deliberately NOT reused here — it has attachments stripped.
+async function downloadOriginalEmail() {
+  if (!accountStore.accountId || downloadPending.value) return
+  downloadPending.value = true
+  originalError.value = null
+  const threadId = props.signal.threadId ?? (props.signal.status === 'block_hidden' || props.signal.status === 'block_reject' ? 'BLOCKED' : 'QUARANTINED')
+  const result = await api.getOriginalEmailBlob(accountStore.accountId, threadId, props.signal.signalId)
+  downloadPending.value = false
+  if (result.isErr()) {
+    originalError.value = 'The original email could not be downloaded at the moment.'
+    return
+  }
+  const url = URL.createObjectURL(result.value)
   const a = document.createElement('a')
   a.href = url
   const filename = isEmailSignal(props.signal) && props.signal.data.subject
@@ -600,9 +612,9 @@ const iframeStyle = {
               {{ originalCopied ? 'Copied' : 'Copy' }}
             </button>
             <button
-              v-if="originalEmailSource"
-              class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-mauve"
-              title="Download as .eml file"
+              class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-mauve disabled:opacity-50"
+              title="Download the original email as a .eml file"
+              :disabled="downloadPending"
               @click="downloadOriginalEmail"
             >
               <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -610,7 +622,7 @@ const iframeStyle = {
                 <polyline points="7 10 12 15 17 10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
-              Download
+              {{ downloadPending ? 'Downloading…' : 'Download' }}
             </button>
             <button
               class="rounded-md px-2.5 py-1.5 text-xs text-ctp-subtext0 hover:bg-ctp-surface0 hover:text-ctp-text"

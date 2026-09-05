@@ -781,10 +781,15 @@ export const api = {
     return request<HealthCheckValidation>('/healthcheck')
   },
 
-  async getRawEmail(accountId: string, threadId: string, signalId: string): Promise<Result<string, ApiError>> {
+  // Fetches the sanitized, display-safe copy of the raw email as text (attachments stripped)
+  // for the "view original" modal. The endpoint 307-redirects to the content CDN; the browser
+  // follows it transparently. A failure here is a real problem (the display copy should always
+  // exist for a delivered email), so it logs at ERROR — the UI shows an "unavailable" notice
+  // but download of the true original stays available on its own path.
+  async getRawEmailForDisplay(accountId: string, threadId: string, signalId: string): Promise<Result<string, ApiError>> {
     try {
       const token = await loginClient.ensureToken()
-      const res = await fetch(`${BASE}/accounts/${accountId}/threads/${threadId}/signals/${signalId}/raw`, {
+      const res = await fetch(`${BASE}/accounts/${accountId}/threads/${threadId}/signals/${signalId}/raw?type=display`, {
         headers: { Authorization: `Bearer ${token}` },
         redirect: 'follow',
       })
@@ -792,7 +797,27 @@ export const api = {
       return ok(await res.text())
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Network error'
-      logger.warn({ title: 'Failed to fetch raw email', accountId, threadId, signalId, error: message })
+      logger.error({ title: 'Failed to fetch raw email for display', accountId, threadId, signalId, error: message })
+      return err(new ApiError(0, message))
+    }
+  },
+
+  // Fetches the TRUE, unmodified original email as bytes for download. The endpoint
+  // 307-redirects to a short-lived presigned S3 URL; the browser follows it (the presigned URL
+  // carries its own auth, so the stripped Authorization header on the cross-origin hop is fine).
+  // Returned as a Blob so the caller can trigger a download with a chosen filename.
+  async getOriginalEmailBlob(accountId: string, threadId: string, signalId: string): Promise<Result<Blob, ApiError>> {
+    try {
+      const token = await loginClient.ensureToken()
+      const res = await fetch(`${BASE}/accounts/${accountId}/threads/${threadId}/signals/${signalId}/raw?type=original`, {
+        headers: { Authorization: `Bearer ${token}` },
+        redirect: 'follow',
+      })
+      if (!res.ok) return err(new ApiError(res.status, `Failed to fetch original email: ${res.status}`))
+      return ok(await res.blob())
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Network error'
+      logger.error({ title: 'Failed to fetch original email', accountId, threadId, signalId, error: message })
       return err(new ApiError(0, message))
     }
   },

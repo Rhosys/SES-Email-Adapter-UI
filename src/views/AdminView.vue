@@ -186,7 +186,7 @@ async function lookup() {
 
   // Fetch raw email
   const rawThreadId = signalResult.value.threadId ?? 'QUARANTINED'
-  const rawResult = await api.getRawEmail(accountId, rawThreadId, id)
+  const rawResult = await api.getRawEmailForDisplay(accountId, rawThreadId, id)
   if (rawResult.isOk()) {
     rawEmail.value = rawResult.value
   }
