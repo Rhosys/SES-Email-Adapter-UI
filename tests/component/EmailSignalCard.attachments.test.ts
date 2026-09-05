@@ -130,7 +130,7 @@ describe('EmailSignalCard — attachments', () => {
     expect(downloadLink!.getAttribute('download')).toBe('photo.png')
   })
 
-  it('renders a PDF preview in an iframe when clicking a PDF attachment', async () => {
+  it('renders a PDF preview in an object element when clicking a PDF attachment', async () => {
     const wrapper = await mountCard(
       mockEmailSignal({
         data: {
@@ -145,8 +145,28 @@ describe('EmailSignalCard — attachments', () => {
     const chip = wrapper.findAll('button').find((b) => b.text().includes('invoice.pdf'))!
     await chip.trigger('click')
 
-    const iframe = document.body.querySelector('iframe[src="https://cdn.example.com/att_4"]')
-    expect(iframe).not.toBeNull()
+    const pdf = document.body.querySelector('object[data="https://cdn.example.com/att_4"]')
+    expect(pdf).not.toBeNull()
+    expect(pdf!.getAttribute('type')).toBe('application/pdf')
+  })
+
+  it('previews a PDF whose mimeType is a generic octet-stream by falling back to the .pdf extension', async () => {
+    const wrapper = await mountCard(
+      mockEmailSignal({
+        data: {
+          ...mockEmailSignal().data,
+          attachments: [
+            { filename: 'statement.pdf', mimeType: 'application/octet-stream', sizeBytes: 9000, url: 'https://cdn.example.com/att_pdf_fallback' },
+          ],
+        },
+      } as Partial<Signal>),
+    )
+
+    const chip = wrapper.findAll('button').find((b) => b.text().includes('statement.pdf'))!
+    await chip.trigger('click')
+
+    const pdf = document.body.querySelector('object[data="https://cdn.example.com/att_pdf_fallback"]')
+    expect(pdf).not.toBeNull()
   })
 
   it('shows a "no preview available" fallback for an unsupported file type', async () => {

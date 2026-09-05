@@ -108,14 +108,26 @@ function attachmentIcon(mimeType: string): string {
 
 type AttachmentPreviewKind = 'image' | 'pdf' | 'none'
 
-function attachmentPreviewKind(mimeType: string): AttachmentPreviewKind {
+// Decide how to preview by content type first, falling back to the filename extension.
+// The extension fallback is defensive: messages stored before the backend began recovering
+// mislabeled content types can still carry a generic `application/octet-stream` on a real
+// PDF/image, and we'd rather render it than show "no preview" for a file that clearly is one.
+function attachmentPreviewKind(mimeType: string, filename: string): AttachmentPreviewKind {
   if (mimeType.startsWith('image/')) return 'image'
   if (mimeType === 'application/pdf') return 'pdf'
+
+  const ext = filename.toLowerCase().split('.').pop() ?? ''
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) return 'image'
+  if (ext === 'pdf') return 'pdf'
   return 'none'
 }
 
 const previewAttachment = ref<Attachment | null>(null)
-const previewKind = computed(() => (previewAttachment.value ? attachmentPreviewKind(previewAttachment.value.mimeType) : 'none'))
+const previewKind = computed<AttachmentPreviewKind>(() =>
+  previewAttachment.value
+    ? attachmentPreviewKind(previewAttachment.value.mimeType, previewAttachment.value.filename)
+    : 'none',
+)
 
 function openAttachmentPreview(att: Attachment) {
   if (!att.url) return
@@ -678,12 +690,21 @@ const iframeStyle = {
             :alt="previewAttachment.filename"
             class="mx-auto max-h-[80vh] max-w-full object-contain"
           />
-          <iframe
+          <object
             v-else-if="previewKind === 'pdf'"
-            :src="previewAttachment.url"
+            :data="previewAttachment.url"
+            type="application/pdf"
             :title="previewAttachment.filename"
             class="h-[80vh] w-full"
-          />
+          >
+            <!-- Shown when the browser cannot render the PDF inline (no plugin, blocked, or a
+                 still-mislabeled object) — a blank frame would otherwise look like a broken app. -->
+            <div class="flex h-[40vh] flex-col items-center justify-center gap-2 text-center text-sm text-ctp-subtext0">
+              <span class="text-4xl" aria-hidden="true">📄</span>
+              <p>This PDF can't be previewed here.</p>
+              <p>{{ formatAttachmentSize(previewAttachment.sizeBytes) }} — use Download to open it.</p>
+            </div>
+          </object>
           <div v-else class="flex h-[40vh] flex-col items-center justify-center gap-2 text-center text-sm text-ctp-subtext0">
             <span class="text-4xl" aria-hidden="true">{{ attachmentIcon(previewAttachment.mimeType) }}</span>
             <p>No preview available for this file type.</p>
