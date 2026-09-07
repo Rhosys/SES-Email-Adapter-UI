@@ -40,6 +40,16 @@ const isResolved = computed(() =>
   ['ticket_resolved', 'ticket_closed'].includes(props.data.eventType),
 )
 const isAwaiting = computed(() => props.data.eventType === 'awaiting_response')
+
+function segmentClass(i: number): string {
+  if (isResolved.value) return i <= activeIndex.value ? 'bg-ctp-green' : 'bg-ctp-surface1'
+  if (isAwaiting.value) {
+    if (i < activeIndex.value) return 'bg-ctp-blue'
+    if (i === activeIndex.value) return 'bg-ctp-peach'
+    return 'bg-ctp-surface1'
+  }
+  return i <= activeIndex.value ? 'bg-ctp-blue' : 'bg-ctp-surface1'
+}
 </script>
 
 <template>
@@ -104,31 +114,27 @@ const isAwaiting = computed(() => props.data.eventType === 'awaiting_response')
     </div>
 
     <!-- Ticket status bar -->
-    <div class="mb-3 flex items-center gap-0">
-      <template v-for="(step, i) in steps" :key="step">
-        <div class="flex flex-col items-center">
-          <div
-            class="h-2.5 w-2.5 rounded-full border-2 transition-colors"
-            :class="
-              i <= activeIndex
-                ? isResolved
-                  ? 'border-ctp-green bg-ctp-green'
-                  : isAwaiting && i === activeIndex
-                    ? 'border-ctp-peach bg-ctp-peach'
-                    : 'border-ctp-blue bg-ctp-blue'
-                : 'border-ctp-overlay0 bg-transparent'
-            "
-          />
-          <span class="mt-1 text-xs text-ctp-subtext0" style="white-space: nowrap">
-            {{ stepLabels[step] }}
-          </span>
-        </div>
+    <div class="mb-3">
+      <div class="mb-1.5 flex gap-1">
         <div
-          v-if="i < steps.length - 1"
-          class="mb-3 h-0.5 flex-1 transition-colors"
-          :class="i < activeIndex ? 'bg-ctp-blue' : 'bg-ctp-overlay0'"
+          v-for="(step, i) in steps"
+          :key="step"
+          class="h-1.5 flex-1 rounded-full transition-colors"
+          :class="segmentClass(i)"
         />
-      </template>
+      </div>
+      <span
+        class="text-xs font-medium"
+        :class="
+          isResolved
+            ? 'text-ctp-green'
+            : isAwaiting
+              ? 'text-ctp-peach'
+              : 'text-ctp-text'
+        "
+      >
+        {{ stepLabels[activeStep] }}
+      </span>
     </div>
 
     <div v-if="data.agentName" class="text-xs text-ctp-subtext0">Agent: {{ data.agentName }}</div>
