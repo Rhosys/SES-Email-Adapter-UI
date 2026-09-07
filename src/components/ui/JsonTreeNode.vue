@@ -51,7 +51,7 @@ const valueDisplay = computed(() => {
     <!-- Expandable object/array: folder row -->
     <div
       v-if="isExpandable"
-      class="tree-row group cursor-pointer select-none rounded-md px-1.5 py-1 hover:bg-ctp-surface0"
+      class="tree-row group flex items-center gap-1.5 cursor-pointer select-none rounded-md px-1.5 py-1 hover:bg-ctp-surface0"
       role="treeitem"
       :aria-expanded="open"
       :aria-selected="false"
@@ -99,7 +99,7 @@ const valueDisplay = computed(() => {
         "{{ (value as string).slice(0, collapseStringsOver) }}…"
         <em class="not-italic text-ctp-subtext0">({{ (value as string).length }} chars — click to expand)</em>
       </button>
-      <span v-else class="break-words whitespace-pre-wrap" :class="valueDisplay.cls">{{ valueDisplay.text }}</span>
+      <span v-else class="min-w-0 break-all whitespace-pre-wrap" :class="valueDisplay.cls">{{ valueDisplay.text }}</span>
     </div>
 
     <!-- Children, indented with an OS-explorer-style guide line -->

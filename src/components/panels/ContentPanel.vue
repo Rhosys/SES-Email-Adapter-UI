@@ -59,6 +59,37 @@ const typeLabel: Record<ContentData['contentType'], string> = {
       </span>
     </div>
 
+    <!-- Event details — populated when the announcement describes a dated event -->
+    <div
+      v-if="data.eventStartDatetime || data.location || data.organizer || data.eventUrl"
+      class="mt-3 space-y-1 border-t border-ctp-surface0 pt-3 text-xs"
+    >
+      <div v-if="data.eventStartDatetime" class="flex items-start gap-2">
+        <span class="shrink-0 text-ctp-subtext0">🗓️</span>
+        <span class="text-ctp-subtext1">
+          {{ data.eventStartDatetime }}<template v-if="data.eventEndDatetime"> – {{ data.eventEndDatetime }}</template>
+        </span>
+      </div>
+      <div v-if="data.location" class="flex items-start gap-2">
+        <span class="shrink-0 text-ctp-subtext0">📍</span>
+        <span class="text-ctp-subtext1">{{ data.location }}</span>
+      </div>
+      <div v-if="data.organizer" class="flex items-start gap-2">
+        <span class="shrink-0 text-ctp-subtext0">👤</span>
+        <span class="text-ctp-subtext1">{{ data.organizer }}</span>
+      </div>
+      <a
+        v-if="data.eventUrl"
+        :href="data.eventUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1.5 text-ctp-blue hover:underline"
+      >
+        <span aria-hidden="true">🔗</span>
+        Register
+      </a>
+    </div>
+
     <!-- Topics -->
     <div v-if="data.topics?.length" class="mt-2 flex flex-wrap gap-1">
       <span

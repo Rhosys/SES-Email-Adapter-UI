@@ -473,6 +473,11 @@ export interface ContentData {
   discountCode?: string
   discountAmount?: string
   expiryDate?: string
+  eventStartDatetime?: string
+  eventEndDatetime?: string
+  location?: string
+  organizer?: string
+  eventUrl?: string
 }
 
 export interface StatusData {
@@ -524,6 +529,7 @@ export interface EventsData {
   seatDetails?: string
   ticketCount?: string
   ticketUrl?: string
+  eventUrl?: string
   totalAmount?: string
   currency?: string
 }
