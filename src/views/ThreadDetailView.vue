@@ -515,6 +515,12 @@ async function removeLabel(label: string) {
         </div>
         <!-- Line 4: Secondary badges (workflow, signal count, labels) -->
         <div class="mt-2 flex flex-wrap items-center gap-1.5">
+          <span
+            v-if="!thread.retentionDuration"
+            class="rounded-full bg-ctp-green/15 px-2 py-0.5 text-xs font-medium text-ctp-green"
+          >
+            📌 Saved
+          </span>
           <span class="rounded-full bg-ctp-surface0 px-2 py-0.5 text-xs capitalize text-ctp-subtext0">{{ thread.workflow }}</span>
           <span
             v-if="dedupedSignals.length > 0"
