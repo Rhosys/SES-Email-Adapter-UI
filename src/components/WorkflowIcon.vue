@@ -13,7 +13,7 @@ const iconColor: Record<Workflow, string> = {
   alert: 'var(--color-mauve)',
   content: 'var(--color-sky)',
   onboarding: 'var(--color-lavender)',
-  status: 'var(--color-sapphire)',
+  notice: 'var(--color-sapphire)',
   healthcare: 'var(--color-red)',
   job: 'var(--color-teal)',
   support: 'var(--color-blue)',
@@ -31,7 +31,7 @@ const iconLabel: Record<Workflow, string> = {
   alert: 'Alert',
   content: 'Content',
   onboarding: 'Onboarding',
-  status: 'Status',
+  notice: 'Notice',
   healthcare: 'Healthcare',
   job: 'Job',
   support: 'Support',
@@ -198,9 +198,9 @@ const iconLabel: Record<Workflow, string> = {
       <path d="M18.75 6.75h1.875c.621 0 1.125.504 1.125 1.125V18a1.5 1.5 0 0 1-3 0V6.75Z" />
     </svg>
 
-    <!-- status: information-circle -->
+    <!-- notice: information-circle -->
     <svg
-      v-else-if="workflow === 'status'"
+      v-else-if="workflow === 'notice'"
       xmlns="http://www.w3.org/2000/svg"
       width="20"
       height="20"

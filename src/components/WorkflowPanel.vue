@@ -13,7 +13,7 @@ import TravelPanel from './panels/TravelPanel.vue'
 import PaymentsPanel from './panels/PaymentsPanel.vue'
 import AlertPanel from './panels/AlertPanel.vue'
 import ContentPanel from './panels/ContentPanel.vue'
-import StatusPanel from './panels/StatusPanel.vue'
+import NoticePanel from './panels/NoticePanel.vue'
 import HealthcarePanel from './panels/HealthcarePanel.vue'
 import JobPanel from './panels/JobPanel.vue'
 import SupportPanel from './panels/SupportPanel.vue'
@@ -84,7 +84,7 @@ const showUnsubscribeFooter = computed(() =>
         <PaymentsPanel v-else-if="resolvedGroup!.workflow === 'payments'" :data="narrowWorkflowData('payments', entry)" :compact="compact" />
         <AlertPanel v-else-if="resolvedGroup!.workflow === 'alert'" :data="narrowWorkflowData('alert', entry)" :actions="actionsForEntry(idx)" :compact="compact" />
         <ContentPanel v-else-if="resolvedGroup!.workflow === 'content'" :data="narrowWorkflowData('content', entry)" :compact="compact" />
-        <StatusPanel v-else-if="resolvedGroup!.workflow === 'status'" :data="narrowWorkflowData('status', entry)" :compact="compact" />
+        <NoticePanel v-else-if="resolvedGroup!.workflow === 'notice'" :data="narrowWorkflowData('notice', entry)" :compact="compact" />
         <HealthcarePanel v-else-if="resolvedGroup!.workflow === 'healthcare'" :data="narrowWorkflowData('healthcare', entry)" :compact="compact" />
         <JobPanel v-else-if="resolvedGroup!.workflow === 'job'" :data="narrowWorkflowData('job', entry)" :actions="actionsForEntry(idx)" :compact="compact" />
         <SupportPanel v-else-if="resolvedGroup!.workflow === 'support'" :data="narrowWorkflowData('support', entry)" :compact="compact" />
@@ -115,7 +115,7 @@ const showUnsubscribeFooter = computed(() =>
         <PaymentsPanel v-else-if="resolvedGroup!.workflow === 'payments'" :data="narrowWorkflowData('payments', visibleEntries[0].entry)" :compact="compact" />
         <AlertPanel v-else-if="resolvedGroup!.workflow === 'alert'" :data="narrowWorkflowData('alert', visibleEntries[0].entry)" :actions="entryActions" :compact="compact" />
         <ContentPanel v-else-if="resolvedGroup!.workflow === 'content'" :data="narrowWorkflowData('content', visibleEntries[0].entry)" :compact="compact" />
-        <StatusPanel v-else-if="resolvedGroup!.workflow === 'status'" :data="narrowWorkflowData('status', visibleEntries[0].entry)" :compact="compact" />
+        <NoticePanel v-else-if="resolvedGroup!.workflow === 'notice'" :data="narrowWorkflowData('notice', visibleEntries[0].entry)" :compact="compact" />
         <HealthcarePanel v-else-if="resolvedGroup!.workflow === 'healthcare'" :data="narrowWorkflowData('healthcare', visibleEntries[0].entry)" :compact="compact" />
         <JobPanel v-else-if="resolvedGroup!.workflow === 'job'" :data="narrowWorkflowData('job', visibleEntries[0].entry)" :actions="entryActions" :compact="compact" />
         <SupportPanel v-else-if="resolvedGroup!.workflow === 'support'" :data="narrowWorkflowData('support', visibleEntries[0].entry)" :compact="compact" />
@@ -144,7 +144,7 @@ const showUnsubscribeFooter = computed(() =>
         <PaymentsPanel v-else-if="resolvedGroup!.workflow === 'payments'" :data="narrowWorkflowData('payments', visibleEntries[0].entry)" :compact="compact" />
         <AlertPanel v-else-if="resolvedGroup!.workflow === 'alert'" :data="narrowWorkflowData('alert', visibleEntries[0].entry)" :actions="entryActions" :compact="compact" />
         <ContentPanel v-else-if="resolvedGroup!.workflow === 'content'" :data="narrowWorkflowData('content', visibleEntries[0].entry)" :compact="compact" />
-        <StatusPanel v-else-if="resolvedGroup!.workflow === 'status'" :data="narrowWorkflowData('status', visibleEntries[0].entry)" :compact="compact" />
+        <NoticePanel v-else-if="resolvedGroup!.workflow === 'notice'" :data="narrowWorkflowData('notice', visibleEntries[0].entry)" :compact="compact" />
         <HealthcarePanel v-else-if="resolvedGroup!.workflow === 'healthcare'" :data="narrowWorkflowData('healthcare', visibleEntries[0].entry)" :compact="compact" />
         <JobPanel v-else-if="resolvedGroup!.workflow === 'job'" :data="narrowWorkflowData('job', visibleEntries[0].entry)" :actions="entryActions" :compact="compact" />
         <SupportPanel v-else-if="resolvedGroup!.workflow === 'support'" :data="narrowWorkflowData('support', visibleEntries[0].entry)" :compact="compact" />

@@ -112,7 +112,7 @@ const WORKFLOWS = [
   'payments',
   'alert',
   'content',
-  'status',
+  'notice',
   'healthcare',
   'job',
   'support',

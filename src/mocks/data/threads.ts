@@ -292,7 +292,7 @@ export const mockThreads: Thread[] = [
   // status — terms update Google
   {
     threadId: 'thr_status_1',
-    workflow: 'status',
+    workflow: 'notice',
     labels: [],
     status: 'archived',
     summary: 'Google Workspace terms update',

@@ -226,7 +226,7 @@ const WORKFLOW_OPTIONS = [
   'payments',
   'alert',
   'content',
-  'status',
+  'notice',
   'healthcare',
   'job',
   'support',

@@ -14,7 +14,7 @@ export type Workflow =
   | 'alert'
   | 'content'
   | 'onboarding'
-  | 'status'
+  | 'notice'
   | 'healthcare'
   | 'job'
   | 'support'
@@ -480,8 +480,8 @@ export interface ContentData {
   eventUrl?: string
 }
 
-export interface StatusData {
-  statusType: 'terms_update' | 'privacy_policy' | 'data_processor' | 'cookie_policy' | 'compliance' | 'service_notice' | 'government' | 'account_notification' | 'other'
+export interface NoticeData {
+  noticeType: 'terms_update' | 'privacy_policy' | 'data_processor' | 'cookie_policy' | 'compliance' | 'service_notice' | 'government' | 'account_notification' | 'security_awareness' | 'other'
   provider: string
   effectiveDate?: string
   referenceNumber?: string
@@ -552,7 +552,7 @@ export interface WorkflowDataMap {
   payments: PaymentsData
   alert: AlertData
   content: ContentData
-  status: StatusData
+  notice: NoticeData
   healthcare: HealthcareData
   job: JobData
   support: SupportData

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { StatusData } from '@/types/server'
+import type { NoticeData } from '@/types/server'
 
-const props = defineProps<{ data: StatusData; compact?: boolean }>()
+const props = defineProps<{ data: NoticeData; compact?: boolean }>()
 
-const typeLabel: Record<StatusData['statusType'], string> = {
+const typeLabel: Record<NoticeData['noticeType'], string> = {
   terms_update: 'Terms of service update',
   privacy_policy: 'Privacy policy update',
   data_processor: 'Data processor update',
@@ -12,6 +12,7 @@ const typeLabel: Record<StatusData['statusType'], string> = {
   service_notice: 'Service notice',
   government: 'Government notice',
   account_notification: 'Account notification',
+  security_awareness: 'Security awareness',
   other: 'Notice',
 }
 
@@ -30,7 +31,7 @@ const effectiveDateLabel = (() => {
   <div v-if="compact" class="flex items-center gap-2 text-xs">
     <span class="shrink-0 text-ctp-subtext0">📋</span>
     <span class="shrink-0 font-medium text-ctp-text">{{ data.provider }}</span>
-    <span class="shrink-0 text-ctp-subtext0">{{ typeLabel[data.statusType] }}</span>
+    <span class="shrink-0 text-ctp-subtext0">{{ typeLabel[data.noticeType] }}</span>
     <span v-if="effectiveDateLabel" class="shrink-0 text-ctp-subtext0">Effective {{ effectiveDateLabel }}</span>
     <a
       v-if="data.documentUrl"
@@ -48,7 +49,7 @@ const effectiveDateLabel = (() => {
   <div v-else class="rounded-lg border border-ctp-surface1 bg-ctp-mantle p-4">
     <div class="flex flex-wrap items-center gap-2">
       <span class="text-sm text-ctp-subtext1">{{ data.provider }}</span>
-      <span class="text-xs text-ctp-subtext0">{{ typeLabel[data.statusType] }}</span>
+      <span class="text-xs text-ctp-subtext0">{{ typeLabel[data.noticeType] }}</span>
     </div>
 
     <div v-if="data.referenceNumber" class="mt-2">
