@@ -302,6 +302,18 @@ export interface CalendarAttendee {
   optional?: boolean
 }
 
+// Snapshot of the fields that changed in the most recent update (only changed fields are
+// present). Rendered as "previous -> current" by the calendar card. changedAt = when the
+// updating invite arrived.
+export interface CalendarPreviousValues {
+  changedAt: string
+  title?: string
+  description?: string
+  startTime?: string
+  endTime?: string
+  location?: string
+}
+
 export interface CalendarEventData {
   title: string
   description?: string
@@ -313,6 +325,11 @@ export interface CalendarEventData {
   organizerName?: string
   attendees: CalendarAttendee[]
   linkedSignalId: string
+  // Present when the event has been cancelled (METHOD:CANCEL). The display fields are
+  // retained so the card can render them struck-through rather than blank.
+  cancelledAt?: string
+  // Present when a later invite changed one or more fields.
+  previousValues?: CalendarPreviousValues
 }
 
 export interface CalendarEventSignal extends SignalBase {
