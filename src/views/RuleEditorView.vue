@@ -16,6 +16,7 @@ import type {
   RuleAction,
   RuleActionType,
 } from '@/types/server'
+import { FILTERABLE_WORKFLOWS } from '@/types/server'
 import {
   defaultLeaf,
   evalLogic,
@@ -216,22 +217,6 @@ const ACTION_META: ActionMeta[] = [
   { type: 'forwardCalendarInvite', label: 'Forward calendar invite', description: 'Forward calendar invites to another address' },
 ]
 
-const WORKFLOW_OPTIONS = [
-  'auth',
-  'conversation',
-  'crm',
-  'package',
-  'travel',
-  'scheduling',
-  'payments',
-  'alert',
-  'content',
-  'notice',
-  'healthcare',
-  'job',
-  'support',
-  'test',
-]
 const URGENCY_OPTIONS = ['critical', 'high', 'normal', 'low', 'silent']
 
 const forwardingTargets = ref<ForwardingTarget[]>([])
@@ -696,7 +681,7 @@ watch(signalAction, (val) => {
                 "
               >
                 <option value="">Pick workflow…</option>
-                <option v-for="w in WORKFLOW_OPTIONS" :key="w" :value="w">{{ w }}</option>
+                <option v-for="w in FILTERABLE_WORKFLOWS" :key="w" :value="w">{{ w }}</option>
               </select>
             </template>
 

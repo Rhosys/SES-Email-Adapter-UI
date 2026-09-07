@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useLabelsQuery, useCreateLabel, useUpdateLabel, useDeleteLabel } from '@/composables/useLabelsQueries'
 import { useViewsQuery, useCreateView, useUpdateView, useDeleteView } from '@/composables/useViewsQueries'
 import type { Label, View, Workflow } from '@/types/server'
+import { FILTERABLE_WORKFLOWS } from '@/types/server'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
@@ -101,23 +102,6 @@ const viewName = ref('')
 const viewIcon = ref('')
 const viewWorkflow = ref('')
 const viewPending = ref(false)
-
-const WORKFLOWS = [
-  'auth',
-  'conversation',
-  'crm',
-  'package',
-  'travel',
-  'scheduling',
-  'payments',
-  'alert',
-  'content',
-  'notice',
-  'healthcare',
-  'job',
-  'support',
-  'test',
-]
 
 function openNewView() {
   editingView.value = null
@@ -423,7 +407,7 @@ function selectTab(tab: 'labels' | 'views') {
                   class="w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-1.5 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none"
                 >
                   <option value="">Any workflow</option>
-                  <option v-for="wf in WORKFLOWS" :key="wf" :value="wf">{{ wf }}</option>
+                  <option v-for="wf in FILTERABLE_WORKFLOWS" :key="wf" :value="wf">{{ wf }}</option>
                 </select>
                 <p class="mt-1 text-xs text-ctp-subtext0">
                   Limit this view to threads from a specific automation workflow. Leave blank to show

@@ -18,7 +18,9 @@ const iconColor: Record<Workflow, string> = {
   job: 'var(--color-teal)',
   support: 'var(--color-blue)',
   events: 'var(--color-flamingo)',
+  healthcheck: 'var(--color-overlay0)',
   test: 'var(--color-overlay0)',
+  unspecified: 'var(--color-overlay0)',
 }
 
 const iconLabel: Record<Workflow, string> = {
@@ -36,7 +38,9 @@ const iconLabel: Record<Workflow, string> = {
   job: 'Job',
   support: 'Support',
   events: 'Events',
+  healthcheck: 'Health check',
   test: 'Test',
+  unspecified: 'No workflow',
 }
 </script>
 

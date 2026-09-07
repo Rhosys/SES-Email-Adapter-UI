@@ -4,22 +4,35 @@
 
 // ─── Enums & Shared Types ─────────────────────────────────────────────────────
 
-export type Workflow =
-  | 'auth'
-  | 'conversation'
-  | 'crm'
-  | 'package'
-  | 'travel'
-  | 'payments'
-  | 'alert'
-  | 'content'
-  | 'onboarding'
-  | 'notice'
-  | 'healthcare'
-  | 'job'
-  | 'support'
-  | 'events'
-  | 'test'
+// Single source of truth for workflow names — mirrors the backend WORKFLOWS
+// (email-catcher/backend src/types/index.ts). The Workflow type is derived from
+// this array so the two can never drift, and dropdowns iterate it at runtime.
+export const WORKFLOWS = [
+  'auth',
+  'conversation',
+  'crm',
+  'package',
+  'travel',
+  'payments',
+  'alert',
+  'content',
+  'onboarding',
+  'notice',
+  'healthcare',
+  'job',
+  'support',
+  'events',
+  'healthcheck',
+  'test',
+  'unspecified',
+] as const
+
+export type Workflow = (typeof WORKFLOWS)[number]
+
+// Workflows a user can filter/build rules on. Excludes healthcheck (backend-only
+// pipeline validation — never user-actionable). Keeps unspecified ("no workflow")
+// and test, which are meaningful filter targets.
+export const FILTERABLE_WORKFLOWS: readonly Workflow[] = WORKFLOWS.filter((w) => w !== 'healthcheck')
 
 export type ThreadStatus = 'active' | 'archived' | 'deleted' | 'report_violation'
 
