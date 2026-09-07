@@ -783,9 +783,11 @@ export const api = {
 
   // Fetches the sanitized, display-safe copy of the raw email as text (attachments stripped)
   // for the "view original" modal. The endpoint 307-redirects to the content CDN; the browser
-  // follows it transparently. A failure here is a real problem (the display copy should always
-  // exist for a delivered email), so it logs at ERROR — the UI shows an "unavailable" notice
-  // but download of the true original stays available on its own path.
+  // follows it transparently. The display copy's key is reconstructed by the backend, so the
+  // CDN can 404/403 if the sanitizer never produced it (e.g. emails predating the feature, or a
+  // build/upload failure at ingestion). In that case only — a missing/forbidden object, not an
+  // API-level auth or server error — we fall back to rendering the true original in the modal so
+  // the user still sees their email. Any other failure returns the display error unchanged.
   async getRawEmailForDisplay(accountId: string, threadId: string, signalId: string): Promise<Result<string, ApiError>> {
     try {
       const token = await loginClient.ensureToken()
@@ -793,8 +795,15 @@ export const api = {
         headers: { Authorization: `Bearer ${token}` },
         redirect: 'follow',
       })
-      if (!res.ok) return err(new ApiError(res.status, `Failed to fetch raw email: ${res.status}`))
-      return ok(await res.text())
+      if (res.ok) return ok(await res.text())
+      if (res.status === 404 || res.status === 403) {
+        const fallback = await fetch(`${BASE}/accounts/${accountId}/threads/${threadId}/signals/${signalId}/raw?type=original`, {
+          headers: { Authorization: `Bearer ${token}` },
+          redirect: 'follow',
+        })
+        if (fallback.ok) return ok(await fallback.text())
+      }
+      return err(new ApiError(res.status, `Failed to fetch raw email: ${res.status}`))
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Network error'
       logger.error({ title: 'Failed to fetch raw email for display', accountId, threadId, signalId, error: message })
