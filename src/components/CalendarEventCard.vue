@@ -29,6 +29,14 @@ const formattedEnd = computed(() => {
   })
 })
 
+const isCancelled = computed(() => Boolean(props.signal.data.cancelledAt))
+
+const previousValues = computed(() => props.signal.data.previousValues)
+
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+}
+
 function rsvpAction(response: RsvpResponse) {
   return async () => {
     if (!accountStore.accountId) return
@@ -50,23 +58,44 @@ function rsvpAction(response: RsvpResponse) {
       <svg class="h-4 w-4 text-ctp-blue" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
         <path d="M4 0v1H2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V3a2 2 0 00-2-2h-2V0h-1v1H5V0H4zm-2 5h12v9H2V5z"/>
       </svg>
-      <span class="text-sm font-medium text-ctp-text">{{ signal.data.title }}</span>
+      <span class="text-sm font-medium text-ctp-text" :class="{ 'line-through text-ctp-subtext0': isCancelled }">{{ signal.data.title }}</span>
+      <span
+        v-if="isCancelled"
+        class="rounded-full bg-ctp-red/15 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-ctp-red"
+      >
+        Cancelled
+      </span>
       <span class="ml-auto text-xs text-ctp-subtext0">{{ new Date(signal.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) }}</span>
     </div>
 
     <div class="mb-3 space-y-1 text-sm text-ctp-subtext1">
       <p>
-        <span class="text-ctp-subtext0">When:</span> {{ formattedStart }}
-        <template v-if="formattedEnd"> — {{ formattedEnd }}</template>
+        <span class="text-ctp-subtext0">When:</span>
+        <template v-if="previousValues?.startTime">
+          <span class="text-xs text-ctp-subtext0 line-through">{{ formatDateTime(previousValues.startTime) }}</span>
+          <span class="mx-1 text-ctp-peach">→</span>
+        </template>
+        <span :class="{ 'line-through text-ctp-subtext0': isCancelled }">
+          {{ formattedStart }}
+          <template v-if="formattedEnd"> — {{ formattedEnd }}</template>
+        </span>
       </p>
       <p v-if="signal.data.location">
-        <span class="text-ctp-subtext0">Where:</span> {{ signal.data.location }}
+        <span class="text-ctp-subtext0">Where:</span>
+        <template v-if="previousValues?.location">
+          <span class="text-xs text-ctp-subtext0 line-through">{{ previousValues.location }}</span>
+          <span class="mx-1 text-ctp-peach">→</span>
+        </template>
+        <span :class="{ 'line-through text-ctp-subtext0': isCancelled }">{{ signal.data.location }}</span>
       </p>
       <p>
         <span class="text-ctp-subtext0">Organizer:</span> {{ signal.data.organizerName || signal.data.organizer }}
       </p>
       <p v-if="signal.data.description" class="text-xs text-ctp-subtext0">
         {{ signal.data.description }}
+      </p>
+      <p v-if="previousValues" class="text-xs text-ctp-peach">
+        This event was updated{{ ' ' }}{{ formatDateTime(previousValues.changedAt) }}.
       </p>
       <a
         v-if="signal.data.url"
@@ -95,8 +124,12 @@ function rsvpAction(response: RsvpResponse) {
       </div>
     </div>
 
+    <!-- Cancelled: no RSVP is possible, just inform. -->
+    <div v-if="isCancelled" class="border-t border-ctp-surface1 pt-3">
+      <p class="text-xs font-medium text-ctp-red">This event was cancelled by the organizer.</p>
+    </div>
     <!-- RSVP -->
-    <div v-if="rsvpStatus" class="border-t border-ctp-surface1 pt-3">
+    <div v-else-if="rsvpStatus" class="border-t border-ctp-surface1 pt-3">
       <p class="text-xs text-ctp-subtext1">
         You {{ rsvpStatus === 'accepted' ? 'accepted' : rsvpStatus === 'declined' ? 'declined' : 'tentatively accepted' }} this event.
       </p>
@@ -106,19 +139,19 @@ function rsvpAction(response: RsvpResponse) {
       <div class="flex items-center gap-2">
         <AsyncButton
           :action="rsvpAction('accepted')"
-          class="border-ctp-green text-ctp-green hover:bg-ctp-green/10"
+          class="rounded-md border border-ctp-green bg-ctp-green/10 px-3 py-1.5 text-sm font-medium text-ctp-green hover:bg-ctp-green hover:text-ctp-base"
         >
           Accept
         </AsyncButton>
         <AsyncButton
           :action="rsvpAction('tentative')"
-          class="border-ctp-peach text-ctp-peach hover:bg-ctp-peach/10"
+          class="rounded-md border border-ctp-peach bg-ctp-peach/10 px-3 py-1.5 text-sm font-medium text-ctp-peach hover:bg-ctp-peach hover:text-ctp-base"
         >
           Tentative
         </AsyncButton>
         <AsyncButton
           :action="rsvpAction('declined')"
-          class="border-ctp-red text-ctp-red hover:bg-ctp-red/10"
+          class="rounded-md border border-ctp-red bg-ctp-red/10 px-3 py-1.5 text-sm font-medium text-ctp-red hover:bg-ctp-red hover:text-ctp-base"
         >
           Decline
         </AsyncButton>
