@@ -293,7 +293,7 @@ async function reprocessSignal() {
     detachFromOriginThread()
     reprocessing.value = false
     emit('reprocessed')
-    void router.push('/')
+    void router.replace('/')
     return
   }
 

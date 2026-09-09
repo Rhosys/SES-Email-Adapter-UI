@@ -68,7 +68,7 @@ async function allow() {
   try {
     const result = await allowMutation.mutateAsync(signal.value.signalId)
     if (result.thread?.threadId) {
-      void router.push({ name: 'thread-detail', params: { id: result.thread.threadId } })
+      void router.replace({ name: 'thread-detail', params: { id: result.thread.threadId } })
     } else {
       actionInFlight.value = false
     }
@@ -83,7 +83,7 @@ async function reject() {
   actionInFlight.value = true
   try {
     await rejectMutation.mutateAsync(signal.value.signalId)
-    void router.push('/quarantine')
+    void router.replace('/quarantine')
   } catch (e) {
     actionInFlight.value = false
     throw e
@@ -95,7 +95,7 @@ async function dismiss() {
   actionInFlight.value = true
   try {
     await dismissMutation.mutateAsync(signal.value.signalId)
-    void router.push('/quarantine')
+    void router.replace('/quarantine')
   } catch (e) {
     actionInFlight.value = false
     throw e
