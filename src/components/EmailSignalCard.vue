@@ -370,13 +370,13 @@ const iframeStyle = {
 <template>
   <div class="signal-card rounded-lg border border-ctp-surface1 bg-ctp-mantle transition-colors hover:border-ctp-mauve/50">
     <!-- Card header -->
-    <div class="signal-card__header flex items-start gap-3 px-4 py-3">
+    <div class="signal-card__header flex items-start gap-3 px-4 py-3 sm:px-5 sm:py-4">
       <button
-        class="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left transition-colors"
+        class="min-w-0 flex-1 space-y-0.5 rounded-lg px-2 py-1.5 text-left transition-colors sm:space-y-1"
         :aria-expanded="expanded"
         @click="expanded = !expanded"
       >
-        <div v-if="subjectLine" class="mb-0.5 truncate text-sm font-semibold text-ctp-text">{{ subjectLine }}</div>
+        <div v-if="subjectLine" class="mb-0.5 truncate text-sm font-semibold text-ctp-text sm:mb-1 sm:text-base">{{ subjectLine }}</div>
         <div class="flex items-center gap-2">
           <span class="text-sm"><span class="text-ctp-subtext0">From:</span> <span class="text-ctp-text font-medium">{{ fromName }}</span><span v-if="fromAddress" class="ml-1 text-ctp-subtext0">&lt;{{ fromAddress }}&gt;</span></span>
           <span
@@ -404,7 +404,7 @@ const iframeStyle = {
           <span class="text-ctp-subtext0">CC:</span> <span class="text-ctp-text">{{ signal.data.cc.map((a) => a.name ?? a.address).join(', ') }}</span>
         </div>
         <div v-if="isBcc" class="text-xs font-medium text-ctp-red">
-          ⚠ BCC — alias not in To or CC
+          ⚠ Alias in group DL or BCC
         </div>
         <div v-if="envelopeSender" class="flex items-center gap-1 text-xs text-ctp-subtext0" :title="`Envelope: ${envelopeSender}`"><svg class="inline h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> 🛡 Secured by: {{ envelopeSender }}</div>
         <div v-if="attachmentCount > 0" class="text-xs text-ctp-subtext0" :title="`${attachmentCount} attachment${attachmentCount > 1 ? 's' : ''}`">📎 {{ attachmentCount }}</div>
@@ -516,7 +516,7 @@ const iframeStyle = {
         </div>
         <p v-else class="px-4 py-3 text-sm text-ctp-subtext0">(No content)</p>
 
-        <div v-if="attachments.length > 0" class="flex flex-wrap gap-2 border-t border-ctp-surface0 px-4 py-3">
+        <div v-if="attachments.length > 0" class="flex flex-wrap gap-2 border-t border-ctp-surface0 px-4 py-3 sm:gap-3 sm:px-5 sm:py-4">
           <template v-for="att in attachments" :key="att.url ?? att.filename">
             <button
               v-if="att.url"
@@ -543,7 +543,7 @@ const iframeStyle = {
     </template>
 
     <!-- Signal footer — reply action (always visible, even when collapsed) -->
-    <div v-if="signal.type === 'email'" class="flex flex-wrap items-center justify-end gap-2 border-t border-ctp-surface0 px-4 py-2">
+    <div v-if="signal.type === 'email'" class="flex flex-wrap items-center justify-end gap-2 border-t border-ctp-surface0 px-4 py-2 sm:px-5 sm:py-3">
       <button
         class="flex items-center gap-1.5 rounded-lg border border-ctp-surface1 px-3 py-1.5 text-xs text-ctp-subtext1 hover:border-ctp-mauve hover:text-ctp-mauve"
         @click="$emit('reply')"
