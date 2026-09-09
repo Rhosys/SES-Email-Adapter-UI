@@ -160,6 +160,15 @@ watch(dedupedSignals, async () => {
   scrollToPreserved()
 }, { flush: 'post' })
 
+// A background refetch failure after signals have already loaded doesn't get the
+// full-page error banner (that would unmount an in-progress draft) — surface it as
+// a toast instead so the failure isn't silently swallowed.
+watch(() => signalQuery.error.value, (err, prevErr) => {
+  if (err && !prevErr && signalItems.value.length > 0) {
+    notify(`Couldn't refresh messages — ${err.message}`)
+  }
+})
+
 onMounted(() => {
   document.addEventListener('click', handleSenderPopupClickOutside)
   nextTick().then(() => observeSignals())
