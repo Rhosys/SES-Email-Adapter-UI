@@ -43,7 +43,9 @@ import type {
   TeamMember,
   UserRole,
   RetentionDuration,
+  AmbiguousDateFormat,
 } from '@/types/server'
+import { AMBIGUOUS_DATE_FORMATS } from '@/types/server'
 
 const route = useRoute()
 const router = useRouter()
@@ -296,6 +298,57 @@ async function updateRetention(value: RetentionDuration) {
   if (result.isOk()) {
     accountStore.account = result.value
     selectedRetention.value = value
+  }
+}
+
+// ─── Timezone (Email tab) ─────────────────────────────────────────────────────
+// Full IANA zone list comes from the runtime via Intl — the standards source of
+// truth — so we never hand-maintain a timezone table on the client.
+const timezoneOptions = computed<string[]>(() => {
+  const supported =
+    typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : []
+  const current = selectedTimezone.value
+  // Ensure the account's saved zone is always selectable even if the runtime omits it.
+  return supported.includes(current) ? supported : [current, ...supported]
+})
+
+const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+const selectedTimezone = ref<string>(browserTimezone)
+const timezonePending = ref(false)
+
+async function updateTimezone(value: string) {
+  if (!accountStore.accountId) return
+  timezonePending.value = true
+  const result = await api.updateAccount(accountStore.accountId, { timezone: value })
+  timezonePending.value = false
+  if (result.isOk()) {
+    accountStore.account = result.value
+    selectedTimezone.value = value
+  }
+}
+
+// ─── Ambiguous date format (Email tab) ────────────────────────────────────────
+const AMBIGUOUS_DATE_FORMAT_LABELS: Record<AmbiguousDateFormat, string> = {
+  month_then_day: 'Month / Day / Year',
+  day_then_month: 'Day / Month / Year',
+  skip: 'Skip parsing risky formats',
+}
+const ambiguousDateFormatOptions = AMBIGUOUS_DATE_FORMATS.map((value) => ({
+  value,
+  label: AMBIGUOUS_DATE_FORMAT_LABELS[value],
+}))
+
+const selectedAmbiguousDateFormat = ref<AmbiguousDateFormat>('skip')
+const ambiguousDateFormatPending = ref(false)
+
+async function updateAmbiguousDateFormat(value: AmbiguousDateFormat) {
+  if (!accountStore.accountId) return
+  ambiguousDateFormatPending.value = true
+  const result = await api.updateAccount(accountStore.accountId, { ambiguousDateFormat: value })
+  ambiguousDateFormatPending.value = false
+  if (result.isOk()) {
+    accountStore.account = result.value
+    selectedAmbiguousDateFormat.value = value
   }
 }
 
@@ -1111,6 +1164,8 @@ onMounted(async () => {
   if (accountStore.account) {
     calendarForwardingTargetId.value = accountStore.account.defaultCalendarInviteForwardingTargetId ?? ''
     selectedRetention.value = accountStore.account.retentionDuration
+    if (accountStore.account.timezone) selectedTimezone.value = accountStore.account.timezone
+    selectedAmbiguousDateFormat.value = accountStore.account.ambiguousDateFormat ?? 'skip'
     digestFrequency.value = accountStore.account.digest?.frequency ?? null
     digestForwardingTargetId.value = accountStore.account.digest?.forwardingTargetId ?? ''
   }
@@ -1917,6 +1972,57 @@ useGestureHandler(settingsContentRef, {
                 <p class="mt-3 text-xs text-ctp-subtext0">
                   Applies to all conversations that receive new messages. Existing inactive threads keep their current retention.
                 </p>
+              </div>
+
+              <!-- Timezone -->
+              <div class="border-t border-ctp-surface0 pt-5">
+                <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Timezone</span>
+                <p class="mb-3 text-xs text-ctp-subtext0">Used to interpret dates and times extracted from your emails</p>
+
+                <div class="relative">
+                  <select
+                    :value="selectedTimezone"
+                    :disabled="timezonePending"
+                    aria-label="Timezone"
+                    class="w-full appearance-none rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 pr-8 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none disabled:opacity-50"
+                    @change="updateTimezone(($event.target as HTMLSelectElement).value)"
+                  >
+                    <option v-for="tz in timezoneOptions" :key="tz" :value="tz">{{ tz }}</option>
+                  </select>
+                  <svg class="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ctp-subtext0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+              </div>
+
+              <!-- Ambiguous date format -->
+              <div class="border-t border-ctp-surface0 pt-5">
+                <span class="mb-1 block text-xs font-medium text-ctp-subtext0">Ambiguous date format parsing format</span>
+                <p class="mb-3 text-xs text-ctp-subtext0">
+                  If a date is in an ambiguous format using forward slashes like 01/02/2027, should our
+                  parser treat it as January 2nd or February 1st?
+                </p>
+
+                <div class="relative">
+                  <select
+                    :value="selectedAmbiguousDateFormat"
+                    :disabled="ambiguousDateFormatPending"
+                    aria-label="Ambiguous date format"
+                    class="w-full appearance-none rounded-lg border border-ctp-surface1 bg-ctp-mantle px-3 py-2 pr-8 text-sm text-ctp-text focus:border-ctp-mauve focus:outline-none disabled:opacity-50"
+                    @change="updateAmbiguousDateFormat(($event.target as HTMLSelectElement).value as AmbiguousDateFormat)"
+                  >
+                    <option
+                      v-for="opt in ambiguousDateFormatOptions"
+                      :key="opt.value"
+                      :value="opt.value"
+                    >
+                      {{ opt.label }}
+                    </option>
+                  </select>
+                  <svg class="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ctp-subtext0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                  </svg>
+                </div>
               </div>
 
               <!-- Browser notifications test -->

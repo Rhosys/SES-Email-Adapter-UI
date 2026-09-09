@@ -111,9 +111,14 @@ export interface AccountOnboarding {
   testEmailReceivedAt?: string
 }
 
+export const AMBIGUOUS_DATE_FORMATS = ['month_then_day', 'day_then_month', 'skip'] as const
+export type AmbiguousDateFormat = (typeof AMBIGUOUS_DATE_FORMATS)[number]
+
 export interface Account {
   accountId: string
   name: string
+  timezone?: string
+  ambiguousDateFormat?: AmbiguousDateFormat
   retentionDuration?: RetentionDuration
   notifications?: NotificationSettings
   filtering: AccountFilteringConfig

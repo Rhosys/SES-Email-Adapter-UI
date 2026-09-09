@@ -10,6 +10,7 @@ import type {
   SenderPolicy,
   Thread,
   ThreadStatus,
+  AmbiguousDateFormat,
   AuditEvent,
   BillingInfo,
   CreateDraftSignalBody,
@@ -421,6 +422,8 @@ export const api = {
     accountId: string,
     body: {
       name?: string
+      timezone?: string
+      ambiguousDateFormat?: AmbiguousDateFormat
       retentionDuration?: RetentionDuration
       notifications?: NotificationSettings
       filtering?: AccountFilteringConfig
