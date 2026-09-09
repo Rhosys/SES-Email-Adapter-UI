@@ -542,6 +542,7 @@ export interface EventsData {
   venueAddress?: string
   eventStartDatetime?: string
   eventEndDatetime?: string
+  description?: string
   performer?: string
   ticketReference?: string
   seatDetails?: string
@@ -896,6 +897,8 @@ export interface Resource {
   status: ResourceStatus
   expectedResolutionDate: string
   displayDate?: string
+  title?: string
+  description?: string
   resolvedAt?: string
   assets: ResourceAsset[]
   createdAt: string

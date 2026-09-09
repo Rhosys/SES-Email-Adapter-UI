@@ -51,7 +51,7 @@ function handleToggle(resource: Resource) {
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2">
             <span class="text-sm font-medium text-ctp-text">
-              {{ workflowLabel[resource.workflow] || resource.workflow }}
+              {{ resource.title || workflowLabel[resource.workflow] || resource.workflow }}
             </span>
             <span
               v-if="resource.status === 'complete'"
@@ -71,6 +71,10 @@ function handleToggle(resource: Resource) {
             {{ formatResourceDate(resource.displayDate ?? resource.expectedResolutionDate) }}
           </span>
         </div>
+
+        <p v-if="resource.description" class="mt-1 text-xs text-ctp-subtext0">
+          {{ resource.description }}
+        </p>
 
         <div v-if="resource.assets.length > 0" class="mt-2 space-y-1.5">
           <ResourceAssetCard v-for="(asset, idx) in resource.assets" :key="idx" :asset="asset" />
