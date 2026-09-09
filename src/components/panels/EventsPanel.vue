@@ -70,6 +70,10 @@ const eventDateLabel = computed(() => {
       </div>
     </div>
 
+    <p v-if="data.description" class="mb-2 text-sm text-ctp-subtext0">
+      {{ data.description }}
+    </p>
+
     <div v-if="data.venueName" class="mb-1 text-sm text-ctp-text">
       📍 {{ data.venueName }}
       <span v-if="data.venueAddress" class="text-xs text-ctp-subtext0"> — {{ data.venueAddress }}</span>
