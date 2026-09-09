@@ -33,7 +33,7 @@ const route = useRoute()
 const router = useRouter()
 const accountStore = useAccountStore()
 const { labels } = useLabelsQuery()
-const { showUndo } = useToast()
+const { showUndo, notify } = useToast()
 const { hideWithDefer } = useDeferredHide()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
@@ -159,6 +159,15 @@ watch(dedupedSignals, async () => {
   observeSignals()
   scrollToPreserved()
 }, { flush: 'post' })
+
+// A background refetch failure after signals have already loaded doesn't get the
+// full-page error banner (that would unmount an in-progress draft) — surface it as
+// a toast instead so the failure isn't silently swallowed.
+watch(() => signalQuery.error.value, (err, prevErr) => {
+  if (err && !prevErr && signalItems.value.length > 0) {
+    notify(`Couldn't refresh messages — ${err.message}`)
+  }
+})
 
 onMounted(() => {
   document.addEventListener('click', handleSenderPopupClickOutside)
@@ -361,7 +370,10 @@ async function startDraft() {
         ...(replyTo ? { linkedSignalId: replyTo.signalId } : {}),
       },
     },
-    { onSuccess: (newSignal) => { void scrollToDraft(newSignal.signalId) } },
+    {
+      onSuccess: (newSignal) => { void scrollToDraft(newSignal.signalId) },
+      onError: () => { notify('Could not start a reply — please try again.') },
+    },
   )
 }
 
@@ -474,9 +486,11 @@ async function removeLabel(label: string) {
       </div>
     </div>
 
-    <!-- Error -->
+    <!-- Error — only takes over the page when no signals have loaded yet;
+         a background refetch failure after a successful load shouldn't unmount
+         an in-progress reply draft. -->
     <div
-      v-else-if="signalQuery.error.value"
+      v-else-if="signalQuery.error.value && signalItems.length === 0"
       role="alert"
       class="rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
     >
