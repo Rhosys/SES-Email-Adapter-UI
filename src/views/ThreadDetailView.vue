@@ -477,11 +477,11 @@ async function removeLabel(label: string) {
       </div>
     </div>
 
-    <!-- Error — only takes over the page when there's no thread to fall back on;
-         a background refetch failure on the signal list shouldn't unmount an
-         in-progress reply draft. -->
+    <!-- Error — only takes over the page when no signals have loaded yet;
+         a background refetch failure after a successful load shouldn't unmount
+         an in-progress reply draft. -->
     <div
-      v-else-if="signalQuery.error.value && !thread"
+      v-else-if="signalQuery.error.value && signalItems.length === 0"
       role="alert"
       class="rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
     >
