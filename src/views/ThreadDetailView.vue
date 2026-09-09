@@ -33,7 +33,7 @@ const route = useRoute()
 const router = useRouter()
 const accountStore = useAccountStore()
 const { labels } = useLabelsQuery()
-const { showUndo } = useToast()
+const { showUndo, notify } = useToast()
 const { hideWithDefer } = useDeferredHide()
 const { dialogOpen, dialogOptions, confirm: confirmAction, onConfirm, onCancel } = useConfirmDialog()
 
@@ -361,7 +361,10 @@ async function startDraft() {
         ...(replyTo ? { linkedSignalId: replyTo.signalId } : {}),
       },
     },
-    { onSuccess: (newSignal) => { void scrollToDraft(newSignal.signalId) } },
+    {
+      onSuccess: (newSignal) => { void scrollToDraft(newSignal.signalId) },
+      onError: () => { notify('Could not start a reply — please try again.') },
+    },
   )
 }
 
