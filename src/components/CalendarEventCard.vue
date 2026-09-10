@@ -65,7 +65,6 @@ function rsvpAction(response: RsvpResponse) {
       >
         Cancelled
       </span>
-      <span class="ml-auto text-xs text-ctp-subtext0">{{ new Date(signal.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) }}</span>
     </div>
 
     <div class="mb-3 space-y-1 text-sm text-ctp-subtext1">
