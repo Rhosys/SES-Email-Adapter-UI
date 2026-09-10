@@ -7,6 +7,7 @@ import { usePrefetchThreadSignals } from '@/composables/useSignalQueries'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useIsMobile } from '@/composables/useIsMobile'
 import { useDeferredHide } from '@/composables/useDeferredHide'
+import { useHoldTrue } from '@/composables/useHoldTrue'
 import InboxTabBar from '@/components/InboxTabBar.vue'
 import BulkActionBar from '@/components/BulkActionBar.vue'
 import ThreadListShell from '@/components/ThreadListShell.vue'
@@ -61,6 +62,9 @@ const bulkMoveToInboxMutation = useBulkMoveToInbox()
 const bulkLabelMutation = useBulkLabel()
 
 const loading = computed(() => threadListQuery.isLoading.value)
+// Same underlying state as `loading` — just held for a minimum 100ms once shown, so a
+// fetch that resolves from cache in a handful of ms doesn't register as a skeleton flash.
+const loadingDisplay = useHoldTrue(loading, 100)
 const refreshing = computed(() => threadListQuery.isFetching.value)
 const error = computed(() => threadListQuery.error.value?.message ?? null)
 
@@ -257,65 +261,72 @@ watch(
         @clear="threadsStore.clearSelection()"
       />
 
-      <ThreadListShell
-        v-if="visibleItems.length > 0"
-      >
-        <template v-if="activeTab === 'active'">
-          <ActiveThreadRow
-            v-for="thread in visibleItems"
-            :key="thread.threadId"
-            :thread="thread"
-            :selected="threadsStore.selectedIds.has(thread.threadId)"
-            :focused="thread.threadId === focusedThreadId"
-            @toggle-select="threadsStore.toggleSelect"
-          />
-        </template>
-        <template v-else-if="activeTab === 'archived'">
-          <ArchivedThreadRow
-            v-for="thread in visibleItems"
-            :key="thread.threadId"
-            :thread="thread"
-            :selected="threadsStore.selectedIds.has(thread.threadId)"
-            :focused="thread.threadId === focusedThreadId"
-            @toggle-select="threadsStore.toggleSelect"
-          />
-        </template>
-        <template v-else>
-          <AllThreadRow
-            v-for="thread in visibleItems"
-            :key="thread.threadId"
-            :thread="thread"
-            :selected="threadsStore.selectedIds.has(thread.threadId)"
-            :focused="thread.threadId === focusedThreadId"
-            @toggle-select="threadsStore.toggleSelect"
-          />
-        </template>
-      </ThreadListShell>
+      <div class="relative">
+        <Transition name="inbox-crossfade">
+          <ThreadListShell
+            v-if="visibleItems.length > 0"
+            key="list"
+          >
+            <template v-if="activeTab === 'active'">
+              <ActiveThreadRow
+                v-for="thread in visibleItems"
+                :key="thread.threadId"
+                :thread="thread"
+                :selected="threadsStore.selectedIds.has(thread.threadId)"
+                :focused="thread.threadId === focusedThreadId"
+                @toggle-select="threadsStore.toggleSelect"
+              />
+            </template>
+            <template v-else-if="activeTab === 'archived'">
+              <ArchivedThreadRow
+                v-for="thread in visibleItems"
+                :key="thread.threadId"
+                :thread="thread"
+                :selected="threadsStore.selectedIds.has(thread.threadId)"
+                :focused="thread.threadId === focusedThreadId"
+                @toggle-select="threadsStore.toggleSelect"
+              />
+            </template>
+            <template v-else>
+              <AllThreadRow
+                v-for="thread in visibleItems"
+                :key="thread.threadId"
+                :thread="thread"
+                :selected="threadsStore.selectedIds.has(thread.threadId)"
+                :focused="thread.threadId === focusedThreadId"
+                @toggle-select="threadsStore.toggleSelect"
+              />
+            </template>
+          </ThreadListShell>
 
-      <div
-        v-else-if="loading"
-        role="status"
-        aria-label="Loading inbox…"
-        class="inbox-skeleton-loader animate-pulse divide-y divide-ctp-surface0"
-      >
-        <div v-for="i in 8" :key="i" class="flex items-center gap-3 px-3 py-3">
-          <div class="ml-2 h-4 w-4 shrink-0 rounded bg-ctp-surface1" />
-          <div class="h-5 w-5 shrink-0 rounded bg-ctp-surface1" />
-          <div class="flex-1 space-y-1.5">
-            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${48 + (i * 11) % 38}%` }" />
-            <div class="h-3 w-24 rounded bg-ctp-surface1" />
+          <div
+            v-else-if="loadingDisplay"
+            key="skeleton"
+            role="status"
+            aria-label="Loading inbox…"
+            class="inbox-skeleton-loader animate-pulse divide-y divide-ctp-surface0"
+          >
+            <div v-for="i in 8" :key="i" class="flex items-center gap-3 px-3 py-3">
+              <div class="ml-2 h-4 w-4 shrink-0 rounded bg-ctp-surface1" />
+              <div class="h-5 w-5 shrink-0 rounded bg-ctp-surface1" />
+              <div class="flex-1 space-y-1.5">
+                <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${48 + (i * 11) % 38}%` }" />
+                <div class="h-3 w-24 rounded bg-ctp-surface1" />
+              </div>
+              <div class="h-3 w-10 shrink-0 rounded bg-ctp-surface1" />
+            </div>
           </div>
-          <div class="h-3 w-10 shrink-0 rounded bg-ctp-surface1" />
-        </div>
-      </div>
 
-      <InboxEmpty
-        v-else
-        :tab="activeTab"
-        :refreshing="refreshing"
-        :last-refreshed-at="lastRefreshedAt"
-        @refresh="handleRefresh"
-      />
+          <InboxEmpty
+            v-else
+            key="empty"
+            :tab="activeTab"
+            :refreshing="refreshing"
+            :last-refreshed-at="lastRefreshedAt"
+            @refresh="handleRefresh"
+          />
+        </Transition>
+      </div>
 
       <div v-if="hasMore" class="mt-4 flex justify-center">
         <button
@@ -331,3 +342,22 @@ watch(
 
   <InboxZeroCelebration :show="showCelebration" @done="showCelebration = false" />
 </template>
+
+<style scoped>
+/* List/skeleton/empty crossfade. The leaving element is pulled out of flow during its
+   fade so it overlaps the entering one instead of stacking above/below it — without this,
+   the container's height jumps to the sum of both while they're both in the DOM. */
+.inbox-crossfade-enter-active,
+.inbox-crossfade-leave-active {
+  transition: opacity 150ms ease;
+}
+.inbox-crossfade-enter-from,
+.inbox-crossfade-leave-to {
+  opacity: 0;
+}
+.inbox-crossfade-leave-active {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+}
+</style>

@@ -3,7 +3,7 @@ import { createPinia } from 'pinia'
 import { VueQueryPlugin } from '@tanstack/vue-query'
 import App from './App.vue'
 import { router } from './router'
-import { queryClient } from './lib/queryClient'
+import { queryClient, restoreQueryCache } from './lib/queryClient'
 import './assets/main.css'
 import './lib/analytics'
 import logger from './lib/logger'
@@ -43,7 +43,7 @@ async function enableMocking() {
   // The Vite plugin intercepts /accounts/* requests and returns mock data directly.
 }
 
-enableMocking().then(() => {
+enableMocking().then(() => restoreQueryCache().catch(() => { /* IndexedDB unavailable — views fall back to a normal network fetch */ })).then(() => {
   const pinia = createPinia()
   const app = createApp(App)
 
