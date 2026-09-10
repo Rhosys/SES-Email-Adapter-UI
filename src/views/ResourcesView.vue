@@ -17,6 +17,9 @@ const visibleResources = computed(() => {
   return resources.value.filter((r) => dayKey(r.displayDate ?? r.expectedResolutionDate) >= cutoff)
 })
 
+const activeResources = computed(() => visibleResources.value.filter((r) => r.status !== 'complete'))
+const completedResources = computed(() => visibleResources.value.filter((r) => r.status === 'complete'))
+
 function handleToggle(resourceId: string, newStatus: ResourceStatus) {
   setStatus.mutate({ resourceId, status: newStatus })
 }
@@ -50,12 +53,26 @@ function handleToggle(resourceId: string, newStatus: ResourceStatus) {
         </p>
       </div>
 
-      <ResourcePanel
-        v-else
-        :resources="visibleResources"
-        show-thread-link
-        @toggle-status="handleToggle"
-      />
+      <template v-else>
+        <ResourcePanel
+          :resources="activeResources"
+          show-thread-link
+          @toggle-status="handleToggle"
+        />
+
+        <div v-if="completedResources.length > 0" class="mt-6">
+          <h2 class="px-1 text-xs font-semibold uppercase tracking-wide text-ctp-subtext0">
+            Completed
+          </h2>
+          <div class="mt-2">
+            <ResourcePanel
+              :resources="completedResources"
+              show-thread-link
+              @toggle-status="handleToggle"
+            />
+          </div>
+        </div>
+      </template>
     </main>
   </div>
 </template>
