@@ -110,6 +110,10 @@ describe('InboxView — regression gate', () => {
       pagination: { cursor: null },
     }))
     const wrapper = await mountView()
+    // The skeleton is held for a minimum duration after loading finishes (useHoldTrue)
+    // so a fast resolve doesn't flicker it on/off — wait that out before asserting.
+    await new Promise((resolve) => setTimeout(resolve, 120))
+    await flushPromises()
     expect(wrapper.findComponent({ name: 'InboxEmpty' }).exists()).toBe(true)
   })
 
