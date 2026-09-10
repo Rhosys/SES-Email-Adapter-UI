@@ -91,7 +91,7 @@ function rsvpAction(response: RsvpResponse) {
       <p>
         <span class="text-ctp-subtext0">Organizer:</span> {{ signal.data.organizerName || signal.data.organizer }}
       </p>
-      <p v-if="signal.data.description" class="text-xs text-ctp-subtext0">
+      <p v-if="signal.data.description" class="whitespace-pre-line text-xs text-ctp-subtext0">
         {{ signal.data.description }}
       </p>
       <p v-if="previousValues" class="text-xs text-ctp-peach">
