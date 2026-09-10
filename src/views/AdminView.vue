@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { api } from '@/lib/api'
+import { safeStringify } from '@/lib/logger'
 import { useAccountStore } from '@/stores/account'
 import { useLogStore } from '@/stores/logs'
 import { getUndoExpiresAt } from '@/composables/usePendingSend'
@@ -31,7 +32,7 @@ function formatLogTime(ts: string): string {
 function formatLogMessage(message: Record<string, unknown>): string {
   if (typeof message.title === 'string' && Object.keys(message).length === 1) return message.title
   try {
-    return JSON.stringify(message)
+    return safeStringify(message)
   } catch (e) {
     // console directly, not the app logger — this renders the log stream
     // itself, and logging through it here risks a display feedback loop.

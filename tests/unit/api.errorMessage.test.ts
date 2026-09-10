@@ -45,6 +45,28 @@ describe('api request() error message', () => {
     }
   })
 
+  it('formats a Zod flatten() details object instead of showing [object Object]', async () => {
+    vi.mocked(global.fetch).mockResolvedValue(
+      mockFetchResponse({
+        ok: false,
+        status: 400,
+        body: {
+          title: 'Invalid request body',
+          errorCode: 'INVALID_REQUEST',
+          details: { formErrors: [], fieldErrors: { inviteId: ['Required'] } },
+        },
+      }),
+    )
+
+    const result = await api.reprocessSignal('acc_1', 'thr_1', 'sig_1')
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.message).toBe('Invalid request body: inviteId: Required (INVALID_REQUEST) [400]')
+      expect(result.error.message).not.toContain('[object Object]')
+    }
+  })
+
   it('omits the details and errorCode segments when the body has neither', async () => {
     vi.mocked(global.fetch).mockResolvedValue(
       mockFetchResponse({ ok: false, status: 500, body: { title: 'Reprocess failed' } }),

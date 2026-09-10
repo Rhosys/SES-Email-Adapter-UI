@@ -50,6 +50,36 @@ export class ApiError {
   ) {}
 }
 
+/** Zod's `error.flatten()` shape, as sent by the API for INVALID_REQUEST bodies. */
+interface FlattenedZodError {
+  formErrors?: string[]
+  fieldErrors?: Record<string, string[] | undefined>
+}
+
+function isFlattenedZodError(value: unknown): value is FlattenedZodError {
+  return typeof value === 'object' && value !== null && ('formErrors' in value || 'fieldErrors' in value)
+}
+
+/** Turns an error body's `details` field into a human-readable string, whatever shape it is. */
+function formatErrorDetails(details: unknown): string | undefined {
+  if (details == null) return undefined
+  if (typeof details === 'string') return details
+  if (isFlattenedZodError(details)) {
+    const parts = [
+      ...(details.formErrors ?? []),
+      ...Object.entries(details.fieldErrors ?? {}).flatMap(([field, messages]) =>
+        (messages ?? []).map((m) => `${field}: ${m}`),
+      ),
+    ]
+    if (parts.length > 0) return parts.join('; ')
+  }
+  try {
+    return JSON.stringify(details)
+  } catch {
+    return String(details)
+  }
+}
+
 export interface ThreadListParams {
   q?: string
   workflow?: string
@@ -130,9 +160,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<Result<
       },
     })
     if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as { title?: string; details?: string; errorCode?: string } | null
+      const body = (await res.json().catch(() => null)) as { title?: string; details?: unknown; errorCode?: string } | null
+      const details = formatErrorDetails(body?.details)
       const message = body?.title
-        ? `${body.title}${body.details ? `: ${body.details}` : ''}${body.errorCode ? ` (${body.errorCode})` : ''} [${res.status}]`
+        ? `${body.title}${details ? `: ${details}` : ''}${body.errorCode ? ` (${body.errorCode})` : ''} [${res.status}]`
         : `${init.method ?? 'GET'} ${path} → ${res.status}`
       return err(new ApiError(res.status, message))
     }
