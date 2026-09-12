@@ -9,7 +9,7 @@ import { useSignalListQuery } from '@/composables/useSignalQueries'
 import { visibleLabels, findLabelMeta } from '@/lib/labels'
 import { aggregateWorkflowPanels } from '@/lib/workflow-aggregator'
 import type { WorkflowGroup } from '@/lib/workflow-aggregator'
-import { groupByBodyFingerprint, attachLinkedSignals } from '@/lib/dedup'
+import { groupByBodyFingerprint } from '@/lib/dedup'
 import WorkflowPanel from './WorkflowPanel.vue'
 
 const RECENCY_WINDOW_MS = 15 * 60 * 1000
@@ -47,7 +47,7 @@ const signalCount = computed(() => signals.value.length)
 const mergedWorkflowGroup = computed((): WorkflowGroup | null => {
   if (!isRecent.value) return null
   if (signals.value.length === 0) return null
-  const deduped = attachLinkedSignals(groupByBodyFingerprint(signals.value))
+  const deduped = groupByBodyFingerprint(signals.value)
   const groups = aggregateWorkflowPanels(deduped)
   const group = groups[0]
   if (!group || group.entries.length === 0) return null

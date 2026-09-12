@@ -10,7 +10,7 @@ import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import { DateTime } from 'luxon'
 import { retentionExpiresAt } from '@/lib/retention'
-import { groupByBodyFingerprint, attachLinkedSignals } from '@/lib/dedup'
+import { groupByBodyFingerprint } from '@/lib/dedup'
 import { aggregateWorkflowPanels } from '@/lib/workflow-aggregator'
 import { groupHasVisibleEntries } from '@/lib/workflow-visibility'
 import { visibleLabels, findLabelMeta } from '@/lib/labels'
@@ -76,7 +76,7 @@ const snoozedAnnotation = computed(() => {
   return `This thread was snoozed and resurfaced at ${formatted}`
 })
 
-const dedupedSignals = computed(() => attachLinkedSignals(groupByBodyFingerprint(signalItems.value)))
+const dedupedSignals = computed(() => groupByBodyFingerprint(signalItems.value))
 
 const workflowGroups = computed(() => aggregateWorkflowPanels(dedupedSignals.value))
 
@@ -629,7 +629,6 @@ async function removeLabel(label: string) {
             <SignalRenderer
               v-else
               :signal="group.signal"
-              :linked-signal="group.linkedSignal"
               :default-expanded="index === 0"
               @reply="startDraft"
               @reprocessed="onSignalReprocessed"

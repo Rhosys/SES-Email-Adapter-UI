@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { CalendarEventSignal, Signal } from '@/types/server'
+import type { CalendarEventSignal } from '@/types/server'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
-import LinkedSignalSummary from '@/components/LinkedSignalSummary.vue'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 type RsvpResponse = 'accepted' | 'declined' | 'tentative'
 
-const props = defineProps<{ signal: CalendarEventSignal; linkedSignal?: Signal }>()
+const props = defineProps<{ signal: CalendarEventSignal }>()
 
 const accountStore = useAccountStore()
 const error = ref<string | null>(null)
@@ -88,7 +87,7 @@ function rsvpAction(response: RsvpResponse) {
         <span :class="{ 'line-through text-ctp-subtext0': isCancelled }">{{ signal.data.location }}</span>
       </p>
       <p>
-        <span class="text-ctp-subtext0">Organizer:</span> {{ signal.data.organizerName || signal.data.organizer }}
+        <span class="text-ctp-subtext0">Organizer:</span> {{ signal.data.organizer || signal.data.organizerName }}
       </p>
       <p v-if="signal.data.description" class="whitespace-pre-line text-xs text-ctp-subtext0">
         {{ signal.data.description }}
@@ -157,6 +156,5 @@ function rsvpAction(response: RsvpResponse) {
       </div>
     </div>
 
-    <LinkedSignalSummary v-if="linkedSignal" :signal="linkedSignal" label="Received via" />
   </div>
 </template>

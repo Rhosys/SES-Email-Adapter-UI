@@ -7,9 +7,7 @@ import type {
   AutoSendBlockedSignal,
   DomainMisconfigurationSignal,
   CalendarInviteInvalidSignal,
-  Signal,
 } from '@/types/server'
-import LinkedSignalSummary from '@/components/LinkedSignalSummary.vue'
 
 type SystemSignal =
   | InvalidRuleFunctionSignal
@@ -18,7 +16,7 @@ type SystemSignal =
   | DomainMisconfigurationSignal
   | CalendarInviteInvalidSignal
 
-const props = defineProps<{ signal: SystemSignal; linkedSignal?: Signal }>()
+const props = defineProps<{ signal: SystemSignal }>()
 
 const title = computed(() => {
   switch (props.signal.type) {
@@ -99,6 +97,5 @@ const iconColor = computed(() => severity.value === 'error' ? 'text-ctp-red' : '
       <p class="mt-1 text-xs text-ctp-subtext0">{{ signal.data.reason }}</p>
     </template>
 
-    <LinkedSignalSummary v-if="linkedSignal" :signal="linkedSignal" label="From email" />
   </div>
 </template>
