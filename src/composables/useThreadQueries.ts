@@ -37,6 +37,12 @@ export function useThreadListQuery(status: () => ThreadStatus | undefined) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.pagination.cursor ?? undefined,
     enabled: computed(() => !!accountId.value),
+    // Automatic triggers (tab focus, app-switch focus, mount, reconnect) only refetch the thread
+    // list if the cached data is older than 5 minutes. TanStack tracks the last successful fetch
+    // (dataUpdatedAt) per query and gates these triggers against it, so page changes and focus
+    // events coalesce to at most one background fetch per 5-minute window. The manual Refresh
+    // button calls query.refetch() below, which force-fetches regardless and resets the window.
+    staleTime: 5 * 60 * 1000,
   })
 
   function requestRefresh() {

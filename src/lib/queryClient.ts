@@ -1,4 +1,4 @@
-import { QueryClient, QueryCache, MutationCache } from '@tanstack/vue-query'
+import { QueryClient, QueryCache, MutationCache, focusManager } from '@tanstack/vue-query'
 import { experimental_createQueryPersister } from '@tanstack/query-persist-client-core'
 import { get, set, del } from 'idb-keyval'
 import { broadcastQueryClient } from '@tanstack/query-broadcast-client-experimental'
@@ -57,6 +57,24 @@ export const queryClient = new QueryClient({
 })
 
 try { broadcastQueryClient({ queryClient, broadcastChannel: 'ses-query-sync' }) } catch { /* BroadcastChannel unavailable — single-tab mode */ }
+
+// TanStack's default focusManager only binds `visibilitychange`, which fires on tab switch and
+// minimize — but NOT when the user alt-tabs to another OS application while the browser window
+// stays visible. Adding a window `focus` listener covers that case. No throttling here: how often
+// a focus event actually triggers a network fetch is governed by each query's staleTime (the
+// thread list uses a 5-minute staleTime), and TanStack tracks the last-fetch time per query.
+focusManager.setEventListener((handleFocus) => {
+  const onFocus = () => handleFocus(true)
+  const onVisibility = () => handleFocus(document.visibilityState === 'visible')
+
+  window.addEventListener('focus', onFocus, false)
+  document.addEventListener('visibilitychange', onVisibility, false)
+
+  return () => {
+    window.removeEventListener('focus', onFocus)
+    document.removeEventListener('visibilitychange', onVisibility)
+  }
+})
 
 // Bulk-restores every persisted query from IndexedDB into the cache in one go. Awaited
 // in main.ts before mount, inside the existing auth/router boot screen (App.vue's
