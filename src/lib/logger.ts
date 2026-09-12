@@ -19,6 +19,34 @@ export interface LogHistoryEntry {
 
 type HistorySink = (entry: LogHistoryEntry) => void
 
+/**
+ * Recursively converts any `Error` (including nested ones) into a plain object
+ * with its normally non-enumerable fields (`message`, `stack`, ...) made
+ * enumerable. `JSON.stringify(new Error('x'))` yields `{}` because those fields
+ * are non-enumerable — this collapses log lines to `"error":{}`. Normalizing at
+ * the source keeps the message useful for every downstream consumer (the in-app
+ * history buffer renders with plain JSON.stringify, not safeStringify).
+ */
+export function normalizeErrors(value: unknown, seen = new WeakSet<object>()): unknown {
+  if (value instanceof Error) {
+    const out: Record<string, unknown> = {}
+    for (const k of Object.getOwnPropertyNames(value)) {
+      out[k] = normalizeErrors((value as unknown as Record<string, unknown>)[k], seen)
+    }
+    return out
+  }
+  if (value instanceof URL) return value.toString()
+  if (typeof value === 'object' && value !== null) {
+    if (seen.has(value)) return '[Circular]'
+    seen.add(value)
+    if (Array.isArray(value)) return value.map((v) => normalizeErrors(v, seen))
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(value)) out[k] = normalizeErrors(v, seen)
+    return out
+  }
+  return value
+}
+
 export function safeStringify(value: unknown): string {
   const seen = new WeakSet()
   return JSON.stringify(
@@ -177,6 +205,10 @@ class Logger {
     } else {
       messageAsObject = { value: String(message) }
     }
+
+    // Unwrap any Error values (including nested) so they don't serialize to `{}`
+    // in the in-app history buffer, which renders with plain JSON.stringify.
+    messageAsObject = normalizeErrors(messageAsObject) as Record<string, unknown>
 
     let sessionUrl: string | undefined
     try {
