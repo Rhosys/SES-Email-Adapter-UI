@@ -301,11 +301,11 @@ export const api = {
     accountId: string,
     threadId: string,
     signalId: string,
-    response: 'accepted' | 'declined' | 'tentative',
+    decision: 'accepted' | 'declined' | 'tentative',
   ): Promise<Result<Signal, ApiError>> {
     return request<Signal>(`/accounts/${accountId}/threads/${threadId}/signals/${signalId}/rsvp`, {
       method: 'POST',
-      body: JSON.stringify({ response }),
+      body: JSON.stringify({ decision }),
     })
   },
 
