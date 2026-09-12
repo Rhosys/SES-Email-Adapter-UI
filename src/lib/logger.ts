@@ -19,7 +19,7 @@ export interface LogHistoryEntry {
 
 type HistorySink = (entry: LogHistoryEntry) => void
 
-function safeStringify(value: unknown): string {
+export function safeStringify(value: unknown): string {
   const seen = new WeakSet()
   return JSON.stringify(
     value,
