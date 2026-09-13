@@ -5,6 +5,8 @@ import { queryKeys } from '@/lib/queryKeys'
 import { loginClient } from '@/lib/auth'
 import { notify } from '@/lib/notifications'
 import logger from '@/lib/logger'
+import { api } from '@/lib/api'
+import { upsertThreadCache } from '@/lib/threadCache'
 import type { ThreadUrgency } from '@/types/server'
 import type { RealtimeEvent, SignalCreatedEvent } from '@/types/realtime'
 
@@ -44,9 +46,17 @@ export function useRealtime() {
 
     switch (event.type) {
       case 'thread:updated':
-        void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
+        // The event only carries IDs/summary fields, not the full Thread or Signal — those
+        // still have to be fetched. Detail/signals invalidation is that fetch, scoped to
+        // just this thread (a no-op if it isn't currently mounted). For the list, fetch the
+        // one changed thread and patch its row in place instead of refetching the whole list.
         void queryClient.invalidateQueries({ queryKey: queryKeys.threads.detail(accountId, event.threadId) })
         void queryClient.invalidateQueries({ queryKey: queryKeys.signals.byThread(accountId, event.threadId) })
+        api.getThread(accountId, event.threadId)
+          .then((res) => {
+            if (res.isOk()) upsertThreadCache(queryClient, accountId, res.value)
+          })
+          .catch(() => { /* best-effort cache seed — a later event will retry */ })
         if ('urgency' in event) fireNotification(event)
         break
     }

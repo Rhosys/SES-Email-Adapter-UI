@@ -28,9 +28,10 @@ export function useCreateLabel() {
   return useMutation({
     mutationFn: async (body: { name: string; applyInstruction: string; color?: string; icon?: string }) =>
       unwrap(await api.createLabel(accountStore.accountId!, body)),
-    onSettled: () => {
+    // Append the server's response — the created label — instead of refetching the list.
+    onSuccess: (created) => {
       const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(accountId) })
+      queryClient.setQueryData<Label[]>(queryKeys.labels.all(accountId), (old) => [...(old ?? []), created])
     },
   })
 }
@@ -58,10 +59,6 @@ export function useUpdateLabel() {
         queryClient.setQueryData(queryKeys.labels.all(accountId), context.previous)
       }
     },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(accountId) })
-    },
   })
 }
 
@@ -87,10 +84,6 @@ export function useDeleteLabel() {
         const accountId = accountStore.accountId!
         queryClient.setQueryData(queryKeys.labels.all(accountId), context.previous)
       }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(accountId) })
     },
   })
 }
