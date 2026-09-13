@@ -233,6 +233,29 @@ watch(
       </div>
     </header>
 
+    <div class="flex items-center justify-end gap-2 border-b border-ctp-surface0 bg-ctp-mantle px-4 py-2 sm:hidden">
+      <span v-if="lastRefreshedAt" class="text-xs text-ctp-subtext0">Last checked: {{ lastRefreshedAt }}</span>
+      <button
+        class="flex items-center gap-1 rounded border border-ctp-surface1 px-2 py-1 text-xs text-ctp-subtext1 transition-colors hover:border-ctp-blue hover:text-ctp-blue disabled:opacity-50"
+        :disabled="refreshing"
+        @click="handleRefresh"
+      >
+        <svg
+          class="h-3.5 w-3.5"
+          :class="{ 'animate-spin': refreshing }"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          aria-hidden="true"
+        >
+          <path d="M14 8A6 6 0 1 1 8 2" stroke-linecap="round" />
+          <path d="M8 0v4l3-2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Refresh
+      </button>
+    </div>
+
     <!-- pb-24 on mobile clears the fixed InboxTabBar bottom bar -->
     <main class="mx-auto max-w-4xl px-4 pt-4 pb-24 sm:pb-4">
       <StatsWidget class="hidden sm:block" />
