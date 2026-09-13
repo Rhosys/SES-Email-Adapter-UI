@@ -247,6 +247,7 @@ export const mockSignals: Record<string, Signal[]> = {
         organizerName: 'Lufthansa',
         attendees: [{ address: 'hello@demo.catchmail.app', name: 'Warren Parad', rsvpStatus: 'accepted' }],
         linkedSignalId: 'sig_travel1_1',
+        rsvpable: false,
       },
     },
     {
@@ -482,6 +483,7 @@ export const mockSignals: Record<string, Signal[]> = {
         organizerName: 'Zahnklinik Mitte',
         attendees: [{ address: 'hello@demo.catchmail.app', name: 'Warren Parad' }],
         linkedSignalId: 'sig_health1_1',
+        rsvpable: false,
       },
     },
   ],

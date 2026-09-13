@@ -26,6 +26,7 @@ function makeSignal(overrides: Partial<CalendarEventSignal['data']> = {}): Calen
       organizer: 'boss@company.com',
       attendees: [],
       linkedSignalId: 'sig_email_1',
+      rsvpable: true,
       ...overrides,
     },
   }
@@ -158,5 +159,64 @@ describe('CalendarEventCard — update (previousValues)', () => {
     expect(whereLine).toContain('Room A')
     expect(whereLine).toContain('Room B')
     expect(whereLine).toContain('→')
+  })
+})
+
+describe('CalendarEventCard — rsvpable gating', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    useAccountStore().account = {
+      accountId: 'acc_1', name: 'Test', filtering: { defaultUnknownSenderPolicy: 'quarantine_visible' },
+      createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z',
+    }
+  })
+
+  it('hides the RSVP buttons for a non-rsvpable event (e.g. a PUBLISH reservation confirmation)', () => {
+    const wrapper = mount(CalendarEventCard, { props: { signal: makeSignal({ rsvpable: false }) } })
+    // Not RSVP-able → no accept/tentative/decline controls at all.
+    expect(wrapper.findAll('button')).toHaveLength(0)
+  })
+
+  it('shows the RSVP buttons for a rsvpable event with no prior response', () => {
+    const wrapper = mount(CalendarEventCard, { props: { signal: makeSignal({ rsvpable: true }) } })
+    expect(wrapper.findAll('button')).toHaveLength(3)
+  })
+})
+
+describe('CalendarEventCard — prior response from rsvpResponse (server-sourced)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    useAccountStore().account = {
+      accountId: 'acc_1', name: 'Test', filtering: { defaultUnknownSenderPolicy: 'quarantine_visible' },
+      createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z',
+    }
+  })
+
+  it('shows "you accepted" and hides the buttons when the server reports a prior RSVP', () => {
+    // A prior RSVP recorded via EITHER path (dashboard or native calendar reply) arrives on the
+    // event data as rsvpResponse — the card must reflect it on load, not only after a local click.
+    const wrapper = mount(CalendarEventCard, {
+      props: {
+        signal: makeSignal({
+          rsvpable: true,
+          rsvpResponse: { decision: 'accepted', respondedAt: '2025-06-01T12:00:00Z' },
+        }),
+      },
+    })
+    expect(wrapper.text()).toContain('accepted')
+    expect(wrapper.findAll('button')).toHaveLength(0)
+  })
+
+  it('reflects a declined prior response', () => {
+    const wrapper = mount(CalendarEventCard, {
+      props: {
+        signal: makeSignal({
+          rsvpable: true,
+          rsvpResponse: { decision: 'declined', respondedAt: '2025-06-01T12:00:00Z' },
+        }),
+      },
+    })
+    expect(wrapper.text()).toContain('declined')
+    expect(wrapper.findAll('button')).toHaveLength(0)
   })
 })

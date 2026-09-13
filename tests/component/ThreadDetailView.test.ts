@@ -780,6 +780,7 @@ describe('ThreadDetailView — RSVP action', () => {
           { address: 'me@example.com', name: 'Me' },
         ],
         linkedSignalId: 'sig_linked',
+        rsvpable: true,
       },
     } as Signal
   }

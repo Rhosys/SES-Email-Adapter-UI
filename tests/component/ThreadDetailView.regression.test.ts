@@ -122,6 +122,7 @@ function mockCalendarEventSignal(): Signal {
       organizerName: 'Boss',
       attendees: [{ address: 'me@example.com', name: 'Me' }],
       linkedSignalId: 'sig_linked',
+      rsvpable: true,
     },
   } as Signal
 }

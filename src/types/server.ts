@@ -343,11 +343,22 @@ export interface CalendarEventData {
   organizerName?: string
   attendees: CalendarAttendee[]
   linkedSignalId: string
+  // Whether the latest state of this event solicits an RSVP from the user. The card renders
+  // its RSVP control from this flag alone — never from the signal type. False for informational
+  // (PUBLISH) events, cancelled events, and any event with no organizer to reply to.
+  rsvpable: boolean
   // Present when the event has been cancelled (METHOD:CANCEL). The display fields are
   // retained so the card can render them struck-through rather than blank.
   cancelledAt?: string
   // Present when a later invite changed one or more fields.
   previousValues?: CalendarPreviousValues
+  // The account's latest RSVP for this event (across all responses, latest by respondedAt).
+  // Absent when the user has not responded. Lets the card show "you responded" regardless of
+  // whether the RSVP came from the dashboard or a native calendar reply.
+  rsvpResponse?: {
+    decision: 'accepted' | 'declined' | 'tentative'
+    respondedAt: string
+  }
 }
 
 export interface CalendarEventSignal extends SignalBase {

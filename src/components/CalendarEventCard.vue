@@ -11,7 +11,9 @@ const props = defineProps<{ signal: CalendarEventSignal }>()
 
 const accountStore = useAccountStore()
 const error = ref<string | null>(null)
-const rsvpStatus = ref<RsvpResponse | null>(null)
+// Seed from the server-reported prior RSVP (recorded via the dashboard OR a native calendar
+// reply), so a prior response shows on load — not only after a local click this session.
+const rsvpStatus = ref<RsvpResponse | null>(props.signal.data.rsvpResponse?.decision ?? null)
 
 const formattedStart = computed(() =>
   new Date(props.signal.data.startTime).toLocaleString(undefined, {
@@ -29,6 +31,10 @@ const formattedEnd = computed(() => {
 })
 
 const isCancelled = computed(() => Boolean(props.signal.data.cancelledAt))
+
+// The server decides RSVP eligibility (scheduling REQUEST with an organizer, not cancelled) and
+// exposes it as rsvpable. The card never infers it from the signal type.
+const isRsvpable = computed(() => props.signal.data.rsvpable === true)
 
 const previousValues = computed(() => props.signal.data.previousValues)
 
@@ -132,7 +138,8 @@ function rsvpAction(response: RsvpResponse) {
         You {{ rsvpStatus === 'accepted' ? 'accepted' : rsvpStatus === 'declined' ? 'declined' : 'tentatively accepted' }} this event.
       </p>
     </div>
-    <div v-else class="border-t border-ctp-surface1 pt-3">
+    <!-- RSVP buttons only when the server says this event is answerable. -->
+    <div v-else-if="isRsvpable" class="border-t border-ctp-surface1 pt-3">
       <p v-if="error" class="mb-2 text-xs text-ctp-red">{{ error }}</p>
       <div class="flex items-center gap-2">
         <AsyncButton
