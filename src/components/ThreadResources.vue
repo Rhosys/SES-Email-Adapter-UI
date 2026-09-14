@@ -1,39 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { api } from '@/lib/api'
-import { useAccountStore } from '@/stores/account'
 import ResourcePanel from '@/components/ResourcePanel.vue'
+import { useSetResourceStatus } from '@/composables/useResourceQueries'
 import type { Resource, ResourceStatus } from '@/types/server'
 
-const props = defineProps<{ threadId: string }>()
+defineProps<{ resources: Resource[] }>()
 
-const accountStore = useAccountStore()
-const resources = ref<Resource[]>([])
+const setStatus = useSetResourceStatus()
 
-async function fetchResources() {
-  const accountId = accountStore.accountId
-  if (!accountId) return
-  const result = await api.listResourcesByThread(accountId, props.threadId)
-  if (result.isOk()) {
-    resources.value = result.value.resources
-  }
+function handleToggle(resourceId: string, newStatus: ResourceStatus) {
+  setStatus.mutate({ resourceId, status: newStatus })
 }
-
-async function handleToggle(resourceId: string, newStatus: ResourceStatus) {
-  const accountId = accountStore.accountId
-  if (!accountId) return
-  resources.value = resources.value.map((r) =>
-    r.resourceId === resourceId ? { ...r, status: newStatus } : r,
-  )
-  const result = await api.patchResource(accountId, resourceId, { status: newStatus })
-  if (result.isErr()) {
-    await fetchResources()
-  }
-}
-
-onMounted(() => {
-  void fetchResources()
-})
 </script>
 
 <template>

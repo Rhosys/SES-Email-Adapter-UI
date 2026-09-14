@@ -22,20 +22,49 @@ function canonicalize(data: WorkflowData): string {
   return JSON.stringify(clean)
 }
 
-function isPrefixMatch(a: string, b: string): boolean {
+// Case-invariant containment: two strings are compatible when one contains the
+// other (e.g. "AWS Community Day" ⊂ "AWS Community Day 2026 - Switzerland"). This
+// lets a truncated/partial value merge with its fuller counterpart.
+function isSubstringMatch(a: string, b: string): boolean {
   const la = a.toLowerCase()
   const lb = b.toLowerCase()
-  return lb.startsWith(la) || la.startsWith(lb)
+  return la.includes(lb) || lb.includes(la)
 }
 
-function areMergeCompatible(a: WorkflowData, b: WorkflowData): boolean {
+// Fields that vary per notification about the same underlying subject and must
+// never gate a merge. For events, both the lifecycle stage (`eventType`) and the
+// free-text `description` change across confirmation/update/reminder emails while
+// still describing one event, so they are ignored for compatibility and simply
+// resolved newest-wins during the merge itself.
+const VOLATILE_FIELDS: Partial<Record<Workflow, readonly string[]>> = {
+  events: ["eventType", "description"],
+}
+
+// Identity fields whose presence + match is REQUIRED (not merely non-conflicting)
+// for two entries to be considered the same subject. Prevents two unrelated events
+// merging just because none of their sparse fields happen to conflict.
+const IDENTITY_FIELDS: Partial<Record<Workflow, readonly string[]>> = {
+  events: ["eventName"],
+}
+
+function areMergeCompatible(workflow: Workflow, a: WorkflowData, b: WorkflowData): boolean {
   const ra = a as unknown as Record<string, unknown>
   const rb = b as unknown as Record<string, unknown>
+  const volatile = new Set(VOLATILE_FIELDS[workflow] ?? [])
+
+  for (const field of IDENTITY_FIELDS[workflow] ?? []) {
+    const va = ra[field]
+    const vb = rb[field]
+    if (typeof va !== "string" || typeof vb !== "string") return false
+    if (!isSubstringMatch(va, vb)) return false
+  }
+
   for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (volatile.has(key)) continue
     const va = ra[key]
     const vb = rb[key]
     if (va != null && vb != null && JSON.stringify(va) !== JSON.stringify(vb)) {
-      if (typeof va === "string" && typeof vb === "string" && isPrefixMatch(va, vb)) continue
+      if (typeof va === "string" && typeof vb === "string" && isSubstringMatch(va, vb)) continue
       return false
     }
   }
@@ -103,7 +132,7 @@ export function aggregateWorkflowPanels(dedupedSignals: SignalGroup[]): Workflow
       changed = false
       for (let i = 0; i < bucket.entries.length; i++) {
         for (let j = i + 1; j < bucket.entries.length; j++) {
-          if (areMergeCompatible(bucket.entries[i].data, bucket.entries[j].data)) {
+          if (areMergeCompatible(bucket.entries[i].workflow, bucket.entries[i].data, bucket.entries[j].data)) {
             // i is newer (lower index in newest-first list), j is older
             // merge oldest-into-newest so newest values win
             bucket.entries[i] = {

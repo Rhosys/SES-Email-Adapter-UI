@@ -53,6 +53,26 @@ export function useAllResourcesQuery() {
 }
 
 /**
+ * Fetches all resources for a single thread (any status) — thread detail view.
+ * Shared by the resource panel and the workflow-panel suppression logic so both
+ * read one cached list.
+ */
+export function useThreadResourcesQuery(threadId: () => string) {
+  const accountStore = useAccountStore()
+  const accountId = computed(() => accountStore.accountId)
+
+  const query = useQuery({
+    queryKey: computed(() => queryKeys.resources.byThread(accountId.value!, threadId())),
+    queryFn: async () => unwrap(await api.listResourcesByThread(accountId.value!, threadId())),
+    enabled: computed(() => !!accountId.value && !!threadId()),
+  })
+
+  const resources = computed<Resource[]>(() => query.data.value?.resources ?? [])
+
+  return { query, resources }
+}
+
+/**
  * Mutation to change a resource's status (complete, dismiss, etc.) with
  * optimistic update across all resource queries for this account.
  */

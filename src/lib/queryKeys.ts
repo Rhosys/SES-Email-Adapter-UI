@@ -36,6 +36,8 @@ export const queryKeys = {
     all: (accountId: string) => ['resources', accountId] as const,
     list: (accountId: string, params: { status?: string; dateFrom?: string }) =>
       ['resources', accountId, params] as const,
+    byThread: (accountId: string, threadId: string) =>
+      ['resources', accountId, 'thread', threadId] as const,
   },
   senderIdentities: (accountId: string) => ['senderIdentities', accountId] as const,
 } as const

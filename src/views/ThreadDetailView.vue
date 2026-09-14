@@ -12,7 +12,9 @@ import { DateTime } from 'luxon'
 import { retentionExpiresAt } from '@/lib/retention'
 import { groupByBodyFingerprint } from '@/lib/dedup'
 import { aggregateWorkflowPanels } from '@/lib/workflow-aggregator'
+import { workflowMatchesResource } from '@/lib/resource-match'
 import { groupHasVisibleEntries } from '@/lib/workflow-visibility'
+import { useThreadResourcesQuery } from '@/composables/useResourceQueries'
 import { visibleLabels, findLabelMeta } from '@/lib/labels'
 import { useLabelsQuery } from '@/composables/useLabelsQueries'
 import { api } from '@/lib/api'
@@ -78,7 +80,21 @@ const snoozedAnnotation = computed(() => {
 
 const dedupedSignals = computed(() => groupByBodyFingerprint(signalItems.value))
 
-const workflowGroups = computed(() => aggregateWorkflowPanels(dedupedSignals.value))
+// Resources for this thread — shared by the resource panel and the workflow-panel
+// suppression below, so a workflow entry already surfaced as a resource is hidden.
+const { resources: threadResources } = useThreadResourcesQuery(() => threadId.value)
+
+const workflowGroups = computed(() => {
+  const groups = aggregateWorkflowPanels(dedupedSignals.value)
+  const resources = threadResources.value
+  if (resources.length === 0) return groups
+  return groups
+    .map((group) => ({
+      ...group,
+      entries: group.entries.filter((entry) => !workflowMatchesResource(group.workflow, entry, resources)),
+    }))
+    .filter((group) => group.entries.length > 0)
+})
 
 const hasVisibleWorkflowPanel = computed(() => workflowGroups.value.some((group) => groupHasVisibleEntries(group)))
 
@@ -608,7 +624,7 @@ async function removeLabel(label: string) {
       </div>
 
       <!-- Resources associated with this thread -->
-      <ThreadResources :thread-id="threadId" />
+      <ThreadResources :resources="threadResources" />
 
       <!-- Signal thread — newest first, received + draft signals -->
       <div v-if="dedupedSignals.length > 0" ref="signalListRef" class="space-y-4">

@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
+import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import ThreadResources from '@/components/ThreadResources.vue'
 import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
-import { ok, err } from 'neverthrow'
-import { ApiError } from '@/lib/api'
+import { ok } from 'neverthrow'
 import type { Resource } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
@@ -13,7 +13,6 @@ vi.mock('@/lib/api', async (importOriginal) => {
   return {
     ...original,
     api: {
-      listResourcesByThread: vi.fn(),
       patchResource: vi.fn(),
     },
   }
@@ -34,21 +33,21 @@ function mockResource(overrides: Partial<Resource> = {}): Resource {
 }
 
 let pinia: ReturnType<typeof createPinia>
+let queryClient: QueryClient
 
-async function mountResources() {
-  const wrapper = mount(ThreadResources, {
-    props: { threadId: 'thread_1' },
-    global: { plugins: [pinia] },
+function mountResources(resources: Resource[]) {
+  return mount(ThreadResources, {
+    props: { resources },
+    global: { plugins: [pinia, [VueQueryPlugin, { queryClient }]] },
     attachTo: document.body,
   })
-  await flushPromises()
-  return wrapper
 }
 
 describe('ThreadResources', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     vi.clearAllMocks()
 
     const accountStore = useAccountStore()
@@ -60,40 +59,33 @@ describe('ThreadResources', () => {
       updatedAt: '2025-01-01T00:00:00Z',
     }
 
-    vi.mocked(api.listResourcesByThread).mockResolvedValue(
-      ok({ resources: [mockResource()], pagination: { cursor: null } }),
-    )
+    vi.mocked(api.patchResource).mockResolvedValue(ok(mockResource({ status: 'complete' })))
   })
 
-  it('renders nothing when no resources exist', async () => {
-    vi.mocked(api.listResourcesByThread).mockResolvedValue(
-      ok({ resources: [], pagination: { cursor: null } }),
-    )
-    const wrapper = await mountResources()
+  it('renders nothing when no resources exist', () => {
+    const wrapper = mountResources([])
     expect(wrapper.find('[role="list"]').exists()).toBe(false)
   })
 
-  it('renders the resource panel when resources exist', async () => {
-    const wrapper = await mountResources()
+  it('renders the resource panel when resources exist', () => {
+    const wrapper = mountResources([mockResource()])
     expect(wrapper.find('[role="list"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Package')
   })
 
-  it('does not show a "Jump to thread" link (thread-scoped view)', async () => {
-    const wrapper = await mountResources()
+  it('does not show a "Jump to thread" link (thread-scoped view)', () => {
+    const wrapper = mountResources([mockResource()])
     expect(wrapper.text()).not.toContain('Jump to thread')
   })
 
-  it('shows "Mark complete" button for active resources', async () => {
-    const wrapper = await mountResources()
+  it('shows "Mark complete" button for active resources', () => {
+    const wrapper = mountResources([mockResource()])
     const btn = wrapper.findAll('button').find((b) => b.text() === 'Mark complete')
     expect(btn).toBeDefined()
   })
 
   it('marks a resource complete via the toggle button', async () => {
-    vi.mocked(api.patchResource).mockResolvedValue(ok(mockResource({ status: 'complete' })))
-
-    const wrapper = await mountResources()
+    const wrapper = mountResources([mockResource()])
     const btn = wrapper.findAll('button').find((b) => b.text() === 'Mark complete')!
     await btn.trigger('click')
     await flushPromises()
@@ -101,24 +93,10 @@ describe('ThreadResources', () => {
     expect(api.patchResource).toHaveBeenCalledWith('acc_1', 'res_1', { status: 'complete' })
   })
 
-  it('shows "Completed" badge and "Mark active" for complete resources', async () => {
-    vi.mocked(api.listResourcesByThread).mockResolvedValue(
-      ok({ resources: [mockResource({ status: 'complete' })], pagination: { cursor: null } }),
-    )
-    const wrapper = await mountResources()
+  it('shows "Completed" badge and "Mark active" for complete resources', () => {
+    const wrapper = mountResources([mockResource({ status: 'complete' })])
     expect(wrapper.text()).toContain('Completed')
     const btn = wrapper.findAll('button').find((b) => b.text() === 'Mark active')
     expect(btn).toBeDefined()
-  })
-
-  it('refetches resources when patchResource fails', async () => {
-    vi.mocked(api.patchResource).mockResolvedValue(err(new ApiError(500, 'fail')))
-
-    const wrapper = await mountResources()
-    const btn = wrapper.findAll('button').find((b) => b.text() === 'Mark complete')!
-    await btn.trigger('click')
-    await flushPromises()
-
-    expect(api.listResourcesByThread).toHaveBeenCalledTimes(2)
   })
 })

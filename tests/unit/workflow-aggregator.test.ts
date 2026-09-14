@@ -201,6 +201,55 @@ describe('aggregateWorkflowPanels', () => {
     })
   })
 
+  describe('events: volatile fields (eventType, description) do not block merge', () => {
+    it('merges same-event notifications differing only in eventType and description', () => {
+      // Two lifecycle emails for one event: a confirmation and an update. eventType
+      // and description differ but eventName is identical → single merged entry.
+      const groups: SignalGroup[] = [
+        makeSignalGroup('events', { eventType: 'update', eventName: 'AWS Community Day 2026 - Switzerland', description: 'Session accepted' } as WorkflowData),
+        makeSignalGroup('events', { eventType: 'ticket_confirmation', eventName: 'AWS Community Day 2026 - Switzerland', description: 'Event confirmation' } as WorkflowData),
+      ]
+
+      const result = aggregateWorkflowPanels(groups)
+      expect(result).toHaveLength(1)
+      expect(result[0].entries).toHaveLength(1)
+    })
+
+    it('merges a title-only entry into a fuller one via substring eventName match', () => {
+      const groups: SignalGroup[] = [
+        makeSignalGroup('events', { eventType: 'reminder', eventName: 'AWS Community Day 2026 - Switzerland' } as WorkflowData),
+        makeSignalGroup('events', { eventType: 'update', eventName: 'AWS Community Day' } as WorkflowData),
+      ]
+
+      const result = aggregateWorkflowPanels(groups)
+      expect(result).toHaveLength(1)
+      expect(result[0].entries).toHaveLength(1)
+    })
+
+    it('keeps unrelated events separate (no eventName containment)', () => {
+      const groups: SignalGroup[] = [
+        makeSignalGroup('events', { eventType: 'update', eventName: 'AWS Community Day' } as WorkflowData),
+        makeSignalGroup('events', { eventType: 'update', eventName: 'Google Cloud Next' } as WorkflowData),
+      ]
+
+      const result = aggregateWorkflowPanels(groups)
+      expect(result).toHaveLength(1)
+      expect(result[0].entries).toHaveLength(2)
+    })
+
+    it('does not merge when a non-volatile identity field conflicts', () => {
+      // Same eventName, but different ticketReference (a real identity field) → separate.
+      const groups: SignalGroup[] = [
+        makeSignalGroup('events', { eventType: 'update', eventName: 'AWS Community Day', ticketReference: 'TIX-1' } as WorkflowData),
+        makeSignalGroup('events', { eventType: 'update', eventName: 'AWS Community Day', ticketReference: 'TIX-2' } as WorkflowData),
+      ]
+
+      const result = aggregateWorkflowPanels(groups)
+      expect(result).toHaveLength(1)
+      expect(result[0].entries).toHaveLength(2)
+    })
+  })
+
   describe('edge cases', () => {
     it('returns empty array for zero signals', () => {
       expect(aggregateWorkflowPanels([])).toEqual([])
