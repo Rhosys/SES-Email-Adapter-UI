@@ -7,13 +7,21 @@ import CalendarResponseCard from '@/components/CalendarResponseCard.vue'
 import SystemAlertCard from '@/components/SystemAlertCard.vue'
 
 withDefaults(defineProps<{ signal: Signal; defaultExpanded?: boolean }>(), { defaultExpanded: true })
-defineEmits<{ reply: []; reprocessed: [] }>()
+defineEmits<{
+  reply: []
+  reprocessed: []
+  'propose-alternative-time': [{ organizer: string; organizerName?: string; title: string; startTime: string; endTime?: string }]
+}>()
 </script>
 
 <template>
   <EmailSignalCard v-if="signal.type === 'email'" :signal="signal" :default-expanded="defaultExpanded" @reply="$emit('reply')" @reprocessed="$emit('reprocessed')" />
   <DeliverabilityCard v-else-if="signal.type === 'deliverability'" :signal="signal" />
-  <CalendarEventCard v-else-if="signal.type === 'calendar_event'" :signal="signal" />
+  <CalendarEventCard
+    v-else-if="signal.type === 'calendar_event'"
+    :signal="signal"
+    @propose-alternative-time="$emit('propose-alternative-time', $event)"
+  />
   <CalendarResponseCard v-else-if="signal.type === 'calendar_response'" :signal="signal" />
   <SystemAlertCard v-else :signal="signal" />
 </template>

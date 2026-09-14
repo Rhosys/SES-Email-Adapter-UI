@@ -192,7 +192,7 @@ describe('CalendarEventCard — prior response from rsvpResponse (server-sourced
     }
   })
 
-  it('shows "you accepted" and hides the buttons when the server reports a prior RSVP', () => {
+  it('shows "you accepted" and a single Change RSVP button when the server reports a prior RSVP', () => {
     // A prior RSVP recorded via EITHER path (dashboard or native calendar reply) arrives on the
     // event data as rsvpResponse — the card must reflect it on load, not only after a local click.
     const wrapper = mount(CalendarEventCard, {
@@ -204,7 +204,8 @@ describe('CalendarEventCard — prior response from rsvpResponse (server-sourced
       },
     })
     expect(wrapper.text()).toContain('accepted')
-    expect(wrapper.findAll('button')).toHaveLength(0)
+    expect(wrapper.findAll('button')).toHaveLength(1)
+    expect(wrapper.text()).toContain('Change RSVP')
   })
 
   it('reflects a declined prior response', () => {
@@ -217,6 +218,39 @@ describe('CalendarEventCard — prior response from rsvpResponse (server-sourced
       },
     })
     expect(wrapper.text()).toContain('declined')
-    expect(wrapper.findAll('button')).toHaveLength(0)
+    expect(wrapper.findAll('button')).toHaveLength(1)
+  })
+
+  it('opens the change-RSVP menu with the remaining options and a "suggest a different time" action', async () => {
+    const wrapper = mount(CalendarEventCard, {
+      props: {
+        signal: makeSignal({
+          rsvpable: true,
+          rsvpResponse: { decision: 'accepted', respondedAt: '2025-06-01T12:00:00Z' },
+        }),
+      },
+    })
+    await wrapper.find('button').trigger('click')
+    const buttons = wrapper.findAll('button')
+    const labels = buttons.map((b) => b.text())
+    expect(labels).toContain('Tentative')
+    expect(labels).toContain('Decline')
+    expect(labels).not.toContain('Accept')
+    expect(labels.some((l) => l.includes('Suggest a different time'))).toBe(true)
+  })
+
+  it('emits propose-alternative-time with the event details when "suggest a different time" is clicked', async () => {
+    const wrapper = mount(CalendarEventCard, {
+      props: {
+        signal: makeSignal({
+          rsvpable: true,
+          rsvpResponse: { decision: 'accepted', respondedAt: '2025-06-01T12:00:00Z' },
+        }),
+      },
+    })
+    await wrapper.find('button').trigger('click')
+    const suggestButton = wrapper.findAll('button').find((b) => b.text().includes('Suggest a different time'))
+    await suggestButton?.trigger('click')
+    expect(wrapper.emitted('propose-alternative-time')).toBeTruthy()
   })
 })

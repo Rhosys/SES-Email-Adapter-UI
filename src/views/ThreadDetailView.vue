@@ -393,6 +393,39 @@ async function startDraft() {
   )
 }
 
+function proposeAlternativeTime(event: { organizer: string; organizerName?: string; title: string; startTime: string; endTime?: string }) {
+  const existingDraft = signalItems.value.find((s) => s.status === 'draft')
+  if (existingDraft) {
+    void scrollToDraft(existingDraft.signalId)
+    return
+  }
+
+  // The alias that received the invite is the address we reply from — the same one used
+  // to relay the RSVP itself, so the organizer keeps seeing the masked alias, not the
+  // user's real mailbox.
+  const emailWithAlias = signalItems.value.find((s) => s.type === 'email' && 'recipientAddress' in s.data)
+  const fromAddress = emailWithAlias && 'recipientAddress' in emailWithAlias.data ? (emailWithAlias.data as { recipientAddress: string }).recipientAddress : ''
+
+  const currentWhen = new Date(event.startTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+  const textBody = `Hi${event.organizerName ? ` ${event.organizerName}` : ''},\n\nCould we find a different time for "${event.title}"? The current time (${currentWhen}) doesn't work for me — here are some times that would:\n\n- \n- \n\nLet me know what works best.\n`
+
+  createDraftMutation.mutate(
+    {
+      threadId: threadId.value,
+      body: {
+        from: { address: fromAddress },
+        to: [{ address: event.organizer, ...(event.organizerName ? { name: event.organizerName } : {}) }],
+        subject: /^re:\s/i.test(event.title) ? event.title : `Re: ${event.title}`,
+        textBody,
+      },
+    },
+    {
+      onSuccess: (newSignal) => { void scrollToDraft(newSignal.signalId) },
+      onError: () => { notify('Could not start a reply — please try again.') },
+    },
+  )
+}
+
 function labelMeta(label: string) {
   return findLabelMeta(labels.value, label)
 }
@@ -648,6 +681,7 @@ async function removeLabel(label: string) {
               :default-expanded="index === 0"
               @reply="startDraft"
               @reprocessed="onSignalReprocessed"
+              @propose-alternative-time="proposeAlternativeTime"
             />
           </div>
         </template>

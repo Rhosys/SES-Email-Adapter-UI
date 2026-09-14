@@ -9,11 +9,16 @@ type RsvpResponse = 'accepted' | 'declined' | 'tentative'
 
 const props = defineProps<{ signal: CalendarEventSignal }>()
 
+const emit = defineEmits<{
+  'propose-alternative-time': [{ organizer: string; organizerName?: string; title: string; startTime: string; endTime?: string }]
+}>()
+
 const accountStore = useAccountStore()
 const error = ref<string | null>(null)
 // Seed from the server-reported prior RSVP (recorded via the dashboard OR a native calendar
 // reply), so a prior response shows on load — not only after a local click this session.
 const rsvpStatus = ref<RsvpResponse | null>(props.signal.data.rsvpResponse?.decision ?? null)
+const showChangeRsvpMenu = ref(false)
 
 const formattedStart = computed(() =>
   new Date(props.signal.data.startTime).toLocaleString(undefined, {
@@ -49,11 +54,23 @@ function rsvpAction(response: RsvpResponse) {
     const result = await api.rsvpSignal(accountStore.accountId, props.signal.threadId!, props.signal.signalId, response)
     if (result.isOk()) {
       rsvpStatus.value = response
+      showChangeRsvpMenu.value = false
     } else {
       error.value = result.error.message
       throw new Error(result.error.message)
     }
   }
+}
+
+function proposeAlternativeTime() {
+  showChangeRsvpMenu.value = false
+  emit('propose-alternative-time', {
+    organizer: props.signal.data.organizer,
+    organizerName: props.signal.data.organizerName,
+    title: props.signal.data.title,
+    startTime: props.signal.data.startTime,
+    endTime: props.signal.data.endTime,
+  })
 }
 </script>
 
@@ -133,10 +150,58 @@ function rsvpAction(response: RsvpResponse) {
       <p class="text-xs font-medium text-ctp-red">This event was cancelled by the organizer.</p>
     </div>
     <!-- RSVP -->
-    <div v-else-if="rsvpStatus" class="border-t border-ctp-surface1 pt-3">
-      <p class="text-xs text-ctp-subtext1">
-        You {{ rsvpStatus === 'accepted' ? 'accepted' : rsvpStatus === 'declined' ? 'declined' : 'tentatively accepted' }} this event.
-      </p>
+    <div v-else-if="rsvpStatus" class="relative border-t border-ctp-surface1 pt-3">
+      <p v-if="error" class="mb-2 text-xs text-ctp-red">{{ error }}</p>
+      <div class="flex items-center justify-between gap-2">
+        <p class="text-xs text-ctp-subtext1">
+          You {{ rsvpStatus === 'accepted' ? 'accepted' : rsvpStatus === 'declined' ? 'declined' : 'tentatively accepted' }} this event.
+        </p>
+        <button
+          v-if="isRsvpable"
+          type="button"
+          class="rounded-md border border-ctp-surface2 px-2 py-1 text-xs font-medium text-ctp-subtext1 hover:bg-ctp-surface0"
+          @click="showChangeRsvpMenu = !showChangeRsvpMenu"
+        >
+          Change RSVP
+        </button>
+      </div>
+
+      <div
+        v-if="showChangeRsvpMenu"
+        class="absolute right-0 top-full z-20 mt-1 w-56 rounded-md border border-ctp-surface1 bg-ctp-mantle p-2 shadow-lg"
+      >
+        <p class="mb-2 px-1 text-xs text-ctp-subtext0">Change your response</p>
+        <div class="flex flex-col gap-1">
+          <AsyncButton
+            v-if="rsvpStatus !== 'accepted'"
+            :action="rsvpAction('accepted')"
+            class="w-full rounded-md px-2 py-1.5 text-left text-sm text-ctp-green hover:bg-ctp-green/10"
+          >
+            Accept
+          </AsyncButton>
+          <AsyncButton
+            v-if="rsvpStatus !== 'tentative'"
+            :action="rsvpAction('tentative')"
+            class="w-full rounded-md px-2 py-1.5 text-left text-sm text-ctp-peach hover:bg-ctp-peach/10"
+          >
+            Tentative
+          </AsyncButton>
+          <AsyncButton
+            v-if="rsvpStatus !== 'declined'"
+            :action="rsvpAction('declined')"
+            class="w-full rounded-md px-2 py-1.5 text-left text-sm text-ctp-red hover:bg-ctp-red/10"
+          >
+            Decline
+          </AsyncButton>
+          <button
+            type="button"
+            class="w-full rounded-md px-2 py-1.5 text-left text-sm text-ctp-blue hover:bg-ctp-blue/10"
+            @click="proposeAlternativeTime"
+          >
+            Suggest a different time…
+          </button>
+        </div>
+      </div>
     </div>
     <!-- RSVP buttons only when the server says this event is answerable. -->
     <div v-else-if="isRsvpable" class="border-t border-ctp-surface1 pt-3">
