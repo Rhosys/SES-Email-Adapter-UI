@@ -285,7 +285,7 @@ watch(
       />
 
       <div class="relative">
-        <Transition name="inbox-crossfade">
+        <Transition name="inbox-crossfade" mode="out-in">
           <ThreadListShell
             v-if="visibleItems.length > 0"
             key="list"
@@ -367,9 +367,8 @@ watch(
 </template>
 
 <style scoped>
-/* List/skeleton/empty crossfade. The leaving element is pulled out of flow during its
-   fade so it overlaps the entering one instead of stacking above/below it — without this,
-   the container's height jumps to the sum of both while they're both in the DOM. */
+/* List/skeleton/empty fade. mode="out-in" on the Transition ensures the leaving
+   element fully unmounts before the next one mounts, so only one is ever in the DOM. */
 .inbox-crossfade-enter-active,
 .inbox-crossfade-leave-active {
   transition: opacity 150ms ease;
@@ -377,10 +376,5 @@ watch(
 .inbox-crossfade-enter-from,
 .inbox-crossfade-leave-to {
   opacity: 0;
-}
-.inbox-crossfade-leave-active {
-  position: absolute;
-  inset: 0;
-  width: 100%;
 }
 </style>
