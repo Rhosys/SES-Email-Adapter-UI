@@ -46,15 +46,29 @@ export function useRealtime() {
 
     switch (event.type) {
       case 'thread:updated':
-        // The event only carries IDs/summary fields, not the full Thread or Signal — those
-        // still have to be fetched. Detail/signals invalidation is that fetch, scoped to
-        // just this thread (a no-op if it isn't currently mounted). For the list, fetch the
-        // one changed thread and patch its row in place instead of refetching the whole list.
-        void queryClient.invalidateQueries({ queryKey: queryKeys.threads.detail(accountId, event.threadId) })
-        void queryClient.invalidateQueries({ queryKey: queryKeys.signals.byThread(accountId, event.threadId) })
+        // The event only carries IDs/summary fields, not the full Thread or its signals —
+        // those still have to be fetched. Fetch them directly and write the result into
+        // cache: invalidateQueries would only add "refetch if currently mounted" plumbing
+        // we don't need (a stale cache the user isn't looking at is harmless; a *wrong*
+        // one is the thing worth avoiding, and a direct write fixes that unconditionally).
+        // upsertThreadCache seeds both the thread's detail entry and its row in every
+        // matching list page from the same fetch.
         api.getThread(accountId, event.threadId)
           .then((res) => {
             if (res.isOk()) upsertThreadCache(queryClient, accountId, res.value)
+          })
+          .catch(() => { /* best-effort cache seed — a later event will retry */ })
+        // Signals aren't cached per-thread beyond one infinite-query page depth we know of
+        // here, so replace the cached page(s) with a fresh first page rather than trying to
+        // replay pagination cursors we don't have.
+        api.listSignals(accountId, event.threadId, { limit: 50 })
+          .then((res) => {
+            if (res.isOk()) {
+              queryClient.setQueryData(queryKeys.signals.byThread(accountId, event.threadId), {
+                pages: [res.value],
+                pageParams: [undefined],
+              })
+            }
           })
           .catch(() => { /* best-effort cache seed — a later event will retry */ })
         if ('urgency' in event) fireNotification(event)
