@@ -490,7 +490,10 @@ describe('ThreadDetailView — signal list loading', () => {
     })
     await flushPromises()
 
-    const skeleton = wrapper.find('[role="status"][aria-label="Loading thread…"]')
+    // The thread itself has already loaded, so it renders immediately — only
+    // the signals section shows its own nested loading skeleton.
+    expect(wrapper.find('[role="status"][aria-label="Loading thread…"]').exists()).toBe(false)
+    const skeleton = wrapper.find('[role="status"][aria-label="Loading signals…"]')
     expect(skeleton.exists()).toBe(true)
     expect(skeleton.classes()).toContain('animate-pulse')
   })
@@ -499,6 +502,7 @@ describe('ThreadDetailView — signal list loading', () => {
     const wrapper = await mountView(makeThread(), [mockEmailSignal()])
 
     expect(wrapper.find('[role="status"][aria-label="Loading thread…"]').exists()).toBe(false)
+    expect(wrapper.find('[role="status"][aria-label="Loading signals…"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Test subject')
   })
 

@@ -63,7 +63,7 @@ function handleSenderPopupClickOutside(e: MouseEvent) {
 }
 
 // Thread detail from TanStack Query
-const { thread: threadFromQuery } = useThreadDetailQuery(() => threadId.value)
+const { thread: threadFromQuery, isLoading: threadIsLoading, error: threadError } = useThreadDetailQuery(() => threadId.value)
 
 const thread = computed(() => threadFromQuery.value)
 
@@ -510,9 +510,11 @@ async function removeLabel(label: string) {
       </div>
     </div>
 
-    <!-- Loading -->
+    <!-- Loading — shown only while the thread itself is still unknown; once we
+         have a thread (from cache or a fresh fetch), render it immediately and
+         let the signals section below show its own nested loading state. -->
     <div
-      v-if="signalQuery.isLoading.value"
+      v-if="!thread && (threadIsLoading || signalQuery.isLoading.value)"
       role="status"
       aria-label="Loading thread…"
       class="animate-pulse"
@@ -535,15 +537,15 @@ async function removeLabel(label: string) {
       </div>
     </div>
 
-    <!-- Error — only takes over the page when no signals have loaded yet;
+    <!-- Error — only takes over the page when the thread never loaded;
          a background refetch failure after a successful load shouldn't unmount
          an in-progress reply draft. -->
     <div
-      v-else-if="signalQuery.error.value && signalItems.length === 0"
+      v-else-if="!thread && (threadError || (signalQuery.error.value && signalItems.length === 0))"
       role="alert"
       class="rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
     >
-      {{ signalQuery.error.value?.message }}
+      {{ threadError?.message || signalQuery.error.value?.message }}
     </div>
 
     <template v-else-if="thread">
@@ -660,7 +662,31 @@ async function removeLabel(label: string) {
       <ThreadResources :resources="threadResources" />
 
       <!-- Signal thread — newest first, received + draft signals -->
-      <div v-if="dedupedSignals.length > 0" ref="signalListRef" class="space-y-4">
+      <div
+        v-if="signalQuery.isLoading.value && dedupedSignals.length === 0"
+        role="status"
+        aria-label="Loading signals…"
+        class="animate-pulse space-y-4"
+      >
+        <div v-for="i in 3" :key="i" class="rounded-lg border border-ctp-surface0 bg-ctp-mantle p-4">
+          <div class="mb-3 flex items-center gap-2">
+            <div class="h-3 w-28 rounded bg-ctp-surface1" />
+            <div class="ml-auto h-3 w-16 rounded bg-ctp-surface1" />
+          </div>
+          <div class="space-y-2">
+            <div class="h-4 w-full rounded bg-ctp-surface1" />
+            <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${60 + i * 12}%` }" />
+          </div>
+        </div>
+      </div>
+      <div
+        v-else-if="signalQuery.error.value && dedupedSignals.length === 0"
+        role="alert"
+        class="rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
+      >
+        {{ signalQuery.error.value?.message }}
+      </div>
+      <div v-else-if="dedupedSignals.length > 0" ref="signalListRef" class="space-y-4">
         <template v-for="(group, index) in dedupedSignals" :key="group.signal.signalId">
           <div :data-signal-id="group.signal.signalId">
             <DraftSignalCard
