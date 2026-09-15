@@ -4,6 +4,7 @@ import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/queryKeys'
 import { unwrap } from '@/lib/queryFns'
+import { upsertThreadCache } from '@/lib/threadCache'
 import type { QuarantinedSignal } from '@/types/server'
 
 export interface QuarantineFilters {
@@ -94,10 +95,21 @@ function useQuarantineMutation(action: (accountId: string, signalId: string) => 
         }
       }
     },
-    onSettled: () => {
+    // The optimistic removal above already reflects the signal leaving quarantine. When the
+    // response names the thread it landed on (e.g. "allow" moves it into the active inbox),
+    // fetch just that one thread and seed it into the relevant caches — no blanket refetch.
+    // Best-effort only: callers (e.g. navigating to the thread on allow) key off the mutation
+    // response itself, so a failure here must never reject the mutation.
+    onSuccess: (result) => {
       const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.quarantine.all(accountId) })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
+      const threadId = result.thread?.threadId
+      if (!threadId) return
+      Promise.resolve()
+        .then(() => api.getThread(accountId, threadId))
+        .then((res) => {
+          if (res.isOk()) upsertThreadCache(queryClient, accountId, res.value)
+        })
+        .catch(() => { /* best-effort cache seed — the UI already has enough to proceed */ })
     },
   })
 }

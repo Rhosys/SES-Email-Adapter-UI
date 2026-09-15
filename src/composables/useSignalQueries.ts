@@ -48,9 +48,22 @@ export function useCreateDraft() {
   return useMutation({
     mutationFn: async ({ threadId, body }: { threadId: string; body: CreateDraftSignalBody }) =>
       unwrap(await api.createDraftSignal(accountStore.accountId!, threadId, body)),
-    onSettled: (_data, _err, { threadId }) => {
+    // Append the server's response — the created draft — instead of refetching the list.
+    onSuccess: (draft, { threadId }) => {
       const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.signals.byThread(accountId, threadId) })
+      queryClient.setQueryData<InfiniteSignalData>(
+        queryKeys.signals.byThread(accountId, threadId),
+        (old) => {
+          if (!old?.pages.length) return old
+          const lastIdx = old.pages.length - 1
+          return {
+            ...old,
+            pages: old.pages.map((page, i) =>
+              i === lastIdx ? { ...page, signals: [...page.signals, draft] } : page,
+            ),
+          }
+        },
+      )
     },
   })
 }
@@ -84,10 +97,7 @@ export function useDeleteDraft() {
         queryClient.setQueryData(context.key, context.previous)
       }
     },
-    onSettled: (_data, _err, { threadId }) => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.signals.byThread(accountId, threadId) })
-    },
+    // The optimistic removal above is the whole change — nothing to reconcile on success.
   })
 }
 
@@ -98,10 +108,22 @@ export function useSendSignal() {
   return useMutation({
     mutationFn: async ({ threadId, signalId }: { threadId: string; signalId: string }) =>
       unwrap(await api.sendSignal(accountStore.accountId!, threadId, signalId)),
-    onSettled: (_data, _err, { threadId }) => {
+    // Commit the server's response — the now-sent Signal — instead of refetching.
+    onSuccess: (signal, { threadId }) => {
       const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.signals.byThread(accountId, threadId) })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
+      queryClient.setQueryData<InfiniteSignalData>(
+        queryKeys.signals.byThread(accountId, threadId),
+        (old) => {
+          if (!old?.pages) return old
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              signals: page.signals.map((s) => (s.signalId === signal.signalId ? signal : s)),
+            })),
+          }
+        },
+      )
     },
   })
 }
@@ -146,9 +168,22 @@ export function useRsvpSignal() {
         queryClient.setQueryData(context.key, context.previous)
       }
     },
-    onSettled: (_data, _err, { threadId }) => {
+    // Commit the server's response — the confirmed rsvpStatus — over the optimistic guess.
+    onSuccess: (signal, { threadId }) => {
       const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.signals.byThread(accountId, threadId) })
+      queryClient.setQueryData<InfiniteSignalData>(
+        queryKeys.signals.byThread(accountId, threadId),
+        (old) => {
+          if (!old?.pages) return old
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              signals: page.signals.map((s) => (s.signalId === signal.signalId ? signal : s)),
+            })),
+          }
+        },
+      )
     },
   })
 }

@@ -4,6 +4,7 @@ import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/queryKeys'
 import { unwrap } from '@/lib/queryFns'
+import { patchThreadCache, removeThreadFromLists } from '@/lib/threadCache'
 import type { Thread, ThreadStatus } from '@/types/server'
 
 type InfiniteThreadData = {
@@ -117,10 +118,8 @@ function useThreadStatusMutation(targetStatus: ThreadStatus) {
         }
       }
     },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
-    },
+    // The optimistic removal above is the whole change (mutationFn's response, the
+    // patched Thread, isn't needed for anything else) — nothing to reconcile on success.
   })
 }
 
@@ -163,10 +162,6 @@ function useBulkThreadStatusMutation(targetStatus: ThreadStatus) {
           queryClient.setQueryData(key, data)
         }
       }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
     },
   })
 }
@@ -240,10 +235,6 @@ export function useBulkLabel() {
         }
       }
     },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
-    },
   })
 }
 
@@ -269,10 +260,10 @@ export function useLabelThread() {
         queryClient.setQueryData(context.detailKey, context.previousDetail)
       }
     },
-    onSettled: (_data, _err, { threadId }) => {
+    // Commit the server's response (the authoritative Thread) instead of refetching it.
+    onSuccess: (thread) => {
       const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.detail(accountId, threadId) })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
+      patchThreadCache(queryClient, accountId, thread.threadId, thread)
     },
   })
 }
@@ -301,14 +292,18 @@ export function useSnoozeThread() {
         queryClient.setQueryData(context.detailKey, context.previousDetail)
       }
     },
-    onSettled: (_data, _err, { threadId }) => {
+    // Commit the server's response (the authoritative Thread) instead of refetching it.
+    onSuccess: (thread) => {
       const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.detail(accountId, threadId) })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
+      patchThreadCache(queryClient, accountId, thread.threadId, thread)
     },
   })
 }
 
+// Unsubscribing also archives the thread server-side (confirmed in the calling UI's
+// copy), and the caller navigates away from the detail view on success — so there's no
+// detail cache left to update; just drop the thread from whatever list has it, same as
+// the other status mutations above.
 export function useUnsubscribeThread() {
   const queryClient = useQueryClient()
   const accountStore = useAccountStore()
@@ -316,10 +311,9 @@ export function useUnsubscribeThread() {
   return useMutation({
     mutationFn: async (threadId: string) =>
       unwrap(await api.unsubscribeThread(accountStore.accountId!, threadId)),
-    onSettled: (_data, _err, threadId) => {
+    onSuccess: (_data, threadId) => {
       const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.detail(accountId, threadId) })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.threads.all(accountId) })
+      removeThreadFromLists(queryClient, accountId, threadId)
     },
   })
 }

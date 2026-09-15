@@ -30,9 +30,10 @@ export function useCreateView() {
   return useMutation({
     mutationFn: async (body: CreateViewBody) =>
       unwrap(await api.createView(accountStore.accountId!, body)),
-    onSettled: () => {
+    // Append the server's response — the created view — instead of refetching the list.
+    onSuccess: (created) => {
       const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.views.all(accountId) })
+      queryClient.setQueryData<View[]>(queryKeys.views.all(accountId), (old) => [...(old ?? []), created])
     },
   })
 }
@@ -59,10 +60,6 @@ export function useUpdateView() {
         const accountId = accountStore.accountId!
         queryClient.setQueryData(queryKeys.views.all(accountId), context.previous)
       }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.views.all(accountId) })
     },
   })
 }
@@ -111,10 +108,6 @@ export function useReorderViews() {
         queryClient.setQueryData(queryKeys.views.all(accountId), context.previous)
       }
     },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.views.all(accountId) })
-    },
   })
 }
 
@@ -140,10 +133,6 @@ export function useDeleteView() {
         const accountId = accountStore.accountId!
         queryClient.setQueryData(queryKeys.views.all(accountId), context.previous)
       }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.views.all(accountId) })
     },
   })
 }

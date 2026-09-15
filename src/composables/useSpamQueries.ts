@@ -91,9 +91,5 @@ export function useDeleteSpamSignal() {
         }
       }
     },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.spam.all(accountId) })
-    },
   })
 }

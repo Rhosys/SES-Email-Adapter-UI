@@ -109,9 +109,5 @@ export function useSetResourceStatus() {
         }
       }
     },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.resources.all(accountId) })
-    },
   })
 }

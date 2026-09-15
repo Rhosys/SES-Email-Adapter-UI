@@ -30,9 +30,10 @@ export function useCreateRule() {
   return useMutation({
     mutationFn: async (body: CreateRuleBody) =>
       unwrap(await api.createRule(accountStore.accountId!, body)),
-    onSettled: () => {
+    // Append the server's response — the created rule — instead of refetching the list.
+    onSuccess: (created) => {
       const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.rules.all(accountId) })
+      queryClient.setQueryData<Rule[]>(queryKeys.rules.all(accountId), (old) => [...(old ?? []), created])
     },
   })
 }
@@ -60,10 +61,6 @@ export function useUpdateRule() {
         queryClient.setQueryData(queryKeys.rules.all(accountId), context.previous)
       }
     },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.rules.all(accountId) })
-    },
   })
 }
 
@@ -89,10 +86,6 @@ export function useDeleteRule() {
         const accountId = accountStore.accountId!
         queryClient.setQueryData(queryKeys.rules.all(accountId), context.previous)
       }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.rules.all(accountId) })
     },
   })
 }
@@ -141,10 +134,6 @@ export function useReorderRules() {
         queryClient.setQueryData(queryKeys.rules.all(accountId), context.previous)
       }
     },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.rules.all(accountId) })
-    },
   })
 }
 
@@ -187,10 +176,6 @@ export function useMoveRule() {
         const accountId = accountStore.accountId!
         queryClient.setQueryData(queryKeys.rules.all(accountId), context.previous)
       }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.rules.all(accountId) })
     },
   })
 }

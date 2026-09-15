@@ -28,9 +28,13 @@ export function useCreateTemplate() {
   return useMutation({
     mutationFn: async (body: { name: string; subject: string; body: string; functions?: TemplateFunction[] }) =>
       unwrap(await api.createTemplate(accountStore.accountId!, body)),
-    onSettled: () => {
+    // Append the server's response — the created template — instead of refetching the list.
+    onSuccess: (created) => {
       const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.templates.all(accountId) })
+      queryClient.setQueryData<EmailTemplate[]>(queryKeys.templates.all(accountId), (old) => [
+        ...(old ?? []),
+        created,
+      ])
     },
   })
 }
@@ -58,10 +62,6 @@ export function useUpdateTemplate() {
         queryClient.setQueryData(queryKeys.templates.all(accountId), context.previous)
       }
     },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.templates.all(accountId) })
-    },
   })
 }
 
@@ -87,10 +87,6 @@ export function useDeleteTemplate() {
         const accountId = accountStore.accountId!
         queryClient.setQueryData(queryKeys.templates.all(accountId), context.previous)
       }
-    },
-    onSettled: () => {
-      const accountId = accountStore.accountId!
-      void queryClient.invalidateQueries({ queryKey: queryKeys.templates.all(accountId) })
     },
   })
 }
