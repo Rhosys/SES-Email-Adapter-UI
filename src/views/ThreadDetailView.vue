@@ -662,7 +662,12 @@ async function removeLabel(label: string) {
       <ThreadResources :resources="threadResources" />
 
       <!-- Signal thread — newest first, received + draft signals -->
-      <div v-if="signalQuery.isLoading.value && dedupedSignals.length === 0" class="animate-pulse space-y-4">
+      <div
+        v-if="signalQuery.isLoading.value && dedupedSignals.length === 0"
+        role="status"
+        aria-label="Loading signals…"
+        class="animate-pulse space-y-4"
+      >
         <div v-for="i in 3" :key="i" class="rounded-lg border border-ctp-surface0 bg-ctp-mantle p-4">
           <div class="mb-3 flex items-center gap-2">
             <div class="h-3 w-28 rounded bg-ctp-surface1" />
@@ -673,6 +678,13 @@ async function removeLabel(label: string) {
             <div class="h-4 rounded bg-ctp-surface1" :style="{ width: `${60 + i * 12}%` }" />
           </div>
         </div>
+      </div>
+      <div
+        v-else-if="signalQuery.error.value && dedupedSignals.length === 0"
+        role="alert"
+        class="rounded-lg border border-ctp-red bg-ctp-red/10 px-4 py-3 text-sm text-ctp-red"
+      >
+        {{ signalQuery.error.value?.message }}
       </div>
       <div v-else-if="dedupedSignals.length > 0" ref="signalListRef" class="space-y-4">
         <template v-for="(group, index) in dedupedSignals" :key="group.signal.signalId">

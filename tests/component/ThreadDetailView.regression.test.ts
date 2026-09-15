@@ -184,13 +184,18 @@ describe('ThreadDetailView — regression gate', () => {
     })
     await flushPromises()
 
-    expect(wrapper.find('[role="status"][aria-label="Loading thread…"]').exists()).toBe(true)
-    expect(wrapper.find('[role="status"]').classes()).toContain('animate-pulse')
+    // The thread itself has already loaded, so it renders immediately — only
+    // the signals section shows its own nested loading skeleton.
+    expect(wrapper.find('[role="status"][aria-label="Loading thread…"]').exists()).toBe(false)
+    const skeleton = wrapper.find('[role="status"][aria-label="Loading signals…"]')
+    expect(skeleton.exists()).toBe(true)
+    expect(skeleton.classes()).toContain('animate-pulse')
   })
 
   it('hides skeleton and renders signals once loaded', async () => {
     const wrapper = await mountView(mockThread(), [mockEmailSignal()])
     expect(wrapper.find('[role="status"][aria-label="Loading thread…"]').exists()).toBe(false)
+    expect(wrapper.find('[role="status"][aria-label="Loading signals…"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Test subject')
   })
 
