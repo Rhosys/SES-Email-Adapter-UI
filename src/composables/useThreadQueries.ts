@@ -282,15 +282,17 @@ export function useSnoozeThread() {
   const accountStore = useAccountStore()
 
   return useMutation({
+    // Snoozing archives the thread (leaves the active list) and sets the followup wake-up time.
+    // Sending status explicitly keeps the client correct independent of backend defaulting.
     mutationFn: async ({ threadId, followupAt }: { threadId: string; followupAt: string }) =>
-      unwrap(await api.patchThread(accountStore.accountId!, threadId, { followupAt })),
+      unwrap(await api.patchThread(accountStore.accountId!, threadId, { status: 'archived', followupAt })),
     onMutate: async ({ threadId, followupAt }) => {
       const accountId = accountStore.accountId!
       const detailKey = queryKeys.threads.detail(accountId, threadId)
       await queryClient.cancelQueries({ queryKey: detailKey })
       const previousDetail = queryClient.getQueryData<Thread>(detailKey)
       if (previousDetail) {
-        queryClient.setQueryData<Thread>(detailKey, { ...previousDetail, followupAt })
+        queryClient.setQueryData<Thread>(detailKey, { ...previousDetail, status: 'archived', followupAt })
       }
       return { previousDetail, detailKey }
     },
