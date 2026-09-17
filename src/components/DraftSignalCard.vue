@@ -9,8 +9,8 @@ import { useSenderIdentitiesQuery } from '@/composables/useSenderIdentitiesQuery
 import { api } from '@/lib/api'
 import { useToast } from '@/composables/useToast'
 import { useDeferredHide } from '@/composables/useDeferredHide'
-import type { Signal } from '@/types/server'
-import { isEmailSignal, isInboundEmailSignal } from '@/lib/signal-guards'
+import type { EmailAddress, Signal } from '@/types/server'
+import { isEmailSignal, isInboundEmailSignal, isOutboundEmailSignal } from '@/lib/signal-guards'
 import AsyncButton from '@/components/ui/AsyncButton.vue'
 
 const props = defineProps<{ signal: Signal }>()
@@ -41,6 +41,19 @@ function domainOf(address: string): string {
 }
 
 const emailData = isEmailSignal(props.signal) ? props.signal.data : null
+const outboundData = isOutboundEmailSignal(props.signal) ? props.signal.data : null
+
+function formatAddressList(addresses: EmailAddress[] | undefined): string {
+  return addresses?.map((e) => e.address).join(', ') ?? ''
+}
+
+function parseAddressList(input: string): EmailAddress[] {
+  return input
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((address) => ({ address }))
+}
 
 // The address this thread arrived on — the reply goes back out from it. The draft
 // signal carries it already (the store seeds `from` on create); fall back to the
@@ -63,6 +76,12 @@ const selectedDomain = ref(initDomain)
 const selectedFrom = ref('')
 const subject = ref(emailData?.subject ?? '')
 const body = ref(emailData?.body ?? '')
+
+const toInput = ref(formatAddressList(emailData?.to))
+const ccInput = ref(formatAddressList(emailData?.cc))
+const bccInput = ref(formatAddressList(outboundData?.bcc))
+const showCc = ref(ccInput.value.length > 0)
+const showBcc = ref(bccInput.value.length > 0)
 
 const expanded = ref(true)
 const showPreview = ref(false)
@@ -160,15 +179,59 @@ function cancelEditingFrom() {
 
 const previewHtml = computed(() => (body.value ? (marked.parse(body.value) as string) : ''))
 
+// The preview renders in a sandboxed iframe, which doesn't inherit the host page's
+// CSS variables — so its text came out in the browser's default black instead of the
+// current theme's colors. Read the actually-applied colors off a probe element and
+// bake them into the iframe's own stylesheet instead.
+const previewColors = ref({ text: '', base: '', subtext0: '', mauve: '', surface1: '' })
+
+function readColor(className: string, prop: 'color' | 'backgroundColor'): string {
+  const el = document.createElement('span')
+  el.className = className
+  document.body.appendChild(el)
+  const value = getComputedStyle(el)[prop]
+  document.body.removeChild(el)
+  return value
+}
+
+function refreshPreviewColors() {
+  previewColors.value = {
+    text: readColor('text-ctp-text', 'color'),
+    base: readColor('bg-ctp-base', 'backgroundColor'),
+    subtext0: readColor('text-ctp-subtext0', 'color'),
+    mauve: readColor('text-ctp-mauve', 'color'),
+    surface1: readColor('bg-ctp-surface1', 'backgroundColor'),
+  }
+}
+
+watch(showPreview, (value) => {
+  if (value) refreshPreviewColors()
+})
+
+const previewDocument = computed(() => {
+  const c = previewColors.value
+  const content = previewHtml.value || `<p class="empty">Nothing to preview yet.</p>`
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+    body { margin:0; padding:0; background:${c.base}; color:${c.text}; font-family: ui-sans-serif, system-ui, sans-serif; font-size:13px; line-height:1.6; }
+    a { color:${c.mauve}; }
+    code, pre { background:${c.surface1}; border-radius:4px; }
+    pre { padding:8px; overflow-x:auto; }
+    code { padding:0.15em 0.3em; }
+    blockquote { border-left:3px solid ${c.surface1}; margin-left:0; padding-left:10px; color:${c.subtext0}; }
+    hr { border:none; border-top:1px solid ${c.surface1}; }
+    img { max-width:100%; }
+    .empty { color:${c.subtext0}; }
+  </style></head><body>${content}</body></html>`
+})
+
 const canSend = computed(
   () =>
     sendState.value === 'idle' &&
     !!fromAddress.value &&
+    toInput.value.trim().length > 0 &&
     subject.value.trim().length > 0 &&
     body.value.trim().length > 0,
 )
-
-const toLabel = computed(() => emailData?.to?.map((e) => e.address).join(', ') ?? '')
 
 // Persist a From resolved from the thread's inbound signal — the draft itself was
 // created without one, so the server doesn't know it yet.
@@ -183,7 +246,7 @@ watch(selectedFrom, (value) => {
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-watch([fromAddress, subject, body], () => {
+watch([fromAddress, toInput, ccInput, bccInput, subject, body], () => {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => void persistDraft(), 900)
 })
@@ -192,6 +255,9 @@ watch([fromAddress, subject, body], () => {
 // trigger a save when it lands on the value the draft already had.
 let persisted = {
   from: emailData?.from?.address ?? '',
+  to: toInput.value,
+  cc: ccInput.value,
+  bcc: bccInput.value,
   subject: emailData?.subject ?? '',
   body: emailData?.body ?? '',
 }
@@ -200,9 +266,19 @@ async function persistDraft() {
   if (!accountStore.accountId) return
   const threadId = props.signal.threadId
   if (!threadId) return
-  const pending = { from: fromAddress.value, subject: subject.value, body: body.value }
+  const pending = {
+    from: fromAddress.value,
+    to: toInput.value,
+    cc: ccInput.value,
+    bcc: bccInput.value,
+    subject: subject.value,
+    body: body.value,
+  }
   if (
     pending.from === persisted.from &&
+    pending.to === persisted.to &&
+    pending.cc === persisted.cc &&
+    pending.bcc === persisted.bcc &&
     pending.subject === persisted.subject &&
     pending.body === persisted.body
   ) {
@@ -211,6 +287,9 @@ async function persistDraft() {
   saving.value = true
   const result = await api.updateDraftSignal(accountStore.accountId, threadId, props.signal.signalId, {
     from: fromAddress.value ? { address: fromAddress.value } : undefined,
+    to: parseAddressList(toInput.value),
+    cc: parseAddressList(ccInput.value),
+    bcc: parseAddressList(bccInput.value),
     subject: subject.value,
     textBody: body.value,
   })
@@ -251,7 +330,7 @@ async function sendAndArchive() {
     },
     8_000,
     {
-      submessage: `To: ${toLabel.value}`,
+      submessage: `To: ${toInput.value}`,
       undoLabel: 'Cancel send',
     },
   )
@@ -286,7 +365,7 @@ async function sendAndWait() {
     },
     8_000,
     {
-      submessage: `To: ${toLabel.value}`,
+      submessage: `To: ${toInput.value}`,
       undoLabel: 'Cancel send',
     },
   )
@@ -320,7 +399,7 @@ async function discard() {
           Draft
         </span>
         <span class="truncate text-sm text-ctp-subtext1">
-          {{ subject || toLabel || 'New draft' }}
+          {{ subject || toInput || 'New draft' }}
         </span>
         <span v-if="saving" class="shrink-0 text-xs text-ctp-subtext0">saving…</span>
       </div>
@@ -338,18 +417,13 @@ async function discard() {
         <button class="ml-1 underline" @click="error = null">Dismiss</button>
       </div>
 
-      <!-- To (read-only) -->
-      <div class="mb-2 text-xs text-ctp-subtext0">
-        <span class="font-medium">To:</span> {{ toLabel }}
-      </div>
-
-      <!-- From — the address the thread arrived on, shown straight away. Editing it is
-           the rare case, so the pickable identities only load when the pencil is used. -->
+      <!-- From — the address the thread arrived on, shown straight away, all on one
+           line. Editing it is the rare case, so the pickable identities only load when
+           the pencil is used. -->
       <div class="mb-2">
-        <span class="mb-1 block text-xs text-ctp-subtext0">From</span>
-
-        <div v-if="!editingFrom" class="flex items-center gap-1.5">
-          <span class="min-w-0 truncate text-xs text-ctp-text">
+        <div v-if="!editingFrom" class="flex items-center gap-1.5 text-xs">
+          <span class="shrink-0 font-medium text-ctp-subtext0">From:</span>
+          <span class="min-w-0 truncate text-ctp-text">
             {{ fromAddress || 'No sender address chosen' }}
           </span>
           <button
@@ -449,6 +523,62 @@ async function discard() {
         </template>
       </div>
 
+      <!-- To / Cc / Bcc -->
+      <div class="mb-3 space-y-1.5">
+        <div class="flex items-center gap-1.5 text-xs">
+          <label for="draft-to" class="shrink-0 font-medium text-ctp-subtext0">To:</label>
+          <input
+            id="draft-to"
+            v-model="toInput"
+            type="text"
+            placeholder="recipient@example.com"
+            class="min-w-0 flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+          />
+        </div>
+
+        <!-- Cc/Bcc toggle buttons — only shown when the row isn't already expanded -->
+        <div v-if="!showCc || !showBcc" class="flex gap-1.5">
+          <button
+            v-if="!showCc"
+            type="button"
+            class="rounded border border-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0 hover:border-ctp-mauve hover:text-ctp-text"
+            @click="showCc = true"
+          >
+            Cc
+          </button>
+          <button
+            v-if="!showBcc"
+            type="button"
+            class="rounded border border-ctp-surface1 px-2 py-0.5 text-xs text-ctp-subtext0 hover:border-ctp-mauve hover:text-ctp-text"
+            @click="showBcc = true"
+          >
+            Bcc
+          </button>
+        </div>
+
+        <div v-if="showCc" class="flex items-center gap-1.5 text-xs">
+          <label for="draft-cc" class="shrink-0 font-medium text-ctp-subtext0">Cc:</label>
+          <input
+            id="draft-cc"
+            v-model="ccInput"
+            type="text"
+            placeholder="cc@example.com"
+            class="min-w-0 flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+          />
+        </div>
+
+        <div v-if="showBcc" class="flex items-center gap-1.5 text-xs">
+          <label for="draft-bcc" class="shrink-0 font-medium text-ctp-subtext0">Bcc:</label>
+          <input
+            id="draft-bcc"
+            v-model="bccInput"
+            type="text"
+            placeholder="bcc@example.com"
+            class="min-w-0 flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
+          />
+        </div>
+      </div>
+
       <!-- Subject -->
       <div class="mb-3">
         <label for="draft-subject" class="mb-1 block text-xs text-ctp-subtext0">Subject</label>
@@ -500,15 +630,13 @@ async function discard() {
           class="w-full resize-y rounded border border-ctp-surface1 bg-ctp-base px-3 py-2 font-mono text-sm text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
         />
 
-        <!-- Preview mode — sandboxed to avoid XSS from rendered markdown -->
+        <!-- Preview mode — sandboxed to avoid XSS from rendered markdown. The colors
+             baked into previewDocument keep it matching the theme (see previewColors). -->
         <iframe
           v-else
-          :srcdoc="
-            previewHtml ||
-            '<p style=\'color:#6c7086;font-family:sans-serif;font-size:13px\'>Nothing to preview yet.</p>'
-          "
+          :srcdoc="previewDocument"
           sandbox="allow-popups allow-popups-to-escape-sandbox"
-          class="min-h-32 w-full rounded border border-ctp-surface1 bg-ctp-base"
+          class="min-h-32 w-full rounded border border-ctp-surface1 bg-ctp-base px-3 py-2"
           style="border: none"
           title="Markdown preview"
         />

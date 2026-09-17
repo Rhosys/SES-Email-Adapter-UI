@@ -859,6 +859,9 @@ export interface CreateDraftSignalBody {
 
 export interface UpdateDraftSignalBody {
   from?: EmailAddress
+  to?: EmailAddress[]
+  cc?: EmailAddress[]
+  bcc?: EmailAddress[]
   subject?: string
   textBody?: string
 }
