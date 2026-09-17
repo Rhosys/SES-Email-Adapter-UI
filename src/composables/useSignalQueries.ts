@@ -48,19 +48,32 @@ export function useCreateDraft() {
   return useMutation({
     mutationFn: async ({ threadId, body }: { threadId: string; body: CreateDraftSignalBody }) =>
       unwrap(await api.createDraftSignal(accountStore.accountId!, threadId, body)),
-    // Append the server's response — the created draft — instead of refetching the list.
-    onSuccess: (draft, { threadId }) => {
+    // Splice the server's response — the created draft — in right above the signal
+    // it replies to (the list is newest-first, so "above" means earlier in the array)
+    // instead of refetching the list.
+    onSuccess: (draft, { threadId, body }) => {
       const accountId = accountStore.accountId!
       queryClient.setQueryData<InfiniteSignalData>(
         queryKeys.signals.byThread(accountId, threadId),
         (old) => {
           if (!old?.pages.length) return old
-          const lastIdx = old.pages.length - 1
+          const linkedId = body.linkedSignalId
+          const pageIndex = linkedId
+            ? old.pages.findIndex((page) => page.signals.some((s) => s.signalId === linkedId))
+            : -1
+          if (pageIndex !== -1) {
+            const page = old.pages[pageIndex]!
+            const idx = page.signals.findIndex((s) => s.signalId === linkedId)
+            const signals = [...page.signals.slice(0, idx), draft, ...page.signals.slice(idx)]
+            return {
+              ...old,
+              pages: old.pages.map((p, i) => (i === pageIndex ? { ...page, signals } : p)),
+            }
+          }
+          // No linked signal to anchor to — put it at the very top (newest position).
           return {
             ...old,
-            pages: old.pages.map((page, i) =>
-              i === lastIdx ? { ...page, signals: [...page.signals, draft] } : page,
-            ),
+            pages: old.pages.map((page, i) => (i === 0 ? { ...page, signals: [draft, ...page.signals] } : page)),
           }
         },
       )
