@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { RefreshCw } from 'lucide-vue-next'
 import { useThreadsStore } from '@/stores/threads'
 import { useThreadListQuery, useArchiveThread, useBulkArchive, useBulkMoveToInbox, useBulkLabel } from '@/composables/useThreadQueries'
 import { usePrefetchThreadSignals } from '@/composables/useSignalQueries'
@@ -215,18 +216,7 @@ watch(
             :disabled="refreshing"
             @click="handleRefresh"
           >
-            <svg
-              class="h-3.5 w-3.5"
-              :class="{ 'animate-spin': refreshing }"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              aria-hidden="true"
-            >
-              <path d="M14 8A6 6 0 1 1 8 2" stroke-linecap="round" />
-              <path d="M8 0v4l3-2" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
+            <RefreshCw class="h-3.5 w-3.5" :class="{ 'animate-spin': refreshing }" aria-hidden="true" />
             Refresh
           </button>
         </div>
@@ -240,18 +230,7 @@ watch(
         :disabled="refreshing"
         @click="handleRefresh"
       >
-        <svg
-          class="h-3.5 w-3.5"
-          :class="{ 'animate-spin': refreshing }"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          aria-hidden="true"
-        >
-          <path d="M14 8A6 6 0 1 1 8 2" stroke-linecap="round" />
-          <path d="M8 0v4l3-2" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
+        <RefreshCw class="h-3.5 w-3.5" :class="{ 'animate-spin': refreshing }" aria-hidden="true" />
         Refresh
       </button>
     </div>
