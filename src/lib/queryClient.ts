@@ -1,13 +1,44 @@
 import { QueryClient, QueryCache, MutationCache, focusManager } from '@tanstack/vue-query'
 import { experimental_createQueryPersister } from '@tanstack/query-persist-client-core'
-import { get, set, del } from 'idb-keyval'
+import { get, set, del, entries } from 'idb-keyval'
 import { broadcastQueryClient } from '@tanstack/query-broadcast-client-experimental'
 import { shouldRetry } from './queryRetry'
 import logger from '@/lib/logger'
 import buildInfo from '@/lib/buildInfo'
 
+// Coalesces rapid-fire writes to the same IndexedDB key into one, keeping only the latest
+// value — without this, every query that resolves schedules its own immediate `set()`, so a
+// thread list page load (dozens of queries settling within milliseconds) hammers IndexedDB
+// with one write per query instead of one write per key per window.
+function throttleSetByKey(fn: typeof set, wait: number): typeof set {
+  const timers = new Map<IDBValidKey, ReturnType<typeof setTimeout>>()
+  const latestValue = new Map<IDBValidKey, unknown>()
+  const latestResolvers = new Map<IDBValidKey, Array<() => void>>()
+
+  return (key, value) => {
+    latestValue.set(key, value)
+    return new Promise<void>((resolve) => {
+      const resolvers = latestResolvers.get(key) ?? []
+      resolvers.push(resolve)
+      latestResolvers.set(key, resolvers)
+
+      if (timers.has(key)) return
+
+      const timer = setTimeout(() => {
+        timers.delete(key)
+        const valueToWrite = latestValue.get(key)
+        const resolversToCall = latestResolvers.get(key) ?? []
+        latestValue.delete(key)
+        latestResolvers.delete(key)
+        fn(key, valueToWrite).finally(() => resolversToCall.forEach((r) => r()))
+      }, wait)
+      timers.set(key, timer)
+    })
+  }
+}
+
 const { persisterFn, restoreQueries } = experimental_createQueryPersister({
-  storage: { getItem: get, setItem: set, removeItem: del },
+  storage: { getItem: get, setItem: throttleSetByKey(set, 1_000), removeItem: del, entries },
   maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   prefix: `ses:${buildInfo.version.buildCommit}:`,
   buster: buildInfo.version.buildCommit,
