@@ -48,7 +48,7 @@ async function discard() {
     role="listitem"
   >
     <RouterLink
-      :to="{ name: 'thread-detail', params: { id: signal.threadId } }"
+      :to="{ name: 'thread-detail', params: { id: signal.threadId }, query: { signal: signal.signalId } }"
       class="min-w-0 flex-1"
     >
       <div class="flex items-center justify-between gap-2">

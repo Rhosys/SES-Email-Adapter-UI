@@ -6,6 +6,7 @@ import { useSignalListQuery } from '@/composables/useSignalQueries'
 import { useClipboard } from '@/composables/useClipboard'
 import { isInboundEmailSignal } from '@/lib/signal-guards'
 import type { AuthData, Workflow, WorkflowData } from '@/types/server'
+import { isWorkflowEntryVisible } from '@/lib/workflow-visibility'
 import WorkflowPanel from './WorkflowPanel.vue'
 
 const RECENCY_WINDOW_MS = 15 * 60 * 1000
@@ -83,7 +84,10 @@ const urgencyClass = computed(() => {
   }
 })
 
-const visible = computed(() => highlightThread.value && latestSignal.value && workflowData.value)
+const visible = computed(() =>
+  !!(highlightThread.value && latestSignal.value && workflow.value && workflowData.value &&
+    (isAuth.value || isWorkflowEntryVisible(workflow.value, workflowData.value))),
+)
 
 async function copyAndArchive() {
   if (!authData.value?.code || !highlightThread.value) return

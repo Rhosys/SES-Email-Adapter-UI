@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { marked } from 'marked'
 import { useAccountStore } from '@/stores/account'
 import { useSignalListQuery, useSignalStoreMutator } from '@/composables/useSignalQueries'
+import { useDraftsStore } from '@/stores/drafts'
 import { useUserConfigStore } from '@/stores/userConfig'
 import { useSenderIdentitiesQuery } from '@/composables/useSenderIdentitiesQuery'
 import { api } from '@/lib/api'
@@ -18,7 +19,8 @@ const emit = defineEmits<{ discard: []; sent: [] }>()
 
 const accountStore = useAccountStore()
 const { signals: threadSignals } = useSignalListQuery(() => props.signal.threadId)
-const { updateSignal, removeSignal } = useSignalStoreMutator()
+const { updateSignal } = useSignalStoreMutator()
+const draftsStore = useDraftsStore()
 const userConfigStore = useUserConfigStore()
 const senderIdentities = useSenderIdentitiesQuery()
 const router = useRouter()
@@ -381,7 +383,7 @@ async function discard() {
   const result = await api.deleteDraftSignal(accountStore.accountId, props.signal.threadId, props.signal.signalId)
   // Remove from local cache on success or 404 (already gone on server)
   if (result.isOk() || result.error.status === 404) {
-    if (props.signal.threadId) removeSignal(props.signal.threadId, props.signal.signalId)
+    if (props.signal.threadId) draftsStore.removeDraft(props.signal.threadId, props.signal.signalId)
   }
   emit('discard')
 }
