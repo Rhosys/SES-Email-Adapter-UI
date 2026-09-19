@@ -97,5 +97,9 @@ const iconColor = computed(() => severity.value === 'error' ? 'text-ctp-red' : '
       <p class="mt-1 text-xs text-ctp-subtext0">{{ signal.data.reason }}</p>
     </template>
 
+    <!-- Unrecognized system signal type — keeps the card from rendering just a
+         header with no body. -->
+    <p v-else class="text-sm text-ctp-subtext0">No additional details are available for this alert.</p>
+
   </div>
 </template>
