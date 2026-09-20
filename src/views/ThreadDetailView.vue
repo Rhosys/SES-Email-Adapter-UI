@@ -176,6 +176,18 @@ watch(dedupedSignals, async () => {
   scrollToPreserved()
 }, { flush: 'post' })
 
+// Arriving from the Drafts nav (?signal=<id>) should jump straight to that draft
+// instead of leaving the thread scrolled to the top.
+watch(
+  () => [dedupedSignals.value, route.query.signal as string | undefined] as const,
+  ([, signalId]) => {
+    if (signalId && signalItems.value.some((s) => s.signalId === signalId)) {
+      void scrollToDraft(signalId)
+    }
+  },
+  { immediate: true },
+)
+
 // A background refetch failure after signals have already loaded doesn't get the
 // full-page error banner (that would unmount an in-progress draft) — surface it as
 // a toast instead so the failure isn't silently swallowed.
