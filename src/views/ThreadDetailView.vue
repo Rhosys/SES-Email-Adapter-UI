@@ -225,10 +225,14 @@ async function onSignalReprocessed() {
 async function archive() {
   const id = threadId.value
   const summary = thread.value?.summary
+  const returnPath = route.fullPath
   archiveMutation.mutate(id)
   showUndo(
     'Thread archived',
-    () => { moveToInboxMutation.mutate(id) },
+    () => {
+      moveToInboxMutation.mutate(id)
+      void router.push(returnPath)
+    },
     8_000,
     { submessage: summary ? summary.slice(0, 70) : undefined },
   )
@@ -236,11 +240,16 @@ async function archive() {
 }
 
 async function snooze(isoTime: string) {
-  snoozeMutation.mutate({ threadId: threadId.value, followupAt: isoTime }, {
+  const id = threadId.value
+  const returnPath = route.fullPath
+  snoozeMutation.mutate({ threadId: id, followupAt: isoTime }, {
     onSuccess: () => {
       showUndo(
         'Thread snoozed',
-        () => { moveToInboxMutation.mutate(threadId.value) },
+        () => {
+          moveToInboxMutation.mutate(id)
+          void router.push(returnPath)
+        },
         8_000,
       )
       void router.push('/')

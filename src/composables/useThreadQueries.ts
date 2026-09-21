@@ -4,7 +4,7 @@ import { useAccountStore } from '@/stores/account'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/queryKeys'
 import { unwrap } from '@/lib/queryFns'
-import { patchThreadCache, removeThreadFromLists } from '@/lib/threadCache'
+import { patchThreadCache, removeThreadFromLists, upsertThreadCache } from '@/lib/threadCache'
 import type { Thread, ThreadStatus } from '@/types/server'
 
 type InfiniteThreadData = {
@@ -118,8 +118,14 @@ function useThreadStatusMutation(targetStatus: ThreadStatus) {
         }
       }
     },
-    // The optimistic removal above is the whole change (mutationFn's response, the
-    // patched Thread, isn't needed for anything else) — nothing to reconcile on success.
+    // Commit the server's response into the detail cache and every list it now belongs
+    // in — so a status flip (e.g. undoing an archive) is reflected immediately, without
+    // waiting for a refetch, even when the previous optimistic removal already dropped
+    // the row from the list the user is looking at.
+    onSuccess: (thread) => {
+      const accountId = accountStore.accountId!
+      upsertThreadCache(queryClient, accountId, thread)
+    },
   })
 }
 
