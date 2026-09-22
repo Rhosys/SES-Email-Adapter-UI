@@ -248,6 +248,30 @@ describe('aggregateWorkflowPanels', () => {
       expect(result).toHaveLength(1)
       expect(result[0].entries).toHaveLength(2)
     })
+
+    it('keeps eventType "cancellation" when merging in an older cancellation notice', () => {
+      const groups: SignalGroup[] = [
+        makeSignalGroup('events', { eventType: 'update', eventName: 'AWS Community Day 2026 - Switzerland' } as WorkflowData),
+        makeSignalGroup('events', { eventType: 'cancellation', eventName: 'AWS Community Day 2026 - Switzerland' } as WorkflowData),
+      ]
+
+      const result = aggregateWorkflowPanels(groups)
+      expect(result).toHaveLength(1)
+      expect(result[0].entries).toHaveLength(1)
+      expect((result[0].entries[0] as WorkflowData & { eventType: string }).eventType).toBe('cancellation')
+    })
+
+    it('keeps eventType "cancellation" even when a newer update arrives after it', () => {
+      const groups: SignalGroup[] = [
+        makeSignalGroup('events', { eventType: 'cancellation', eventName: 'AWS Community Day 2026 - Switzerland' } as WorkflowData),
+        makeSignalGroup('events', { eventType: 'update', eventName: 'AWS Community Day 2026 - Switzerland' } as WorkflowData),
+      ]
+
+      const result = aggregateWorkflowPanels(groups)
+      expect(result).toHaveLength(1)
+      expect(result[0].entries).toHaveLength(1)
+      expect((result[0].entries[0] as WorkflowData & { eventType: string }).eventType).toBe('cancellation')
+    })
   })
 
   describe('edge cases', () => {

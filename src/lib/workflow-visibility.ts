@@ -17,6 +17,9 @@ export function isWorkflowEntryVisible(workflow: Workflow, entry: WorkflowData, 
   if (workflow === "conversation") {
     return !!narrowWorkflowData("conversation", entry).requiresReply
   }
+  if (workflow === "events") {
+    return narrowWorkflowData("events", entry).eventType !== "cancellation"
+  }
   return true
 }
 
