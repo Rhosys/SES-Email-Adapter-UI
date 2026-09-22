@@ -34,8 +34,9 @@ function isSubstringMatch(a: string, b: string): boolean {
 // Fields that vary per notification about the same underlying subject and must
 // never gate a merge. For events, both the lifecycle stage (`eventType`) and the
 // free-text `description` change across confirmation/update/reminder emails while
-// still describing one event, so they are ignored for compatibility and simply
-// resolved newest-wins during the merge itself.
+// still describing one event, so they are ignored for compatibility. During the
+// merge itself they resolve newest-wins, except eventType "cancellation" which
+// always takes precedence (see mergeEntries).
 const VOLATILE_FIELDS: Partial<Record<Workflow, readonly string[]>> = {
   events: ["eventType", "description"],
 }
@@ -71,14 +72,18 @@ function areMergeCompatible(workflow: Workflow, a: WorkflowData, b: WorkflowData
   return true
 }
 
-function mergeEntries(older: WorkflowData, newer: WorkflowData): WorkflowData {
+function mergeEntries(workflow: Workflow, older: WorkflowData, newer: WorkflowData): WorkflowData {
   const ro = older as unknown as Record<string, unknown>
   const rn = newer as unknown as Record<string, unknown>
   const merged: Record<string, unknown> = {}
   for (const key of new Set([...Object.keys(older), ...Object.keys(newer)])) {
     const vo = ro[key]
     const vn = rn[key]
-    if (typeof vo === "string" && typeof vn === "string" && vo !== vn) {
+    // A cancellation must survive a merge even if a non-cancellation update
+    // arrives later, so a cancelled event never resurfaces as still-on.
+    if (workflow === "events" && key === "eventType" && (vo === "cancellation" || vn === "cancellation")) {
+      merged[key] = "cancellation"
+    } else if (typeof vo === "string" && typeof vn === "string" && vo !== vn) {
       merged[key] = vo.length > vn.length ? vo : vn
     } else {
       merged[key] = vn ?? vo
@@ -136,7 +141,7 @@ export function aggregateWorkflowPanels(dedupedSignals: SignalGroup[]): Workflow
             // i is newer (lower index in newest-first list), j is older
             // merge oldest-into-newest so newest values win
             bucket.entries[i] = {
-              data: mergeEntries(bucket.entries[j].data, bucket.entries[i].data),
+              data: mergeEntries(bucket.entries[i].workflow, bucket.entries[j].data, bucket.entries[i].data),
               workflow: bucket.entries[i].workflow,
               signalIndex: bucket.entries[i].signalIndex,
             }
