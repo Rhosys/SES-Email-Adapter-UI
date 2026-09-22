@@ -55,6 +55,15 @@ const hasSpamWarning = computed(() => {
   return (props.signal.data.spamScore ?? 0) > 0.3
 })
 
+// A blocked email is stored without its body on purpose: the processor
+// short-circuits before persisting htmlBody when a sender/rule policy blocks
+// the message (see incoming-email-processor early-block paths). So an empty
+// body here is expected, not a rendering failure — surface that to the user
+// rather than the generic "(No content)".
+const blockedWithheldBody = computed(
+  () => props.signal.status === 'block_hidden' || props.signal.status === 'block_reject',
+)
+
 const isBcc = computed(() => {
   if (!isInboundEmailSignal(props.signal)) return false
   const alias = props.signal.data.recipientAddress?.toLowerCase()
@@ -513,6 +522,16 @@ const iframeStyle = {
               @load="fitHeight"
             />
           </div>
+        </div>
+        <div
+          v-else-if="blockedWithheldBody"
+          role="note"
+          class="m-4 flex items-start gap-2.5 rounded-lg border border-ctp-peach/30 bg-ctp-peach/10 px-4 py-3 text-sm text-ctp-peach"
+        >
+          <svg class="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 6v3m0 2.5h.007M6.7 1.94 1.2 11.5a1.5 1.5 0 0 0 1.3 2.25h11a1.5 1.5 0 0 0 1.3-2.25L9.3 1.94a1.5 1.5 0 0 0-2.6 0Z" />
+          </svg>
+          <span>The message body was not stored because this email was intentionally blocked. Only the sender, subject, and matched rules are kept for review.</span>
         </div>
         <p v-else class="px-4 py-3 text-sm text-ctp-subtext0">(No content)</p>
 
