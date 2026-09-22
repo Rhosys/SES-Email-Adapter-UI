@@ -173,13 +173,13 @@ interface PropInfo {
 }
 
 const signalProps: PropInfo[] = [
-  { path: 'signal.data.from.name', type: 'string', example: 'Jane Smith', note: 'May be empty' },
-  { path: 'signal.data.from.address', type: 'string', example: 'jane@example.com' },
-  { path: 'signal.data.to[0].address', type: 'string', example: 'you@yourdomain.com', note: 'First recipient' },
-  { path: 'signal.data.subject', type: 'string', example: 'Quick question about your service' },
-  { path: 'signal.data.body', type: 'string?', example: 'Hi, I have a question…', note: 'Plain-text body' },
-  { path: 'signal.data.receivedAt', type: 'ISO string', example: new Date().toISOString().slice(0, 19) + 'Z' },
-  { path: 'signal.data.spamScore', type: 'number?', example: '0.02', note: '0 = clean, 1 = spam' },
+  { path: 'signal.from.name', type: 'string', example: 'Jane Smith', note: 'May be empty' },
+  { path: 'signal.from.address', type: 'string', example: 'jane@example.com' },
+  { path: 'signal.subject', type: 'string', example: 'Quick question about your service' },
+  { path: 'signal.summary', type: 'string', example: 'Customer asking about order #12345', note: 'AI summary' },
+  { path: 'signal.body', type: 'string?', example: 'Hi, I have a question…', note: 'Message body (HTML for received email, markdown for drafts)' },
+  { path: 'signal.recipientAddress', type: 'string', example: 'you@yourdomain.com', note: 'Alias the email arrived on' },
+  { path: 'signal.workflow', type: 'string?', example: 'conversation', note: 'Classification (received email only)' },
 ]
 
 const threadProps: PropInfo[] = [
@@ -198,12 +198,17 @@ function copyPropPath(path: string) {
 
 // ─── Worker sandbox ───────────────────────────────────────────────────────────
 
+// Mirrors the backend RuleSignalContext (processor/rule-context.ts) exactly — the curated,
+// flat shape the sandbox exposes to functions. Keep field-for-field in sync with that type.
 const SAMPLE_SIGNAL = {
+  id: 'sgn-example',
   from: { name: 'Jane Smith', address: 'jane@example.com' },
-  to: [{ address: 'you@yourdomain.com' }],
   subject: 'Quick question about your service',
-  textBody: 'Hi, I have a question about order #12345. Can you help?',
-  receivedAt: new Date().toISOString(),
+  summary: 'Customer asking about order #12345',
+  body: 'Hi, I have a question about order #12345. Can you help?',
+  recipientAddress: 'you@yourdomain.com',
+  workflow: 'conversation',
+  workflowData: { workflow: 'conversation' },
 }
 
 const SAMPLE_THREAD = {

@@ -72,18 +72,19 @@ const catppuccinTheme = EditorView.theme(
 )
 
 // Signal and thread property completions for function code editors
+// Mirrors the backend RuleSignalContext (processor/rule-context.ts) — the curated flat shape
+// exposed to rule/template functions. Keep in sync with that type.
 const SIGNAL_THREAD_ITEMS = [
   { label: 'signal', type: 'variable', detail: 'Signal object' },
+  { label: 'signal.id', type: 'property', detail: 'string', info: 'Signal ID' },
   { label: 'signal.from', type: 'property', detail: 'EmailAddress' },
   { label: 'signal.from.name', type: 'property', detail: 'string', info: 'Sender display name' },
   { label: 'signal.from.address', type: 'property', detail: 'string', info: 'Sender email address' },
-  { label: 'signal.to', type: 'property', detail: 'EmailAddress[]', info: 'Recipients array' },
-  { label: 'signal.to[0].address', type: 'property', detail: 'string', info: 'First recipient email' },
   { label: 'signal.subject', type: 'property', detail: 'string', info: 'Email subject line' },
-  { label: 'signal.textBody', type: 'property', detail: 'string | undefined', info: 'Plain-text body' },
-  { label: 'signal.htmlBody', type: 'property', detail: 'string | undefined', info: 'HTML body' },
-  { label: 'signal.receivedAt', type: 'property', detail: 'string', info: 'ISO timestamp' },
-  { label: 'signal.spamScore', type: 'property', detail: 'number | undefined', info: '0 = clean, 1 = spam' },
+  { label: 'signal.summary', type: 'property', detail: 'string', info: 'AI-generated summary' },
+  { label: 'signal.body', type: 'property', detail: 'string | undefined', info: 'Message body (HTML for received email, markdown for drafts)' },
+  { label: 'signal.recipientAddress', type: 'property', detail: 'string', info: 'Alias the email arrived on' },
+  { label: 'signal.workflow', type: 'property', detail: 'string | undefined', info: 'Classification (received email only)' },
   { label: 'signal.workflowData', type: 'property', detail: 'WorkflowData | undefined' },
   { label: 'thread', type: 'variable', detail: 'Thread object' },
   { label: 'thread.workflow', type: 'property', detail: 'string', info: 'conversation | auth | crm | package…' },

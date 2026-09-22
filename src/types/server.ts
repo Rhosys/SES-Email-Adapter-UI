@@ -851,7 +851,7 @@ export interface CreateDraftSignalBody {
   from: EmailAddress
   to: EmailAddress[]
   subject: string
-  textBody?: string
+  body?: string
   // The specific signal this draft is replying to — sourced for the In-Reply-To/References
   // headers on send. Omit for a thread-level or from-scratch compose with nothing to link.
   linkedSignalId?: string
@@ -863,7 +863,7 @@ export interface UpdateDraftSignalBody {
   cc?: EmailAddress[]
   bcc?: EmailAddress[]
   subject?: string
-  textBody?: string
+  body?: string
 }
 
 // ─── Stats ──────────────────────────────────────────────────────────────────

@@ -293,7 +293,7 @@ async function persistDraft() {
     cc: parseAddressList(ccInput.value),
     bcc: parseAddressList(bccInput.value),
     subject: subject.value,
-    textBody: body.value,
+    body: body.value,
   })
   saving.value = false
   if (result.isErr()) {

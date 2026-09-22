@@ -437,7 +437,7 @@ function proposeAlternativeTime(event: { organizer: string; organizerName?: stri
         from: { address: fromAddress },
         to: [{ address: event.organizer, ...(event.organizerName ? { name: event.organizerName } : {}) }],
         subject: /^re:\s/i.test(event.title) ? event.title : `Re: ${event.title}`,
-        textBody,
+        body: textBody,
       },
     },
     {

@@ -258,7 +258,7 @@ export async function handleMockRequest(method: string, url: string, body?: unkn
     const draftParams = match('/accounts/:accountId/threads/:threadId/signals', url)!
     // Echo what the client sent (from/to/subject), the way the backend does — the
     // composer seeds the reply's From from the alias the thread arrived on.
-    const draftBody = (body ?? {}) as { from?: { address: string }; to?: unknown[]; subject?: string; textBody?: string }
+    const draftBody = (body ?? {}) as { from?: { address: string }; to?: unknown[]; subject?: string; body?: string }
     return { status: 201, body: {
       signalId: 'sig_draft_' + Date.now(),
       threadId: draftParams.threadId,
@@ -272,7 +272,7 @@ export async function handleMockRequest(method: string, url: string, body?: unkn
         cc: [],
         bcc: [],
         subject: draftBody.subject ?? '',
-        body: draftBody.textBody ?? '',
+        body: draftBody.body ?? '',
         attachments: [],
         sendInitiatedAt: '',
       },
