@@ -67,6 +67,10 @@ async function allow() {
   actionInFlight.value = true
   try {
     const result = await allowMutation.mutateAsync(signal.value.signalId)
+    // Approving a sender cascades on the backend to every other quarantined signal from that same
+    // sender+alias. Refetch the quarantine lists before navigating so the queue reflects those
+    // sibling removals — otherwise a stale list would still show them until the next natural fetch.
+    await Promise.all([visibleQuery.refetch(), hiddenQuery.refetch()])
     if (result.thread?.threadId) {
       void router.replace({ name: 'thread-detail', params: { id: result.thread.threadId } })
     } else {
@@ -83,6 +87,9 @@ async function reject() {
   actionInFlight.value = true
   try {
     await rejectMutation.mutateAsync(signal.value.signalId)
+    // Rejecting cascades to sibling quarantined signals from the same sender+alias — refetch so the
+    // queue we return to reflects those blocks rather than showing stale entries.
+    await Promise.all([visibleQuery.refetch(), hiddenQuery.refetch()])
     void router.replace('/quarantine')
   } catch (e) {
     actionInFlight.value = false
@@ -95,6 +102,9 @@ async function dismiss() {
   actionInFlight.value = true
   try {
     await dismissMutation.mutateAsync(signal.value.signalId)
+    // Dismissing cascades to sibling quarantined signals from the same sender+alias — refetch so the
+    // queue we return to reflects those dismissals rather than showing stale entries.
+    await Promise.all([visibleQuery.refetch(), hiddenQuery.refetch()])
     void router.replace('/quarantine')
   } catch (e) {
     actionInFlight.value = false
