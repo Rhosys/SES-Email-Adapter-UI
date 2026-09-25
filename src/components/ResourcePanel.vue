@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import WorkflowIcon from '@/components/WorkflowIcon.vue'
 import ResourceAssetCard from '@/components/ResourceAssetCard.vue'
 import { formatResourceDate, isResourceDatePast } from '@/lib/resourceDate'
@@ -14,6 +14,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   toggleStatus: [resourceId: string, newStatus: ResourceStatus]
 }>()
+
+const router = useRouter()
 
 const workflowLabel: Record<ResourceWorkflow, string> = {
   package: 'Package',
@@ -36,15 +38,25 @@ function handleToggle(resource: Resource) {
   const next: ResourceStatus = resource.status === 'active' ? 'complete' : 'active'
   emit('toggleStatus', resource.resourceId, next)
 }
+
+function handleCardClick(event: MouseEvent, resource: Resource) {
+  if (!props.showThreadLink) return
+  if ((event.target as HTMLElement).closest('a, button')) return
+  if (window.getSelection()?.toString()) return
+  router.push({ name: 'thread-detail', params: { id: resource.threadId } })
+}
 </script>
 
 <template>
   <div v-if="sortedResources.length > 0" class="space-y-2" role="list" aria-label="Resources">
+    <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions,vuejs-accessibility/click-events-have-key-events -- card click is a mouse enhancement; the Jump to thread link is the keyboard equivalent -->
     <div
       v-for="resource in sortedResources"
       :key="resource.resourceId"
       role="listitem"
       class="group flex items-start gap-3 rounded-md border border-ctp-surface0 bg-ctp-base p-3 transition-colors hover:border-ctp-surface1"
+      :class="{ 'cursor-pointer': showThreadLink }"
+      @click="handleCardClick($event, resource)"
     >
       <WorkflowIcon :workflow="resource.workflow" class="mt-0.5 shrink-0" />
       <div class="min-w-0 flex-1">
