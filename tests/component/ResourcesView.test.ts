@@ -129,6 +129,20 @@ describe('ResourcesView', () => {
     expect(api.patchResource).toHaveBeenCalledWith('acc_1', 'res_1', { status: 'complete' })
   })
 
+  it('re-renders the Mark active button after Mark complete resolves and refetches', async () => {
+    vi.mocked(api.listResources)
+      .mockResolvedValueOnce(ok({ resources: [mockResource()], pagination: { cursor: null } }))
+      .mockResolvedValue(ok({ resources: [mockResource({ status: 'complete' })], pagination: { cursor: null } }))
+    vi.mocked(api.patchResource).mockResolvedValue(ok(mockResource({ status: 'complete' })))
+    const wrapper = await mountView()
+
+    await wrapper.findAll('button').find((b) => b.text() === 'Mark complete')!.trigger('click')
+    await flushPromises()
+
+    expect(api.listResources).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('Completed')
+  })
+
   it('toggles a completed resource back to active via Mark active button', async () => {
     vi.mocked(api.listResources).mockResolvedValue(
       ok({ resources: [mockResource({ status: 'complete' })], pagination: { cursor: null } }),
@@ -169,5 +183,19 @@ describe('ResourcesView', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.path).toBe('/resources')
+  })
+
+  it('re-inserts a completed resource into the active list after Mark active resolves', async () => {
+    vi.mocked(api.listResources)
+      .mockResolvedValueOnce(ok({ resources: [mockResource({ status: 'complete' })], pagination: { cursor: null } }))
+      .mockResolvedValue(ok({ resources: [mockResource({ status: 'active' })], pagination: { cursor: null } }))
+    vi.mocked(api.patchResource).mockResolvedValue(ok(mockResource({ status: 'active' })))
+    const wrapper = await mountView()
+
+    await wrapper.findAll('button').find((b) => b.text() === 'Mark active')!.trigger('click')
+    await flushPromises()
+
+    expect(api.listResources).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('Completed')
   })
 })
