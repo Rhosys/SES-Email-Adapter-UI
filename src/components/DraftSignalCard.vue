@@ -18,7 +18,7 @@ const props = defineProps<{ signal: Signal }>()
 const emit = defineEmits<{ discard: []; sent: [] }>()
 
 const accountStore = useAccountStore()
-const { signals: threadSignals } = useSignalListQuery(() => props.signal.threadId)
+const { signals: threadSignals } = useSignalListQuery(() => props.signal.threadId ?? undefined)
 const { updateSignal } = useSignalStoreMutator()
 const draftsStore = useDraftsStore()
 const userConfigStore = useUserConfigStore()
