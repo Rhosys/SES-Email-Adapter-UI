@@ -142,4 +142,32 @@ describe('ResourcesView', () => {
 
     expect(api.patchResource).toHaveBeenCalledWith('acc_1', 'res_1', { status: 'active' })
   })
+
+  it('navigates to the thread when the card body is clicked', async () => {
+    vi.mocked(api.listResources).mockResolvedValue(
+      ok({ resources: [mockResource()], pagination: { cursor: null } }),
+    )
+    const wrapper = await mountView()
+    const router = wrapper.vm.$router
+
+    await wrapper.find('[role="listitem"] span').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/threads/thread_1')
+  })
+
+  it('does not navigate when a card button is clicked', async () => {
+    vi.mocked(api.listResources).mockResolvedValue(
+      ok({ resources: [mockResource()], pagination: { cursor: null } }),
+    )
+    vi.mocked(api.patchResource).mockResolvedValue(ok(mockResource({ status: 'complete' })))
+    const wrapper = await mountView()
+    const router = wrapper.vm.$router
+
+    const toggleButton = wrapper.findAll('button').find((b) => b.text() === 'Mark complete')!
+    await toggleButton.trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/resources')
+  })
 })
