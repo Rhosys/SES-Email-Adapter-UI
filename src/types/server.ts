@@ -167,7 +167,7 @@ export interface Thread {
 
 export interface SignalBase {
   signalId: string
-  threadId?: string
+  threadId?: string | null
   source: SignalSource
   status: SignalStatus
   createdAt: string
