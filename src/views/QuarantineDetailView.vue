@@ -11,11 +11,13 @@ import ActionBadge from '@/components/ActionBadge.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import SenderInfoPopup from '@/components/SenderInfoPopup.vue'
 import { useAccountStore } from '@/stores/account'
+import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
 const { rules: rulesList } = useRulesQuery()
 const accountStore = useAccountStore()
+const { notify } = useToast()
 
 const signalId = computed(() => route.params.id as string)
 const showSenderPopup = ref(false)
@@ -78,8 +80,15 @@ async function allow() {
     }
   } catch (e) {
     actionInFlight.value = false
-    throw e
+    reportActionError('allow sender', e)
   }
+}
+
+// The mutation already rolled back its optimistic removal, so the signal is back on screen —
+// tell the user the action failed instead of leaving an unhandled rejection with no feedback.
+function reportActionError(action: string, e: unknown) {
+  const message = e && typeof e === 'object' && 'message' in e ? String(e.message) : 'please try again'
+  notify(`Couldn't ${action} — ${message}`, 4000)
 }
 
 async function reject() {
@@ -93,7 +102,7 @@ async function reject() {
     void router.replace('/quarantine')
   } catch (e) {
     actionInFlight.value = false
-    throw e
+    reportActionError('reject sender', e)
   }
 }
 
@@ -108,7 +117,7 @@ async function dismiss() {
     void router.replace('/quarantine')
   } catch (e) {
     actionInFlight.value = false
-    throw e
+    reportActionError('dismiss', e)
   }
 }
 
@@ -132,11 +141,14 @@ function onSignalReprocessed() {
       ← Back to quarantine
     </RouterLink>
 
-    <!-- Loading -->
+    <!-- Loading — also shown while an allow/reject/dismiss is in flight: the optimistic update
+         removes the signal from the cache immediately, so the detail (and its button spinner)
+         would otherwise unmount and leave a blank page until the request and redirect finish. -->
     <div
-      v-if="isLoading"
+      v-if="isLoading || pending"
       role="status"
-      aria-label="Loading quarantined email…"
+      :aria-label="pending ? 'Applying your decision…' : 'Loading quarantined email…'"
+      data-testid="quarantine-detail-loader"
       class="animate-pulse"
     >
       <div class="mb-6 space-y-2">
