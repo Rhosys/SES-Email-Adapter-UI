@@ -49,6 +49,8 @@ function connect(): void {
       reconnectTimer = null
     }
     broadcast({ type: 'status', connected: true })
+    // Server can't post during $connect, so ask it to confirm now that the socket is open
+    ws?.send('{"type":"hello"}')
     keepAliveTimer = setInterval(() => {
       if (ws?.readyState === WebSocket.OPEN) {
         ws.send('{"type":"ping"}')

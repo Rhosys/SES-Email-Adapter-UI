@@ -20,4 +20,12 @@ export interface ThreadUpdatedEvent {
   threadId: string
 }
 
-export type RealtimeEvent = SignalCreatedEvent | ThreadUpdatedEvent
+// Server reply to the worker's `hello` frame — confirms the socket round-trips.
+export interface ConnectedEvent {
+  type: 'connected'
+  accountId: string
+  connectionId: string
+  timestamp: string
+}
+
+export type RealtimeEvent = SignalCreatedEvent | ThreadUpdatedEvent | ConnectedEvent
