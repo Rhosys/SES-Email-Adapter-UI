@@ -1,6 +1,8 @@
 /* eslint-disable no-console -- runs in a SharedWorker global scope, where the
    app logger (which touches window/document/localStorage) isn't available */
 /// <reference lib="webworker" />
+import type { ClientFrame, RealtimeEvent, WorkerMessage } from '@/types/realtime'
+
 declare const self: SharedWorkerGlobalScope
 
 const WS_BASE = (() => {
@@ -15,17 +17,32 @@ const WS_BASE = (() => {
 
 const PING_INTERVAL_MS = 25_000
 const MAX_RECONNECT_DELAY_MS = 30_000
+const CONFIRM_TIMEOUT_MS = 10_000
 
 const ports = new Set<MessagePort>()
 let ws: WebSocket | null = null
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let keepAliveTimer: ReturnType<typeof setInterval> | null = null
+let confirmTimer: ReturnType<typeof setTimeout> | null = null
+// True until the first `connected` reply on the current socket — only that one is forwarded to tabs
+let awaitingConfirmation = false
 let reconnectDelay = 1_000
 let currentAccountId: string | null = null
 let currentToken: string | null = null
 
-function broadcast(msg: unknown): void {
+function broadcast(msg: WorkerMessage): void {
   for (const port of ports) port.postMessage(msg)
+}
+
+function sendFrame(frame: ClientFrame): void {
+  if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(frame))
+}
+
+function clearConfirmTimer(): void {
+  if (confirmTimer !== null) {
+    clearTimeout(confirmTimer)
+    confirmTimer = null
+  }
 }
 
 function clearKeepAlive(): void {
@@ -49,19 +66,25 @@ function connect(): void {
       reconnectTimer = null
     }
     broadcast({ type: 'status', connected: true })
-    // Server can't post during $connect, so ask it to confirm now that the socket is open
-    ws?.send('{"type":"hello"}')
-    keepAliveTimer = setInterval(() => {
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send('{"type":"ping"}')
-      }
-    }, PING_INTERVAL_MS)
+    // Server can't post during $connect, so ping now; its `connected` reply confirms the round-trip
+    awaitingConfirmation = true
+    sendFrame({ type: 'ping' })
+    confirmTimer = setTimeout(() => {
+      confirmTimer = null
+      broadcast({ type: 'unconfirmed' })
+    }, CONFIRM_TIMEOUT_MS)
+    keepAliveTimer = setInterval(() => sendFrame({ type: 'ping' }), PING_INTERVAL_MS)
   }
 
   ws.onmessage = (e: MessageEvent<string>) => {
     try {
-      const data = JSON.parse(e.data) as { type: string }
+      const data = JSON.parse(e.data) as RealtimeEvent | { type: 'pong' }
+      clearConfirmTimer()
       if (data.type === 'pong') return
+      if (data.type === 'connected') {
+        if (!awaitingConfirmation) return
+        awaitingConfirmation = false
+      }
       broadcast({ type: 'event', data })
     } catch (err) {
       console.warn('[realtime worker] Ignoring malformed frame', err)
@@ -70,6 +93,7 @@ function connect(): void {
 
   ws.onclose = (e: CloseEvent) => {
     clearKeepAlive()
+    clearConfirmTimer()
     console.warn('[realtime worker] WebSocket closed', { code: e.code, reason: e.reason, wasClean: e.wasClean })
     broadcast({
       type: 'status',
@@ -119,6 +143,7 @@ self.onconnect = (e: MessageEvent) => {
       port.close()
       if (ports.size === 0) {
         clearKeepAlive()
+        clearConfirmTimer()
         if (reconnectTimer !== null) {
           clearTimeout(reconnectTimer)
           reconnectTimer = null

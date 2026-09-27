@@ -9,7 +9,7 @@ import { api } from '@/lib/api'
 import { upsertThreadCache } from '@/lib/threadCache'
 import { useToast } from '@/composables/useToast'
 import type { ThreadUrgency } from '@/types/server'
-import type { RealtimeEvent, SignalCreatedEvent } from '@/types/realtime'
+import type { RealtimeEvent, SignalCreatedEvent, WorkerMessage } from '@/types/realtime'
 
 // Module-level singleton — one SharedWorker port for the whole page lifetime.
 let worker: SharedWorker | null = null
@@ -97,14 +97,17 @@ export function useRealtime() {
         { type: 'module', name: 'ses-realtime' },
       )
       worker.port.onmessage = (e: MessageEvent) => {
-        const msg = e.data as { type: string; connected?: boolean; code?: number; reason?: string; wasClean?: boolean; hint?: string; data?: RealtimeEvent }
-        if (msg.type === 'status') {
+        const msg = e.data as WorkerMessage
+        if (msg.type === 'unconfirmed') {
+          logger.warn({ title: 'Realtime: no reply to ping after socket opened' })
+          toast.notify('Live updates not confirmed', 4000)
+        } else if (msg.type === 'status') {
           if (msg.connected) {
             logger.info({ title: 'Realtime: connected' })
           } else {
             logger.info({ title: 'Realtime: disconnected', code: msg.code, reason: msg.reason, wasClean: msg.wasClean, hint: msg.hint })
           }
-        } else if (msg.type === 'event' && msg.data) {
+        } else if (msg.type === 'event') {
           logger.info({ title: 'Realtime: event received', eventType: msg.data.type, data: msg.data })
           handleEvent(msg.data)
         }

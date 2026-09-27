@@ -20,7 +20,7 @@ export interface ThreadUpdatedEvent {
   threadId: string
 }
 
-// Server reply to the worker's `hello` frame — confirms the socket round-trips.
+// Server reply to every `ping` frame — confirms the socket round-trips.
 export interface ConnectedEvent {
   type: 'connected'
   accountId: string
@@ -29,3 +29,32 @@ export interface ConnectedEvent {
 }
 
 export type RealtimeEvent = SignalCreatedEvent | ThreadUpdatedEvent | ConnectedEvent
+
+// Frames the client sends to the server.
+export interface PingFrame {
+  type: 'ping'
+}
+
+export type ClientFrame = PingFrame
+
+// Messages the realtime SharedWorker posts to each tab.
+export interface WorkerStatusMessage {
+  type: 'status'
+  connected: boolean
+  code?: number
+  reason?: string
+  wasClean?: boolean
+  hint?: string
+}
+
+export interface WorkerEventMessage {
+  type: 'event'
+  data: RealtimeEvent
+}
+
+// No frame arrived within the confirmation window after the socket opened.
+export interface WorkerUnconfirmedMessage {
+  type: 'unconfirmed'
+}
+
+export type WorkerMessage = WorkerStatusMessage | WorkerEventMessage | WorkerUnconfirmedMessage
