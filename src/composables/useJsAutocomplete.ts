@@ -15,6 +15,7 @@ const SIGNAL_COMPLETIONS: JsCompletion[] = [
   { path: 'signal.subject', label: 'subject', type: 'string', example: 'Quick question' },
   { path: 'signal.workflow', label: 'workflow', type: 'string', example: 'conversation' },
   { path: 'signal.spamScore', label: 'spamScore', type: 'number', example: '0.02' },
+  { path: 'signal.hasCalendarInvite', label: 'hasCalendarInvite', type: 'boolean', example: 'true' },
   { path: 'signal.type', label: 'type', type: 'string', example: 'email' },
 ]
 

@@ -18,6 +18,7 @@ import type {
 } from '@/types/server'
 import { FILTERABLE_WORKFLOWS } from '@/types/server'
 import {
+  BOOLEAN_FIELDS,
   defaultLeaf,
   evalLogic,
   FIELDS,
@@ -91,6 +92,15 @@ function updateCondition(gi: number, ci: number, patch: Partial<ConditionLeaf>) 
   )
 }
 
+function changeField(gi: number, ci: number, field: ConditionField) {
+  // A boolean field only has true/false values; carry over a free-text value from a
+  // previous string field would serialize to a nonsensical comparison, so reset it.
+  const patch: Partial<ConditionLeaf> = BOOLEAN_FIELDS.includes(field)
+    ? { field, value: 'true' }
+    : { field }
+  updateCondition(gi, ci, patch)
+}
+
 function setGroupMode(gi: number, mode: 'and' | 'or') {
   groups.value = groups.value.map((grp, i) => (i === gi ? { ...grp, mode } : grp))
 }
@@ -99,7 +109,12 @@ function setGroupMode(gi: number, mode: 'and' | 'or') {
 
 function leafToJs(leaf: ConditionLeaf): string {
   const fieldPath = leaf.field
-  const val = leaf.field === 'signal.spamScore' ? leaf.value : `"${leaf.value}"`
+  const val =
+    leaf.field === 'signal.spamScore'
+      ? leaf.value
+      : BOOLEAN_FIELDS.includes(leaf.field)
+        ? String(leaf.value === 'true')
+        : `"${leaf.value}"`
 
   switch (leaf.operator) {
     case 'equals': return `${fieldPath} === ${val}`
@@ -137,7 +152,7 @@ watch(conditionType, (newType, oldType) => {
 
 // ─── Rule tester ──────────────────────────────────────────────────────────────
 
-const testInput = ref({ fromAddress: '', subject: '', workflow: '', spamScore: '' })
+const testInput = ref({ fromAddress: '', subject: '', workflow: '', spamScore: '', hasCalendarInvite: false })
 const testResult = ref<boolean | null>(null)
 
 function runTest() {
@@ -150,6 +165,7 @@ function runTest() {
       subject: testInput.value.subject,
       workflow: testInput.value.workflow,
       spamScore: testInput.value.spamScore ? Number(testInput.value.spamScore) : 0,
+      hasCalendarInvite: testInput.value.hasCalendarInvite,
     },
     thread: { labels: [], urgency: 'normal', status: 'active' },
   }
@@ -179,7 +195,7 @@ watchEffect(() => {
   void _g
   void _t
   // Only run if there's any test input
-  if (testInput.value.fromAddress || testInput.value.subject || testInput.value.workflow || testInput.value.spamScore) {
+  if (testInput.value.fromAddress || testInput.value.subject || testInput.value.workflow || testInput.value.spamScore || testInput.value.hasCalendarInvite) {
     runTest()
   }
 })
@@ -526,9 +542,7 @@ watch(signalAction, (val) => {
                   :aria-label="`Condition ${ci + 1} field`"
                   class="rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
                   @change="
-                    updateCondition(gi, ci, {
-                      field: ($event.target as HTMLSelectElement).value as ConditionField,
-                    })
+                    changeField(gi, ci, ($event.target as HTMLSelectElement).value as ConditionField)
                   "
                 >
                   <option v-for="f in FIELDS" :key="f.value" :value="f.value">
@@ -551,7 +565,21 @@ watch(signalAction, (val) => {
                   </option>
                 </select>
 
+                <select
+                  v-if="BOOLEAN_FIELDS.includes(cond.field)"
+                  :value="cond.value || 'true'"
+                  :aria-label="`Condition ${ci + 1} value`"
+                  class="min-w-0 flex-1 rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text focus:border-ctp-mauve focus:outline-none"
+                  @change="
+                    updateCondition(gi, ci, { value: ($event.target as HTMLSelectElement).value })
+                  "
+                >
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+
                 <input
+                  v-else
                   :value="cond.value"
                   type="text"
                   :aria-label="`Condition ${ci + 1} value`"
@@ -634,6 +662,7 @@ watch(signalAction, (val) => {
               <div class="font-mono text-ctp-mauve">signal.subject</div><div class="text-ctp-subtext0">Email subject</div>
               <div class="font-mono text-ctp-mauve">signal.workflow</div><div class="text-ctp-subtext0">Detected workflow</div>
               <div class="font-mono text-ctp-mauve">signal.spamScore</div><div class="text-ctp-subtext0">0–10 spam score</div>
+              <div class="font-mono text-ctp-mauve">signal.hasCalendarInvite</div><div class="text-ctp-subtext0">Message carries a calendar invite (boolean)</div>
               <div class="font-mono text-ctp-mauve">thread.workflow</div><div class="text-ctp-subtext0">Thread workflow</div>
               <div class="font-mono text-ctp-mauve">thread.urgency</div><div class="text-ctp-subtext0">critical/high/normal/low/silent</div>
               <div class="font-mono text-ctp-mauve">thread.labels</div><div class="text-ctp-subtext0">Applied label IDs (array)</div>
@@ -854,6 +883,15 @@ watch(signalAction, (val) => {
                   placeholder="0"
                   class="w-full rounded border border-ctp-surface1 bg-ctp-base px-2 py-1.5 text-xs text-ctp-text placeholder:text-ctp-subtext0 focus:border-ctp-mauve focus:outline-none"
                 />
+              </div>
+              <div class="flex items-center gap-2">
+                <input
+                  id="test-has-calendar-invite"
+                  v-model="testInput.hasCalendarInvite"
+                  type="checkbox"
+                  class="rounded border-ctp-surface1 bg-ctp-base text-ctp-mauve focus:ring-ctp-mauve"
+                />
+                <label for="test-has-calendar-invite" class="text-xs text-ctp-subtext0">Has calendar invite</label>
               </div>
             </div>
             <div v-if="testResult !== null" class="mt-3">

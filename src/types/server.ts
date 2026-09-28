@@ -607,6 +607,7 @@ export type ConditionField =
   | 'signal.subject'
   | 'signal.workflow'
   | 'signal.spamScore'
+  | 'signal.hasCalendarInvite'
   | 'thread.labels'
   | 'thread.urgency'
   | 'thread.status'

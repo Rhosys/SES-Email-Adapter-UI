@@ -16,6 +16,7 @@ export const FIELDS: { value: ConditionField; label: string }[] = [
   { value: 'signal.subject', label: 'Subject' },
   { value: 'signal.workflow', label: 'Workflow' },
   { value: 'signal.spamScore', label: 'Spam score' },
+  { value: 'signal.hasCalendarInvite', label: 'Has calendar invite' },
   { value: 'thread.labels', label: 'Labels' },
   { value: 'thread.urgency', label: 'Urgency' },
   { value: 'thread.status', label: 'Thread status' },
@@ -34,9 +35,17 @@ export const OPERATORS: { value: ConditionOperator; label: string }[] = [
 
 // ─── Serialization ────────────────────────────────────────────────────────────
 
+export const BOOLEAN_FIELDS: ConditionField[] = ['signal.hasCalendarInvite']
+
+function coerceValue(field: ConditionField, value: string): string | number | boolean {
+  if (field === 'signal.spamScore') return Number(value)
+  if (BOOLEAN_FIELDS.includes(field)) return value === 'true'
+  return value
+}
+
 export function leafToLogic(leaf: ConditionLeaf): unknown {
   const varRef = { var: leaf.field }
-  const numVal = leaf.field === 'signal.spamScore' ? Number(leaf.value) : leaf.value
+  const numVal = coerceValue(leaf.field, leaf.value)
   switch (leaf.operator) {
     case 'equals':
       return { '==': [varRef, numVal] }

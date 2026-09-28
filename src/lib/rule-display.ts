@@ -62,13 +62,16 @@ export function summarizeLogic(node: unknown, depth = 0): string {
   const varOf = (v: unknown) =>
     typeof v === 'object' && v && 'var' in v ? (v as { var: string }).var : String(v)
 
+  // Boolean/number literals render bare; strings are quoted.
+  const litOf = (v: unknown) => (typeof v === 'boolean' || typeof v === 'number' ? String(v) : `"${v}"`)
+
   if ('==' in obj) {
     const [a, b] = obj['=='] as unknown[]
-    return `${varOf(a)} = "${b}"`
+    return `${varOf(a)} = ${litOf(b)}`
   }
   if ('!=' in obj) {
     const [a, b] = obj['!='] as unknown[]
-    return `${varOf(a)} ≠ "${b}"`
+    return `${varOf(a)} ≠ ${litOf(b)}`
   }
   if ('>' in obj) {
     const [a, b] = obj['>'] as unknown[]

@@ -70,6 +70,16 @@ describe('leafToLogic', () => {
     const result = leafToLogic(leaf) as { '==': unknown[] }
     expect(result['=='][1]).toBe(5)
   })
+
+  it('hasCalendarInvite field coerces value to boolean true for equals', () => {
+    const leaf: ConditionLeaf = { field: 'signal.hasCalendarInvite', operator: 'equals', value: 'true' }
+    expect(leafToLogic(leaf)).toEqual({ '==': [{ var: 'signal.hasCalendarInvite' }, true] })
+  })
+
+  it('hasCalendarInvite field coerces "false" to boolean false', () => {
+    const leaf: ConditionLeaf = { field: 'signal.hasCalendarInvite', operator: 'equals', value: 'false' }
+    expect(leafToLogic(leaf)).toEqual({ '==': [{ var: 'signal.hasCalendarInvite' }, false] })
+  })
 })
 
 // ─── groupToLogic ─────────────────────────────────────────────────────────────
@@ -350,12 +360,21 @@ describe('evalLogic', () => {
       subject: 'You won a prize!',
       workflow: 'content',
       spamScore: 8,
+      hasCalendarInvite: true,
     },
     thread: { labels: ['promo'], urgency: 'low', status: 'active' },
   } as Record<string, unknown>
 
   it('== match', () => {
     expect(evalLogic({ '==': [{ var: 'signal.from.address' }, 'spam@evil.com'] }, email)).toBe(true)
+  })
+
+  it('== boolean true match', () => {
+    expect(evalLogic({ '==': [{ var: 'signal.hasCalendarInvite' }, true] }, email)).toBe(true)
+  })
+
+  it('== boolean false no match', () => {
+    expect(evalLogic({ '==': [{ var: 'signal.hasCalendarInvite' }, false] }, email)).toBe(false)
   })
 
   it('== no match', () => {

@@ -32,6 +32,18 @@ describe('summarizeLogic — "in" operator', () => {
   })
 })
 
+describe('summarizeLogic — boolean literals render unquoted', () => {
+  it('renders a boolean == comparison without quotes', () => {
+    const tree = { '==': [{ var: 'signal.hasCalendarInvite' }, true] }
+    expect(summarizeLogic(tree)).toBe('signal.hasCalendarInvite = true')
+  })
+
+  it('keeps string == comparisons quoted', () => {
+    const tree = { '==': [{ var: 'signal.workflow' }, 'events'] }
+    expect(summarizeLogic(tree)).toBe('signal.workflow = "events"')
+  })
+})
+
 describe('conditionSummary', () => {
   it('returns "Match all emails" for an empty condition', () => {
     expect(conditionSummary(mockRule(''))).toBe('Match all emails')
