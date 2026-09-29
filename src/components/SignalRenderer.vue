@@ -3,7 +3,6 @@ import type { Signal } from '@/types/server'
 import EmailSignalCard from '@/components/EmailSignalCard.vue'
 import DeliverabilityCard from '@/components/DeliverabilityCard.vue'
 import CalendarEventCard from '@/components/CalendarEventCard.vue'
-import CalendarResponseCard from '@/components/CalendarResponseCard.vue'
 import SystemAlertCard from '@/components/SystemAlertCard.vue'
 
 withDefaults(defineProps<{ signal: Signal; defaultExpanded?: boolean }>(), { defaultExpanded: true })
@@ -22,6 +21,7 @@ defineEmits<{
     :signal="signal"
     @propose-alternative-time="$emit('propose-alternative-time', $event)"
   />
-  <CalendarResponseCard v-else-if="signal.type === 'calendar_response'" :signal="signal" />
+  <!-- RSVPs are shown on their event card (data.rsvpResponse), never as their own row. -->
+  <template v-else-if="signal.type === 'calendar_response'" />
   <SystemAlertCard v-else :signal="signal" />
 </template>
