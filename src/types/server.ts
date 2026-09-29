@@ -352,9 +352,8 @@ export interface CalendarEventData {
   cancelledAt?: string
   // Present when a later invite changed one or more fields.
   previousValues?: CalendarPreviousValues
-  // The account's latest RSVP for this event (across all responses, latest by respondedAt).
-  // Absent when the user has not responded. Lets the card show "you responded" regardless of
-  // whether the RSVP came from the dashboard or a native calendar reply.
+  // The account's latest RSVP for this event, from the dashboard or a native calendar reply.
+  // Absent when the user has not responded.
   rsvpResponse?: {
     decision: 'accepted' | 'declined' | 'tentative'
     respondedAt: string
@@ -364,19 +363,6 @@ export interface CalendarEventData {
 export interface CalendarEventSignal extends SignalBase {
   type: 'calendar_event'
   data: CalendarEventData
-}
-
-// Calendar response
-
-export interface CalendarResponseData {
-  rsvpResponse: 'accepted' | 'declined' | 'tentative'
-  respondedAt: string
-  linkedSignalId: string
-}
-
-export interface CalendarResponseSignal extends SignalBase {
-  type: 'calendar_response'
-  data: CalendarResponseData
 }
 
 // Calendar invite invalid
@@ -415,7 +401,6 @@ export type Signal =
   | InvalidTemplateFunctionSignal
   | AutoSendBlockedSignal
   | CalendarEventSignal
-  | CalendarResponseSignal
   | CalendarInviteInvalidSignal
   | DomainMisconfigurationSignal
 

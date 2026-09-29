@@ -7,7 +7,6 @@ import type {
   InvalidTemplateFunctionSignal,
   AutoSendBlockedSignal,
   CalendarEventSignal,
-  CalendarResponseSignal,
   CalendarInviteInvalidSignal,
   DomainMisconfigurationSignal
 } from '@/types/server'
@@ -42,10 +41,6 @@ export function isAutoSendBlockedSignal(s: Signal): s is AutoSendBlockedSignal {
 
 export function isCalendarEventSignal(s: Signal): s is CalendarEventSignal {
   return s.type === 'calendar_event'
-}
-
-export function isCalendarResponseSignal(s: Signal): s is CalendarResponseSignal {
-  return s.type === 'calendar_response'
 }
 
 export function isCalendarInviteInvalidSignal(s: Signal): s is CalendarInviteInvalidSignal {
