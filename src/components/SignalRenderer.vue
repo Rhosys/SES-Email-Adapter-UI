@@ -21,7 +21,5 @@ defineEmits<{
     :signal="signal"
     @propose-alternative-time="$emit('propose-alternative-time', $event)"
   />
-  <!-- RSVPs are shown on their event card (data.rsvpResponse), never as their own row. -->
-  <template v-else-if="signal.type === 'calendar_response'" />
   <SystemAlertCard v-else :signal="signal" />
 </template>
