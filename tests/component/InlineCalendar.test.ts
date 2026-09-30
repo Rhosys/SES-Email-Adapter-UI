@@ -1,9 +1,17 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { DateTime } from 'luxon'
+import { DateTime, Settings } from 'luxon'
 import InlineCalendar from '@/components/InlineCalendar.vue'
 
+// Pin "now" to a mid-month date. minDate is derived as now+1 day throughout, so an
+// end-of-month real clock would open the view on the following month where no earlier
+// day is disabled — making the disabled-day assertions spuriously fail on ~4 days a year.
+const FIXED_NOW = DateTime.local(2026, 6, 15, 12, 0, 0)
+
 describe('InlineCalendar', () => {
+  beforeAll(() => { Settings.now = () => FIXED_NOW.toMillis() })
+  afterAll(() => { Settings.resetCaches(); Settings.now = () => Date.now() })
+
   it('disables every day before minDate', async () => {
     const minDate = DateTime.local().plus({ days: 1 }).toISODate()!
     const wrapper = mount(InlineCalendar, { props: { modelValue: null, minDate } })
