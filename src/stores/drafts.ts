@@ -41,7 +41,7 @@ export const useDraftsStore = defineStore('drafts', () => {
     if (!accountId) return []
     const data = queryClient.getQueryData<InfiniteThreadData>(queryKeys.threads.list(accountId, 'active'))
     if (!data?.pages) return []
-    return data.pages.flatMap(p => p.threads).filter(t => t.status === 'active')
+    return data.pages.flatMap(p => p.threads).filter((t): t is Thread => t != null && t.status === 'active')
   }
 
   function getAllCachedSignals(): Signal[] {
@@ -50,7 +50,7 @@ export const useDraftsStore = defineStore('drafts', () => {
     const queries = queryClient.getQueriesData<InfiniteSignalData>({
       queryKey: queryKeys.signals.all(accountId),
     })
-    return queries.flatMap(([, data]) => data?.pages.flatMap(p => p.signals) ?? [])
+    return queries.flatMap(([, data]) => data?.pages.flatMap(p => p.signals) ?? []).filter((s): s is Signal => s != null)
   }
 
   const activeThreadIds = computed(() => {

@@ -24,8 +24,11 @@ export function useSignalListQuery(threadId: () => string | undefined) {
     enabled: computed(() => !!accountId.value && !!threadId()),
   })
 
+  // A pre-fix backend could serialize an undefined array element as null (unknown signal
+  // type with no transform). Such a null may still sit in a client's query cache, so it is
+  // filtered here at the read boundary before any consumer dereferences .type/.status.
   const signals = computed<Signal[]>(() =>
-    query.data.value?.pages.flatMap(p => p.signals) ?? [],
+    query.data.value?.pages.flatMap(p => p.signals).filter((s): s is Signal => s != null) ?? [],
   )
 
   const hasMore = computed(() => query.hasNextPage?.value ?? false)
