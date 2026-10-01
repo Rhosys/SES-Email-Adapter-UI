@@ -38,7 +38,8 @@ describe('notify', () => {
     mockNotificationPermission('granted')
     const { serviceWorker: _omit, ...navigatorWithoutSw } = navigator as Navigator & { serviceWorker?: unknown }
     vi.stubGlobal('navigator', navigatorWithoutSw)
-    await expect(notify({ title: 't', body: 'b' })).resolves.toBeUndefined()
+    const result = await notify({ title: 't', body: 'b' })
+    expect(result.isOk()).toBe(true)
   })
 
   it('shows via the service worker registration with default icon/badge and the url in data', async () => {

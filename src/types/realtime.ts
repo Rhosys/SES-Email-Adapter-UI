@@ -4,12 +4,13 @@
 // Everything else (rules, labels, archived status) is re-fetched on
 // navigation or page focus.
 
-import type { ThreadUrgency } from './server'
+import type { ThreadUrgency, SignalStatus } from './server'
 
 export interface SignalCreatedEvent {
   type: 'thread:updated'
-  threadId: string
+  threadId?: string   // absent for a quarantined signal — it has no persisted thread
   signalId?: string
+  status?: SignalStatus
   urgency: ThreadUrgency   // urgency of the thread after this signal lands
   from: { address: string; name?: string }
   subject: string

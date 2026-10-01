@@ -12,6 +12,8 @@
 // `notificationclick` listener (src/sw.ts), driven by the `url` values below
 // via `event.notification.data`.
 
+import { ok, err, type Result } from 'neverthrow'
+
 const DEFAULT_ICON = `${import.meta.env.BASE_URL}pwa-192x192.png`
 const DEFAULT_BADGE = `${import.meta.env.BASE_URL}notification-badge.png`
 
@@ -39,23 +41,31 @@ export interface NotifyOptions {
   actions?: NotifyAction[]
 }
 
-/** Shows a notification via the service worker registration. No-ops if permission isn't granted. */
-export async function notify(options: NotifyOptions): Promise<void> {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return
-  if (!('serviceWorker' in navigator)) return
+export type NotifyError = { kind: 'show_failed'; cause: unknown }
+
+/** Shows a notification via the service worker registration. Ok (no-op) if permission isn't
+ *  granted or the SW is unavailable; err only when showNotification itself throws. */
+export async function notify(options: NotifyOptions): Promise<Result<void, NotifyError>> {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return ok(undefined)
+  if (!('serviceWorker' in navigator)) return ok(undefined)
 
   const actionUrls = options.actions?.reduce<Record<string, string>>((acc, a) => {
     if (a.url) acc[a.action] = a.url
     return acc
   }, {})
 
-  const registration = await navigator.serviceWorker.ready
-  await registration.showNotification(options.title, {
-    body: options.body,
-    icon: options.icon ?? DEFAULT_ICON,
-    badge: options.badge ?? DEFAULT_BADGE,
-    tag: options.tag,
-    actions: options.actions?.map(({ action, title }) => ({ action, title })),
-    data: { url: options.url, actionUrls },
-  } as NotificationOptions)
+  try {
+    const registration = await navigator.serviceWorker.ready
+    await registration.showNotification(options.title, {
+      body: options.body,
+      icon: options.icon ?? DEFAULT_ICON,
+      badge: options.badge ?? DEFAULT_BADGE,
+      tag: options.tag,
+      actions: options.actions?.map(({ action, title }) => ({ action, title })),
+      data: { url: options.url, actionUrls },
+    } as NotificationOptions)
+    return ok(undefined)
+  } catch (e) {
+    return err({ kind: 'show_failed', cause: e })
+  }
 }
