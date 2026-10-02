@@ -101,7 +101,7 @@ function labelActionWrapper(action: (label: string) => Promise<unknown>) {
          just opacity+pointer-events) removes them from the accessibility tree,
          so the dimmed low-contrast text isn't audited or focusable. -->
     <div
-      class="flex flex-wrap items-center gap-3 transition-opacity"
+      class="ml-auto flex flex-wrap items-center gap-3 transition-opacity"
       :class="{ 'opacity-50': isEmpty }"
       :inert="isEmpty"
     >
