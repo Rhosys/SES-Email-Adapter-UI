@@ -49,7 +49,11 @@ function formatRemaining(ms: number): string {
           role="status"
           class="pointer-events-auto flex items-center gap-2 rounded-full border border-ctp-surface1 bg-ctp-mantle px-4 py-2.5 text-sm text-ctp-text shadow-2xl"
         >
-          <svg class="h-4 w-4 shrink-0 text-ctp-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg v-if="toast.tone === 'error'" class="h-4 w-4 shrink-0 text-ctp-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+          <svg v-else class="h-4 w-4 shrink-0 text-ctp-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polyline points="20 6 9 17 4 12" />
           </svg>
           {{ toast.message }}

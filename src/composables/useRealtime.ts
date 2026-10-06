@@ -136,7 +136,7 @@ export function useRealtime() {
         const msg = e.data as WorkerMessage
         if (msg.type === 'unconfirmed') {
           logger.warn({ title: 'Realtime: no reply to ping after socket opened' })
-          toast.notify('Live updates not confirmed', 4000)
+          toast.notify('Live updates not connected', 4000, 'error')
         } else if (msg.type === 'status') {
           if (msg.connected) {
             logger.info({ title: 'Realtime: connected' })
