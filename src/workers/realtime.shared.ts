@@ -79,8 +79,9 @@ function connect(): void {
   ws.onmessage = (e: MessageEvent<string>) => {
     try {
       const data = JSON.parse(e.data) as RealtimeEvent | { type: 'pong' }
-      clearConfirmTimer()
+      // A `pong` isn't a confirmation — only `connected` (or a real event) proves the server handles our frames
       if (data.type === 'pong') return
+      clearConfirmTimer()
       if (data.type === 'connected') {
         if (!awaitingConfirmation) return
         awaitingConfirmation = false
