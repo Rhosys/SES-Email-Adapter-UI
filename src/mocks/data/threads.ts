@@ -197,10 +197,10 @@ export const mockThreads: Thread[] = [
     recipientAddress: 'receipts@demo.catchmail.app',
     subject: 'Action required: Payment failed for your Pro plan',
   },
-  // alert — suspicious login GitHub
+  // notice — suspicious login GitHub
   {
     threadId: 'thr_alert_1',
-    workflow: 'alert',
+    workflow: 'notice',
     labels: ['lbl_5'],
     status: 'active',
     summary: 'Suspicious login from new location on GitHub',
@@ -212,10 +212,10 @@ export const mockThreads: Thread[] = [
     recipientAddress: 'hello@demo.catchmail.app',
     subject: '[GitHub] Suspicious sign-in from new location',
   },
-  // alert — CI failure
+  // notice — CI failure
   {
     threadId: 'thr_alert_2',
-    workflow: 'alert',
+    workflow: 'notice',
     labels: ['lbl_6'],
     status: 'active',
     summary: 'GitLab CI pipeline failed on main',
@@ -227,10 +227,10 @@ export const mockThreads: Thread[] = [
     recipientAddress: 'work@demo.catchmail.app',
     subject: 'Pipeline #48291 failed for main',
   },
-  // alert — cert expiry
+  // notice — cert expiry
   {
     threadId: 'thr_alert_3',
-    workflow: 'alert',
+    workflow: 'notice',
     labels: ['lbl_5'],
     status: 'active',
     summary: 'SSL certificate expiring in 14 days',

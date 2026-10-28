@@ -31,7 +31,7 @@ export const mockViews: View[] = [
     name: 'Security Alerts',
     icon: '🚨',
     color: '#f38ba8',
-    workflow: 'alert',
+    workflow: 'notice',
     labels: [],
     sortField: 'createdAt',
     sortDirection: 'desc',

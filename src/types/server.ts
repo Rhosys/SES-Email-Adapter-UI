@@ -14,7 +14,6 @@ export const WORKFLOWS = [
   'package',
   'travel',
   'payments',
-  'alert',
   'content',
   'onboarding',
   'notice',
@@ -467,19 +466,6 @@ export interface PaymentsData {
   managementUrl?: string
 }
 
-export interface AlertData {
-  alertType: string
-  service: string
-  severity?: 'info' | 'warning' | 'critical'
-  requiresAction: boolean
-  actionUrl?: string
-  ipAddress?: string
-  location?: string
-  deviceName?: string
-  repository?: string
-  errorMessage?: string
-}
-
 export interface ContentData {
   contentType: 'newsletter' | 'promotion' | 'social_digest' | 'product_update' | 'announcement'
   publisher: string
@@ -565,7 +551,6 @@ export interface WorkflowDataMap {
   package: PackageData
   travel: TravelData
   payments: PaymentsData
-  alert: AlertData
   content: ContentData
   notice: NoticeData
   healthcare: HealthcareData
