@@ -55,7 +55,7 @@ export const mockRules: Rule[] = [
     name: 'Detect security alerts',
     condition: '{"or":[{"in":[{"var":"signal.subject"},["suspicious","security alert","unusual activity","new sign-in","breach","compromised"]]},{"and":[{"in":[{"var":"signal.from.domain"},["github.com","google.com","microsoft.com"]]},{"in":[{"var":"signal.subject"},["sign-in","login","security"]]}]}]}',
     conditionType: 'json_logic',
-    actions: [{ type: 'assign_workflow', value: 'alert' }, { type: 'set_urgency', value: 'critical' }],
+    actions: [{ type: 'assign_workflow', value: 'notice' }, { type: 'set_urgency', value: 'critical' }],
     status: 'enabled',
     priorityOrder: 5,
     system: true,

@@ -341,7 +341,7 @@ export const mockSignals: Record<string, Signal[]> = {
     },
   ],
 
-  // ─── alert — GitHub suspicious login ───────────────────────────────────────
+  // ─── notice — GitHub suspicious login ──────────────────────────────────────
   thr_alert_1: [
     {
       signalId: 'sig_alert1_1',
@@ -362,15 +362,15 @@ export const mockSignals: Record<string, Signal[]> = {
         attachments: [],
         headers: { 'Return-Path': 'noreply@github.com', 'X-GitHub-Recipient-Address': 'hello@demo.catchmail.app' },
         recipientAddress: 'hello@demo.catchmail.app',
-        workflow: 'alert',
-        workflowData: { alertType: 'suspicious_login', service: 'GitHub', severity: 'critical', requiresAction: true, ipAddress: '203.45.67.89', location: 'São Paulo, Brazil', deviceName: 'Chrome on Linux' },
+        workflow: 'notice',
+        workflowData: { noticeType: 'account_notification', provider: 'GitHub' },
         actions: [{ url: 'https://github.com/settings/security', text: null }],
         spamScore: 0,
       },
     },
   ],
 
-  // ─── alert — CI failure ────────────────────────────────────────────────────
+  // ─── notice — CI failure ────────────────────────────────────────────────────
   thr_alert_2: [
     {
       signalId: 'sig_alert2_1',
@@ -391,8 +391,8 @@ export const mockSignals: Record<string, Signal[]> = {
         attachments: [],
         headers: { 'Return-Path': 'gitlab@mg.gitlab.com' },
         recipientAddress: 'work@demo.catchmail.app',
-        workflow: 'alert',
-        workflowData: { alertType: 'ci_failure', service: 'GitLab', severity: 'warning', requiresAction: true, repository: 'email-catcher/backend', errorMessage: 'classifyWorkflow should detect auth workflow from OTP patterns' },
+        workflow: 'notice',
+        workflowData: { noticeType: 'service_notice', provider: 'GitLab' },
         actions: [{ url: 'https://gitlab.com/email-catcher/backend/-/pipelines/48291', text: null }],
         spamScore: 0,
       },

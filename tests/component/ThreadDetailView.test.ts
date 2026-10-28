@@ -377,8 +377,8 @@ describe('ThreadDetailView — unsubscribe', () => {
         attachments: [],
         headers: {},
         recipientAddress: 'inbox@example.com',
-        workflow: 'alert',
-        workflowData: { alertType: 'ci_failure', service: 'GitLab', severity: 'warning', requiresAction: true },
+        workflow: 'notice',
+        workflowData: { noticeType: 'service_notice', provider: 'GitLab' },
         spamScore: 0,
       },
     })

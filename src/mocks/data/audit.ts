@@ -88,7 +88,7 @@ export const mockAuditEvents: AuditEvent[] = [
     action: 'created',
     resourceType: 'view',
     resourceId: 'view_3',
-    after: { name: 'Security Alerts', workflow: 'alert' },
+    after: { name: 'Security Alerts', workflow: 'notice' },
     timestamp: '2026-04-01T00:00:00Z',
   },
   {
