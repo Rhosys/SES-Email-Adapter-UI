@@ -104,7 +104,7 @@ async function saveRetentionAndContinue() {
     const result = await api.updateAccount(accountStore.accountId, {
       retentionDuration: selectedRetention.value,
     })
-    if (result.isOk()) accountStore.account = result.value
+    if (result.isOk()) accountStore.setAccount(result.value)
   }
   step.value = 4
 }
@@ -394,7 +394,7 @@ async function persistProgress(patch: Partial<{
 }>) {
   if (!accountStore.accountId) return
   const result = await api.updateAccount(accountStore.accountId, { onboarding: patch })
-  if (result.isOk()) accountStore.account = result.value
+  if (result.isOk()) accountStore.setAccount(result.value)
 }
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────

@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
-import { ok } from 'neverthrow'
+import { ok, err } from 'neverthrow'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import SettingsView from '@/views/SettingsView.vue'
 import { useAccountStore } from '@/stores/account'
 import { useToast } from '@/composables/useToast'
+import { ApiError } from '@/lib/api'
 import type { Account, ForwardingTarget } from '@/types/server'
 
 vi.mock('@/lib/api', async (importOriginal) => {
@@ -89,6 +90,46 @@ describe('SettingsView — forwarding target add modal', () => {
     // Drain any toasts left over from a previous test (module-level singleton).
     const { toasts, dismiss } = useToast()
     ;[...toasts.value].forEach((t) => dismiss(t.id))
+  })
+
+  it('saves the digest and shows a toast when toggled on and when the frequency changes', async () => {
+    vi.mocked(api.updateAccount).mockImplementation(async (_id, body) => ok(testAccount(body as Partial<Account>)))
+    useAccountStore().accounts = [testAccount()]
+    const wrapper = await mountSettings({ tab: 'profile' }, testAccount())
+    const { toasts } = useToast()
+
+    await wrapper.get('[aria-label="Enable digest"]').trigger('click')
+    await flushPromises()
+    expect(api.updateAccount).toHaveBeenLastCalledWith('acc_1', {
+      digest: { frequency: 'weekly', forwardingTargetId: 'existing@example.com' },
+    })
+    expect(toasts.value.at(-1)?.message).toContain('Digest saved')
+
+    await wrapper.findAll('button').find((b) => b.text() === 'Daily')!.trigger('click')
+    await flushPromises()
+    expect(api.updateAccount).toHaveBeenLastCalledWith('acc_1', {
+      digest: { frequency: 'daily', forwardingTargetId: 'existing@example.com' },
+    })
+    expect(useAccountStore().account?.digest?.frequency).toBe('daily')
+    expect(useAccountStore().accounts.find((a) => a.accountId === 'acc_1')?.digest?.frequency).toBe('daily')
+  })
+
+  it('reverts the digest controls and shows an error toast when the save fails', async () => {
+    vi.mocked(api.updateAccount).mockResolvedValue(err(new ApiError(422, 'Forwarding target not found or not verified')))
+    const wrapper = await mountSettings({ tab: 'profile' }, testAccount())
+    const { toasts } = useToast()
+
+    await wrapper.get('[aria-label="Enable digest"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[role="switch"][aria-label$="digest"]').attributes('aria-checked')).toBe('false')
+    expect(toasts.value.at(-1)?.tone).toBe('error')
+  })
+
+  it('re-syncs the digest controls when the account is refreshed after mount', async () => {
+    const wrapper = await mountSettings({ tab: 'profile' }, testAccount())
+    useAccountStore().account = testAccount({ digest: { frequency: 'monthly', forwardingTargetId: 'existing@example.com' } })
+    await flushPromises()
+    expect(wrapper.findAll('button').find((b) => b.text() === 'Monthly')!.attributes('aria-pressed')).toBe('true')
   })
 
   it('opens the modal and switches to Email & Forwarding when "＋ Add new…" is picked in the digest select (Profile tab)', async () => {
