@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import { useUserConfigStore } from '@/stores/userConfig'
@@ -32,6 +32,7 @@ import { useIdentity } from '@/composables/useIdentity'
 import { useIsMobile } from '@/composables/useIsMobile'
 import { SETTINGS_TABS, resolveSettingsTab, type SettingsTabKey } from '@/lib/settingsTabs'
 import type {
+  Account,
   Domain,
   DnsRecord,
   Alias,
@@ -236,7 +237,7 @@ async function saveCalendarForwarding() {
   })
   calendarForwardingPending.value = false
   if (result.isOk()) {
-    accountStore.account = result.value
+    accountStore.setAccount(result.value)
     calendarForwardingSaved.value = true
     setTimeout(() => {
       calendarForwardingSaved.value = false
@@ -296,7 +297,7 @@ async function updateRetention(value: RetentionDuration) {
   const result = await api.updateAccount(accountStore.accountId, { retentionDuration: value })
   retentionPending.value = false
   if (result.isOk()) {
-    accountStore.account = result.value
+    accountStore.setAccount(result.value)
     selectedRetention.value = value
   }
 }
@@ -322,7 +323,7 @@ async function updateTimezone(value: string) {
   const result = await api.updateAccount(accountStore.accountId, { timezone: value })
   timezonePending.value = false
   if (result.isOk()) {
-    accountStore.account = result.value
+    accountStore.setAccount(result.value)
     selectedTimezone.value = value
   }
 }
@@ -347,7 +348,7 @@ async function updateAmbiguousDateFormat(value: AmbiguousDateFormat) {
   const result = await api.updateAccount(accountStore.accountId, { ambiguousDateFormat: value })
   ambiguousDateFormatPending.value = false
   if (result.isOk()) {
-    accountStore.account = result.value
+    accountStore.setAccount(result.value)
     selectedAmbiguousDateFormat.value = value
   }
 }
@@ -466,7 +467,7 @@ async function updateDefaultPolicy(policy: UnknownSenderPolicy) {
   const result = await api.updateAccount(accountStore.accountId, {
     filtering: { ...accountStore.account?.filtering, defaultUnknownSenderPolicy: policy },
   })
-  if (result.isOk()) accountStore.account = result.value
+  if (result.isOk()) accountStore.setAccount(result.value)
 }
 
 async function deleteAddress(address: string) {
@@ -1076,8 +1077,6 @@ async function removeMember(userId: string, displayName: string) {
 // ─── Digest (Email tab) ───────────────────────────────────────────────────────
 const digestFrequency = ref<'daily' | 'weekly' | 'monthly' | null>(null)
 const digestForwardingTargetId = ref('')
-const digestPending = ref(false)
-const digestSaved = ref(false)
 
 // See calendarShowingSentinel above — same pattern, this tab's own select.
 const digestShowingSentinel = ref(false)
@@ -1100,20 +1099,44 @@ function toggleDigest() {
   void saveDigest()
 }
 
+function setDigestFrequency(freq: 'daily' | 'weekly' | 'monthly') {
+  if (digestFrequency.value === freq) return
+  digestFrequency.value = freq
+  void saveDigest()
+}
+
+// Mirror the persisted digest into local state. Leaves the target alone when no
+// digest is saved so loadForwarding's eager default survives an account refresh.
+function syncDigestFromAccount(account: Account | null) {
+  digestFrequency.value = account?.digest?.frequency ?? null
+  if (account?.digest) digestForwardingTargetId.value = account.digest.forwardingTargetId
+}
+
+// The account can be refreshed from the server after mount (optimistic cache
+// hydration → /accounts revalidation), so keep the digest controls in step.
+watch(
+  () => JSON.stringify(accountStore.account?.digest ?? null),
+  () => syncDigestFromAccount(accountStore.account),
+)
+
 async function saveDigest() {
   if (!accountStore.accountId) return
-  digestPending.value = true
-  digestSaved.value = false
+  if (digestFrequency.value && !digestForwardingTargetId.value) {
+    showToast('Choose where to send the digest before enabling it', 3000, 'error')
+    syncDigestFromAccount(accountStore.account)
+    return
+  }
   const digest = digestFrequency.value
     ? { frequency: digestFrequency.value, forwardingTargetId: digestForwardingTargetId.value }
     : null
   const result = await api.updateAccount(accountStore.accountId, { digest })
-  digestPending.value = false
-  if (result.isOk()) {
-    accountStore.account = result.value
-    digestSaved.value = true
-    setTimeout(() => { digestSaved.value = false }, 2000)
+  if (result.isErr()) {
+    showToast(`Failed to save digest settings: ${result.error.message}`, 4000, 'error')
+    syncDigestFromAccount(accountStore.account)
+    return
   }
+  accountStore.setAccount(result.value)
+  showToast(digest ? `Digest saved — ${digest.frequency} to ${digest.forwardingTargetId}` : 'Digest disabled', 2000)
 }
 
 function showTestNotification() {
@@ -1166,9 +1189,8 @@ onMounted(async () => {
     selectedRetention.value = accountStore.account.retentionDuration
     if (accountStore.account.timezone) selectedTimezone.value = accountStore.account.timezone
     selectedAmbiguousDateFormat.value = accountStore.account.ambiguousDateFormat ?? 'skip'
-    digestFrequency.value = accountStore.account.digest?.frequency ?? null
-    digestForwardingTargetId.value = accountStore.account.digest?.forwardingTargetId ?? ''
   }
+  syncDigestFromAccount(accountStore.account)
   // Handle forwarding address verification from email link
   const verifyAddress = route.query.verifyAddress as string | undefined
   const token = route.query.token as string | undefined
@@ -1428,7 +1450,7 @@ useGestureHandler(settingsContentRef, {
                         ? 'border-ctp-mauve bg-ctp-mauve/10 text-ctp-mauve'
                         : 'border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-surface2'
                     "
-                    @click="digestFrequency = freq; saveDigest()"
+                    @click="setDigestFrequency(freq)"
                   >
                     {{ freq.charAt(0).toUpperCase() + freq.slice(1) }}
                   </button>

@@ -118,6 +118,13 @@ export const useAccountStore = defineStore('account', () => {
     return ok(newAccount)
   }
 
+  /** Replace the active account after a server update, keeping the list and optimistic cache in sync. */
+  function setAccount(updated: Account) {
+    account.value = updated
+    accounts.value = accounts.value.map((a) => (a.accountId === updated.accountId ? updated : a))
+    writeAccountsCache(accounts.value)
+  }
+
   function switchAccount(id: string) {
     const target = accounts.value.find((a) => a.accountId === id)
     if (!target) return
@@ -138,6 +145,7 @@ export const useAccountStore = defineStore('account', () => {
     startFetch,
     waitForFetch,
     createAccount,
+    setAccount,
     switchAccount,
   }
 })
